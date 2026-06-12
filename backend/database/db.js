@@ -30,11 +30,11 @@ function withRetry(label, fn, attempts = 30, delay = 500) {
     try {
       return fn();
     } catch (err) {
-      if (String(err).toLowerCase().includes('locked') && i < attempts) {
-        console.log(`⏳ [${label}] DB locked — retry ${i}/${attempts} in ${delay}ms...`);
+      // Log the raw error shape so we can see exactly what SQLite3Error looks like
+      console.warn(`⏳ [${label}] attempt ${i} failed — constructor:${err?.constructor?.name} message:${err?.message} string:${String(err)}`);
+      if (i < attempts) {
         syncSleep(delay);
       } else {
-        console.error(`💥 [${label}] failed after ${i} attempt(s):`, String(err));
         throw err;
       }
     }
