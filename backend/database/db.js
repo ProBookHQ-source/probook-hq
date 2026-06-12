@@ -12,56 +12,64 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const db = new Database(DB_PATH);
-
-try { db.exec('PRAGMA journal_mode = WAL'); } catch (_) {}
-try { db.exec('PRAGMA foreign_keys = ON'); } catch (_) {}
-
-// ── Schema initialization ────────────────────────────────────────────────────
-// Only write the schema when the DB is brand new. On restarts/redeploys the
-// tables already exist, so we do a read-only check and skip the write entirely.
-// This prevents "database is locked" crashes during Railway rolling deploys,
-// where the old container briefly keeps a write lock while the new one starts.
-
-const checkStmt = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='admins'");
-const alreadyInitialized = !!checkStmt.get([]);
-checkStmt.finalize();
-
-if (!alreadyInitialized) {
-  console.log('🆕 New database — running schema...');
-
-  // Synchronous sleep helper for retry loop
-  function syncSleep(ms) {
-    try {
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-    } catch (_) {
-      // Fallback: busy-wait (only runs on first-ever startup, acceptable)
-      const end = Date.now() + ms;
-      while (Date.now() < end) {}
-    }
+// ── Retry helper ─────────────────────────────────────────────────────────────
+// node-sqlite3-wasm doesn't honour PRAGMA busy_timeout, so we retry every
+// locked operation in JavaScript. During a Railway rolling deploy the old
+// container holds a write lock for a few seconds — this gives it time to die.
+function syncSleep(ms) {
+  try {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+  } catch (_) {
+    const end = Date.now() + ms;
+    while (Date.now() < end) {}
   }
+}
 
-  const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
-  let done = false;
-  for (let attempt = 1; attempt <= 30 && !done; attempt++) {
+function withRetry(label, fn, attempts = 30, delay = 500) {
+  for (let i = 1; i <= attempts; i++) {
     try {
-      db.exec(schema);
-      done = true;
+      return fn();
     } catch (err) {
-      const msg = String(err);
-      if (msg.includes('locked') && attempt < 30) {
-        console.log(`⏳ DB locked on init — retry ${attempt}/30 in 500ms...`);
-        syncSleep(500);
+      if (String(err).toLowerCase().includes('locked') && i < attempts) {
+        console.log(`⏳ [${label}] DB locked — retry ${i}/${attempts} in ${delay}ms...`);
+        syncSleep(delay);
       } else {
+        console.error(`💥 [${label}] failed after ${i} attempt(s):`, String(err));
         throw err;
       }
     }
   }
+}
 
-  // Seed default niches
+// ── Open database (with retry in case old container holds a lock) ─────────────
+const db = withRetry('open', () => new Database(DB_PATH));
+
+withRetry('WAL',  () => db.exec('PRAGMA journal_mode = WAL'));
+withRetry('FK',   () => db.exec('PRAGMA foreign_keys = ON'));
+
+// ── Schema initialization ─────────────────────────────────────────────────────
+// Only run CREATE TABLE on first startup (brand-new DB).
+// On every subsequent deploy the tables already exist — we do a read-only
+// check and skip the write entirely, which is safe even with concurrent readers.
+const alreadyInitialized = withRetry('check-init', () => {
+  const stmt = db.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='admins'"
+  );
+  const row = stmt.get([]);
+  stmt.finalize();
+  return !!row;
+});
+
+if (!alreadyInitialized) {
+  console.log('🆕 New database — running schema + seeding niches...');
+  const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
+  withRetry('schema', () => db.exec(schema));
+
   const { v4: uuidv4 } = require('uuid');
-  const insertNiche = db.prepare('INSERT INTO niches (id, name, description) VALUES (?, ?, ?)');
-  const defaultNiches = [
+  const insertNiche = db.prepare(
+    'INSERT INTO niches (id, name, description) VALUES (?, ?, ?)'
+  );
+  [
     ['Roofing',             'Roof repair, replacement, and inspection'],
     ['Plumbing',            'Pipe repair, installation, and emergency plumbing'],
     ['HVAC',                'Heating, ventilation, and air conditioning'],
@@ -69,8 +77,7 @@ if (!alreadyInitialized) {
     ['Landscaping',         'Lawn care, landscaping, and tree services'],
     ['Painting',            'Interior and exterior painting'],
     ['General Contracting', 'Home renovation and general contracting'],
-  ];
-  defaultNiches.forEach(([name, desc]) => insertNiche.run([uuidv4(), name, desc]));
+  ].forEach(([name, desc]) => insertNiche.run([uuidv4(), name, desc]));
   insertNiche.finalize();
   console.log('✅ Schema and niches ready');
 } else {
