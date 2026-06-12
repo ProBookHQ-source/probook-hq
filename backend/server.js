@@ -29,6 +29,7 @@ app.use('/api/contractors',  require('./routes/contractors'));
 app.use('/api/leads',        require('./routes/leads'));
 app.use('/api/bookings',     require('./routes/bookings'));
 app.use('/api/availability', require('./routes/availability'));
+app.use('/api/niches',       require('./routes/niches'));
 
 // ── Google Calendar OAuth callback ──────────────────────────────────────────
 app.get('/api/auth/google/callback', async (req, res) => {
