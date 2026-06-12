@@ -1,104 +1,215 @@
-const { Database } = require('node-sqlite3-wasm');
-const path = require('path');
-const fs = require('fs');
-const os = require('os');
+/**
+ * db.js — PostgreSQL client
+ *
+ * Provides a prepare(sql).get/run/all() interface that matches the old SQLite
+ * API so routes need minimal changes. All methods are async.
+ *
+ * Requires DATABASE_URL in env (Railway sets this automatically when you add
+ * the Postgres plugin to your service).
+ */
 
-const DB_PATH = process.env.DB_PATH || path.join(os.homedir(), '.probook', 'booking.db');
-const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
+const { Pool } = require('pg');
 
-// Ensure data directory exists
-const dataDir = path.dirname(DB_PATH);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
-
-// ── Retry helper ─────────────────────────────────────────────────────────────
-// node-sqlite3-wasm doesn't honour PRAGMA busy_timeout, so we retry every
-// locked operation in JavaScript. During a Railway rolling deploy the old
-// container holds a write lock for a few seconds — this gives it time to die.
-function syncSleep(ms) {
-  try {
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-  } catch (_) {
-    const end = Date.now() + ms;
-    while (Date.now() < end) {}
-  }
-}
-
-function withRetry(label, fn, attempts = 30, delay = 500) {
-  for (let i = 1; i <= attempts; i++) {
-    try {
-      return fn();
-    } catch (err) {
-      // Log the raw error shape so we can see exactly what SQLite3Error looks like
-      console.warn(`⏳ [${label}] attempt ${i} failed — constructor:${err?.constructor?.name} message:${err?.message} string:${String(err)}`);
-      if (i < attempts) {
-        syncSleep(delay);
-      } else {
-        throw err;
-      }
-    }
-  }
-}
-
-// ── Open database (with retry in case old container holds a lock) ─────────────
-const db = withRetry('open', () => new Database(DB_PATH));
-
-withRetry('WAL',  () => db.exec('PRAGMA journal_mode = WAL'));
-withRetry('FK',   () => db.exec('PRAGMA foreign_keys = ON'));
-
-// ── Schema initialization ─────────────────────────────────────────────────────
-// Only run CREATE TABLE on first startup (brand-new DB).
-// On every subsequent deploy the tables already exist — we do a read-only
-// check and skip the write entirely, which is safe even with concurrent readers.
-const alreadyInitialized = withRetry('check-init', () => {
-  const stmt = db.prepare(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name='admins'"
-  );
-  const row = stmt.get([]);
-  stmt.finalize();
-  return !!row;
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  max: 10,
 });
 
-if (!alreadyInitialized) {
-  console.log('🆕 New database — running schema + seeding niches...');
-  const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
-  withRetry('schema', () => db.exec(schema));
+pool.on('error', (err) => {
+  console.error('Unexpected PG pool error:', err.message);
+});
 
-  const { v4: uuidv4 } = require('uuid');
-  const insertNiche = db.prepare(
-    'INSERT INTO niches (id, name, description) VALUES (?, ?, ?)'
-  );
-  [
-    ['Roofing',             'Roof repair, replacement, and inspection'],
-    ['Plumbing',            'Pipe repair, installation, and emergency plumbing'],
-    ['HVAC',                'Heating, ventilation, and air conditioning'],
-    ['Electrical',          'Wiring, panel upgrades, and electrical repairs'],
-    ['Landscaping',         'Lawn care, landscaping, and tree services'],
-    ['Painting',            'Interior and exterior painting'],
-    ['General Contracting', 'Home renovation and general contracting'],
-  ].forEach(([name, desc]) => insertNiche.run([uuidv4(), name, desc]));
-  insertNiche.finalize();
-  console.log('✅ Schema and niches ready');
-} else {
-  console.log('✅ Database already initialized — skipping schema write');
+// ── Placeholder conversion: SQLite ? → PostgreSQL $1, $2, … ─────────────────
+function toPostgres(sql) {
+  let i = 0;
+  return sql
+    .replace(/\?/g, () => `$${++i}`)
+    .replace(/datetime\('now'\)/gi, 'NOW()')
+    .replace(/CURRENT_TIMESTAMP/gi, 'NOW()');
 }
 
-console.log(`✅ Database ready at ${DB_PATH}`);
+function normalizeParams(args) {
+  return args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
+}
 
-// ── Compatibility shim ────────────────────────────────────────────────────────
-// node-sqlite3-wasm expects params as an array; routes call .run(a, b, c).
-const _prepare = db.prepare.bind(db);
-db.prepare = function (sql) {
-  const stmt = _prepare(sql);
-  const normalize = (args) =>
-    args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
-  return {
-    run(...args)  { return stmt.run(normalize(args)); },
-    get(...args)  { return stmt.get(normalize(args)); },
-    all(...args)  { return stmt.all(normalize(args)); },
-    finalize()    { return stmt.finalize(); },
-  };
+// ── Core API ─────────────────────────────────────────────────────────────────
+const db = {
+  prepare(sql) {
+    const pgSql = toPostgres(sql);
+    return {
+      async get(...args) {
+        const { rows } = await pool.query(pgSql, normalizeParams(args));
+        return rows[0] || null;
+      },
+      async all(...args) {
+        const { rows } = await pool.query(pgSql, normalizeParams(args));
+        return rows;
+      },
+      async run(...args) {
+        await pool.query(pgSql, normalizeParams(args));
+      },
+      // finalize is a no-op (needed only for SQLite compatibility)
+      finalize() {},
+    };
+  },
+
+  async query(sql, params = []) {
+    return pool.query(toPostgres(sql), params);
+  },
+
+  // Transaction helper
+  async transaction(fn) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
 };
+
+// ── Schema initialization ─────────────────────────────────────────────────────
+async function initialize() {
+  console.log('🗄️  Initializing PostgreSQL schema…');
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS admins (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      name TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS niches (
+      id TEXT PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      description TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS contractors (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      name TEXT NOT NULL,
+      phone TEXT,
+      company_name TEXT,
+      niche_id TEXT NOT NULL REFERENCES niches(id),
+      service_zip_codes TEXT NOT NULL,
+      google_refresh_token TEXT,
+      google_calendar_id TEXT,
+      is_active INTEGER DEFAULT 1,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS leads (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      phone TEXT,
+      niche_id TEXT NOT NULL REFERENCES niches(id),
+      zip_code TEXT NOT NULL,
+      description TEXT,
+      status TEXT DEFAULT 'new',
+      assigned_contractor_id TEXT REFERENCES contractors(id),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS availability_slots (
+      id TEXT PRIMARY KEY,
+      contractor_id TEXT NOT NULL REFERENCES contractors(id),
+      day_of_week INTEGER NOT NULL,
+      start_time TEXT NOT NULL,
+      end_time TEXT NOT NULL,
+      is_active INTEGER DEFAULT 1
+    );
+
+    CREATE TABLE IF NOT EXISTS availability_overrides (
+      id TEXT PRIMARY KEY,
+      contractor_id TEXT NOT NULL REFERENCES contractors(id),
+      date TEXT NOT NULL,
+      is_available INTEGER DEFAULT 0,
+      start_time TEXT,
+      end_time TEXT,
+      reason TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS appointments (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES leads(id),
+      contractor_id TEXT NOT NULL REFERENCES contractors(id),
+      scheduled_date TEXT NOT NULL,
+      scheduled_time TEXT NOT NULL,
+      duration_minutes INTEGER DEFAULT 60,
+      status TEXT DEFAULT 'pending',
+      google_event_id TEXT,
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS booking_tokens (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES leads(id),
+      token TEXT UNIQUE NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS round_robin_state (
+      id TEXT PRIMARY KEY,
+      niche_id TEXT NOT NULL,
+      zip_code TEXT NOT NULL,
+      last_contractor_id TEXT,
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(niche_id, zip_code)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_contractors_niche ON contractors(niche_id);
+    CREATE INDEX IF NOT EXISTS idx_leads_niche_zip ON leads(niche_id, zip_code);
+    CREATE INDEX IF NOT EXISTS idx_appointments_contractor ON appointments(contractor_id);
+    CREATE INDEX IF NOT EXISTS idx_appointments_date ON appointments(scheduled_date);
+    CREATE INDEX IF NOT EXISTS idx_availability_contractor ON availability_slots(contractor_id);
+  `);
+
+  // Seed niches if not already present
+  const { rows } = await pool.query('SELECT COUNT(*) FROM niches');
+  if (parseInt(rows[0].count) === 0) {
+    console.log('🌱 Seeding niches…');
+    const { v4: uuidv4 } = require('uuid');
+    const niches = [
+      ['Roofing',             'Roof repair, replacement, and inspection'],
+      ['Plumbing',            'Pipe repair, installation, and emergency plumbing'],
+      ['HVAC',                'Heating, ventilation, and air conditioning'],
+      ['Electrical',          'Wiring, panel upgrades, and electrical repairs'],
+      ['Landscaping',         'Lawn care, landscaping, and tree services'],
+      ['Painting',            'Interior and exterior painting'],
+      ['General Contracting', 'Home renovation and general contracting'],
+    ];
+    for (const [name, desc] of niches) {
+      await pool.query(
+        'INSERT INTO niches (id, name, description) VALUES ($1, $2, $3) ON CONFLICT (name) DO NOTHING',
+        [uuidv4(), name, desc]
+      );
+    }
+  }
+
+  console.log('✅ Database ready');
+}
+
+// Run schema on module load and export a promise so server can await it
+db._ready = initialize().catch(err => {
+  console.error('💥 DB initialization failed:', err.message);
+  process.exit(1);
+});
 
 module.exports = db;
