@@ -17,15 +17,33 @@ if (!fs.existsSync(dataDir)) {
 
 const db = new Database(DB_PATH);
 
-// WAL mode + busy_timeout: if another process holds the lock during a rolling
-// deploy, SQLite waits up to 15s instead of crashing immediately.
 try { db.exec('PRAGMA journal_mode = WAL'); } catch (_) {}
-try { db.exec('PRAGMA busy_timeout = 15000'); } catch (_) {}
 try { db.exec('PRAGMA foreign_keys = ON'); } catch (_) {}
 
-// Initialize schema
+// Initialize schema with retry logic.
+// node-sqlite3-wasm doesn't honour PRAGMA busy_timeout, so we retry in JS.
+// During a rolling deploy the old container briefly holds the write lock;
+// retrying for up to 15 s gives it time to shut down cleanly.
 const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
-db.exec(schema);
+function syncSleep(ms) {
+  try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); }
+  catch (_) { const end = Date.now() + ms; while (Date.now() < end) {} }
+}
+let schemaLoaded = false;
+for (let attempt = 1; attempt <= 30; attempt++) {
+  try {
+    db.exec(schema);
+    schemaLoaded = true;
+    break;
+  } catch (err) {
+    if (err.message && err.message.includes('locked') && attempt < 30) {
+      console.log(`⏳ DB locked — retrying in 500ms (attempt ${attempt}/30)...`);
+      syncSleep(500);
+    } else {
+      throw err;
+    }
+  }
+}
 
 // Seed default niches if empty
 const _rawStmt = db.prepare('SELECT COUNT(*) as count FROM niches');
