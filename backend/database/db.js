@@ -17,8 +17,10 @@ if (!fs.existsSync(dataDir)) {
 
 const db = new Database(DB_PATH);
 
-// WAL mode improves concurrency; ignore if filesystem doesn't support it
+// WAL mode + busy_timeout: if another process holds the lock during a rolling
+// deploy, SQLite waits up to 15s instead of crashing immediately.
 try { db.exec('PRAGMA journal_mode = WAL'); } catch (_) {}
+try { db.exec('PRAGMA busy_timeout = 15000'); } catch (_) {}
 try { db.exec('PRAGMA foreign_keys = ON'); } catch (_) {}
 
 // Initialize schema

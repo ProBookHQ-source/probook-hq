@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../database/db');
 const { requireContractor, requireAdmin } = require('../middleware/auth');
 const googleCalendar = require('../services/googleCalendar');
+const notifications = require('../services/notifications');
 
 const router = express.Router();
 
@@ -131,6 +132,11 @@ router.post('/book', async (req, res) => {
     time,
     message: 'Appointment confirmed! You will receive a confirmation email shortly.',
   });
+
+  // Send confirmation emails after responding (non-blocking)
+  const appointment = { scheduled_date: date, scheduled_time: time };
+  notifications.sendAppointmentConfirmation(lead, contractor, appointment)
+    .catch(err => console.error('Confirmation email error:', err.message));
 });
 
 // ── Cancel an appointment ────────────────────────────────────────────────────
