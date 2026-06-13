@@ -7,7 +7,7 @@ import api from '../api/client';
 import {
   LayoutDashboard, Users, FileText, Calendar, LogOut, Zap,
   Plus, RefreshCw, TrendingUp, Clock, CheckCircle, XCircle,
-  ChevronDown, Search, Filter
+  ChevronDown, Search, Filter, Trash2
 } from 'lucide-react';
 
 const STATUS_BADGE = {
@@ -52,6 +52,15 @@ export default function AdminDashboard() {
       qc.invalidateQueries(['admin-leads']);
     },
     onError: (err) => toast.error(err.response?.data?.error || 'Match failed'),
+  });
+
+  const deleteLead = useMutation({
+    mutationFn: (id) => api.delete(`/leads/${id}`),
+    onSuccess: () => {
+      toast.success('Lead deleted');
+      qc.invalidateQueries(['admin-leads']);
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Delete failed'),
   });
 
   const addContractor = useMutation({
@@ -233,16 +242,27 @@ export default function AdminDashboard() {
                       <td className="px-4 py-3 text-sm text-gray-600">{lead.contractor_name || '—'}</td>
                       <td className="px-4 py-3 text-xs text-gray-400">{format(parseISO(lead.created_at), 'MMM d')}</td>
                       <td className="px-4 py-3">
-                        {(lead.status === 'new' || lead.status === 'matched') && (
+                        <div className="flex items-center gap-3">
+                          {(lead.status === 'new' || lead.status === 'matched') && (
+                            <button
+                              onClick={() => matchLead.mutate(lead.id)}
+                              disabled={matchLead.isPending}
+                              className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              {lead.status === 'new' ? 'Match' : 'Re-match'}
+                            </button>
+                          )}
                           <button
-                            onClick={() => matchLead.mutate(lead.id)}
-                            disabled={matchLead.isPending}
-                            className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
+                            onClick={() => {
+                              if (confirm(`Delete lead "${lead.name}"?`)) deleteLead.mutate(lead.id);
+                            }}
+                            className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-medium"
                           >
-                            <RefreshCw className="w-3 h-3" />
-                            {lead.status === 'new' ? 'Match' : 'Re-match'}
+                            <Trash2 className="w-3 h-3" />
+                            Delete
                           </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))}

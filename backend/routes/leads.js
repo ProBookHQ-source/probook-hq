@@ -107,6 +107,19 @@ router.post('/:id/match', requireAdmin, async (req, res) => {
   res.json({ matched, message: matched ? 'Contractor matched and notified' : 'No available contractors found' });
 });
 
+// ── Delete lead (admin) ───────────────────────────────────────────────────────
+router.delete('/:id', requireAdmin, async (req, res) => {
+  const lead = await db.prepare('SELECT * FROM leads WHERE id = $1').get(req.params.id);
+  if (!lead) return res.status(404).json({ error: 'Lead not found' });
+
+  // Delete related records first (FK constraints)
+  await db.prepare('DELETE FROM booking_tokens WHERE lead_id = $1').run(req.params.id);
+  await db.prepare('DELETE FROM appointments WHERE lead_id = $1').run(req.params.id);
+  await db.prepare('DELETE FROM leads WHERE id = $1').run(req.params.id);
+
+  res.json({ message: 'Lead deleted' });
+});
+
 // ── Get niches (public — for lead intake form) ────────────────────────────────
 router.get('/meta/niches', async (req, res) => {
   const niches = await db.prepare('SELECT id, name, description FROM niches ORDER BY name').all();
