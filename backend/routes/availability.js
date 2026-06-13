@@ -156,4 +156,69 @@ router.get('/:contractorId/open-slots', async (req, res) => {
   res.json(result);
 });
 
+// ── Block external time (outside appointment) ─────────────────────────────────
+// Inserts one appointment row per hour with status='external' so the unique
+// index prevents ProBook homeowners from booking those slots.
+router.post('/:contractorId/manual-block', requireContractor, async (req, res) => {
+  const { contractorId } = req.params;
+  if (req.user.role !== 'admin' && req.user.id !== contractorId) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  const { date, start_time, duration_hours } = req.body;
+  if (!date || !start_time || !duration_hours) {
+    return res.status(400).json({ error: 'date, start_time, and duration_hours are required' });
+  }
+
+  const [startH, startM] = start_time.split(':').map(Number);
+  const slots = [];
+  for (let i = 0; i < Number(duration_hours); i++) {
+    const h = startH + i;
+    if (h > 23) break;
+    slots.push(`${String(h).padStart(2, '0')}:${String(startM).padStart(2, '0')}`);
+  }
+
+  const inserted = [];
+  const conflicts = [];
+
+  for (const slotTime of slots) {
+    try {
+      const id = uuidv4();
+      await db.prepare(`
+        INSERT INTO appointments (id, contractor_id, lead_id, scheduled_date, scheduled_time, duration_minutes, status)
+        VALUES ($1, $2, NULL, $3, $4, 60, 'external')
+      `).run(id, contractorId, date, slotTime);
+      inserted.push(slotTime);
+    } catch (e) {
+      if (e.code === '23505' || (e.message && e.message.includes('UNIQUE'))) {
+        conflicts.push(slotTime);
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  if (conflicts.length > 0 && inserted.length === 0) {
+    return res.status(409).json({ error: 'All requested slots are already taken', conflicts });
+  }
+
+  res.status(201).json({ message: 'Time blocked', inserted, conflicts });
+});
+
+// ── Remove a single external block hour ───────────────────────────────────────
+router.delete('/:contractorId/manual-block', requireContractor, async (req, res) => {
+  const { contractorId } = req.params;
+  if (req.user.role !== 'admin' && req.user.id !== contractorId) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  const { date, time } = req.query;
+  if (!date || !time) return res.status(400).json({ error: 'date and time query params required' });
+
+  await db.prepare(`
+    DELETE FROM appointments
+    WHERE contractor_id = $1 AND scheduled_date = $2 AND scheduled_time = $3 AND status = 'external'
+  `).run(contractorId, date, time);
+
+  res.json({ message: 'Block removed' });
+});
+
 module.exports = router;

@@ -10,7 +10,7 @@ import {
   Calendar, Clock, CheckCircle, XCircle, LogOut, Zap,
   ChevronLeft, ChevronRight, Phone, Mail,
   Link as LinkIcon, Settings, Lock, User, Ban, CalendarPlus, Trash2,
-  Home,
+  Home, Plus, X,
 } from 'lucide-react';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -154,6 +154,9 @@ export default function ContractorPortal() {
   const [tab, setTab] = useState('home');
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date()));
   const [confirmCancelId, setConfirmCancelId] = useState(null);
+  const [showBlockForm, setShowBlockForm] = useState(false);
+  const [blockForm, setBlockForm] = useState({ date: '', start_time: '09:00', duration_hours: 1 });
+  const [removingBlock, setRemovingBlock] = useState(null); // "date|time"
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
   const [profileForm, setProfileForm] = useState({
     name: user.name || '',
@@ -237,6 +240,32 @@ export default function ContractorPortal() {
     mutationFn: (id) => api.put(`/bookings/${id}/complete`),
     onSuccess: () => { toast.success('Marked complete!'); qc.invalidateQueries(['appointments']); },
     onError: () => toast.error('Failed to update'),
+  });
+
+  const addBlock = useMutation({
+    mutationFn: (data) => api.post(`/availability/${user.id}/manual-block`, data),
+    onSuccess: (res) => {
+      const { inserted, conflicts } = res.data;
+      if (conflicts?.length) {
+        toast.error(`${conflicts.length} slot(s) already taken: ${conflicts.join(', ')}`);
+      } else {
+        toast.success('Time blocked!');
+      }
+      qc.invalidateQueries(['appointments', user.id, from, to]);
+      setShowBlockForm(false);
+      setBlockForm({ date: '', start_time: '09:00', duration_hours: 1 });
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to block time'),
+  });
+
+  const removeBlock = useMutation({
+    mutationFn: ({ date, time }) => api.delete(`/availability/${user.id}/manual-block`, { params: { date, time } }),
+    onSuccess: () => {
+      toast.success('Block removed');
+      qc.invalidateQueries(['appointments', user.id, from, to]);
+      setRemovingBlock(null);
+    },
+    onError: () => toast.error('Failed to remove block'),
   });
 
   const updateProfile = useMutation({
@@ -450,10 +479,75 @@ export default function ContractorPortal() {
                   <ChevronRight className="w-4 h-4 text-gray-500" />
                 </button>
               </div>
-              <h2 className="text-base font-semibold text-gray-900">
+              <h2 className="text-base font-semibold text-gray-900 flex-1">
                 {format(weekStart, 'MMMM yyyy')}
               </h2>
+              <button
+                onClick={() => { setShowBlockForm(b => !b); }}
+                className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg border transition-all ${
+                  showBlockForm
+                    ? 'bg-gray-100 text-gray-700 border-gray-200'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <Plus className="w-4 h-4" /> Block Time
+              </button>
             </div>
+
+            {/* Block Time form */}
+            {showBlockForm && (
+              <div className="border-b border-gray-100 bg-gray-50 px-6 py-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Block an outside appointment</p>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <label className="label">Date</label>
+                    <input
+                      type="date"
+                      min={format(new Date(), 'yyyy-MM-dd')}
+                      value={blockForm.date}
+                      onChange={e => setBlockForm(p => ({ ...p, date: e.target.value }))}
+                      className="input"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Start Time</label>
+                    <select
+                      value={blockForm.start_time}
+                      onChange={e => setBlockForm(p => ({ ...p, start_time: e.target.value }))}
+                      className="input"
+                    >
+                      {TIME_OPTIONS.map(h => <option key={h}>{h}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">Duration</label>
+                    <select
+                      value={blockForm.duration_hours}
+                      onChange={e => setBlockForm(p => ({ ...p, duration_hours: Number(e.target.value) }))}
+                      className="input"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map(h => (
+                        <option key={h} value={h}>{h} hr{h > 1 ? 's' : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!blockForm.date) return toast.error('Please select a date');
+                      addBlock.mutate(blockForm);
+                    }}
+                    disabled={addBlock.isPending}
+                    className="btn-primary"
+                  >
+                    {addBlock.isPending ? 'Blocking…' : 'Block Hours'}
+                  </button>
+                  <button onClick={() => setShowBlockForm(false)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">These hours will be hidden from homeowners so no one can book them.</p>
+              </div>
+            )}
 
             {/* Day headers */}
             <div className="border-b border-gray-100 grid bg-white" style={{ gridTemplateColumns: '64px repeat(7, 1fr)' }}>
@@ -515,24 +609,58 @@ export default function ContractorPortal() {
                         isToday ? 'bg-brand-50/40' : isPast ? 'bg-gray-50/60' : 'bg-white'
                       }`}
                     >
-                      {HOURS.map(hour => (
-                        <div key={hour} className="h-[60px] border-b border-gray-50 relative">
-                          {/* appointment block rendered inside its matching hour cell */}
-                          {(() => {
-                            const appt = dayAppts.find(a => a.scheduled_time === hour);
-                            if (!appt) return null;
-                            const colors = APPT_COLORS[appt.status] || APPT_COLORS.confirmed;
-                            return (
+                      {HOURS.map(hour => {
+                        const appt = dayAppts.find(a => a.scheduled_time === hour);
+                        const blockKey = `${dateStr}|${hour}`;
+                        const isRemoving = removingBlock === blockKey;
+                        return (
+                          <div key={hour} className="h-[60px] border-b border-gray-50 relative">
+                            {appt && appt.status === 'external' && (
+                              // Striped "outside block" — not a ProBook appointment
                               <div
-                                className={`absolute inset-x-1 inset-y-0.5 rounded-xl ${colors.block} px-2 py-1 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity shadow-sm`}
+                                className="absolute inset-x-1 inset-y-0.5 rounded-xl overflow-hidden cursor-pointer group"
+                                style={{
+                                  backgroundImage: 'repeating-linear-gradient(45deg, #f3f4f6, #f3f4f6 5px, #e5e7eb 5px, #e5e7eb 10px)',
+                                  border: '1.5px dashed #d1d5db',
+                                }}
+                                onClick={() => setRemovingBlock(isRemoving ? null : blockKey)}
+                              >
+                                {isRemoving ? (
+                                  <div className="absolute inset-0 bg-white/90 flex items-center justify-center gap-1.5">
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); removeBlock.mutate({ date: dateStr, time: hour }); }}
+                                      disabled={removeBlock.isPending}
+                                      className="text-[10px] font-bold bg-red-500 text-white px-2 py-1 rounded-lg hover:bg-red-600 disabled:opacity-50"
+                                    >
+                                      Remove
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setRemovingBlock(null); }}
+                                      className="text-[10px] text-gray-500 hover:text-gray-700 font-medium px-1"
+                                    >
+                                      Keep
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="absolute inset-0 flex items-center px-2 gap-1">
+                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Outside Appt</span>
+                                    <X className="w-3 h-3 text-gray-300 opacity-0 group-hover:opacity-100 ml-auto transition-opacity" />
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {appt && appt.status !== 'external' && (
+                              // Normal ProBook appointment block
+                              <div
+                                className={`absolute inset-x-1 inset-y-0.5 rounded-xl ${(APPT_COLORS[appt.status] || APPT_COLORS.confirmed).block} px-2 py-1 overflow-hidden shadow-sm`}
                               >
                                 <p className="text-xs font-bold truncate leading-tight">{appt.lead_name}</p>
                                 <p className="text-[10px] opacity-80 truncate">{fmtTime(hour)} · {appt.niche_name}</p>
                               </div>
-                            );
-                          })()}
-                        </div>
-                      ))}
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })}
