@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   format, addDays, startOfWeek, parseISO,
-  isBefore, startOfDay,
+  isBefore, startOfDay, startOfMonth, endOfMonth, addMonths,
+  getDaysInMonth, getDay,
 } from 'date-fns';
 import toast from 'react-hot-toast';
 import api from '../api/client';
@@ -156,6 +157,7 @@ export default function ContractorPortal() {
   const [confirmCancelId, setConfirmCancelId] = useState(null);
   const [showBlockForm, setShowBlockForm] = useState(false);
   const [blockForm, setBlockForm] = useState({ date: '', start_time: '09:00', duration_hours: 1 });
+  const [blockMonth, setBlockMonth] = useState(startOfMonth(new Date()));
   const [removingBlock, setRemovingBlock] = useState(null); // "date|time"
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
   const [profileForm, setProfileForm] = useState({
@@ -496,56 +498,134 @@ export default function ContractorPortal() {
 
             {/* Block Time form */}
             {showBlockForm && (
-              <div className="border-b border-gray-100 bg-gray-50 px-6 py-4">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Block an outside appointment</p>
-                <div className="flex flex-wrap items-end gap-3">
-                  <div>
-                    <label className="label">Date</label>
-                    <input
-                      type="date"
-                      min={format(new Date(), 'yyyy-MM-dd')}
-                      value={blockForm.date}
-                      onChange={e => setBlockForm(p => ({ ...p, date: e.target.value }))}
-                      className="input"
-                    />
-                  </div>
-                  <div>
-                    <label className="label">Start Time</label>
-                    <select
-                      value={blockForm.start_time}
-                      onChange={e => setBlockForm(p => ({ ...p, start_time: e.target.value }))}
-                      className="input"
-                    >
-                      {TIME_OPTIONS.map(h => <option key={h}>{h}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label">Duration</label>
-                    <select
-                      value={blockForm.duration_hours}
-                      onChange={e => setBlockForm(p => ({ ...p, duration_hours: Number(e.target.value) }))}
-                      className="input"
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map(h => (
-                        <option key={h} value={h}>{h} hr{h > 1 ? 's' : ''}</option>
+              <div className="border-b border-gray-100 bg-gray-50 px-6 py-5">
+                <div className="flex items-start gap-6">
+
+                  {/* Mini month calendar */}
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 shrink-0 w-64">
+                    {/* Month nav */}
+                    <div className="flex items-center justify-between mb-3">
+                      <button
+                        onClick={() => setBlockMonth(m => addMonths(m, -1))}
+                        disabled={isBefore(addMonths(blockMonth, 1), startOfMonth(new Date()))}
+                        className="p-1 rounded-lg hover:bg-gray-100 text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {format(blockMonth, 'MMMM yyyy')}
+                      </p>
+                      <button
+                        onClick={() => setBlockMonth(m => addMonths(m, 1))}
+                        className="p-1 rounded-lg hover:bg-gray-100 text-gray-500 transition-all"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Day-of-week headers */}
+                    <div className="grid grid-cols-7 mb-1">
+                      {DAYS_SHORT.map(d => (
+                        <div key={d} className="text-center text-[10px] font-semibold text-gray-400 uppercase py-1">
+                          {d[0]}
+                        </div>
                       ))}
-                    </select>
+                    </div>
+
+                    {/* Day grid */}
+                    <div className="grid grid-cols-7 gap-y-0.5">
+                      {/* Leading blank cells */}
+                      {Array.from({ length: getDay(startOfMonth(blockMonth)) }).map((_, i) => (
+                        <div key={`blank-${i}`} />
+                      ))}
+                      {/* Day numbers */}
+                      {Array.from({ length: getDaysInMonth(blockMonth) }, (_, i) => {
+                        const dayNum = i + 1;
+                        const ds = format(new Date(blockMonth.getFullYear(), blockMonth.getMonth(), dayNum), 'yyyy-MM-dd');
+                        const isPast   = isBefore(startOfDay(new Date(ds)), startOfDay(new Date()));
+                        const isToday  = ds === todayStr;
+                        const selected = blockForm.date === ds;
+                        return (
+                          <button
+                            key={ds}
+                            disabled={isPast}
+                            onClick={() => setBlockForm(p => ({ ...p, date: ds }))}
+                            className={`w-8 h-8 mx-auto flex items-center justify-center rounded-full text-xs font-medium transition-all ${
+                              selected
+                                ? 'bg-brand-500 text-white shadow-sm'
+                                : isPast
+                                ? 'text-gray-200 cursor-not-allowed'
+                                : isToday
+                                ? 'text-brand-600 font-bold ring-1 ring-brand-300 hover:bg-brand-50'
+                                : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            {dayNum}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <button
-                    onClick={() => {
-                      if (!blockForm.date) return toast.error('Please select a date');
-                      addBlock.mutate(blockForm);
-                    }}
-                    disabled={addBlock.isPending}
-                    className="btn-primary"
-                  >
-                    {addBlock.isPending ? 'Blocking…' : 'Block Hours'}
-                  </button>
-                  <button onClick={() => setShowBlockForm(false)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-                    <X className="w-4 h-4" />
-                  </button>
+
+                  {/* Time + duration + confirm */}
+                  <div className="flex-1 pt-1">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Block an outside appointment</p>
+                      <button onClick={() => setShowBlockForm(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {blockForm.date ? (
+                      <p className="text-base font-semibold text-gray-900 mb-4">
+                        {format(parseISO(blockForm.date), 'EEEE, MMMM d')}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-400 mb-4">← Pick a day from the calendar</p>
+                    )}
+
+                    <div className="flex flex-wrap gap-3 items-end">
+                      <div>
+                        <label className="label">Start Time</label>
+                        <select
+                          value={blockForm.start_time}
+                          onChange={e => setBlockForm(p => ({ ...p, start_time: e.target.value }))}
+                          className="input"
+                        >
+                          {TIME_OPTIONS.map(h => <option key={h} value={h}>{fmtTime(h)}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label">Duration</label>
+                        <select
+                          value={blockForm.duration_hours}
+                          onChange={e => setBlockForm(p => ({ ...p, duration_hours: Number(e.target.value) }))}
+                          className="input"
+                        >
+                          {[1, 2, 3, 4, 5, 6, 7, 8].map(h => (
+                            <option key={h} value={h}>{h} hr{h > 1 ? 's' : ''}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (!blockForm.date) return toast.error('Pick a day first');
+                          addBlock.mutate(blockForm);
+                        }}
+                        disabled={addBlock.isPending || !blockForm.date}
+                        className="btn-primary disabled:opacity-40"
+                      >
+                        {addBlock.isPending ? 'Blocking…' : 'Block Hours'}
+                      </button>
+                    </div>
+
+                    {blockForm.date && (
+                      <p className="text-xs text-gray-400 mt-3">
+                        {blockForm.duration_hours} hr{blockForm.duration_hours > 1 ? 's' : ''} starting at {fmtTime(blockForm.start_time)} will be hidden from homeowners.
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-2">These hours will be hidden from homeowners so no one can book them.</p>
               </div>
             )}
 
