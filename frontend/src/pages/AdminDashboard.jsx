@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import api from '../api/client';
 import {
   LayoutDashboard, Users, FileText, Calendar, LogOut, Zap,
-  Plus, RefreshCw, CheckCircle, XCircle, Search, Trash2, Send, Phone, AlignLeft
+  Plus, RefreshCw, CheckCircle, XCircle, Search, Trash2, Send, Phone, AlignLeft, KeyRound
 } from 'lucide-react';
 
 const STATUS_BADGE = {
@@ -26,6 +26,8 @@ export default function AdminDashboard() {
   const [confirmDeleteContractor, setConfirmDeleteContractor] = useState(null);
   const [expandedLead, setExpandedLead] = useState(null);
   const [confirmCancelAppt, setConfirmCancelAppt] = useState(null);
+  const [setPasswordFor, setSetPasswordFor] = useState(null);
+  const [newPwValue, setNewPwValue] = useState('');
   const qc = useQueryClient();
 
   const { data: leads = [] } = useQuery({
@@ -82,6 +84,12 @@ export default function AdminDashboard() {
       qc.invalidateQueries(['admin-leads']);
     },
     onError: (err) => toast.error(err.response?.data?.error || 'Delete failed'),
+  });
+
+  const setContractorPassword = useMutation({
+    mutationFn: ({ id, password }) => api.put(`/contractors/${id}/password`, { new_password: password }),
+    onSuccess: () => { toast.success('Password updated'); setSetPasswordFor(null); setNewPwValue(''); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to set password'),
   });
 
   const deleteContractor = useMutation({
@@ -410,7 +418,39 @@ export default function AdminDashboard() {
                   {c.google_refresh_token && (
                     <p className="text-xs text-green-600 mt-2 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Google Calendar linked</p>
                   )}
-                  <div className="mt-3 pt-3 border-t border-gray-100">
+                  <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+                    {/* Set Password */}
+                    {setPasswordFor === c.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="password"
+                          value={newPwValue}
+                          onChange={e => setNewPwValue(e.target.value)}
+                          placeholder="New password"
+                          className="input text-xs py-1 px-2 h-7 flex-1"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => newPwValue && setContractorPassword.mutate({ id: c.id, password: newPwValue })}
+                          disabled={!newPwValue || setContractorPassword.isPending}
+                          className="text-xs bg-brand-500 text-white px-2 py-0.5 rounded font-medium hover:bg-brand-600 disabled:opacity-40"
+                        >
+                          Save
+                        </button>
+                        <button onClick={() => { setSetPasswordFor(null); setNewPwValue(''); }} className="text-xs text-gray-500 hover:text-gray-700 font-medium">
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setSetPasswordFor(c.id); setConfirmDeleteContractor(null); }}
+                        className="flex items-center gap-1 text-xs text-brand-500 hover:text-brand-700 font-medium"
+                      >
+                        <KeyRound className="w-3 h-3" />
+                        Set Password
+                      </button>
+                    )}
+                    {/* Delete */}
                     {confirmDeleteContractor === c.id ? (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-red-600 font-medium">Are you sure?</span>
@@ -429,7 +469,7 @@ export default function AdminDashboard() {
                       </div>
                     ) : (
                       <button
-                        onClick={() => setConfirmDeleteContractor(c.id)}
+                        onClick={() => { setConfirmDeleteContractor(c.id); setSetPasswordFor(null); }}
                         className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium"
                       >
                         <Trash2 className="w-3 h-3" />

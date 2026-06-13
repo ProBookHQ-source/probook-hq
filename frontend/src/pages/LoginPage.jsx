@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import api from '../api/client';
-import { LogIn, Zap } from 'lucide-react';
+import { LogIn, Zap, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const [role, setRole] = useState('contractor');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const { register, handleSubmit, formState: { errors } } = useForm();
 
@@ -69,12 +70,21 @@ export default function LoginPage() {
 
             <div>
               <label className="label">Password</label>
-              <input
-                {...register('password', { required: 'Password required' })}
-                type="password"
-                className="input"
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <input
+                  {...register('password', { required: 'Password required' })}
+                  type={showPassword ? 'text' : 'password'}
+                  className="input pr-10"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(p => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
               {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
             </div>
 
