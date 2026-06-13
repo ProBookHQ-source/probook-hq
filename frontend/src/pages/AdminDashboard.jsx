@@ -23,6 +23,8 @@ export default function AdminDashboard() {
   const [tab, setTab] = useState('overview');
   const [showAddContractor, setShowAddContractor] = useState(false);
   const [leadFilter, setLeadFilter] = useState('');
+  const [confirmDeleteLead, setConfirmDeleteLead] = useState(null);
+  const [confirmDeleteContractor, setConfirmDeleteContractor] = useState(null);
   const qc = useQueryClient();
 
   const { data: leads = [] } = useQuery({
@@ -263,15 +265,30 @@ export default function AdminDashboard() {
                               {lead.status === 'new' ? 'Match' : 'Re-match'}
                             </button>
                           )}
-                          <button
-                            onClick={() => {
-                              if (confirm(`Delete lead "${lead.name}"?`)) deleteLead.mutate(lead.id);
-                            }}
-                            className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-medium"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                            Delete
-                          </button>
+                          {confirmDeleteLead === lead.id ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => { deleteLead.mutate(lead.id); setConfirmDeleteLead(null); }}
+                                className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium hover:bg-red-600"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => setConfirmDeleteLead(null)}
+                                className="text-xs text-gray-500 hover:text-gray-700 font-medium"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmDeleteLead(lead.id)}
+                              className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              Delete
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -365,15 +382,31 @@ export default function AdminDashboard() {
                     <p className="text-xs text-green-600 mt-2 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Google Calendar linked</p>
                   )}
                   <div className="mt-3 pt-3 border-t border-gray-100">
-                    <button
-                      onClick={() => {
-                        if (confirm(`Delete contractor "${c.name}"? This cannot be undone.`)) deleteContractor.mutate(c.id);
-                      }}
-                      className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-medium"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      Delete Contractor
-                    </button>
+                    {confirmDeleteContractor === c.id ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-red-600 font-medium">Are you sure?</span>
+                        <button
+                          onClick={() => { deleteContractor.mutate(c.id); setConfirmDeleteContractor(null); }}
+                          className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium hover:bg-red-600"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteContractor(null)}
+                          className="text-xs text-gray-500 hover:text-gray-700 font-medium"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeleteContractor(c.id)}
+                        className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Delete Contractor
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
