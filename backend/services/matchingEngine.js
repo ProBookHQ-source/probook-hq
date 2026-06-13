@@ -2,7 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../database/db');
 const notifications = require('./notifications');
 
-const BOOKING_LINK_EXPIRY_HOURS = 48;
+const BOOKING_LINK_EXPIRY_HOURS = 24;
 
 async function matchOnly(leadId) {
   const lead = await db.prepare(`
