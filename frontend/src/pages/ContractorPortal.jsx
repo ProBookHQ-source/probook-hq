@@ -1,39 +1,171 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, addDays, startOfWeek, parseISO, isBefore, startOfDay } from 'date-fns';
+import {
+  format, addDays, startOfWeek, parseISO,
+  isBefore, startOfDay,
+} from 'date-fns';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import {
   Calendar, Clock, CheckCircle, XCircle, LogOut, Zap,
   ChevronLeft, ChevronRight, Phone, Mail,
-  Link as LinkIcon, Settings, Lock, User, Ban, CalendarPlus, Trash2
+  Link as LinkIcon, Settings, Lock, User, Ban, CalendarPlus, Trash2,
+  Home,
 } from 'lucide-react';
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const HOURS = Array.from({ length: 18 }, (_, i) => {
-  const h = i + 6; // 6am–11pm
+// ── Constants ─────────────────────────────────────────────────────────────────
+const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const HOURS = Array.from({ length: 13 }, (_, i) => {
+  const h = i + 7; // 7 AM – 7 PM
   return `${String(h).padStart(2, '0')}:00`;
 });
+const TIME_OPTIONS = Array.from({ length: 26 }, (_, i) => {
+  const h = Math.floor(i / 2) + 6;
+  const m = i % 2 === 0 ? '00' : '30';
+  return `${String(h).padStart(2, '0')}:${m}`;
+});
 
-const STATUS_COLORS = {
-  confirmed: 'bg-green-100 text-green-700',
-  pending: 'bg-yellow-100 text-yellow-700',
-  cancelled: 'bg-red-100 text-red-700',
-  completed: 'bg-gray-100 text-gray-600',
+const APPT_COLORS = {
+  confirmed: { block: 'bg-brand-500 text-white',        dot: 'bg-brand-500', label: 'text-brand-600', badge: 'bg-brand-50 text-brand-700' },
+  completed: { block: 'bg-gray-400 text-white',          dot: 'bg-gray-400',  label: 'text-gray-500',  badge: 'bg-gray-100 text-gray-500'  },
+  cancelled: { block: 'bg-red-400 text-white',           dot: 'bg-red-400',   label: 'text-red-500',   badge: 'bg-red-50 text-red-500'     },
+  pending:   { block: 'bg-yellow-400 text-white',        dot: 'bg-yellow-400',label: 'text-yellow-600',badge: 'bg-yellow-50 text-yellow-700'},
 };
 
+function fmtTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+// ── Toggle Switch ─────────────────────────────────────────────────────────────
+function Toggle({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${
+        checked ? 'bg-brand-500' : 'bg-gray-200'
+      }`}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
+          checked ? 'translate-x-6' : 'translate-x-1'
+        }`}
+      />
+    </button>
+  );
+}
+
+// ── Appointment Card ──────────────────────────────────────────────────────────
+function AppointmentCard({ appt, confirmCancelId, setConfirmCancelId, cancelAppt, completeAppt }) {
+  const colors = APPT_COLORS[appt.status] || APPT_COLORS.confirmed;
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-start justify-between gap-4 hover:shadow-sm transition-shadow">
+      {/* Date block */}
+      <div className="text-center min-w-[52px]">
+        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">
+          {format(parseISO(appt.scheduled_date), 'EEE')}
+        </p>
+        <p className={`text-3xl font-bold leading-tight ${colors.label}`}>
+          {format(parseISO(appt.scheduled_date), 'd')}
+        </p>
+        <p className="text-xs text-gray-500 font-medium mt-0.5">{fmtTime(appt.scheduled_time)}</p>
+      </div>
+
+      {/* Divider */}
+      <div className={`w-0.5 self-stretch rounded-full ${colors.dot} opacity-40`} />
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className={`text-xs font-semibold uppercase tracking-widest ${colors.label}`}>
+            {appt.status}
+          </span>
+        </div>
+        <p className="font-semibold text-gray-900 text-base leading-snug">{appt.lead_name}</p>
+        <p className="text-sm text-gray-400 mb-3">{appt.niche_name}</p>
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-gray-400">
+          {appt.lead_phone && (
+            <a href={`tel:${appt.lead_phone}`} className="flex items-center gap-1 hover:text-brand-500 transition-colors">
+              <Phone className="w-3 h-3" />{appt.lead_phone}
+            </a>
+          )}
+          {appt.lead_email && (
+            <a href={`mailto:${appt.lead_email}`} className="flex items-center gap-1 hover:text-brand-500 transition-colors">
+              <Mail className="w-3 h-3" />{appt.lead_email}
+            </a>
+          )}
+        </div>
+        {appt.lead_description && (
+          <p className="text-xs text-gray-400 mt-2 leading-relaxed line-clamp-2 italic">
+            "{appt.lead_description}"
+          </p>
+        )}
+      </div>
+
+      {/* Actions */}
+      {appt.status === 'confirmed' && (
+        <div className="flex flex-col gap-2 shrink-0 pt-1">
+          <button
+            onClick={() => completeAppt.mutate(appt.id)}
+            disabled={completeAppt.isPending}
+            className="flex items-center gap-1.5 text-xs font-medium text-green-600 hover:bg-green-50 px-3 py-2 rounded-xl border border-green-100 transition-all disabled:opacity-40"
+          >
+            <CheckCircle className="w-3.5 h-3.5" /> Complete
+          </button>
+          {confirmCancelId === appt.id ? (
+            <div className="flex flex-col gap-1">
+              <button
+                onClick={() => cancelAppt.mutate(appt.id)}
+                disabled={cancelAppt.isPending}
+                className="text-xs font-medium bg-red-500 text-white px-3 py-2 rounded-xl hover:bg-red-600 disabled:opacity-50 transition-all"
+              >
+                {cancelAppt.isPending ? '…' : 'Confirm Cancel'}
+              </button>
+              <button
+                onClick={() => setConfirmCancelId(null)}
+                className="text-xs text-gray-400 hover:text-gray-600 text-center py-1"
+              >
+                Keep
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmCancelId(appt.id)}
+              className="flex items-center gap-1.5 text-xs font-medium text-red-400 hover:bg-red-50 px-3 py-2 rounded-xl border border-red-100 transition-all"
+            >
+              <XCircle className="w-3.5 h-3.5" /> Cancel
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function ContractorPortal() {
   const user = JSON.parse(localStorage.getItem('user'));
   const qc = useQueryClient();
-  const [tab, setTab] = useState('calendar');
+
+  const [tab, setTab] = useState('home');
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date()));
   const [confirmCancelId, setConfirmCancelId] = useState(null);
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
-  const [profileForm, setProfileForm] = useState({ name: user.name || '', phone: user.phone || '', company_name: user.company_name || '' });
+  const [profileForm, setProfileForm] = useState({
+    name: user.name || '',
+    phone: user.phone || '',
+    company_name: user.company_name || '',
+  });
 
-  const from = format(weekStart, 'yyyy-MM-dd');
-  const to   = format(addDays(weekStart, 6), 'yyyy-MM-dd');
+  const from     = format(weekStart, 'yyyy-MM-dd');
+  const to       = format(addDays(weekStart, 6), 'yyyy-MM-dd');
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
 
+  // ── Queries ────────────────────────────────────────────────────────────────
   const { data: appointments = [] } = useQuery({
     queryKey: ['appointments', user.id, from, to],
     queryFn: () => api.get(`/bookings/contractor/${user.id}?from=${from}&to=${to}`).then(r => r.data),
@@ -45,28 +177,12 @@ export default function ContractorPortal() {
   });
 
   const [availability, setAvailability] = useState({});
-
   useEffect(() => {
-    // Build map: dayOfWeek -> { startTime, endTime }
     const map = {};
     slots.forEach(s => { map[s.day_of_week] = { start: s.start_time, end: s.end_time }; });
     setAvailability(map);
   }, [slots]);
 
-  const saveAvailability = useMutation({
-    mutationFn: () => {
-      const payload = Object.entries(availability).map(([day, val]) => ({
-        day_of_week: Number(day),
-        start_time: val.start,
-        end_time: val.end,
-      }));
-      return api.put(`/availability/${user.id}/slots`, payload);
-    },
-    onSuccess: () => { toast.success('Availability saved!'); qc.invalidateQueries(['slots']); },
-    onError: () => toast.error('Failed to save availability'),
-  });
-
-  // ── Date overrides ────────────────────────────────────────────────────────
   const overridesFrom = format(new Date(), 'yyyy-MM-dd');
   const overridesTo   = format(addDays(new Date(), 90), 'yyyy-MM-dd');
 
@@ -77,14 +193,28 @@ export default function ContractorPortal() {
 
   const [newOverride, setNewOverride] = useState({ date: '', type: 'block', start: '09:00', end: '17:00' });
 
+  // ── Mutations ──────────────────────────────────────────────────────────────
+  const saveAvailability = useMutation({
+    mutationFn: () => {
+      const payload = Object.entries(availability).map(([day, val]) => ({
+        day_of_week: Number(day),
+        start_time: val.start,
+        end_time: val.end,
+      }));
+      return api.put(`/availability/${user.id}/slots`, payload);
+    },
+    onSuccess: () => { toast.success('Schedule saved!'); qc.invalidateQueries(['slots']); },
+    onError: () => toast.error('Failed to save'),
+  });
+
   const addOverride = useMutation({
     mutationFn: (data) => api.post(`/availability/${user.id}/overrides`, data),
     onSuccess: () => {
-      toast.success('Date saved!');
+      toast.success('Date override saved!');
       qc.invalidateQueries(['overrides']);
       setNewOverride({ date: '', type: 'block', start: '09:00', end: '17:00' });
     },
-    onError: () => toast.error('Failed to save date override'),
+    onError: () => toast.error('Failed to save'),
   });
 
   const removeOverride = useMutation({
@@ -93,6 +223,35 @@ export default function ContractorPortal() {
     onError: () => toast.error('Failed to remove'),
   });
 
+  const cancelAppt = useMutation({
+    mutationFn: (id) => api.put(`/bookings/${id}/cancel`),
+    onSuccess: () => {
+      toast.success('Cancelled — homeowner has been notified');
+      qc.invalidateQueries(['appointments']);
+      setConfirmCancelId(null);
+    },
+    onError: () => toast.error('Failed to cancel'),
+  });
+
+  const completeAppt = useMutation({
+    mutationFn: (id) => api.put(`/bookings/${id}/complete`),
+    onSuccess: () => { toast.success('Marked complete!'); qc.invalidateQueries(['appointments']); },
+    onError: () => toast.error('Failed to update'),
+  });
+
+  const updateProfile = useMutation({
+    mutationFn: (data) => api.put(`/contractors/${user.id}`, data),
+    onSuccess: () => toast.success('Profile updated!'),
+    onError: () => toast.error('Failed to update'),
+  });
+
+  const changePassword = useMutation({
+    mutationFn: (data) => api.put(`/contractors/${user.id}/password`, data),
+    onSuccess: () => { toast.success('Password changed!'); setPwForm({ current: '', next: '', confirm: '' }); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to change password'),
+  });
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
   const handleAddOverride = () => {
     if (!newOverride.date) return toast.error('Please select a date');
     if (newOverride.type === 'block') {
@@ -102,30 +261,6 @@ export default function ContractorPortal() {
       addOverride.mutate({ date: newOverride.date, is_available: true, start_time: newOverride.start, end_time: newOverride.end });
     }
   };
-
-  const cancelAppt = useMutation({
-    mutationFn: (id) => api.put(`/bookings/${id}/cancel`),
-    onSuccess: () => { toast.success('Appointment cancelled — homeowner notified'); qc.invalidateQueries(['appointments']); setConfirmCancelId(null); },
-    onError: () => toast.error('Failed to cancel'),
-  });
-
-  const completeAppt = useMutation({
-    mutationFn: (id) => api.put(`/bookings/${id}/complete`),
-    onSuccess: () => { toast.success('Marked as complete!'); qc.invalidateQueries(['appointments']); },
-    onError: () => toast.error('Failed to update'),
-  });
-
-  const updateProfile = useMutation({
-    mutationFn: (data) => api.put(`/contractors/${user.id}`, data),
-    onSuccess: () => { toast.success('Profile updated!'); },
-    onError: () => toast.error('Failed to update profile'),
-  });
-
-  const changePassword = useMutation({
-    mutationFn: (data) => api.put(`/contractors/${user.id}/password`, data),
-    onSuccess: () => { toast.success('Password changed!'); setPwForm({ current: '', next: '', confirm: '' }); },
-    onError: (err) => toast.error(err.response?.data?.error || 'Failed to change password'),
-  });
 
   const handleChangePassword = () => {
     if (pwForm.next.length < 6) return toast.error('Password must be at least 6 characters');
@@ -140,436 +275,539 @@ export default function ContractorPortal() {
     } catch { toast.error('Failed to connect Google Calendar'); }
   };
 
-  const logout = () => {
-    localStorage.clear();
-    window.location.href = '/login';
+  const greeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
   };
 
+  // ── Derived data ───────────────────────────────────────────────────────────
+  const todayAppts = appointments
+    .filter(a => a.scheduled_date === todayStr && a.status !== 'cancelled')
+    .sort((a, b) => a.scheduled_time.localeCompare(b.scheduled_time));
+
+  const upcomingAppts = appointments
+    .filter(a => a.scheduled_date > todayStr && a.status !== 'cancelled')
+    .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date) || a.scheduled_time.localeCompare(b.scheduled_time));
+
+  const confirmedCount  = appointments.filter(a => a.status === 'confirmed').length;
+  const completedCount  = appointments.filter(a => a.status === 'completed').length;
+  const todayCount      = appointments.filter(a => a.scheduled_date === todayStr && a.status === 'confirmed').length;
+
+  // ── Sidebar nav items ──────────────────────────────────────────────────────
+  const NAV = [
+    { id: 'home',         label: 'Home',         icon: Home },
+    { id: 'calendar',     label: 'Calendar',     icon: Calendar },
+    { id: 'availability', label: 'Availability', icon: Clock },
+    { id: 'settings',     label: 'Settings',     icon: Settings },
+  ];
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center">
-              <Zap className="w-5 h-5 text-white" />
+    <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
+
+      {/* ── Sidebar ────────────────────────────────────────────────────────── */}
+      <aside className="w-56 bg-white border-r border-gray-100 flex flex-col shrink-0 shadow-sm">
+        {/* Logo */}
+        <div className="px-5 pt-6 pb-5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-brand-500 rounded-xl flex items-center justify-center shadow-sm">
+              <Zap className="w-4 h-4 text-white" />
             </div>
-            <div>
-              <p className="font-semibold text-gray-900 leading-none">ProBook</p>
-              <p className="text-xs text-gray-400">{user.company_name || user.name}</p>
-            </div>
+            <span className="font-bold text-gray-900 text-base tracking-tight">ProBook</span>
           </div>
+        </div>
 
-          <nav className="flex gap-1">
-            {[
-              { id: 'calendar', label: 'Calendar', icon: Calendar },
-              { id: 'availability', label: 'Availability', icon: Clock },
-              { id: 'settings', label: 'Settings', icon: Settings },
-            ].map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => setTab(id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  tab === id ? 'bg-brand-50 text-brand-600' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span className="hidden sm:inline">{label}</span>
-              </button>
-            ))}
-          </nav>
+        {/* Nav */}
+        <nav className="flex-1 px-3 space-y-0.5">
+          {NAV.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left ${
+                tab === id
+                  ? 'bg-brand-500 text-white shadow-sm'
+                  : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+              }`}
+            >
+              <Icon className="w-4 h-4 shrink-0" />
+              {label}
+            </button>
+          ))}
+        </nav>
 
-          <button onClick={logout} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-50">
+        {/* User + Logout */}
+        <div className="px-3 py-4 border-t border-gray-100">
+          <div className="px-3 py-2 mb-1">
+            <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+            <p className="text-xs text-gray-400 truncate">{user.company_name || user.email}</p>
+          </div>
+          <button
+            onClick={() => { localStorage.clear(); window.location.href = '/login'; }}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-all"
+          >
             <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Logout</span>
+            Sign out
           </button>
         </div>
-      </header>
+      </aside>
 
-      <main className="max-w-5xl mx-auto px-4 py-6">
-        {/* ── CALENDAR TAB ── */}
-        {tab === 'calendar' && (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">
-                {format(weekStart, 'MMMM d')} – {format(addDays(weekStart, 6), 'MMMM d, yyyy')}
-              </h2>
-              <div className="flex gap-2">
-                <button onClick={() => setWeekStart(d => addDays(d, -7))} className="btn-secondary p-2">
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button onClick={() => setWeekStart(startOfWeek(new Date()))} className="btn-secondary px-3 py-2 text-sm">Today</button>
-                <button onClick={() => setWeekStart(d => addDays(d, 7))} className="btn-secondary p-2">
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+      {/* ── Main content ───────────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col overflow-hidden">
 
-            {/* Week grid */}
-            <div className="card p-0 overflow-hidden">
-              <div className="grid grid-cols-8 border-b border-gray-100">
-                <div className="p-3 text-xs text-gray-400 font-medium border-r border-gray-100">Time</div>
-                {Array.from({ length: 7 }, (_, i) => {
-                  const day = addDays(weekStart, i);
-                  const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-                  const isPast = isBefore(startOfDay(day), startOfDay(new Date()));
-                  return (
-                    <div key={i} className={`p-3 text-center border-r border-gray-100 last:border-r-0 ${isToday ? 'bg-brand-50' : isPast ? 'bg-gray-50' : ''}`}>
-                      <p className={`text-xs font-medium ${isToday ? 'text-brand-600' : isPast ? 'text-gray-300' : 'text-gray-500'}`}>{DAYS[day.getDay()]}</p>
-                      <p className={`text-sm font-bold ${isToday ? 'text-brand-600' : isPast ? 'text-gray-300' : 'text-gray-800'}`}>{format(day, 'd')}</p>
-                    </div>
-                  );
-                })}
+        {/* ════════════════ HOME ════════════════ */}
+        {tab === 'home' && (
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-3xl mx-auto px-8 py-8">
+
+              {/* Greeting */}
+              <div className="mb-8">
+                <p className="text-sm text-gray-400 mb-1">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {greeting()}, {user.name.split(' ')[0]}
+                </h1>
               </div>
 
-              <div className="overflow-y-auto max-h-[520px]">
-                {HOURS.map(hour => (
-                  <div key={hour} className="grid grid-cols-8 border-b border-gray-50 last:border-b-0 min-h-[52px]">
-                    <div className="p-2 text-xs text-gray-400 border-r border-gray-100 flex items-start pt-2">{hour}</div>
-                    {Array.from({ length: 7 }, (_, i) => {
-                      const day = addDays(weekStart, i);
-                      const isPast = isBefore(startOfDay(day), startOfDay(new Date()));
-                      const dateStr = format(day, 'yyyy-MM-dd');
-                      const appt = appointments.find(a => a.scheduled_date === dateStr && a.scheduled_time === hour);
-                      return (
-                        <div key={i} className={`p-1 border-r border-gray-50 last:border-r-0 ${isPast ? 'bg-gray-50/60' : ''}`}>
-                          {appt && (
-                            <div className={`rounded-lg p-1.5 text-xs cursor-pointer hover:opacity-80 ${STATUS_COLORS[appt.status] || 'bg-brand-100 text-brand-700'}`}>
-                              <p className="font-semibold truncate">{appt.lead_name}</p>
-                              <p className="opacity-70 truncate">{appt.niche_name}</p>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-4 mb-8">
+                {[
+                  { label: "Today's Jobs",  value: todayCount,     color: 'text-brand-600', bg: 'bg-brand-50' },
+                  { label: 'This Week',     value: confirmedCount, color: 'text-blue-600',  bg: 'bg-blue-50'  },
+                  { label: 'Completed',     value: completedCount, color: 'text-green-600', bg: 'bg-green-50' },
+                ].map(({ label, value, color, bg }) => (
+                  <div key={label} className={`${bg} rounded-2xl px-5 py-4`}>
+                    <p className={`text-3xl font-bold ${color} leading-tight`}>{value}</p>
+                    <p className="text-sm text-gray-500 mt-1">{label}</p>
                   </div>
                 ))}
               </div>
-            </div>
 
-            {/* Appointment list */}
-            <div className="mt-6">
-              {appointments.filter(a => a.status !== 'cancelled').length === 0 ? (
-                <div className="card text-center py-10">
-                  <Calendar className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-                  <p className="text-gray-400 font-medium">No appointments this week</p>
-                  <p className="text-gray-300 text-sm mt-1">New bookings will appear here automatically.</p>
-                </div>
-              ) : (
-                <>
-                  <h3 className="font-semibold text-gray-700 mb-3">This Week's Appointments</h3>
+              {/* Today */}
+              <div className="mb-8">
+                <h2 className="text-base font-semibold text-gray-900 mb-3">Today</h2>
+                {todayAppts.length === 0 ? (
+                  <div className="bg-white rounded-2xl border border-gray-100 px-6 py-10 text-center">
+                    <Calendar className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                    <p className="text-gray-400 font-medium">Nothing scheduled for today</p>
+                    <p className="text-gray-300 text-sm mt-1">Enjoy the day!</p>
+                  </div>
+                ) : (
                   <div className="space-y-3">
-                    {appointments.filter(a => a.status !== 'cancelled').map(appt => (
-                      <div key={appt.id} className="card flex items-start justify-between gap-4">
-                        <div className="flex gap-4 flex-1 min-w-0">
-                          <div className="text-center min-w-[56px]">
-                            <p className="text-xs text-gray-500">{format(parseISO(appt.scheduled_date), 'EEE')}</p>
-                            <p className="text-xl font-bold text-brand-600">{format(parseISO(appt.scheduled_date), 'd')}</p>
-                            <p className="text-xs font-medium text-gray-600">{appt.scheduled_time}</p>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-900">{appt.lead_name}</p>
-                            <p className="text-sm text-gray-500 mb-2">{appt.niche_name}</p>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                              {appt.lead_email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{appt.lead_email}</span>}
-                              {appt.lead_phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{appt.lead_phone}</span>}
-                            </div>
-                            {appt.lead_description && <p className="text-xs text-gray-400 mt-1">{appt.lead_description}</p>}
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-2 shrink-0 items-end">
-                          <span className={`badge ${STATUS_COLORS[appt.status]}`}>{appt.status}</span>
-                          {appt.status === 'confirmed' && (
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => completeAppt.mutate(appt.id)}
-                                disabled={completeAppt.isPending}
-                                className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg disabled:opacity-50"
-                                title="Mark complete"
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                              </button>
-                              {confirmCancelId === appt.id ? (
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => cancelAppt.mutate(appt.id)}
-                                    disabled={cancelAppt.isPending}
-                                    className="text-xs bg-red-500 text-white px-2 py-1 rounded font-medium hover:bg-red-600 disabled:opacity-50"
-                                  >
-                                    {cancelAppt.isPending ? '...' : 'Confirm'}
-                                  </button>
-                                  <button onClick={() => setConfirmCancelId(null)} className="text-xs text-gray-400 hover:text-gray-600 px-1">✕</button>
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => setConfirmCancelId(appt.id)}
-                                  className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"
-                                  title="Cancel"
-                                >
-                                  <XCircle className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                    {todayAppts.map(appt => (
+                      <AppointmentCard
+                        key={appt.id}
+                        appt={appt}
+                        confirmCancelId={confirmCancelId}
+                        setConfirmCancelId={setConfirmCancelId}
+                        cancelAppt={cancelAppt}
+                        completeAppt={completeAppt}
+                      />
                     ))}
                   </div>
-                </>
+                )}
+              </div>
+
+              {/* Upcoming */}
+              {upcomingAppts.length > 0 && (
+                <div>
+                  <h2 className="text-base font-semibold text-gray-900 mb-3">Coming Up</h2>
+                  <div className="space-y-3">
+                    {upcomingAppts.map(appt => (
+                      <AppointmentCard
+                        key={appt.id}
+                        appt={appt}
+                        confirmCancelId={confirmCancelId}
+                        setConfirmCancelId={setConfirmCancelId}
+                        cancelAppt={cancelAppt}
+                        completeAppt={completeAppt}
+                      />
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>
         )}
 
-        {/* ── AVAILABILITY TAB ── */}
-        {tab === 'availability' && (
-          <div className="max-w-2xl space-y-8">
+        {/* ════════════════ CALENDAR ════════════════ */}
+        {tab === 'calendar' && (
+          <div className="flex-1 flex flex-col overflow-hidden bg-white">
 
-            {/* Weekly schedule */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-lg font-semibold">Weekly Schedule</h2>
-                  <p className="text-sm text-gray-500">Your recurring hours — applies to every week</p>
-                </div>
-                <button onClick={() => saveAvailability.mutate()} disabled={saveAvailability.isPending} className="btn-primary">
-                  {saveAvailability.isPending ? 'Saving...' : 'Save Schedule'}
+            {/* Calendar toolbar */}
+            <div className="border-b border-gray-100 px-6 py-3 flex items-center gap-4 bg-white">
+              <button
+                onClick={() => setWeekStart(startOfWeek(new Date()))}
+                className="text-sm font-medium text-gray-700 border border-gray-200 rounded-lg px-4 py-1.5 hover:bg-gray-50 transition-all"
+              >
+                Today
+              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setWeekStart(d => addDays(d, -7))} className="p-1.5 hover:bg-gray-100 rounded-lg transition-all">
+                  <ChevronLeft className="w-4 h-4 text-gray-500" />
+                </button>
+                <button onClick={() => setWeekStart(d => addDays(d, 7))} className="p-1.5 hover:bg-gray-100 rounded-lg transition-all">
+                  <ChevronRight className="w-4 h-4 text-gray-500" />
                 </button>
               </div>
+              <h2 className="text-base font-semibold text-gray-900">
+                {format(weekStart, 'MMMM yyyy')}
+              </h2>
+            </div>
 
-              <div className="card space-y-4">
-                {DAYS.map((day, idx) => {
-                  const active = !!availability[idx];
-                  const val = availability[idx] || { start: '09:00', end: '17:00' };
+            {/* Day headers */}
+            <div className="border-b border-gray-100 grid bg-white" style={{ gridTemplateColumns: '64px repeat(7, 1fr)' }}>
+              <div /> {/* time spacer */}
+              {Array.from({ length: 7 }, (_, i) => {
+                const day = addDays(weekStart, i);
+                const isToday = format(day, 'yyyy-MM-dd') === todayStr;
+                const isPast  = isBefore(startOfDay(day), startOfDay(new Date()));
+                return (
+                  <div key={i} className="py-3 text-center border-l border-gray-100">
+                    <p className={`text-xs font-medium uppercase tracking-wider mb-1.5 ${
+                      isToday ? 'text-brand-500' : isPast ? 'text-gray-300' : 'text-gray-500'
+                    }`}>
+                      {DAYS_SHORT[day.getDay()]}
+                    </p>
+                    <div className={`w-9 h-9 mx-auto flex items-center justify-center rounded-full text-sm font-bold transition-all ${
+                      isToday
+                        ? 'bg-brand-500 text-white shadow-sm'
+                        : isPast
+                        ? 'text-gray-300'
+                        : 'text-gray-800 hover:bg-gray-100'
+                    }`}>
+                      {format(day, 'd')}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Time grid */}
+            <div className="flex-1 overflow-y-auto">
+              <div style={{ display: 'grid', gridTemplateColumns: '64px repeat(7, 1fr)' }}>
+
+                {/* Time labels */}
+                <div>
+                  {HOURS.map(hour => {
+                    const [h] = hour.split(':').map(Number);
+                    const label = h === 12 ? '12 PM' : h > 12 ? `${h - 12} PM` : `${h} AM`;
+                    return (
+                      <div key={hour} className="h-[60px] flex items-start justify-end pr-3 pt-1.5">
+                        <span className="text-[11px] text-gray-400 font-medium">{label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Day columns */}
+                {Array.from({ length: 7 }, (_, i) => {
+                  const day     = addDays(weekStart, i);
+                  const isToday = format(day, 'yyyy-MM-dd') === todayStr;
+                  const isPast  = isBefore(startOfDay(day), startOfDay(new Date()));
+                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const dayAppts = appointments.filter(a => a.scheduled_date === dateStr);
+
                   return (
-                    <div key={idx} className={`flex items-center gap-4 p-3 rounded-xl transition-all ${active ? 'bg-brand-50' : 'bg-gray-50'}`}>
-                      <label className="flex items-center gap-3 w-24 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={active}
-                          onChange={e => {
-                            if (e.target.checked) setAvailability(p => ({ ...p, [idx]: { start: '09:00', end: '17:00' } }));
-                            else setAvailability(p => { const n = { ...p }; delete n[idx]; return n; });
-                          }}
-                          className="w-4 h-4 accent-brand-500"
-                        />
-                        <span className={`text-sm font-medium ${active ? 'text-brand-700' : 'text-gray-400'}`}>{day}</span>
-                      </label>
-
-                      {active ? (
-                        <div className="flex items-center gap-2 flex-1">
-                          <select value={val.start} onChange={e => setAvailability(p => ({ ...p, [idx]: { ...val, start: e.target.value } }))} className="input py-1.5 w-auto">
-                            {HOURS.map(h => <option key={h}>{h}</option>)}
-                          </select>
-                          <span className="text-gray-400 text-sm">to</span>
-                          <select value={val.end} onChange={e => setAvailability(p => ({ ...p, [idx]: { ...val, end: e.target.value } }))} className="input py-1.5 w-auto">
-                            {HOURS.map(h => <option key={h}>{h}</option>)}
-                          </select>
+                    <div
+                      key={i}
+                      className={`border-l border-gray-100 relative ${
+                        isToday ? 'bg-brand-50/40' : isPast ? 'bg-gray-50/60' : 'bg-white'
+                      }`}
+                    >
+                      {HOURS.map(hour => (
+                        <div key={hour} className="h-[60px] border-b border-gray-50 relative">
+                          {/* appointment block rendered inside its matching hour cell */}
+                          {(() => {
+                            const appt = dayAppts.find(a => a.scheduled_time === hour);
+                            if (!appt) return null;
+                            const colors = APPT_COLORS[appt.status] || APPT_COLORS.confirmed;
+                            return (
+                              <div
+                                className={`absolute inset-x-1 inset-y-0.5 rounded-xl ${colors.block} px-2 py-1 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity shadow-sm`}
+                              >
+                                <p className="text-xs font-bold truncate leading-tight">{appt.lead_name}</p>
+                                <p className="text-[10px] opacity-80 truncate">{fmtTime(hour)} · {appt.niche_name}</p>
+                              </div>
+                            );
+                          })()}
                         </div>
-                      ) : (
-                        <span className="text-sm text-gray-400">Not available</span>
-                      )}
+                      ))}
                     </div>
                   );
                 })}
               </div>
             </div>
+          </div>
+        )}
 
-            {/* Date overrides */}
-            <div>
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold">Date Overrides</h2>
-                <p className="text-sm text-gray-500">Block specific days off or set custom hours for a date — overrides your weekly schedule</p>
-              </div>
+        {/* ════════════════ AVAILABILITY ════════════════ */}
+        {tab === 'availability' && (
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-2xl mx-auto px-8 py-8 space-y-10">
 
-              {/* Add override form */}
-              <div className="card mb-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <CalendarPlus className="w-4 h-4 text-brand-500" />
-                  <h3 className="font-semibold text-sm text-gray-800">Add a Date Override</h3>
-                </div>
-                <div className="flex flex-wrap gap-3 items-end">
+              {/* Weekly schedule */}
+              <div>
+                <div className="flex items-start justify-between mb-6">
                   <div>
-                    <label className="label">Date</label>
-                    <input
-                      type="date"
-                      min={format(new Date(), 'yyyy-MM-dd')}
-                      value={newOverride.date}
-                      onChange={e => setNewOverride(p => ({ ...p, date: e.target.value }))}
-                      className="input"
-                    />
+                    <h2 className="text-xl font-bold text-gray-900">Weekly Schedule</h2>
+                    <p className="text-sm text-gray-400 mt-1">Your recurring hours — applies every week</p>
                   </div>
-                  <div>
-                    <label className="label">Type</label>
-                    <select
-                      value={newOverride.type}
-                      onChange={e => setNewOverride(p => ({ ...p, type: e.target.value }))}
-                      className="input"
-                    >
-                      <option value="block">Block day off</option>
-                      <option value="custom">Custom hours</option>
-                    </select>
-                  </div>
-                  {newOverride.type === 'custom' && (
-                    <>
-                      <div>
-                        <label className="label">From</label>
-                        <select value={newOverride.start} onChange={e => setNewOverride(p => ({ ...p, start: e.target.value }))} className="input py-1.5 w-auto">
-                          {HOURS.map(h => <option key={h}>{h}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="label">To</label>
-                        <select value={newOverride.end} onChange={e => setNewOverride(p => ({ ...p, end: e.target.value }))} className="input py-1.5 w-auto">
-                          {HOURS.map(h => <option key={h}>{h}</option>)}
-                        </select>
-                      </div>
-                    </>
-                  )}
                   <button
-                    onClick={handleAddOverride}
-                    disabled={addOverride.isPending}
-                    className="btn-primary"
+                    onClick={() => saveAvailability.mutate()}
+                    disabled={saveAvailability.isPending}
+                    className="btn-primary shrink-0"
                   >
-                    {addOverride.isPending ? 'Saving...' : 'Add'}
+                    {saveAvailability.isPending ? 'Saving…' : 'Save Schedule'}
                   </button>
                 </div>
-              </div>
 
-              {/* Existing overrides list */}
-              {overrides.length === 0 ? (
-                <div className="card text-center py-8 text-gray-400">
-                  <Ban className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">No date overrides set. Add one above to block a day off or set custom hours.</p>
-                </div>
-              ) : (
-                <div className="card p-0 overflow-hidden divide-y divide-gray-50">
-                  {overrides.map(o => (
-                    <div key={o.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50">
-                      <div className="flex items-center gap-3">
-                        {o.is_available ? (
-                          <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center">
-                            <Clock className="w-4 h-4 text-brand-500" />
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+                  {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, idx) => {
+                    const active = !!availability[idx];
+                    const val    = availability[idx] || { start: '09:00', end: '17:00' };
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex items-center gap-4 px-5 py-4 border-b border-gray-50 last:border-b-0 transition-colors ${
+                          active ? 'bg-brand-50/50' : ''
+                        }`}
+                      >
+                        {/* Toggle */}
+                        <Toggle
+                          checked={active}
+                          onChange={(checked) => {
+                            if (checked) setAvailability(p => ({ ...p, [idx]: { start: '09:00', end: '17:00' } }));
+                            else setAvailability(p => { const n = { ...p }; delete n[idx]; return n; });
+                          }}
+                        />
+
+                        {/* Day name */}
+                        <span className={`text-sm font-semibold w-24 ${active ? 'text-gray-900' : 'text-gray-300'}`}>
+                          {day}
+                        </span>
+
+                        {/* Time pickers */}
+                        {active ? (
+                          <div className="flex items-center gap-3 flex-1">
+                            <select
+                              value={val.start}
+                              onChange={e => setAvailability(p => ({ ...p, [idx]: { ...val, start: e.target.value } }))}
+                              className="input py-1.5 text-sm w-auto"
+                            >
+                              {TIME_OPTIONS.map(h => <option key={h}>{h}</option>)}
+                            </select>
+                            <span className="text-gray-400 text-sm">→</span>
+                            <select
+                              value={val.end}
+                              onChange={e => setAvailability(p => ({ ...p, [idx]: { ...val, end: e.target.value } }))}
+                              className="input py-1.5 text-sm w-auto"
+                            >
+                              {TIME_OPTIONS.map(h => <option key={h}>{h}</option>)}
+                            </select>
                           </div>
                         ) : (
-                          <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
-                            <Ban className="w-4 h-4 text-red-400" />
-                          </div>
+                          <span className="text-sm text-gray-300">Not available</span>
                         )}
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            {format(parseISO(o.date), 'EEEE, MMMM d, yyyy')}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            {o.is_available
-                              ? `Custom hours: ${o.start_time} – ${o.end_time}`
-                              : 'Blocked — no appointments'}
-                          </p>
-                        </div>
                       </div>
-                      <button
-                        onClick={() => removeOverride.mutate(o.id)}
-                        disabled={removeOverride.isPending}
-                        className="p-1.5 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all"
-                        title="Remove"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Date overrides */}
+              <div>
+                <div className="mb-6">
+                  <h2 className="text-xl font-bold text-gray-900">Date Overrides</h2>
+                  <p className="text-sm text-gray-400 mt-1">Block specific days off or set custom hours — overrides your weekly schedule</p>
+                </div>
+
+                {/* Add form */}
+                <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-4">
+                    <CalendarPlus className="w-4 h-4 text-brand-500" />
+                    <h3 className="text-sm font-semibold text-gray-800">Add an Override</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-3 items-end">
+                    <div>
+                      <label className="label">Date</label>
+                      <input
+                        type="date"
+                        min={format(new Date(), 'yyyy-MM-dd')}
+                        value={newOverride.date}
+                        onChange={e => setNewOverride(p => ({ ...p, date: e.target.value }))}
+                        className="input"
+                      />
                     </div>
-                  ))}
+                    <div>
+                      <label className="label">Type</label>
+                      <select
+                        value={newOverride.type}
+                        onChange={e => setNewOverride(p => ({ ...p, type: e.target.value }))}
+                        className="input"
+                      >
+                        <option value="block">Block day off</option>
+                        <option value="custom">Custom hours</option>
+                      </select>
+                    </div>
+                    {newOverride.type === 'custom' && (
+                      <>
+                        <div>
+                          <label className="label">From</label>
+                          <select value={newOverride.start} onChange={e => setNewOverride(p => ({ ...p, start: e.target.value }))} className="input py-1.5 w-auto">
+                            {TIME_OPTIONS.map(h => <option key={h}>{h}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="label">To</label>
+                          <select value={newOverride.end} onChange={e => setNewOverride(p => ({ ...p, end: e.target.value }))} className="input py-1.5 w-auto">
+                            {TIME_OPTIONS.map(h => <option key={h}>{h}</option>)}
+                          </select>
+                        </div>
+                      </>
+                    )}
+                    <button onClick={handleAddOverride} disabled={addOverride.isPending} className="btn-primary">
+                      {addOverride.isPending ? 'Saving…' : 'Add'}
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
 
+                {/* Override list */}
+                {overrides.length === 0 ? (
+                  <div className="bg-white rounded-2xl border border-gray-100 px-6 py-8 text-center">
+                    <Ban className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                    <p className="text-sm text-gray-400">No overrides set. Add one above to block a day or set custom hours.</p>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm divide-y divide-gray-50">
+                    {overrides.map(o => (
+                      <div key={o.id} className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${o.is_available ? 'bg-brand-50' : 'bg-red-50'}`}>
+                            {o.is_available
+                              ? <Clock className="w-4 h-4 text-brand-500" />
+                              : <Ban className="w-4 h-4 text-red-400" />
+                            }
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {format(parseISO(o.date), 'EEEE, MMMM d, yyyy')}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {o.is_available
+                                ? `Custom hours: ${fmtTime(o.start_time)} – ${fmtTime(o.end_time)}`
+                                : 'Blocked — no appointments'
+                              }
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => removeOverride.mutate(o.id)}
+                          disabled={removeOverride.isPending}
+                          className="p-2 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-xl transition-all disabled:opacity-40"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
-        {/* ── SETTINGS TAB ── */}
+        {/* ════════════════ SETTINGS ════════════════ */}
         {tab === 'settings' && (
-          <div className="max-w-lg space-y-6">
-            <h2 className="text-lg font-semibold">Settings</h2>
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-xl mx-auto px-8 py-8">
+              <h1 className="text-xl font-bold text-gray-900 mb-8">Settings</h1>
 
-            {/* Profile */}
-            <div className="card">
-              <div className="flex items-center gap-2 mb-4">
-                <User className="w-4 h-4 text-brand-500" />
-                <h3 className="font-semibold text-gray-900">Profile</h3>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <label className="label">Full Name</label>
-                  <input className="input" value={profileForm.name} onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="label">Company Name</label>
-                  <input className="input" value={profileForm.company_name} onChange={e => setProfileForm(p => ({ ...p, company_name: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="label">Phone</label>
-                  <input className="input" value={profileForm.phone} onChange={e => setProfileForm(p => ({ ...p, phone: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="label">Email</label>
-                  <input className="input bg-gray-50 cursor-not-allowed" value={user.email} disabled />
-                  <p className="text-xs text-gray-400 mt-1">Contact admin to change your email.</p>
-                </div>
-                <button
-                  onClick={() => updateProfile.mutate(profileForm)}
-                  disabled={updateProfile.isPending}
-                  className="btn-primary"
-                >
-                  {updateProfile.isPending ? 'Saving...' : 'Save Profile'}
-                </button>
-              </div>
-            </div>
+              <div className="space-y-6">
 
-            {/* Password */}
-            <div className="card">
-              <div className="flex items-center gap-2 mb-4">
-                <Lock className="w-4 h-4 text-brand-500" />
-                <h3 className="font-semibold text-gray-900">Change Password</h3>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <label className="label">Current Password</label>
-                  <input type="password" className="input" value={pwForm.current} onChange={e => setPwForm(p => ({ ...p, current: e.target.value }))} />
+                {/* Profile */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2.5">
+                    <User className="w-4 h-4 text-brand-500" />
+                    <h3 className="font-semibold text-gray-900">Profile</h3>
+                  </div>
+                  <div className="px-6 py-5 space-y-4">
+                    <div>
+                      <label className="label">Full Name</label>
+                      <input className="input" value={profileForm.name} onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="label">Company Name</label>
+                      <input className="input" value={profileForm.company_name} onChange={e => setProfileForm(p => ({ ...p, company_name: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="label">Phone</label>
+                      <input className="input" value={profileForm.phone} onChange={e => setProfileForm(p => ({ ...p, phone: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="label">Email</label>
+                      <input className="input bg-gray-50 text-gray-400 cursor-not-allowed" value={user.email} disabled />
+                      <p className="text-xs text-gray-400 mt-1">Contact your admin to change your email.</p>
+                    </div>
+                    <button onClick={() => updateProfile.mutate(profileForm)} disabled={updateProfile.isPending} className="btn-primary">
+                      {updateProfile.isPending ? 'Saving…' : 'Save Profile'}
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <label className="label">New Password</label>
-                  <input type="password" className="input" value={pwForm.next} onChange={e => setPwForm(p => ({ ...p, next: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="label">Confirm New Password</label>
-                  <input type="password" className="input" value={pwForm.confirm} onChange={e => setPwForm(p => ({ ...p, confirm: e.target.value }))} />
-                </div>
-                <button
-                  onClick={handleChangePassword}
-                  disabled={changePassword.isPending}
-                  className="btn-primary"
-                >
-                  {changePassword.isPending ? 'Updating...' : 'Update Password'}
-                </button>
-              </div>
-            </div>
 
-            {/* Google Calendar */}
-            <div className="card">
-              <div className="flex items-center gap-2 mb-4">
-                <LinkIcon className="w-4 h-4 text-brand-500" />
-                <h3 className="font-semibold text-gray-900">Google Calendar Sync</h3>
+                {/* Password */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2.5">
+                    <Lock className="w-4 h-4 text-brand-500" />
+                    <h3 className="font-semibold text-gray-900">Change Password</h3>
+                  </div>
+                  <div className="px-6 py-5 space-y-4">
+                    <div>
+                      <label className="label">Current Password</label>
+                      <input type="password" className="input" value={pwForm.current} onChange={e => setPwForm(p => ({ ...p, current: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="label">New Password</label>
+                      <input type="password" className="input" value={pwForm.next} onChange={e => setPwForm(p => ({ ...p, next: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="label">Confirm New Password</label>
+                      <input type="password" className="input" value={pwForm.confirm} onChange={e => setPwForm(p => ({ ...p, confirm: e.target.value }))} />
+                    </div>
+                    <button onClick={handleChangePassword} disabled={changePassword.isPending} className="btn-primary">
+                      {changePassword.isPending ? 'Updating…' : 'Update Password'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Google Calendar */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2.5">
+                    <LinkIcon className="w-4 h-4 text-brand-500" />
+                    <h3 className="font-semibold text-gray-900">Google Calendar</h3>
+                  </div>
+                  <div className="px-6 py-5">
+                    <p className="text-sm text-gray-500 mb-4">
+                      Connect your Google Calendar and new bookings will be added automatically.
+                    </p>
+                    <button onClick={connectGoogle} className="btn-secondary gap-2">
+                      <LinkIcon className="w-4 h-4" />
+                      Connect Google Calendar
+                    </button>
+                    {new URLSearchParams(window.location.search).get('gcal') === 'success' && (
+                      <p className="text-green-600 text-sm mt-3 flex items-center gap-1.5">
+                        <CheckCircle className="w-4 h-4" /> Connected successfully!
+                      </p>
+                    )}
+                  </div>
+                </div>
+
               </div>
-              <p className="text-sm text-gray-500 mb-3">Connect your Google Calendar so booked appointments are added automatically.</p>
-              <button onClick={connectGoogle} className="btn-secondary gap-2">
-                <LinkIcon className="w-4 h-4" />
-                Connect Google Calendar
-              </button>
-              {new URLSearchParams(window.location.search).get('gcal') === 'success' && (
-                <p className="text-green-600 text-sm mt-2 flex items-center gap-1"><CheckCircle className="w-4 h-4" /> Connected!</p>
-              )}
             </div>
           </div>
         )}
-      </main>
+
+      </div>
     </div>
   );
 }
