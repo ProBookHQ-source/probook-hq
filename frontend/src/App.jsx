@@ -4,6 +4,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import ContractorPortal from './pages/ContractorPortal';
 import BookingFlow from './pages/BookingFlow';
 import LeadIntakeWidget from './pages/LeadIntakeWidget';
+import LandingPage from './pages/LandingPage';
 
 function ProtectedRoute({ children, role }) {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -36,7 +37,7 @@ export default function App() {
       <Route path="/" element={
         user?.role === 'admin' ? <Navigate to="/admin" replace /> :
         user?.role === 'contractor' ? <Navigate to="/contractor" replace /> :
-        <Navigate to="/login" replace />
+        <LandingPage />
       } />
     </Routes>
   );
