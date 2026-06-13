@@ -186,6 +186,12 @@ async function initialize() {
       WHERE status != 'cancelled';
   `);
 
+  // Migration: allow lead_id to be NULL so contractors can block external appointments
+  // (safe to run repeatedly — ALTER DROP NOT NULL is idempotent in Postgres)
+  await db.query(`
+    ALTER TABLE appointments ALTER COLUMN lead_id DROP NOT NULL
+  `).catch(() => {}); // ignore if already nullable
+
   // Seed niches if not already present
   const { rows } = await pool.query('SELECT COUNT(*) FROM niches');
   if (parseInt(rows[0].count) === 0) {
