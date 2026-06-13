@@ -91,10 +91,11 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(req.params.id);
   if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
 
-  // Null out FK references before deleting
+  // Null out / clean up FK references before deleting
   await db.prepare('UPDATE leads SET assigned_contractor_id = NULL WHERE assigned_contractor_id = $1').run(req.params.id);
-  await db.prepare('DELETE FROM round_robin_state WHERE last_contractor_id = $1').run(req.params.id);
-  await db.prepare('DELETE FROM availability WHERE contractor_id = $1').run(req.params.id);
+  await db.prepare('UPDATE round_robin_state SET last_contractor_id = NULL WHERE last_contractor_id = $1').run(req.params.id);
+  await db.prepare('DELETE FROM appointments WHERE contractor_id = $1').run(req.params.id);
+  await db.prepare('DELETE FROM availability_slots WHERE contractor_id = $1').run(req.params.id);
   await db.prepare('DELETE FROM contractors WHERE id = $1').run(req.params.id);
 
   res.json({ message: 'Contractor deleted' });
