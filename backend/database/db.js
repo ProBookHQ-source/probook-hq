@@ -179,6 +179,11 @@ async function initialize() {
     CREATE INDEX IF NOT EXISTS idx_appointments_contractor ON appointments(contractor_id);
     CREATE INDEX IF NOT EXISTS idx_appointments_date ON appointments(scheduled_date);
     CREATE INDEX IF NOT EXISTS idx_availability_contractor ON availability_slots(contractor_id);
+
+    -- Prevent double-booking at the database level (partial unique index excludes cancelled)
+    CREATE UNIQUE INDEX IF NOT EXISTS uniq_appt_slot
+      ON appointments(contractor_id, scheduled_date, scheduled_time)
+      WHERE status != 'cancelled';
   `);
 
   // Seed niches if not already present

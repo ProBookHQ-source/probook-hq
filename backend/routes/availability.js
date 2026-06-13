@@ -110,12 +110,17 @@ router.get('/:contractorId/open-slots', async (req, res) => {
   `).all(contractorId, from, to);
 
   const result = [];
-  const start = new Date(from + 'T00:00:00');
-  const end   = new Date(to   + 'T00:00:00');
+  const now = new Date();
+  // Use YYYY-MM-DD in local time (avoids UTC shift on Railway which runs UTC)
+  const todayStr = now.toISOString().split('T')[0];
+  // Current time in minutes, plus a 30-minute buffer so homeowners can't book a slot starting very soon
+  const nowMinutes = now.getUTCHours() * 60 + now.getUTCMinutes() + 30;
 
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const dateStr  = d.toISOString().split('T')[0];
-    const dayOfWeek = d.getDay();
+  for (let cursor = new Date(from + 'T00:00:00Z'); ; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+    const dateStr = cursor.toISOString().split('T')[0];
+    if (dateStr > to) break;
+
+    const dayOfWeek = cursor.getUTCDay();
 
     const override = overrides.find(o => o.date === dateStr);
     if (override && !override.is_available) continue;
@@ -132,12 +137,16 @@ router.get('/:contractorId/open-slots', async (req, res) => {
       .filter(b => b.scheduled_date === dateStr)
       .map(b => b.scheduled_time);
 
+    const isToday = dateStr === todayStr;
+
     for (const slot of daySlots) {
       const [sh, sm] = slot.start_time.split(':').map(Number);
       const [eh, em] = slot.end_time.split(':').map(Number);
       let cur = sh * 60 + sm;
       const endMin = eh * 60 + em;
       while (cur + 60 <= endMin) {
+        // Skip slots that have already passed today (with 30-min buffer)
+        if (isToday && cur <= nowMinutes) { cur += 60; continue; }
         const timeStr = `${String(Math.floor(cur / 60)).padStart(2, '0')}:${String(cur % 60).padStart(2, '0')}`;
         if (!dayBooked.includes(timeStr)) result.push({ date: dateStr, time: timeStr });
         cur += 60;

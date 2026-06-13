@@ -86,6 +86,7 @@ router.post('/book', async (req, res) => {
     return res.status(400).json({ error: 'token, date, and time are required' });
   }
 
+  // ── 1. Validate token ──────────────────────────────────────────────────────
   const bookingToken = await db.prepare(`
     SELECT * FROM booking_tokens WHERE token = $1 AND used = 0 AND expires_at > NOW()
   `).get(token);
@@ -93,30 +94,85 @@ router.post('/book', async (req, res) => {
     return res.status(400).json({ error: 'Invalid or expired booking link' });
   }
 
+  // ── 2. Validate lead exists and hasn't already been booked ─────────────────
   const lead = await db.prepare('SELECT * FROM leads WHERE id = $1').get(bookingToken.lead_id);
   if (!lead || !lead.assigned_contractor_id) {
     return res.status(400).json({ error: 'Lead not ready for booking' });
   }
+  if (lead.status === 'booked') {
+    return res.status(409).json({ error: 'This appointment has already been booked.' });
+  }
 
+  // ── 3. Validate contractor is still active ─────────────────────────────────
+  const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(lead.assigned_contractor_id);
+  if (!contractor || !contractor.is_active) {
+    return res.status(409).json({ error: 'This contractor is no longer available. Please contact us for a new match.' });
+  }
+
+  // ── 4. Validate requested date is not in the past ──────────────────────────
+  const now = new Date();
+  const requestedDT = new Date(`${date}T${time}:00`);
+  if (requestedDT < now) {
+    return res.status(400).json({ error: 'Cannot book a time slot in the past.' });
+  }
+
+  // ── 5. Re-validate the slot is still within the contractor's availability ──
+  const dayOfWeek = requestedDT.getDay();
+  const override = await db.prepare(
+    'SELECT * FROM availability_overrides WHERE contractor_id = $1 AND date = $2'
+  ).get(lead.assigned_contractor_id, date);
+
+  let slotValid = false;
+  if (override) {
+    if (!override.is_available) {
+      return res.status(409).json({ error: 'The contractor is not available on that date. Please pick another time.' });
+    }
+    // Override with custom hours
+    if (override.start_time && override.end_time) {
+      slotValid = time >= override.start_time && time < override.end_time;
+    }
+  }
+
+  if (!slotValid) {
+    const weeklySlots = await db.prepare(
+      'SELECT * FROM availability_slots WHERE contractor_id = $1 AND day_of_week = $2 AND is_active = 1'
+    ).all(lead.assigned_contractor_id, dayOfWeek);
+    slotValid = weeklySlots.some(s => time >= s.start_time && time < s.end_time);
+  }
+
+  if (!slotValid) {
+    return res.status(409).json({ error: 'That time is no longer in the contractor\'s schedule. Please pick another time.' });
+  }
+
+  // ── 6. Check for conflicts (also caught by DB unique index as a safety net) ─
   const conflict = await db.prepare(`
     SELECT id FROM appointments
     WHERE contractor_id = $1 AND scheduled_date = $2 AND scheduled_time = $3
     AND status NOT IN ('cancelled')
   `).get(lead.assigned_contractor_id, date, time);
   if (conflict) {
-    return res.status(409).json({ error: 'That time slot is no longer available. Please pick another.' });
+    return res.status(409).json({ error: 'That time slot was just taken. Please pick another.' });
   }
 
+  // ── 7. Create appointment inside a transaction ─────────────────────────────
   const appointmentId = uuidv4();
-  await db.prepare(`
-    INSERT INTO appointments (id, lead_id, contractor_id, scheduled_date, scheduled_time, status)
-    VALUES ($1, $2, $3, $4, $5, 'confirmed')
-  `).run(appointmentId, lead.id, lead.assigned_contractor_id, date, time);
-
-  await db.prepare('UPDATE booking_tokens SET used = 1 WHERE id = $1').run(bookingToken.id);
-  await db.prepare("UPDATE leads SET status = 'booked' WHERE id = $1").run(lead.id);
-
-  const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(lead.assigned_contractor_id);
+  try {
+    await db.transaction(async (client) => {
+      await client.query(
+        `INSERT INTO appointments (id, lead_id, contractor_id, scheduled_date, scheduled_time, status)
+         VALUES ($1, $2, $3, $4, $5, 'confirmed')`,
+        [appointmentId, lead.id, lead.assigned_contractor_id, date, time]
+      );
+      await client.query('UPDATE booking_tokens SET used = 1 WHERE id = $1', [bookingToken.id]);
+      await client.query("UPDATE leads SET status = 'booked' WHERE id = $1", [lead.id]);
+    });
+  } catch (err) {
+    // Unique constraint violation = race condition — someone else just grabbed this slot
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'That time slot was just taken. Please pick another.' });
+    }
+    throw err;
+  }
 
   if (contractor.google_refresh_token) {
     googleCalendar.createEvent(contractor, lead, date, time).then(eventId => {
