@@ -6,7 +6,7 @@ import api from '../api/client';
 import {
   Calendar, Clock, CheckCircle, XCircle, LogOut, Zap,
   ChevronLeft, ChevronRight, Phone, Mail,
-  Link as LinkIcon, Settings, Lock, User
+  Link as LinkIcon, Settings, Lock, User, Ban, CalendarPlus, Trash2
 } from 'lucide-react';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -65,6 +65,43 @@ export default function ContractorPortal() {
     onSuccess: () => { toast.success('Availability saved!'); qc.invalidateQueries(['slots']); },
     onError: () => toast.error('Failed to save availability'),
   });
+
+  // ── Date overrides ────────────────────────────────────────────────────────
+  const overridesFrom = format(new Date(), 'yyyy-MM-dd');
+  const overridesTo   = format(addDays(new Date(), 90), 'yyyy-MM-dd');
+
+  const { data: overrides = [] } = useQuery({
+    queryKey: ['overrides', user.id],
+    queryFn: () => api.get(`/availability/${user.id}/overrides?from=${overridesFrom}&to=${overridesTo}`).then(r => r.data),
+  });
+
+  const [newOverride, setNewOverride] = useState({ date: '', type: 'block', start: '09:00', end: '17:00' });
+
+  const addOverride = useMutation({
+    mutationFn: (data) => api.post(`/availability/${user.id}/overrides`, data),
+    onSuccess: () => {
+      toast.success('Date saved!');
+      qc.invalidateQueries(['overrides']);
+      setNewOverride({ date: '', type: 'block', start: '09:00', end: '17:00' });
+    },
+    onError: () => toast.error('Failed to save date override'),
+  });
+
+  const removeOverride = useMutation({
+    mutationFn: (id) => api.delete(`/availability/${user.id}/overrides/${id}`),
+    onSuccess: () => { toast.success('Removed'); qc.invalidateQueries(['overrides']); },
+    onError: () => toast.error('Failed to remove'),
+  });
+
+  const handleAddOverride = () => {
+    if (!newOverride.date) return toast.error('Please select a date');
+    if (newOverride.type === 'block') {
+      addOverride.mutate({ date: newOverride.date, is_available: false });
+    } else {
+      if (newOverride.start >= newOverride.end) return toast.error('End time must be after start time');
+      addOverride.mutate({ date: newOverride.date, is_available: true, start_time: newOverride.start, end_time: newOverride.end });
+    }
+  };
 
   const cancelAppt = useMutation({
     mutationFn: (id) => api.put(`/bookings/${id}/cancel`),
@@ -286,61 +323,164 @@ export default function ContractorPortal() {
 
         {/* ── AVAILABILITY TAB ── */}
         {tab === 'availability' && (
-          <div className="max-w-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-lg font-semibold">Weekly Availability</h2>
-                <p className="text-sm text-gray-500">Set the days and hours you're available for appointments</p>
+          <div className="max-w-2xl space-y-8">
+
+            {/* Weekly schedule */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold">Weekly Schedule</h2>
+                  <p className="text-sm text-gray-500">Your recurring hours — applies to every week</p>
+                </div>
+                <button onClick={() => saveAvailability.mutate()} disabled={saveAvailability.isPending} className="btn-primary">
+                  {saveAvailability.isPending ? 'Saving...' : 'Save Schedule'}
+                </button>
               </div>
-              <button onClick={() => saveAvailability.mutate()} disabled={saveAvailability.isPending} className="btn-primary">
-                {saveAvailability.isPending ? 'Saving...' : 'Save Changes'}
-              </button>
+
+              <div className="card space-y-4">
+                {DAYS.map((day, idx) => {
+                  const active = !!availability[idx];
+                  const val = availability[idx] || { start: '09:00', end: '17:00' };
+                  return (
+                    <div key={idx} className={`flex items-center gap-4 p-3 rounded-xl transition-all ${active ? 'bg-brand-50' : 'bg-gray-50'}`}>
+                      <label className="flex items-center gap-3 w-24 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={active}
+                          onChange={e => {
+                            if (e.target.checked) setAvailability(p => ({ ...p, [idx]: { start: '09:00', end: '17:00' } }));
+                            else setAvailability(p => { const n = { ...p }; delete n[idx]; return n; });
+                          }}
+                          className="w-4 h-4 accent-brand-500"
+                        />
+                        <span className={`text-sm font-medium ${active ? 'text-brand-700' : 'text-gray-400'}`}>{day}</span>
+                      </label>
+
+                      {active ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <select value={val.start} onChange={e => setAvailability(p => ({ ...p, [idx]: { ...val, start: e.target.value } }))} className="input py-1.5 w-auto">
+                            {HOURS.map(h => <option key={h}>{h}</option>)}
+                          </select>
+                          <span className="text-gray-400 text-sm">to</span>
+                          <select value={val.end} onChange={e => setAvailability(p => ({ ...p, [idx]: { ...val, end: e.target.value } }))} className="input py-1.5 w-auto">
+                            {HOURS.map(h => <option key={h}>{h}</option>)}
+                          </select>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400">Not available</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="card space-y-4">
-              {DAYS.map((day, idx) => {
-                const active = !!availability[idx];
-                const val = availability[idx] || { start: '09:00', end: '17:00' };
-                return (
-                  <div key={idx} className={`flex items-center gap-4 p-3 rounded-xl transition-all ${active ? 'bg-brand-50' : 'bg-gray-50'}`}>
-                    <label className="flex items-center gap-3 w-24 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={active}
-                        onChange={e => {
-                          if (e.target.checked) setAvailability(p => ({ ...p, [idx]: { start: '09:00', end: '17:00' } }));
-                          else setAvailability(p => { const n = { ...p }; delete n[idx]; return n; });
-                        }}
-                        className="w-4 h-4 accent-brand-500"
-                      />
-                      <span className={`text-sm font-medium ${active ? 'text-brand-700' : 'text-gray-400'}`}>{day}</span>
-                    </label>
+            {/* Date overrides */}
+            <div>
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold">Date Overrides</h2>
+                <p className="text-sm text-gray-500">Block specific days off or set custom hours for a date — overrides your weekly schedule</p>
+              </div>
 
-                    {active ? (
-                      <div className="flex items-center gap-2 flex-1">
-                        <select
-                          value={val.start}
-                          onChange={e => setAvailability(p => ({ ...p, [idx]: { ...val, start: e.target.value } }))}
-                          className="input py-1.5 w-auto"
-                        >
-                          {HOURS.map(h => <option key={h}>{h}</option>)}
-                        </select>
-                        <span className="text-gray-400 text-sm">to</span>
-                        <select
-                          value={val.end}
-                          onChange={e => setAvailability(p => ({ ...p, [idx]: { ...val, end: e.target.value } }))}
-                          className="input py-1.5 w-auto"
-                        >
+              {/* Add override form */}
+              <div className="card mb-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <CalendarPlus className="w-4 h-4 text-brand-500" />
+                  <h3 className="font-semibold text-sm text-gray-800">Add a Date Override</h3>
+                </div>
+                <div className="flex flex-wrap gap-3 items-end">
+                  <div>
+                    <label className="label">Date</label>
+                    <input
+                      type="date"
+                      min={format(new Date(), 'yyyy-MM-dd')}
+                      value={newOverride.date}
+                      onChange={e => setNewOverride(p => ({ ...p, date: e.target.value }))}
+                      className="input"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Type</label>
+                    <select
+                      value={newOverride.type}
+                      onChange={e => setNewOverride(p => ({ ...p, type: e.target.value }))}
+                      className="input"
+                    >
+                      <option value="block">Block day off</option>
+                      <option value="custom">Custom hours</option>
+                    </select>
+                  </div>
+                  {newOverride.type === 'custom' && (
+                    <>
+                      <div>
+                        <label className="label">From</label>
+                        <select value={newOverride.start} onChange={e => setNewOverride(p => ({ ...p, start: e.target.value }))} className="input py-1.5 w-auto">
                           {HOURS.map(h => <option key={h}>{h}</option>)}
                         </select>
                       </div>
-                    ) : (
-                      <span className="text-sm text-gray-400">Not available</span>
-                    )}
-                  </div>
-                );
-              })}
+                      <div>
+                        <label className="label">To</label>
+                        <select value={newOverride.end} onChange={e => setNewOverride(p => ({ ...p, end: e.target.value }))} className="input py-1.5 w-auto">
+                          {HOURS.map(h => <option key={h}>{h}</option>)}
+                        </select>
+                      </div>
+                    </>
+                  )}
+                  <button
+                    onClick={handleAddOverride}
+                    disabled={addOverride.isPending}
+                    className="btn-primary"
+                  >
+                    {addOverride.isPending ? 'Saving...' : 'Add'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Existing overrides list */}
+              {overrides.length === 0 ? (
+                <div className="card text-center py-8 text-gray-400">
+                  <Ban className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">No date overrides set. Add one above to block a day off or set custom hours.</p>
+                </div>
+              ) : (
+                <div className="card p-0 overflow-hidden divide-y divide-gray-50">
+                  {overrides.map(o => (
+                    <div key={o.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        {o.is_available ? (
+                          <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center">
+                            <Clock className="w-4 h-4 text-brand-500" />
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
+                            <Ban className="w-4 h-4 text-red-400" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            {format(parseISO(o.date), 'EEEE, MMMM d, yyyy')}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {o.is_available
+                              ? `Custom hours: ${o.start_time} – ${o.end_time}`
+                              : 'Blocked — no appointments'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeOverride.mutate(o.id)}
+                        disabled={removeOverride.isPending}
+                        className="p-1.5 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all"
+                        title="Remove"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
           </div>
         )}
 
