@@ -11,6 +11,7 @@ const app  = express();
 const PORT = process.env.PORT || 4000;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
+app.set('trust proxy', 1); // trust Cloudflare + Railway proxy
 app.use(cors());
 app.use(express.json());
 
