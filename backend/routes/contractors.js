@@ -88,7 +88,15 @@ router.put('/:id', requireContractor, async (req, res) => {
 
 // ── Delete contractor (admin only) ────────────────────────────────────────────
 router.delete('/:id', requireAdmin, async (req, res) => {
+  const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(req.params.id);
+  if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
+
+  // Null out FK references before deleting
+  await db.prepare('UPDATE leads SET assigned_contractor_id = NULL WHERE assigned_contractor_id = $1').run(req.params.id);
+  await db.prepare('DELETE FROM round_robin_state WHERE last_contractor_id = $1').run(req.params.id);
+  await db.prepare('DELETE FROM availability WHERE contractor_id = $1').run(req.params.id);
   await db.prepare('DELETE FROM contractors WHERE id = $1').run(req.params.id);
+
   res.json({ message: 'Contractor deleted' });
 });
 

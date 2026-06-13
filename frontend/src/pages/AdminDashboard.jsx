@@ -63,6 +63,16 @@ export default function AdminDashboard() {
     onError: (err) => toast.error(err.response?.data?.error || 'Delete failed'),
   });
 
+  const deleteContractor = useMutation({
+    mutationFn: (id) => api.delete(`/contractors/${id}`),
+    onSuccess: () => {
+      toast.success('Contractor deleted');
+      qc.invalidateQueries(['admin-contractors']);
+      qc.invalidateQueries(['admin-leads']);
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Delete failed'),
+  });
+
   const addContractor = useMutation({
     mutationFn: (data) => api.post('/contractors', data),
     onSuccess: () => {
@@ -354,6 +364,17 @@ export default function AdminDashboard() {
                   {c.google_refresh_token && (
                     <p className="text-xs text-green-600 mt-2 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Google Calendar linked</p>
                   )}
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <button
+                      onClick={() => {
+                        if (confirm(`Delete contractor "${c.name}"? This cannot be undone.`)) deleteContractor.mutate(c.id);
+                      }}
+                      className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-medium"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Delete Contractor
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
