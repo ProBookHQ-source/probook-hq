@@ -133,7 +133,7 @@ router.post('/book', async (req, res) => {
     .catch(err => console.error('Confirmation email error:', err.message));
 });
 
-// ── Cancel an appointment ─────────────────────────────────────────────────────
+// ── Cancel an appointment (contractor) ───────────────────────────────────────
 router.put('/:id/cancel', requireContractor, async (req, res) => {
   const { id } = req.params;
   const appt = await db.prepare('SELECT * FROM appointments WHERE id = $1').get(id);
@@ -142,16 +142,30 @@ router.put('/:id/cancel', requireContractor, async (req, res) => {
     return res.status(403).json({ error: 'Access denied' });
   }
   await db.prepare("UPDATE appointments SET status = 'cancelled', updated_at = NOW() WHERE id = $1").run(id);
-  await db.prepare("UPDATE leads SET status = 'new' WHERE id = $1").run(appt.lead_id);
+  await db.prepare("UPDATE leads SET status = 'matched' WHERE id = $1").run(appt.lead_id);
 
   const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(appt.contractor_id);
-  if (appt.google_event_id && contractor.google_refresh_token) {
+  if (appt.google_event_id && contractor?.google_refresh_token) {
     googleCalendar.deleteEvent(contractor, appt.google_event_id).catch(console.error);
   }
+
+  // Issue a new booking link and notify the homeowner
+  const lead = await db.prepare('SELECT * FROM leads WHERE id = $1').get(appt.lead_id);
+  if (lead && contractor) {
+    const { v4: uuidv4 } = require('uuid');
+    await db.prepare('UPDATE booking_tokens SET used = 1 WHERE lead_id = $1 AND used = 0').run(lead.id);
+    const newToken = uuidv4();
+    const expiresAt = new Date(Date.now() + 24 * 3600 * 1000);
+    await db.prepare('INSERT INTO booking_tokens (id, lead_id, token, expires_at) VALUES ($1, $2, $3, $4)')
+      .run(uuidv4(), lead.id, newToken, expiresAt);
+    const bookingUrl = `${process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app'}/book/${newToken}`;
+    notifications.sendCancellationAndRebook(lead, contractor, bookingUrl).catch(console.error);
+  }
+
   res.json({ message: 'Appointment cancelled' });
 });
 
-// ── Complete an appointment ───────────────────────────────────────────────────
+// ── Complete an appointment (contractor) ──────────────────────────────────────
 router.put('/:id/complete', requireContractor, async (req, res) => {
   const { id } = req.params;
   const appt = await db.prepare('SELECT * FROM appointments WHERE id = $1').get(id);
@@ -160,6 +174,24 @@ router.put('/:id/complete', requireContractor, async (req, res) => {
     return res.status(403).json({ error: 'Access denied' });
   }
   await db.prepare("UPDATE appointments SET status = 'completed', updated_at = NOW() WHERE id = $1").run(id);
+  await db.prepare("UPDATE leads SET status = 'completed' WHERE id = $1").run(appt.lead_id);
+  res.json({ message: 'Appointment marked complete' });
+});
+
+// ── Admin cancel ──────────────────────────────────────────────────────────────
+router.put('/:id/admin-cancel', requireAdmin, async (req, res) => {
+  const appt = await db.prepare('SELECT * FROM appointments WHERE id = $1').get(req.params.id);
+  if (!appt) return res.status(404).json({ error: 'Appointment not found' });
+  await db.prepare("UPDATE appointments SET status = 'cancelled', updated_at = NOW() WHERE id = $1").run(req.params.id);
+  await db.prepare("UPDATE leads SET status = 'matched' WHERE id = $1").run(appt.lead_id);
+  res.json({ message: 'Appointment cancelled' });
+});
+
+// ── Admin complete ────────────────────────────────────────────────────────────
+router.put('/:id/admin-complete', requireAdmin, async (req, res) => {
+  const appt = await db.prepare('SELECT * FROM appointments WHERE id = $1').get(req.params.id);
+  if (!appt) return res.status(404).json({ error: 'Appointment not found' });
+  await db.prepare("UPDATE appointments SET status = 'completed', updated_at = NOW() WHERE id = $1").run(req.params.id);
   await db.prepare("UPDATE leads SET status = 'completed' WHERE id = $1").run(appt.lead_id);
   res.json({ message: 'Appointment marked complete' });
 });

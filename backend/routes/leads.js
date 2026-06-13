@@ -107,6 +107,38 @@ router.post('/:id/match', requireAdmin, async (req, res) => {
   res.json({ matched, message: matched ? 'Contractor matched and notified' : 'No available contractors found' });
 });
 
+// ── Resend booking link (admin) ───────────────────────────────────────────────
+router.post('/:id/resend-link', requireAdmin, async (req, res) => {
+  const lead = await db.prepare(`
+    SELECT l.*, n.name as niche_name FROM leads l
+    JOIN niches n ON l.niche_id = n.id WHERE l.id = $1
+  `).get(req.params.id);
+  if (!lead) return res.status(404).json({ error: 'Lead not found' });
+  if (!lead.assigned_contractor_id) return res.status(400).json({ error: 'Lead has no assigned contractor' });
+
+  const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(lead.assigned_contractor_id);
+  if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
+
+  // Expire old tokens
+  await db.prepare('UPDATE booking_tokens SET used = 1 WHERE lead_id = $1 AND used = 0').run(lead.id);
+
+  // Create new token (24 hr)
+  const { v4: uuidv4 } = require('uuid');
+  const token = uuidv4();
+  const expiresAt = new Date(Date.now() + 24 * 3600 * 1000);
+  await db.prepare('INSERT INTO booking_tokens (id, lead_id, token, expires_at) VALUES ($1, $2, $3, $4)')
+    .run(uuidv4(), lead.id, token, expiresAt);
+
+  // Ensure lead status is matched
+  await db.prepare("UPDATE leads SET status = 'matched' WHERE id = $1").run(lead.id);
+
+  const { sendBookingLink } = require('../services/notifications');
+  const bookingUrl = `${process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app'}/book/${token}`;
+  await sendBookingLink(lead, contractor, bookingUrl);
+
+  res.json({ message: 'Booking link resent' });
+});
+
 // ── Delete lead (admin) ───────────────────────────────────────────────────────
 router.delete('/:id', requireAdmin, async (req, res) => {
   const lead = await db.prepare('SELECT * FROM leads WHERE id = $1').get(req.params.id);

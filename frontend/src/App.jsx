@@ -1,16 +1,33 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import AdminDashboard from './pages/AdminDashboard';
 import ContractorPortal from './pages/ContractorPortal';
 import BookingFlow from './pages/BookingFlow';
 import LeadIntakeWidget from './pages/LeadIntakeWidget';
 import LandingPage from './pages/LandingPage';
+import { Zap } from 'lucide-react';
 
 function ProtectedRoute({ children, role }) {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   if (!user) return <Navigate to="/login" replace />;
   if (role && user.role !== role && user.role !== 'admin') return <Navigate to="/" replace />;
   return children;
+}
+
+function NotFound() {
+  const navigate = useNavigate();
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-purple-50 flex items-center justify-center p-4">
+      <div className="text-center">
+        <div className="w-16 h-16 bg-brand-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Zap className="w-8 h-8 text-brand-500" />
+        </div>
+        <h1 className="text-5xl font-black text-gray-900 mb-2">404</h1>
+        <p className="text-gray-500 mb-6">This page doesn't exist.</p>
+        <button onClick={() => navigate('/')} className="btn-primary">Go Home</button>
+      </div>
+    </div>
+  );
 }
 
 export default function App() {
@@ -39,6 +56,8 @@ export default function App() {
         user?.role === 'contractor' ? <Navigate to="/contractor" replace /> :
         <LandingPage />
       } />
+
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

@@ -86,6 +86,31 @@ router.put('/:id', requireContractor, async (req, res) => {
   res.json({ message: 'Contractor updated' });
 });
 
+// ── Change password (contractor self or admin) ────────────────────────────────
+router.put('/:id/password', requireContractor, async (req, res) => {
+  const { id } = req.params;
+  if (req.user.role !== 'admin' && req.user.id !== id) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  const { current_password, new_password } = req.body;
+  if (!new_password || new_password.length < 6) {
+    return res.status(400).json({ error: 'New password must be at least 6 characters' });
+  }
+  const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(id);
+  if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
+
+  // Non-admins must verify current password
+  if (req.user.role !== 'admin') {
+    if (!current_password) return res.status(400).json({ error: 'Current password required' });
+    const valid = bcrypt.compareSync(current_password, contractor.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
+  }
+
+  const hash = bcrypt.hashSync(new_password, 10);
+  await db.prepare('UPDATE contractors SET password_hash = $1 WHERE id = $2').run(hash, id);
+  res.json({ message: 'Password updated' });
+});
+
 // ── Delete contractor (admin only) ────────────────────────────────────────────
 router.delete('/:id', requireAdmin, async (req, res) => {
   const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(req.params.id);

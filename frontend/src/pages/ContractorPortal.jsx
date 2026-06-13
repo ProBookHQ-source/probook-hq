@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, addDays, startOfWeek, parseISO } from 'date-fns';
+import { format, addDays, startOfWeek, parseISO, isBefore, startOfDay } from 'date-fns';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import {
   Calendar, Clock, CheckCircle, XCircle, LogOut, Zap,
-  ChevronLeft, ChevronRight, User, Phone, Mail, MapPin,
-  Link as LinkIcon, Settings
+  ChevronLeft, ChevronRight, Phone, Mail,
+  Link as LinkIcon, Settings, Lock, User
 } from 'lucide-react';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -27,6 +27,9 @@ export default function ContractorPortal() {
   const qc = useQueryClient();
   const [tab, setTab] = useState('calendar');
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date()));
+  const [confirmCancelId, setConfirmCancelId] = useState(null);
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
+  const [profileForm, setProfileForm] = useState({ name: user.name || '', phone: user.phone || '', company_name: user.company_name || '' });
 
   const from = format(weekStart, 'yyyy-MM-dd');
   const to   = format(addDays(weekStart, 6), 'yyyy-MM-dd');
@@ -65,13 +68,33 @@ export default function ContractorPortal() {
 
   const cancelAppt = useMutation({
     mutationFn: (id) => api.put(`/bookings/${id}/cancel`),
-    onSuccess: () => { toast.success('Appointment cancelled'); qc.invalidateQueries(['appointments']); },
+    onSuccess: () => { toast.success('Appointment cancelled — homeowner notified'); qc.invalidateQueries(['appointments']); setConfirmCancelId(null); },
+    onError: () => toast.error('Failed to cancel'),
   });
 
   const completeAppt = useMutation({
     mutationFn: (id) => api.put(`/bookings/${id}/complete`),
     onSuccess: () => { toast.success('Marked as complete!'); qc.invalidateQueries(['appointments']); },
+    onError: () => toast.error('Failed to update'),
   });
+
+  const updateProfile = useMutation({
+    mutationFn: (data) => api.put(`/contractors/${user.id}`, data),
+    onSuccess: () => { toast.success('Profile updated!'); },
+    onError: () => toast.error('Failed to update profile'),
+  });
+
+  const changePassword = useMutation({
+    mutationFn: (data) => api.put(`/contractors/${user.id}/password`, data),
+    onSuccess: () => { toast.success('Password changed!'); setPwForm({ current: '', next: '', confirm: '' }); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to change password'),
+  });
+
+  const handleChangePassword = () => {
+    if (pwForm.next.length < 6) return toast.error('Password must be at least 6 characters');
+    if (pwForm.next !== pwForm.confirm) return toast.error('Passwords do not match');
+    changePassword.mutate({ current_password: pwForm.current, new_password: pwForm.next });
+  };
 
   const connectGoogle = async () => {
     try {
@@ -152,10 +175,11 @@ export default function ContractorPortal() {
                 {Array.from({ length: 7 }, (_, i) => {
                   const day = addDays(weekStart, i);
                   const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+                  const isPast = isBefore(startOfDay(day), startOfDay(new Date()));
                   return (
-                    <div key={i} className={`p-3 text-center border-r border-gray-100 last:border-r-0 ${isToday ? 'bg-brand-50' : ''}`}>
-                      <p className={`text-xs font-medium ${isToday ? 'text-brand-600' : 'text-gray-500'}`}>{DAYS[day.getDay()]}</p>
-                      <p className={`text-sm font-bold ${isToday ? 'text-brand-600' : 'text-gray-800'}`}>{format(day, 'd')}</p>
+                    <div key={i} className={`p-3 text-center border-r border-gray-100 last:border-r-0 ${isToday ? 'bg-brand-50' : isPast ? 'bg-gray-50' : ''}`}>
+                      <p className={`text-xs font-medium ${isToday ? 'text-brand-600' : isPast ? 'text-gray-300' : 'text-gray-500'}`}>{DAYS[day.getDay()]}</p>
+                      <p className={`text-sm font-bold ${isToday ? 'text-brand-600' : isPast ? 'text-gray-300' : 'text-gray-800'}`}>{format(day, 'd')}</p>
                     </div>
                   );
                 })}
@@ -166,10 +190,12 @@ export default function ContractorPortal() {
                   <div key={hour} className="grid grid-cols-8 border-b border-gray-50 last:border-b-0 min-h-[52px]">
                     <div className="p-2 text-xs text-gray-400 border-r border-gray-100 flex items-start pt-2">{hour}</div>
                     {Array.from({ length: 7 }, (_, i) => {
-                      const dateStr = format(addDays(weekStart, i), 'yyyy-MM-dd');
+                      const day = addDays(weekStart, i);
+                      const isPast = isBefore(startOfDay(day), startOfDay(new Date()));
+                      const dateStr = format(day, 'yyyy-MM-dd');
                       const appt = appointments.find(a => a.scheduled_date === dateStr && a.scheduled_time === hour);
                       return (
-                        <div key={i} className="p-1 border-r border-gray-50 last:border-r-0">
+                        <div key={i} className={`p-1 border-r border-gray-50 last:border-r-0 ${isPast ? 'bg-gray-50/60' : ''}`}>
                           {appt && (
                             <div className={`rounded-lg p-1.5 text-xs cursor-pointer hover:opacity-80 ${STATUS_COLORS[appt.status] || 'bg-brand-100 text-brand-700'}`}>
                               <p className="font-semibold truncate">{appt.lead_name}</p>
@@ -184,47 +210,77 @@ export default function ContractorPortal() {
               </div>
             </div>
 
-            {/* Upcoming list */}
-            {appointments.length > 0 && (
-              <div className="mt-6">
-                <h3 className="font-semibold text-gray-700 mb-3">This Week's Appointments</h3>
-                <div className="space-y-3">
-                  {appointments.filter(a => a.status !== 'cancelled').map(appt => (
-                    <div key={appt.id} className="card flex items-start justify-between gap-4">
-                      <div className="flex gap-4 flex-1 min-w-0">
-                        <div className="text-center min-w-[56px]">
-                          <p className="text-xs text-gray-500">{format(parseISO(appt.scheduled_date), 'EEE')}</p>
-                          <p className="text-xl font-bold text-brand-600">{format(parseISO(appt.scheduled_date), 'd')}</p>
-                          <p className="text-xs font-medium text-gray-600">{appt.scheduled_time}</p>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-gray-900">{appt.lead_name}</p>
-                          <p className="text-sm text-gray-500 mb-2">{appt.niche_name}</p>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                            {appt.lead_email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{appt.lead_email}</span>}
-                            {appt.lead_phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{appt.lead_phone}</span>}
-                          </div>
-                          {appt.lead_description && <p className="text-xs text-gray-400 mt-1 truncate">{appt.lead_description}</p>}
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-2 shrink-0">
-                        <span className={`badge ${STATUS_COLORS[appt.status]}`}>{appt.status}</span>
-                        {appt.status === 'confirmed' && (
-                          <div className="flex gap-1">
-                            <button onClick={() => completeAppt.mutate(appt.id)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg" title="Mark complete">
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => { if (confirm('Cancel this appointment?')) cancelAppt.mutate(appt.id); }} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Cancel">
-                              <XCircle className="w-4 h-4" />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+            {/* Appointment list */}
+            <div className="mt-6">
+              {appointments.filter(a => a.status !== 'cancelled').length === 0 ? (
+                <div className="card text-center py-10">
+                  <Calendar className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                  <p className="text-gray-400 font-medium">No appointments this week</p>
+                  <p className="text-gray-300 text-sm mt-1">New bookings will appear here automatically.</p>
                 </div>
-              </div>
-            )}
+              ) : (
+                <>
+                  <h3 className="font-semibold text-gray-700 mb-3">This Week's Appointments</h3>
+                  <div className="space-y-3">
+                    {appointments.filter(a => a.status !== 'cancelled').map(appt => (
+                      <div key={appt.id} className="card flex items-start justify-between gap-4">
+                        <div className="flex gap-4 flex-1 min-w-0">
+                          <div className="text-center min-w-[56px]">
+                            <p className="text-xs text-gray-500">{format(parseISO(appt.scheduled_date), 'EEE')}</p>
+                            <p className="text-xl font-bold text-brand-600">{format(parseISO(appt.scheduled_date), 'd')}</p>
+                            <p className="text-xs font-medium text-gray-600">{appt.scheduled_time}</p>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900">{appt.lead_name}</p>
+                            <p className="text-sm text-gray-500 mb-2">{appt.niche_name}</p>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                              {appt.lead_email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{appt.lead_email}</span>}
+                              {appt.lead_phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{appt.lead_phone}</span>}
+                            </div>
+                            {appt.lead_description && <p className="text-xs text-gray-400 mt-1">{appt.lead_description}</p>}
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2 shrink-0 items-end">
+                          <span className={`badge ${STATUS_COLORS[appt.status]}`}>{appt.status}</span>
+                          {appt.status === 'confirmed' && (
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => completeAppt.mutate(appt.id)}
+                                disabled={completeAppt.isPending}
+                                className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg disabled:opacity-50"
+                                title="Mark complete"
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                              </button>
+                              {confirmCancelId === appt.id ? (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => cancelAppt.mutate(appt.id)}
+                                    disabled={cancelAppt.isPending}
+                                    className="text-xs bg-red-500 text-white px-2 py-1 rounded font-medium hover:bg-red-600 disabled:opacity-50"
+                                  >
+                                    {cancelAppt.isPending ? '...' : 'Confirm'}
+                                  </button>
+                                  <button onClick={() => setConfirmCancelId(null)} className="text-xs text-gray-400 hover:text-gray-600 px-1">✕</button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => setConfirmCancelId(appt.id)}
+                                  className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"
+                                  title="Cancel"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
 
@@ -290,26 +346,86 @@ export default function ContractorPortal() {
 
         {/* ── SETTINGS TAB ── */}
         {tab === 'settings' && (
-          <div className="max-w-md">
-            <h2 className="text-lg font-semibold mb-6">Settings</h2>
-            <div className="card space-y-4">
-              <div>
-                <p className="font-medium text-gray-900 mb-1">Google Calendar Sync</p>
-                <p className="text-sm text-gray-500 mb-3">Connect your Google Calendar so booked appointments are added automatically.</p>
-                <button onClick={connectGoogle} className="btn-secondary gap-2">
-                  <LinkIcon className="w-4 h-4" />
-                  Connect Google Calendar
+          <div className="max-w-lg space-y-6">
+            <h2 className="text-lg font-semibold">Settings</h2>
+
+            {/* Profile */}
+            <div className="card">
+              <div className="flex items-center gap-2 mb-4">
+                <User className="w-4 h-4 text-brand-500" />
+                <h3 className="font-semibold text-gray-900">Profile</h3>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="label">Full Name</label>
+                  <input className="input" value={profileForm.name} onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Company Name</label>
+                  <input className="input" value={profileForm.company_name} onChange={e => setProfileForm(p => ({ ...p, company_name: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Phone</label>
+                  <input className="input" value={profileForm.phone} onChange={e => setProfileForm(p => ({ ...p, phone: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Email</label>
+                  <input className="input bg-gray-50 cursor-not-allowed" value={user.email} disabled />
+                  <p className="text-xs text-gray-400 mt-1">Contact admin to change your email.</p>
+                </div>
+                <button
+                  onClick={() => updateProfile.mutate(profileForm)}
+                  disabled={updateProfile.isPending}
+                  className="btn-primary"
+                >
+                  {updateProfile.isPending ? 'Saving...' : 'Save Profile'}
                 </button>
-                {new URLSearchParams(window.location.search).get('gcal') === 'success' && (
-                  <p className="text-green-600 text-sm mt-2 flex items-center gap-1"><CheckCircle className="w-4 h-4" /> Connected!</p>
-                )}
               </div>
-              <hr className="border-gray-100" />
-              <div>
-                <p className="font-medium text-gray-900 mb-1">Account</p>
-                <p className="text-sm text-gray-500">{user.email}</p>
-                <p className="text-sm text-gray-500">{user.company_name}</p>
+            </div>
+
+            {/* Password */}
+            <div className="card">
+              <div className="flex items-center gap-2 mb-4">
+                <Lock className="w-4 h-4 text-brand-500" />
+                <h3 className="font-semibold text-gray-900">Change Password</h3>
               </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="label">Current Password</label>
+                  <input type="password" className="input" value={pwForm.current} onChange={e => setPwForm(p => ({ ...p, current: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">New Password</label>
+                  <input type="password" className="input" value={pwForm.next} onChange={e => setPwForm(p => ({ ...p, next: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Confirm New Password</label>
+                  <input type="password" className="input" value={pwForm.confirm} onChange={e => setPwForm(p => ({ ...p, confirm: e.target.value }))} />
+                </div>
+                <button
+                  onClick={handleChangePassword}
+                  disabled={changePassword.isPending}
+                  className="btn-primary"
+                >
+                  {changePassword.isPending ? 'Updating...' : 'Update Password'}
+                </button>
+              </div>
+            </div>
+
+            {/* Google Calendar */}
+            <div className="card">
+              <div className="flex items-center gap-2 mb-4">
+                <LinkIcon className="w-4 h-4 text-brand-500" />
+                <h3 className="font-semibold text-gray-900">Google Calendar Sync</h3>
+              </div>
+              <p className="text-sm text-gray-500 mb-3">Connect your Google Calendar so booked appointments are added automatically.</p>
+              <button onClick={connectGoogle} className="btn-secondary gap-2">
+                <LinkIcon className="w-4 h-4" />
+                Connect Google Calendar
+              </button>
+              {new URLSearchParams(window.location.search).get('gcal') === 'success' && (
+                <p className="text-green-600 text-sm mt-2 flex items-center gap-1"><CheckCircle className="w-4 h-4" /> Connected!</p>
+              )}
             </div>
           </div>
         )}

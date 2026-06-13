@@ -159,4 +159,29 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
   ]);
 }
 
-module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation };
+async function sendCancellationAndRebook(lead, contractor, newBookingUrl) {
+  return sendEmail(
+    lead.email,
+    `Your appointment was cancelled — rebook now`,
+    `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1a1a2e;">
+      <div style="background:linear-gradient(135deg,#f59e0b,#ef4444);padding:32px;border-radius:12px 12px 0 0;">
+        <h1 style="color:white;margin:0;font-size:24px;">${BRAND}</h1>
+      </div>
+      <div style="background:#fff;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;">
+        <h2 style="color:#1a1a2e;margin-top:0;">Hi ${lead.name},</h2>
+        <p>Unfortunately, <strong>${contractor.company_name || contractor.name}</strong> had to cancel your appointment.</p>
+        <p>No worries — we've issued you a new booking link so you can pick a new time:</p>
+        <a href="${newBookingUrl}"
+           style="display:inline-block;background:#6366f1;color:white;text-decoration:none;
+                  padding:14px 28px;border-radius:8px;font-weight:600;margin:16px 0;">
+          Pick a New Time →
+        </a>
+        <p style="color:#6b7280;font-size:14px;">This link expires in 24 hours.</p>
+      </div>
+    </div>
+    `
+  );
+}
+
+module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook };

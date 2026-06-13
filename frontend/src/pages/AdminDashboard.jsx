@@ -6,8 +6,7 @@ import toast from 'react-hot-toast';
 import api from '../api/client';
 import {
   LayoutDashboard, Users, FileText, Calendar, LogOut, Zap,
-  Plus, RefreshCw, TrendingUp, Clock, CheckCircle, XCircle,
-  ChevronDown, Search, Filter, Trash2
+  Plus, RefreshCw, CheckCircle, XCircle, Search, Trash2, Send, Phone, AlignLeft
 } from 'lucide-react';
 
 const STATUS_BADGE = {
@@ -25,6 +24,8 @@ export default function AdminDashboard() {
   const [leadFilter, setLeadFilter] = useState('');
   const [confirmDeleteLead, setConfirmDeleteLead] = useState(null);
   const [confirmDeleteContractor, setConfirmDeleteContractor] = useState(null);
+  const [expandedLead, setExpandedLead] = useState(null);
+  const [confirmCancelAppt, setConfirmCancelAppt] = useState(null);
   const qc = useQueryClient();
 
   const { data: leads = [] } = useQuery({
@@ -54,6 +55,24 @@ export default function AdminDashboard() {
       qc.invalidateQueries(['admin-leads']);
     },
     onError: (err) => toast.error(err.response?.data?.error || 'Match failed'),
+  });
+
+  const resendLink = useMutation({
+    mutationFn: (id) => api.post(`/leads/${id}/resend-link`),
+    onSuccess: () => { toast.success('Booking link resent!'); qc.invalidateQueries(['admin-leads']); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to resend'),
+  });
+
+  const adminCancelAppt = useMutation({
+    mutationFn: (id) => api.put(`/bookings/${id}/admin-cancel`),
+    onSuccess: () => { toast.success('Appointment cancelled'); qc.invalidateQueries(['admin-appointments']); qc.invalidateQueries(['admin-leads']); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to cancel'),
+  });
+
+  const adminCompleteAppt = useMutation({
+    mutationFn: (id) => api.put(`/bookings/${id}/admin-complete`),
+    onSuccess: () => { toast.success('Marked complete'); qc.invalidateQueries(['admin-appointments']); qc.invalidateQueries(['admin-leads']); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to complete'),
   });
 
   const deleteLead = useMutation({
@@ -241,10 +260,12 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {filteredLeads.map(lead => (
-                    <tr key={lead.id} className="hover:bg-gray-50">
+                    <>
+                    <tr key={lead.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setExpandedLead(expandedLead === lead.id ? null : lead.id)}>
                       <td className="px-4 py-3">
                         <p className="text-sm font-medium text-gray-900">{lead.name}</p>
                         <p className="text-xs text-gray-400">{lead.email}</p>
+                        {lead.phone && <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5"><Phone className="w-2.5 h-2.5" />{lead.phone}</p>}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{lead.niche_name}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{lead.zip_code}</td>
@@ -253,38 +274,35 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{lead.contractor_name || '—'}</td>
                       <td className="px-4 py-3 text-xs text-gray-400">{format(parseISO(lead.created_at), 'MMM d')}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          {(lead.status === 'new' || lead.status === 'matched') && (
+                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          {lead.status === 'new' && (
                             <button
                               onClick={() => matchLead.mutate(lead.id)}
                               disabled={matchLead.isPending}
                               className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
                             >
                               <RefreshCw className="w-3 h-3" />
-                              {lead.status === 'new' ? 'Match' : 'Re-match'}
+                              Match
+                            </button>
+                          )}
+                          {lead.status === 'matched' && (
+                            <button
+                              onClick={() => resendLink.mutate(lead.id)}
+                              disabled={resendLink.isPending}
+                              className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
+                            >
+                              <Send className="w-3 h-3" />
+                              Resend Link
                             </button>
                           )}
                           {confirmDeleteLead === lead.id ? (
                             <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => { deleteLead.mutate(lead.id); setConfirmDeleteLead(null); }}
-                                className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium hover:bg-red-600"
-                              >
-                                Confirm
-                              </button>
-                              <button
-                                onClick={() => setConfirmDeleteLead(null)}
-                                className="text-xs text-gray-500 hover:text-gray-700 font-medium"
-                              >
-                                Cancel
-                              </button>
+                              <button onClick={() => { deleteLead.mutate(lead.id); setConfirmDeleteLead(null); }} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium hover:bg-red-600">Confirm</button>
+                              <button onClick={() => setConfirmDeleteLead(null)} className="text-xs text-gray-500 hover:text-gray-700 font-medium">Cancel</button>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => setConfirmDeleteLead(lead.id)}
-                              className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium"
-                            >
+                            <button onClick={() => setConfirmDeleteLead(lead.id)} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium">
                               <Trash2 className="w-3 h-3" />
                               Delete
                             </button>
@@ -292,6 +310,17 @@ export default function AdminDashboard() {
                         </div>
                       </td>
                     </tr>
+                    {expandedLead === lead.id && lead.description && (
+                      <tr key={`${lead.id}-exp`} className="bg-brand-50">
+                        <td colSpan={7} className="px-4 py-2">
+                          <div className="flex items-start gap-2 text-xs text-brand-700">
+                            <AlignLeft className="w-3 h-3 mt-0.5 shrink-0" />
+                            <p>{lead.description}</p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </>
                   ))}
                   {filteredLeads.length === 0 && (
                     <tr><td colSpan={7} className="text-center py-10 text-gray-400 text-sm">No leads found</td></tr>
@@ -422,7 +451,7 @@ export default function AdminDashboard() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Homeowner', 'Contractor', 'Niche', 'Date & Time', 'Status'].map(h => (
+                    {['Homeowner', 'Contractor', 'Niche', 'Date & Time', 'Status', 'Actions'].map(h => (
                       <th key={h} className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">{h}</th>
                     ))}
                   </tr>
@@ -446,10 +475,32 @@ export default function AdminDashboard() {
                       <td className="px-4 py-3">
                         <span className={`badge ${STATUS_BADGE[appt.status] || 'bg-gray-100 text-gray-600'}`}>{appt.status}</span>
                       </td>
+                      <td className="px-4 py-3">
+                        {appt.status === 'confirmed' && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => adminCompleteAppt.mutate(appt.id)}
+                              className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium"
+                            >
+                              <CheckCircle className="w-3 h-3" /> Complete
+                            </button>
+                            {confirmCancelAppt === appt.id ? (
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => { adminCancelAppt.mutate(appt.id); setConfirmCancelAppt(null); }} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium">Confirm</button>
+                                <button onClick={() => setConfirmCancelAppt(null)} className="text-xs text-gray-500 font-medium">Cancel</button>
+                              </div>
+                            ) : (
+                              <button onClick={() => setConfirmCancelAppt(appt.id)} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium">
+                                <XCircle className="w-3 h-3" /> Cancel
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
                     </tr>
                   ))}
                   {appointments.length === 0 && (
-                    <tr><td colSpan={5} className="text-center py-10 text-gray-400 text-sm">No appointments yet</td></tr>
+                    <tr><td colSpan={6} className="text-center py-10 text-gray-400 text-sm">No appointments yet</td></tr>
                   )}
                 </tbody>
               </table>
