@@ -40,11 +40,15 @@ router.get('/contractor/:contractorId', requireContractor, async (req, res) => {
   }
   const { from, to } = req.query;
   let query = `
-    SELECT a.*, l.name as lead_name, l.email as lead_email, l.phone as lead_phone,
-           l.description as lead_description, n.name as niche_name
+    SELECT a.*,
+           l.name as lead_name, l.email as lead_email, l.phone as lead_phone,
+           l.description as lead_description,
+           COALESCE(n.name, cn.name) as niche_name
     FROM appointments a
-    JOIN leads l ON a.lead_id = l.id
-    JOIN niches n ON l.niche_id = n.id
+    LEFT JOIN leads l ON a.lead_id = l.id
+    LEFT JOIN niches n ON l.niche_id = n.id
+    LEFT JOIN contractors c ON a.contractor_id = c.id
+    LEFT JOIN niches cn ON c.niche_id = cn.id
     WHERE a.contractor_id = $1
   `;
   const params = [contractorId];
