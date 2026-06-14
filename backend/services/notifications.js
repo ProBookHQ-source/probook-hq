@@ -100,6 +100,48 @@ async function sendBookingLink(lead, contractor, bookingUrl) {
 }
 
 async function notifyContractor(contractor, lead) {
+  // Build qualifying details rows from metadata (if present)
+  let metaRows = '';
+  try {
+    const meta = lead.metadata
+      ? (typeof lead.metadata === 'string' ? JSON.parse(lead.metadata) : lead.metadata)
+      : {};
+    const labelMap = {
+      heating:          'Heating System',
+      oil_tank:         'Oil Tank',
+      ductwork:         'Ductwork',
+      year_built:       'Year Built',
+      square_footage:   'Square Footage',
+      monthly_oil_bill: 'Monthly Oil Bill',
+      reason:           'Reason for Switch',
+      timeline:         'Timeline',
+      homeowner:        'Homeowner Status',
+      household_size:   'Household Size',
+      income:           'Income Bracket',
+      address:          'Address',
+    };
+    const tierBadge = lead.external_tier
+      ? `<tr><td style="padding:8px 0;color:#6b7280;width:130px;">Lead Tier</td>
+             <td style="padding:8px 0;font-weight:700;color:#059669;">${esc(lead.external_tier)} (score: ${lead.external_score || '?'})</td></tr>`
+      : '';
+    const sourceBadge = lead.source_site
+      ? `<tr><td style="padding:8px 0;color:#6b7280;">Source</td>
+             <td style="padding:8px 0;">${esc(lead.source_site)}</td></tr>`
+      : '';
+    const qualifying = Object.entries(labelMap)
+      .filter(([k]) => meta[k])
+      .map(([k, label]) =>
+        `<tr><td style="padding:6px 0;color:#6b7280;">${label}</td>
+             <td style="padding:6px 0;">${esc(String(meta[k]))}</td></tr>`
+      ).join('');
+    if (tierBadge || sourceBadge || qualifying) {
+      metaRows = `
+        <tr><td colspan="2" style="padding:16px 0 4px;font-weight:700;color:#1a1a2e;font-size:13px;text-transform:uppercase;letter-spacing:.5px;">Qualifying Details</td></tr>
+        ${tierBadge}${sourceBadge}${qualifying}
+      `;
+    }
+  } catch (e) { /* non-fatal */ }
+
   return sendEmail(
     contractor.email,
     `New lead: ${lead.name} in ${lead.zip_code}`,
@@ -111,12 +153,15 @@ async function notifyContractor(contractor, lead) {
       <div style="background:#fff;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;">
         <h2 style="margin-top:0;">New Lead Assigned 🎉</h2>
         <table style="width:100%;border-collapse:collapse;">
-          <tr><td style="padding:8px 0;color:#6b7280;width:100px;">Name</td>
+          <tr><td style="padding:8px 0;color:#6b7280;width:130px;">Name</td>
               <td style="padding:8px 0;font-weight:600;">${esc(lead.name)}</td></tr>
+          <tr><td style="padding:8px 0;color:#6b7280;">Phone</td>
+              <td style="padding:8px 0;font-weight:600;">${esc(lead.phone) || 'Not provided'}</td></tr>
+          <tr><td style="padding:8px 0;color:#6b7280;">Email</td>
+              <td style="padding:8px 0;">${esc(lead.email)}</td></tr>
           <tr><td style="padding:8px 0;color:#6b7280;">Zip</td>
               <td style="padding:8px 0;font-weight:600;">${esc(lead.zip_code)}</td></tr>
-          <tr><td style="padding:8px 0;color:#6b7280;">Project</td>
-              <td style="padding:8px 0;">${esc(lead.description) || 'No description provided'}</td></tr>
+          ${metaRows}
         </table>
         <p style="color:#6b7280;margin-top:24px;">
           The homeowner has been sent a booking link. You'll get a confirmation once they pick a time.

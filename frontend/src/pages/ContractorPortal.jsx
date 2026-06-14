@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   format, addDays, startOfWeek, parseISO,
@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import api from '../api/client';
 import {
   Calendar, Clock, CheckCircle, XCircle, LogOut, Zap,
-  ChevronLeft, ChevronRight, Phone, Mail,
+  ChevronLeft, ChevronRight, ChevronDown, Phone, Mail,
   Link as LinkIcon, Settings, Lock, User, Ban, CalendarPlus, Trash2,
   Home, Plus, X,
 } from 'lucide-react';
@@ -20,10 +20,12 @@ const HOURS = Array.from({ length: 13 }, (_, i) => {
   const h = i + 7; // 7 AM – 7 PM
   return `${String(h).padStart(2, '0')}:00`;
 });
-const TIME_OPTIONS = Array.from({ length: 26 }, (_, i) => {
-  const h = Math.floor(i / 2) + 6;
-  const m = i % 2 === 0 ? '00' : '30';
-  return `${String(h).padStart(2, '0')}:${m}`;
+// 4:00 AM → 10:00 PM in 30-min increments (37 slots)
+const TIME_OPTIONS = Array.from({ length: 37 }, (_, i) => {
+  const totalMin = 4 * 60 + i * 30;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 });
 
 const APPT_COLORS = {
@@ -57,6 +59,64 @@ function Toggle({ checked, onChange }) {
         }`}
       />
     </button>
+  );
+}
+
+// ── Time Select ───────────────────────────────────────────────────────────────
+function TimeSelect({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+  const listRef = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => { if (!wrapRef.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  // Scroll selected time into view when opened
+  useEffect(() => {
+    if (open && listRef.current) {
+      const sel = listRef.current.querySelector('[data-selected="true"]');
+      if (sel) sel.scrollIntoView({ block: 'center' });
+    }
+  }, [open]);
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:border-brand-300 hover:bg-gray-50 transition-all focus:outline-none focus:ring-2 focus:ring-brand-300 w-[110px]"
+      >
+        <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+        <span className="flex-1 text-left">{fmtTime(value)}</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full mt-1 left-0 w-[120px] bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
+          <div ref={listRef} className="overflow-y-auto" style={{ maxHeight: 200 }}>
+            {TIME_OPTIONS.map(t => (
+              <button
+                key={t}
+                type="button"
+                data-selected={t === value}
+                onClick={() => { onChange(t); setOpen(false); }}
+                className={`w-full text-left px-4 py-1.5 text-sm transition-colors ${
+                  t === value
+                    ? 'bg-brand-500 text-white font-semibold'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {fmtTime(t)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -639,13 +699,10 @@ export default function ContractorPortal() {
                     <div className="flex flex-wrap gap-3 items-end">
                       <div>
                         <label className="label">Start Time</label>
-                        <select
+                        <TimeSelect
                           value={blockForm.start_time}
-                          onChange={e => setBlockForm(p => ({ ...p, start_time: e.target.value }))}
-                          className="input"
-                        >
-                          {TIME_OPTIONS.map(h => <option key={h} value={h}>{fmtTime(h)}</option>)}
-                        </select>
+                          onChange={v => setBlockForm(p => ({ ...p, start_time: v }))}
+                        />
                       </div>
                       <div>
                         <label className="label">Duration</label>
@@ -868,21 +925,15 @@ export default function ContractorPortal() {
                         {/* Time pickers */}
                         {active ? (
                           <div className="flex items-center gap-3 flex-1">
-                            <select
+                            <TimeSelect
                               value={val.start}
-                              onChange={e => setAvailability(p => ({ ...p, [idx]: { ...val, start: e.target.value } }))}
-                              className="input py-1.5 text-sm w-auto"
-                            >
-                              {TIME_OPTIONS.map(h => <option key={h} value={h}>{fmtTime(h)}</option>)}
-                            </select>
+                              onChange={v => setAvailability(p => ({ ...p, [idx]: { ...val, start: v } }))}
+                            />
                             <span className="text-gray-400 text-sm">→</span>
-                            <select
+                            <TimeSelect
                               value={val.end}
-                              onChange={e => setAvailability(p => ({ ...p, [idx]: { ...val, end: e.target.value } }))}
-                              className="input py-1.5 text-sm w-auto"
-                            >
-                              {TIME_OPTIONS.map(h => <option key={h} value={h}>{fmtTime(h)}</option>)}
-                            </select>
+                              onChange={v => setAvailability(p => ({ ...p, [idx]: { ...val, end: v } }))}
+                            />
                           </div>
                         ) : (
                           <span className="text-sm text-gray-300">Not available</span>
@@ -967,15 +1018,17 @@ export default function ContractorPortal() {
                       <>
                         <div>
                           <label className="label">From</label>
-                          <select value={newOverride.start} onChange={e => setNewOverride(p => ({ ...p, start: e.target.value }))} className="input py-1.5 w-auto">
-                            {TIME_OPTIONS.map(h => <option key={h} value={h}>{fmtTime(h)}</option>)}
-                          </select>
+                          <TimeSelect
+                            value={newOverride.start}
+                            onChange={v => setNewOverride(p => ({ ...p, start: v }))}
+                          />
                         </div>
                         <div>
                           <label className="label">To</label>
-                          <select value={newOverride.end} onChange={e => setNewOverride(p => ({ ...p, end: e.target.value }))} className="input py-1.5 w-auto">
-                            {TIME_OPTIONS.map(h => <option key={h} value={h}>{fmtTime(h)}</option>)}
-                          </select>
+                          <TimeSelect
+                            value={newOverride.end}
+                            onChange={v => setNewOverride(p => ({ ...p, end: v }))}
+                          />
                         </div>
                       </>
                     )}

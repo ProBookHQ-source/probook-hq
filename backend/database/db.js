@@ -192,6 +192,13 @@ async function initialize() {
     ALTER TABLE appointments ALTER COLUMN lead_id DROP NOT NULL
   `).catch(() => {}); // ignore if already nullable
 
+  // Migration: add metadata + source_site to leads for inbound bridge support
+  await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'`).catch(() => {});
+  await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS source_site TEXT`).catch(() => {});
+  await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS external_tier TEXT`).catch(() => {});
+  await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS external_score INTEGER`).catch(() => {});
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_leads_source ON leads(source_site)`).catch(() => {});
+
   // Seed niches if not already present
   const { rows } = await pool.query('SELECT COUNT(*) FROM niches');
   if (parseInt(rows[0].count) === 0) {

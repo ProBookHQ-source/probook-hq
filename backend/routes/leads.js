@@ -47,6 +47,124 @@ router.get('/:id', requireAdmin, async (req, res) => {
   res.json(lead);
 });
 
+// ── Inbound lead from external site (bridge endpoint) ────────────────────────
+// Accepts leads from any external site (OilToHeatRebate, future niche sites).
+// Auth: Bearer token matching INBOUND_API_KEY env var.
+// Niche resolved by slug or name — auto-created if new (future-proof).
+router.post('/inbound', async (req, res) => {
+  // API key check
+  const apiKey = (req.headers.authorization || '').replace('Bearer ', '').trim();
+  const validKey = process.env.INBOUND_API_KEY;
+  if (!validKey) {
+    console.error('INBOUND_API_KEY not set in environment');
+    return res.status(500).json({ error: 'Server misconfiguration' });
+  }
+  if (apiKey !== validKey) {
+    return res.status(401).json({ error: 'Invalid API key' });
+  }
+
+  const {
+    name, email, zip_code, niche_slug,
+    phone, address, source_site,
+    lead_tier, lead_score,
+    ...rest
+  } = req.body;
+
+  if (!name || !email || !zip_code || !niche_slug) {
+    return res.status(400).json({ error: 'name, email, zip_code, and niche_slug are required' });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Invalid email address' });
+  }
+
+  // Resolve niche by slug — case-insensitive, partial match, auto-create if new
+  const slug = niche_slug.trim().toLowerCase();
+  let niche = await db.prepare(`SELECT id, name FROM niches WHERE LOWER(name) = $1`).get(slug);
+  if (!niche) {
+    const allNiches = await db.prepare('SELECT id, name FROM niches').all();
+    niche = allNiches.find(n =>
+      n.name.toLowerCase().includes(slug) || slug.includes(n.name.toLowerCase())
+    ) || null;
+  }
+  if (!niche) {
+    const newNicheId = uuidv4();
+    const nicheDisplayName = niche_slug.charAt(0).toUpperCase() + niche_slug.slice(1).toLowerCase();
+    await db.prepare(
+      'INSERT INTO niches (id, name, description) VALUES ($1, $2, $3) ON CONFLICT (name) DO NOTHING'
+    ).run(newNicheId, nicheDisplayName, `Auto-created from inbound lead (source: ${source_site || 'unknown'})`);
+    niche = await db.prepare('SELECT id, name FROM niches WHERE id = $1').get(newNicheId);
+    console.log(`🌱 Auto-created niche: ${nicheDisplayName}`);
+  }
+
+  // Build metadata — strip tracking/consent fields, keep all qualifying data
+  const skipFields = new Set([
+    'turnstile_token','user_agent','landing_page',
+    'consent_given','consent_timestamp','consent_version',
+    'utm_source','utm_medium','utm_campaign','utm_term','utm_content',
+  ]);
+  const metadata = {};
+  if (address) metadata.address = address;
+  for (const [k, v] of Object.entries(rest)) {
+    if (!skipFields.has(k) && v !== '' && v !== null && v !== undefined) {
+      metadata[k] = v;
+    }
+  }
+
+  // Human-readable description from qualifying fields
+  const descParts = [];
+  if (metadata.heating)          descParts.push(`Heating: ${metadata.heating}`);
+  if (metadata.ductwork)         descParts.push(`Ductwork: ${metadata.ductwork}`);
+  if (metadata.homeowner)        descParts.push(`Homeowner: ${metadata.homeowner}`);
+  if (metadata.timeline)         descParts.push(`Timeline: ${metadata.timeline}`);
+  if (metadata.monthly_oil_bill) descParts.push(`Oil bill: ${metadata.monthly_oil_bill}/mo`);
+  if (metadata.year_built)       descParts.push(`Built: ${metadata.year_built}`);
+  if (metadata.square_footage)   descParts.push(`${metadata.square_footage} sq ft`);
+  if (metadata.reason)           descParts.push(`Reason: ${metadata.reason}`);
+  if (metadata.income)           descParts.push(`Income: ${metadata.income}`);
+  const description = descParts.join(' | ') || null;
+
+  const id = uuidv4();
+  try {
+    await db.prepare(`
+      INSERT INTO leads
+        (id, name, email, phone, niche_id, zip_code, description,
+         source_site, external_tier, external_score, metadata, status)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'new')
+    `).run(
+      id, name, email, phone || null, niche.id, zip_code, description,
+      source_site || null,
+      lead_tier || null,
+      lead_score ? parseInt(lead_score) : null,
+      JSON.stringify(metadata)
+    );
+  } catch (err) {
+    console.error('Inbound lead insert error:', err);
+    return res.status(500).json({ error: 'Failed to create lead' });
+  }
+
+  console.log(`🌐 Inbound lead from ${source_site || 'unknown'} — ${name} (${niche.name}, ${zip_code})`);
+
+  // Respond immediately, run matching async
+  res.status(201).json({ success: true, lead_id: id });
+
+  let matched = false;
+  try { matched = await matchingEngine.matchOnly(id); }
+  catch (err) { console.error('Matching error:', err); }
+
+  if (matched) {
+    matchingEngine.sendMatchNotifications(id).catch(err =>
+      console.error('Notification error:', err)
+    );
+  } else {
+    const leadForNotif = await db.prepare('SELECT * FROM leads WHERE id = $1').get(id);
+    if (leadForNotif) {
+      sendAdminNoMatch(leadForNotif).catch(err =>
+        console.error('Admin no-match notification error:', err)
+      );
+    }
+  }
+});
+
 // ── Create a new lead (public) ────────────────────────────────────────────────
 router.post('/', async (req, res) => {
   const { name, email, phone, niche_id, zip_code, description } = req.body;
