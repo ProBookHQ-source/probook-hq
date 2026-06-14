@@ -219,6 +219,7 @@ export default function ContractorPortal() {
   const [blockForm, setBlockForm] = useState({ date: '', start_time: '09:00', duration_hours: 1 });
   const [blockMonth, setBlockMonth] = useState(startOfMonth(new Date()));
   const [removingBlock, setRemovingBlock] = useState(null); // "date|time"
+  const [confirmDeleteOverrideId, setConfirmDeleteOverrideId] = useState(null);
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
   const [profileForm, setProfileForm] = useState({
     name: user.name || '',
@@ -1115,13 +1116,31 @@ export default function ContractorPortal() {
                             </p>
                           </div>
                         </div>
-                        <button
-                          onClick={() => removeOverride.mutate(o.id)}
-                          disabled={removeOverride.isPending}
-                          className="p-2 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-xl transition-all disabled:opacity-40"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {confirmDeleteOverrideId === o.id ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500 font-medium">Remove this override?</span>
+                            <button
+                              onClick={() => { removeOverride.mutate(o.id); setConfirmDeleteOverrideId(null); }}
+                              disabled={removeOverride.isPending}
+                              className="text-xs font-bold bg-red-500 text-white px-3 py-1.5 rounded-lg hover:bg-red-600 disabled:opacity-50 transition-all"
+                            >
+                              Yes, remove
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteOverrideId(null)}
+                              className="text-xs text-gray-500 hover:text-gray-700 font-medium px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-all"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDeleteOverrideId(o.id)}
+                            className="p-2 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-xl transition-all"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
