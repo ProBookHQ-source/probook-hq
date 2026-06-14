@@ -600,7 +600,7 @@ export default function ContractorPortal() {
             <div className="border-b border-gray-100 px-6 py-3 flex items-center gap-4 bg-white">
               <button
                 onClick={() => setWeekStart(startOfWeek(new Date()))}
-                className="text-sm font-medium text-gray-700 border border-gray-200 rounded-lg px-4 py-1.5 hover:bg-gray-50 transition-all"
+                className="text-sm font-semibold text-white bg-brand-500 rounded-lg px-4 py-1.5 hover:bg-brand-600 transition-all shadow-sm"
               >
                 Today
               </button>
@@ -617,10 +617,10 @@ export default function ContractorPortal() {
               </h2>
               <button
                 onClick={() => { setShowBlockForm(b => !b); }}
-                className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg border transition-all ${
+                className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-1.5 rounded-lg transition-all shadow-sm ${
                   showBlockForm
-                    ? 'bg-gray-100 text-gray-700 border-gray-200'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    ? 'bg-gray-700 text-white'
+                    : 'bg-gray-800 text-white hover:bg-gray-900'
                 }`}
               >
                 <Plus className="w-4 h-4" /> Block Time
