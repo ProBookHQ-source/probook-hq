@@ -213,14 +213,32 @@ export default function ContractorPortal() {
   }, [slots]);
 
   const overridesFrom = format(new Date(), 'yyyy-MM-dd');
-  const overridesTo   = format(addDays(new Date(), 90), 'yyyy-MM-dd');
+  const overridesTo   = format(addDays(new Date(), 365), 'yyyy-MM-dd');
 
   const { data: overrides = [] } = useQuery({
     queryKey: ['overrides', user.id],
     queryFn: () => api.get(`/availability/${user.id}/overrides?from=${overridesFrom}&to=${overridesTo}`).then(r => r.data),
   });
 
-  const [newOverride, setNewOverride] = useState({ date: '', type: 'block', start: '09:00', end: '17:00' });
+  // Override date picker: month+day with smart year detection
+  const [newOverride, setNewOverride] = useState({ month: '', day: '', nextYear: false, type: 'block', start: '09:00', end: '17:00' });
+
+  // Compute the actual YYYY-MM-DD from the month+day picker
+  const computedOverrideDate = (() => {
+    if (!newOverride.month || !newOverride.day) return '';
+    const today = new Date();
+    const yr = today.getFullYear();
+    const m  = parseInt(newOverride.month);
+    const d  = parseInt(newOverride.day);
+    const candidate = new Date(yr, m - 1, d);
+    const useNext = newOverride.nextYear || isBefore(candidate, startOfDay(today));
+    return format(new Date(useNext ? yr + 1 : yr, m - 1, d), 'yyyy-MM-dd');
+  })();
+
+  // Days available in the selected month (uses current year for leap-year accuracy)
+  const daysInSelectedMonth = newOverride.month
+    ? new Date(new Date().getFullYear(), parseInt(newOverride.month), 0).getDate()
+    : 31;
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   const saveAvailability = useMutation({
@@ -248,7 +266,7 @@ export default function ContractorPortal() {
     onSuccess: () => {
       toast.success('Date override saved!');
       qc.invalidateQueries(['overrides']);
-      setNewOverride({ date: '', type: 'block', start: '09:00', end: '17:00' });
+      setNewOverride({ month: '', day: '', nextYear: false, type: 'block', start: '09:00', end: '17:00' });
     },
     onError: () => toast.error('Failed to save'),
   });
@@ -315,12 +333,15 @@ export default function ContractorPortal() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleAddOverride = () => {
-    if (!newOverride.date) return toast.error('Please select a date');
+    if (!computedOverrideDate) return toast.error('Please select a month and day');
+    if (isBefore(parseISO(computedOverrideDate), startOfDay(new Date()))) {
+      return toast.error('Cannot add an override for a past date');
+    }
     if (newOverride.type === 'block') {
-      addOverride.mutate({ date: newOverride.date, is_available: false });
+      addOverride.mutate({ date: computedOverrideDate, is_available: false });
     } else {
       if (newOverride.start >= newOverride.end) return toast.error('End time must be after start time');
-      addOverride.mutate({ date: newOverride.date, is_available: true, start_time: newOverride.start, end_time: newOverride.end });
+      addOverride.mutate({ date: computedOverrideDate, is_available: true, start_time: newOverride.start, end_time: newOverride.end });
     }
   };
 
@@ -664,18 +685,23 @@ export default function ContractorPortal() {
             <div className="border-b border-gray-100 grid bg-white" style={{ gridTemplateColumns: '64px repeat(7, 1fr)' }}>
               <div /> {/* time spacer */}
               {Array.from({ length: 7 }, (_, i) => {
-                const day = addDays(weekStart, i);
-                const isToday = format(day, 'yyyy-MM-dd') === todayStr;
-                const isPast  = isBefore(startOfDay(day), startOfDay(new Date()));
+                const day       = addDays(weekStart, i);
+                const dayStr    = format(day, 'yyyy-MM-dd');
+                const isToday   = dayStr === todayStr;
+                const isPast    = isBefore(startOfDay(day), startOfDay(new Date()));
+                const isDayOff  = overrides.some(o => o.date === dayStr && !o.is_available);
+                const isCustom  = overrides.some(o => o.date === dayStr && o.is_available);
                 return (
-                  <div key={i} className="py-3 text-center border-l border-gray-100">
-                    <p className={`text-xs font-medium uppercase tracking-wider mb-1.5 ${
-                      isToday ? 'text-brand-500' : isPast ? 'text-gray-300' : 'text-gray-500'
+                  <div key={i} className="py-2 text-center border-l border-gray-100">
+                    <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${
+                      isDayOff ? 'text-red-400' : isToday ? 'text-brand-500' : isPast ? 'text-gray-300' : 'text-gray-500'
                     }`}>
                       {DAYS_SHORT[day.getDay()]}
                     </p>
                     <div className={`w-9 h-9 mx-auto flex items-center justify-center rounded-full text-sm font-bold transition-all ${
-                      isToday
+                      isDayOff
+                        ? 'bg-red-100 text-red-400'
+                        : isToday
                         ? 'bg-brand-500 text-white shadow-sm'
                         : isPast
                         ? 'text-gray-300'
@@ -683,6 +709,8 @@ export default function ContractorPortal() {
                     }`}>
                       {format(day, 'd')}
                     </div>
+                    {isDayOff && <p className="text-[9px] text-red-400 font-semibold uppercase tracking-wider mt-0.5">Day Off</p>}
+                    {isCustom && <p className="text-[9px] text-brand-400 font-semibold uppercase tracking-wider mt-0.5">Custom</p>}
                   </div>
                 );
               })}
@@ -707,11 +735,12 @@ export default function ContractorPortal() {
 
                 {/* Day columns */}
                 {Array.from({ length: 7 }, (_, i) => {
-                  const day     = addDays(weekStart, i);
-                  const isToday = format(day, 'yyyy-MM-dd') === todayStr;
-                  const isPast  = isBefore(startOfDay(day), startOfDay(new Date()));
-                  const dateStr = format(day, 'yyyy-MM-dd');
-                  const dayAppts = appointments.filter(a => a.scheduled_date === dateStr);
+                  const day        = addDays(weekStart, i);
+                  const isToday    = format(day, 'yyyy-MM-dd') === todayStr;
+                  const isPast     = isBefore(startOfDay(day), startOfDay(new Date()));
+                  const dateStr    = format(day, 'yyyy-MM-dd');
+                  const dayAppts   = appointments.filter(a => a.scheduled_date === dateStr);
+                  const isDayOff   = overrides.some(o => o.date === dateStr && !o.is_available);
 
                   return (
                     <div
@@ -720,6 +749,16 @@ export default function ContractorPortal() {
                         isToday ? 'bg-brand-50/40' : isPast ? 'bg-gray-50/60' : 'bg-white'
                       }`}
                     >
+                      {/* Blocked day overlay */}
+                      {isDayOff && (
+                        <div
+                          className="absolute inset-0 z-10 pointer-events-none"
+                          style={{
+                            backgroundImage: 'repeating-linear-gradient(45deg, rgba(239,68,68,0.06), rgba(239,68,68,0.06) 6px, rgba(254,202,202,0.10) 6px, rgba(254,202,202,0.10) 12px)',
+                            borderLeft: '2px solid rgba(252,165,165,0.5)',
+                          }}
+                        />
+                      )}
                       {HOURS.map(hour => {
                         const appt = dayAppts.find(a => a.scheduled_time === hour);
                         const blockKey = `${dateStr}|${hour}`;
@@ -868,16 +907,51 @@ export default function ContractorPortal() {
                     <h3 className="text-sm font-semibold text-gray-800">Add an Override</h3>
                   </div>
                   <div className="flex flex-wrap gap-3 items-end">
+                    {/* Month + Day picker (no year clutter) */}
                     <div>
-                      <label className="label">Date</label>
-                      <input
-                        type="date"
-                        min={format(new Date(), 'yyyy-MM-dd')}
-                        value={newOverride.date}
-                        onChange={e => setNewOverride(p => ({ ...p, date: e.target.value }))}
+                      <label className="label">Month</label>
+                      <select
+                        value={newOverride.month}
+                        onChange={e => setNewOverride(p => ({ ...p, month: e.target.value, day: '' }))}
                         className="input"
-                      />
+                      >
+                        <option value="">Month</option>
+                        {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
+                          <option key={m} value={i + 1}>{m}</option>
+                        ))}
+                      </select>
                     </div>
+                    <div>
+                      <label className="label">Day</label>
+                      <select
+                        value={newOverride.day}
+                        onChange={e => setNewOverride(p => ({ ...p, day: e.target.value }))}
+                        className="input"
+                        disabled={!newOverride.month}
+                      >
+                        <option value="">Day</option>
+                        {Array.from({ length: daysInSelectedMonth }, (_, i) => (
+                          <option key={i + 1} value={i + 1}>{i + 1}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {/* Show computed date + optional next-year toggle */}
+                    {computedOverrideDate && (
+                      <div className="flex flex-col gap-1 pb-1">
+                        <p className="text-xs font-semibold text-gray-700">
+                          → {format(parseISO(computedOverrideDate), 'MMMM d, yyyy')}
+                        </p>
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={newOverride.nextYear}
+                            onChange={e => setNewOverride(p => ({ ...p, nextYear: e.target.checked }))}
+                            className="rounded"
+                          />
+                          <span className="text-xs text-gray-400">Next year</span>
+                        </label>
+                      </div>
+                    )}
                     <div>
                       <label className="label">Type</label>
                       <select
