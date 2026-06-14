@@ -803,7 +803,7 @@ export default function ContractorPortal() {
                               onChange={e => setAvailability(p => ({ ...p, [idx]: { ...val, start: e.target.value } }))}
                               className="input py-1.5 text-sm w-auto"
                             >
-                              {TIME_OPTIONS.map(h => <option key={h}>{h}</option>)}
+                              {TIME_OPTIONS.map(h => <option key={h} value={h}>{fmtTime(h)}</option>)}
                             </select>
                             <span className="text-gray-400 text-sm">→</span>
                             <select
@@ -811,7 +811,7 @@ export default function ContractorPortal() {
                               onChange={e => setAvailability(p => ({ ...p, [idx]: { ...val, end: e.target.value } }))}
                               className="input py-1.5 text-sm w-auto"
                             >
-                              {TIME_OPTIONS.map(h => <option key={h}>{h}</option>)}
+                              {TIME_OPTIONS.map(h => <option key={h} value={h}>{fmtTime(h)}</option>)}
                             </select>
                           </div>
                         ) : (
@@ -863,13 +863,13 @@ export default function ContractorPortal() {
                         <div>
                           <label className="label">From</label>
                           <select value={newOverride.start} onChange={e => setNewOverride(p => ({ ...p, start: e.target.value }))} className="input py-1.5 w-auto">
-                            {TIME_OPTIONS.map(h => <option key={h}>{h}</option>)}
+                            {TIME_OPTIONS.map(h => <option key={h} value={h}>{fmtTime(h)}</option>)}
                           </select>
                         </div>
                         <div>
                           <label className="label">To</label>
                           <select value={newOverride.end} onChange={e => setNewOverride(p => ({ ...p, end: e.target.value }))} className="input py-1.5 w-auto">
-                            {TIME_OPTIONS.map(h => <option key={h}>{h}</option>)}
+                            {TIME_OPTIONS.map(h => <option key={h} value={h}>{fmtTime(h)}</option>)}
                           </select>
                         </div>
                       </>
