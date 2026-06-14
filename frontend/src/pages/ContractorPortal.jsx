@@ -841,18 +841,20 @@ export default function ContractorPortal() {
                         const blockKey = `${dateStr}|${hour}`;
                         const isRemoving = removingBlock === blockKey;
                         // For custom-hours days: is this slot outside the allowed window?
+                        // Normalize to HH:MM (DB may return "09:00:00" with seconds)
+                        const customStart = customOverride ? customOverride.start_time.slice(0, 5) : null;
+                        const customEnd   = customOverride ? customOverride.end_time.slice(0, 5)   : null;
                         const isOutsideCustom = customOverride
-                          ? (hour < customOverride.start_time || hour >= customOverride.end_time)
+                          ? (hour < customStart || hour >= customEnd)
                           : false;
                         return (
                           <div key={hour} className="h-[60px] border-b border-gray-50 relative">
-                            {/* Custom hours: grey out slots outside the custom window */}
+                            {/* Custom hours: shade slots outside the available window (same style as day off) */}
                             {isOutsideCustom && (
                               <div
                                 className="absolute inset-0 pointer-events-none"
                                 style={{
-                                  backgroundImage: 'repeating-linear-gradient(45deg, rgba(99,102,241,0.05), rgba(99,102,241,0.05) 6px, rgba(199,210,254,0.09) 6px, rgba(199,210,254,0.09) 12px)',
-                                  borderLeft: '2px solid rgba(99,102,241,0.25)',
+                                  backgroundImage: 'repeating-linear-gradient(45deg, rgba(239,68,68,0.04), rgba(239,68,68,0.04) 6px, rgba(254,202,202,0.07) 6px, rgba(254,202,202,0.07) 12px)',
                                 }}
                               />
                             )}
