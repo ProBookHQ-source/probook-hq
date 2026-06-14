@@ -831,8 +831,8 @@ export default function ContractorPortal() {
                         <div
                           className="absolute inset-0 z-10 pointer-events-none"
                           style={{
-                            backgroundImage: 'repeating-linear-gradient(45deg, rgba(239,68,68,0.06), rgba(239,68,68,0.06) 6px, rgba(254,202,202,0.10) 6px, rgba(254,202,202,0.10) 12px)',
-                            borderLeft: '2px solid rgba(252,165,165,0.5)',
+                            backgroundImage: 'repeating-linear-gradient(45deg, rgba(239,68,68,0.12), rgba(239,68,68,0.12) 6px, rgba(254,202,202,0.20) 6px, rgba(254,202,202,0.20) 12px)',
+                            borderLeft: '3px solid rgba(252,165,165,0.7)',
                           }}
                         />
                       )}
@@ -854,7 +854,7 @@ export default function ContractorPortal() {
                               <div
                                 className="absolute inset-0 pointer-events-none"
                                 style={{
-                                  backgroundImage: 'repeating-linear-gradient(45deg, rgba(239,68,68,0.04), rgba(239,68,68,0.04) 6px, rgba(254,202,202,0.07) 6px, rgba(254,202,202,0.07) 12px)',
+                                  backgroundImage: 'repeating-linear-gradient(45deg, rgba(239,68,68,0.10), rgba(239,68,68,0.10) 6px, rgba(254,202,202,0.17) 6px, rgba(254,202,202,0.17) 12px)',
                                 }}
                               />
                             )}
