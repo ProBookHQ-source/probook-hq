@@ -816,8 +816,8 @@ export default function ContractorPortal() {
                   const isPast     = isBefore(startOfDay(day), startOfDay(new Date()));
                   const dateStr    = format(day, 'yyyy-MM-dd');
                   const dayAppts   = appointments.filter(a => a.scheduled_date === dateStr);
-                  const isDayOff   = overrides.some(o => o.date === dateStr && !o.is_available);
-                  const isCustom   = overrides.some(o => o.date === dateStr && o.is_available);
+                  const isDayOff      = overrides.some(o => o.date === dateStr && !o.is_available);
+                  const customOverride = overrides.find(o => o.date === dateStr && o.is_available);
 
                   return (
                     <div
@@ -836,22 +836,26 @@ export default function ContractorPortal() {
                           }}
                         />
                       )}
-                      {/* Custom hours overlay */}
-                      {isCustom && (
-                        <div
-                          className="absolute inset-0 z-10 pointer-events-none"
-                          style={{
-                            backgroundImage: 'repeating-linear-gradient(45deg, rgba(99,102,241,0.05), rgba(99,102,241,0.05) 6px, rgba(199,210,254,0.08) 6px, rgba(199,210,254,0.08) 12px)',
-                            borderLeft: '2px solid rgba(99,102,241,0.35)',
-                          }}
-                        />
-                      )}
                       {HOURS.map(hour => {
                         const appt = dayAppts.find(a => a.scheduled_time === hour);
                         const blockKey = `${dateStr}|${hour}`;
                         const isRemoving = removingBlock === blockKey;
+                        // For custom-hours days: is this slot outside the allowed window?
+                        const isOutsideCustom = customOverride
+                          ? (hour < customOverride.start_time || hour >= customOverride.end_time)
+                          : false;
                         return (
                           <div key={hour} className="h-[60px] border-b border-gray-50 relative">
+                            {/* Custom hours: grey out slots outside the custom window */}
+                            {isOutsideCustom && (
+                              <div
+                                className="absolute inset-0 pointer-events-none"
+                                style={{
+                                  backgroundImage: 'repeating-linear-gradient(45deg, rgba(99,102,241,0.05), rgba(99,102,241,0.05) 6px, rgba(199,210,254,0.09) 6px, rgba(199,210,254,0.09) 12px)',
+                                  borderLeft: '2px solid rgba(99,102,241,0.25)',
+                                }}
+                              />
+                            )}
                             {appt && appt.status === 'external' && (
                               // Striped "outside block" — not a ProBook appointment
                               <div
