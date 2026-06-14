@@ -3,8 +3,15 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../database/db');
 const { requireAdmin } = require('../middleware/auth');
 const matchingEngine = require('../services/matchingEngine');
+const { sendAdminNoMatch } = require('../services/notifications');
 
 const router = express.Router();
+
+// ── Get niches (public — must be above /:id so Express doesn't treat "meta" as an id)
+router.get('/meta/niches', async (req, res) => {
+  const niches = await db.prepare('SELECT id, name, description FROM niches ORDER BY name').all();
+  res.json(niches);
+});
 
 // ── List all leads (admin) ────────────────────────────────────────────────────
 router.get('/', requireAdmin, async (req, res) => {
@@ -46,6 +53,14 @@ router.post('/', async (req, res) => {
   if (!name || !email || !niche_id || !zip_code) {
     return res.status(400).json({ error: 'name, email, niche_id, and zip_code are required' });
   }
+  // Basic email format check
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Invalid email address' });
+  }
+  // Cap description length
+  if (description && description.length > 2000) {
+    return res.status(400).json({ error: 'Description must be 2000 characters or fewer' });
+  }
 
   const niche = await db.prepare('SELECT id FROM niches WHERE id = $1').get(niche_id);
   if (!niche) return res.status(400).json({ error: 'Invalid niche_id' });
@@ -80,6 +95,14 @@ router.post('/', async (req, res) => {
     matchingEngine.sendMatchNotifications(id).catch(err =>
       console.error('Notification error:', err)
     );
+  } else {
+    // Alert admin so no lead falls through the cracks
+    const leadForNotif = await db.prepare('SELECT * FROM leads WHERE id = $1').get(id);
+    if (leadForNotif) {
+      sendAdminNoMatch(leadForNotif).catch(err =>
+        console.error('Admin no-match notification error:', err)
+      );
+    }
   }
 });
 
@@ -150,12 +173,6 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   await db.prepare('DELETE FROM leads WHERE id = $1').run(req.params.id);
 
   res.json({ message: 'Lead deleted' });
-});
-
-// ── Get niches (public — for lead intake form) ────────────────────────────────
-router.get('/meta/niches', async (req, res) => {
-  const niches = await db.prepare('SELECT id, name, description FROM niches ORDER BY name').all();
-  res.json(niches);
 });
 
 module.exports = router;

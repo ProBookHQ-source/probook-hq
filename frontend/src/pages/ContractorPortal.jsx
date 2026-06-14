@@ -170,10 +170,34 @@ export default function ContractorPortal() {
   const to       = format(addDays(weekStart, 6), 'yyyy-MM-dd');
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
+  // Fixed current-week range (not tied to calendar navigation) — used for the "This Week" stat
+  const thisWeekFrom = format(startOfWeek(new Date()), 'yyyy-MM-dd');
+  const thisWeekTo   = format(addDays(startOfWeek(new Date()), 6), 'yyyy-MM-dd');
+
   // ── Queries ────────────────────────────────────────────────────────────────
+
+  // Fetch contractor profile on load so the Settings form has fresh data (fixes phone blanking)
+  const { data: contractorProfile } = useQuery({
+    queryKey: ['contractor-profile', user.id],
+    queryFn: () => api.get(`/contractors/${user.id}`).then(r => r.data),
+    onSuccess: (data) => {
+      setProfileForm({
+        name: data.name || '',
+        phone: data.phone || '',
+        company_name: data.company_name || '',
+      });
+    },
+  });
+
   const { data: appointments = [] } = useQuery({
     queryKey: ['appointments', user.id, from, to],
     queryFn: () => api.get(`/bookings/contractor/${user.id}?from=${from}&to=${to}`).then(r => r.data),
+  });
+
+  // Separate query for "This Week" stat — always current week, unaffected by calendar navigation
+  const { data: thisWeekAppts = [] } = useQuery({
+    queryKey: ['appointments-this-week', user.id, thisWeekFrom, thisWeekTo],
+    queryFn: () => api.get(`/bookings/contractor/${user.id}?from=${thisWeekFrom}&to=${thisWeekTo}`).then(r => r.data),
   });
 
   const { data: slots = [] } = useQuery({
@@ -201,6 +225,13 @@ export default function ContractorPortal() {
   // ── Mutations ──────────────────────────────────────────────────────────────
   const saveAvailability = useMutation({
     mutationFn: () => {
+      // Validate end > start for all active days before sending
+      for (const [day, val] of Object.entries(availability)) {
+        if (val.end <= val.start) {
+          const dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][day];
+          throw new Error(`${dayName}: end time must be after start time`);
+        }
+      }
       const payload = Object.entries(availability).map(([day, val]) => ({
         day_of_week: Number(day),
         start_time: val.start,
@@ -209,7 +240,7 @@ export default function ContractorPortal() {
       return api.put(`/availability/${user.id}/slots`, payload);
     },
     onSuccess: () => { toast.success('Schedule saved!'); qc.invalidateQueries(['slots']); },
-    onError: () => toast.error('Failed to save'),
+    onError: (err) => toast.error(err.message || 'Failed to save'),
   });
 
   const addOverride = useMutation({
@@ -322,9 +353,9 @@ export default function ContractorPortal() {
     .filter(a => a.scheduled_date > todayStr && a.status !== 'cancelled')
     .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date) || a.scheduled_time.localeCompare(b.scheduled_time));
 
-  const confirmedCount  = appointments.filter(a => a.status === 'confirmed').length;
-  const completedCount  = appointments.filter(a => a.status === 'completed').length;
-  const todayCount      = appointments.filter(a => a.scheduled_date === todayStr && a.status === 'confirmed').length;
+  const thisWeekCount  = thisWeekAppts.filter(a => a.status === 'confirmed').length;
+  const completedCount = appointments.filter(a => a.status === 'completed').length;
+  const todayCount     = appointments.filter(a => a.scheduled_date === todayStr && a.status === 'confirmed').length;
 
   // ── Sidebar nav items ──────────────────────────────────────────────────────
   const NAV = [
@@ -403,8 +434,8 @@ export default function ContractorPortal() {
               {/* Stats */}
               <div className="grid grid-cols-3 gap-4 mb-8">
                 {[
-                  { label: "Today's Jobs",  value: todayCount,     color: 'text-brand-600', bg: 'bg-brand-50' },
-                  { label: 'This Week',     value: confirmedCount, color: 'text-blue-600',  bg: 'bg-blue-50'  },
+                  { label: "Today's Jobs",  value: todayCount,    color: 'text-brand-600', bg: 'bg-brand-50' },
+                  { label: 'This Week',     value: thisWeekCount, color: 'text-blue-600',  bg: 'bg-blue-50'  },
                   { label: 'Completed',     value: completedCount, color: 'text-green-600', bg: 'bg-green-50' },
                 ].map(({ label, value, color, bg }) => (
                   <div key={label} className={`${bg} rounded-2xl px-5 py-4`}>

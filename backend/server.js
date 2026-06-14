@@ -10,16 +10,24 @@ const rateLimit = require('express-rate-limit');
 const app  = express();
 const PORT = process.env.PORT || 4000;
 
+// Warn early if JWT secret is insecure
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change-me-in-production') {
+  console.warn('⚠️  WARNING: JWT_SECRET is not set or is using the insecure default. Set a strong secret in your Railway env vars.');
+}
+
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.set('trust proxy', 1); // trust Cloudflare + Railway proxy
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || true,
+  credentials: true,
+}));
+app.use(express.json({ limit: '50kb' }));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health',     (req, res) => res.json({ ok: true }));
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
-// Rate limiting
+// Rate limiting — public booking/lead endpoints
 const publicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 60,
@@ -27,6 +35,15 @@ const publicLimiter = rateLimit({
 });
 app.use('/api/leads',         publicLimiter);
 app.use('/api/bookings/book', publicLimiter);
+
+// Rate limiting — auth endpoints (stricter: 10 per 15 min)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many login attempts. Please wait 15 minutes and try again.' },
+});
+app.use('/api/auth/admin/login',      authLimiter);
+app.use('/api/auth/contractor/login', authLimiter);
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth',         require('./routes/auth'));
@@ -53,7 +70,10 @@ app.get('/api/auth/google/callback', async (req, res) => {
   res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/contractor?gcal=success`);
 });
 
-app.get('/api/auth/google/connect/:contractorId', (req, res) => {
+app.get('/api/auth/google/connect/:contractorId', require('./middleware/auth').requireContractor, (req, res) => {
+  if (req.user.id !== req.params.contractorId && req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied' });
+  }
   const url = googleCalendar.getAuthUrl(req.params.contractorId);
   res.json({ url });
 });
@@ -69,8 +89,9 @@ if (fs.existsSync(FRONTEND_DIST)) {
 
 // ── Error handler ─────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ error: 'Internal server error' });
+  const reqId = Math.random().toString(36).slice(2, 8);
+  console.error(`[${reqId}] ${req.method} ${req.path}`, err.message || err);
+  res.status(500).json({ error: 'Internal server error', requestId: reqId });
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────

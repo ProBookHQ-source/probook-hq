@@ -5,9 +5,20 @@
  */
 const https = require('https');
 
-const FROM     = process.env.FROM_EMAIL  || 'bookings@probookhq.com';
-const BRAND    = process.env.BRAND_NAME  || 'ProBook';
-const APP_URL  = process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app';
+const FROM      = process.env.FROM_EMAIL  || 'bookings@probookhq.com';
+const BRAND     = process.env.BRAND_NAME  || 'ProBook';
+const APP_URL   = process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.FROM_EMAIL || 'bookings@probookhq.com';
+
+// Prevent XSS in email HTML — escape user-supplied strings before inserting into templates
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
 
 // ── Core send function ────────────────────────────────────────────────────────
 async function sendEmail(to, subject, html) {
@@ -73,8 +84,8 @@ async function sendBookingLink(lead, contractor, bookingUrl) {
         <h1 style="color:white;margin:0;font-size:24px;">${BRAND}</h1>
       </div>
       <div style="background:#fff;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;">
-        <h2 style="color:#1a1a2e;margin-top:0;">Hi ${lead.name}!</h2>
-        <p>Great news — we matched you with <strong>${contractor.company_name || contractor.name}</strong>.</p>
+        <h2 style="color:#1a1a2e;margin-top:0;">Hi ${esc(lead.name)}!</h2>
+        <p>Great news — we matched you with <strong>${esc(contractor.company_name || contractor.name)}</strong>.</p>
         <p>Click below to pick a time that works for you:</p>
         <a href="${bookingUrl}"
            style="display:inline-block;background:#6366f1;color:white;text-decoration:none;
@@ -101,11 +112,11 @@ async function notifyContractor(contractor, lead) {
         <h2 style="margin-top:0;">New Lead Assigned 🎉</h2>
         <table style="width:100%;border-collapse:collapse;">
           <tr><td style="padding:8px 0;color:#6b7280;width:100px;">Name</td>
-              <td style="padding:8px 0;font-weight:600;">${lead.name}</td></tr>
+              <td style="padding:8px 0;font-weight:600;">${esc(lead.name)}</td></tr>
           <tr><td style="padding:8px 0;color:#6b7280;">Zip</td>
-              <td style="padding:8px 0;font-weight:600;">${lead.zip_code}</td></tr>
+              <td style="padding:8px 0;font-weight:600;">${esc(lead.zip_code)}</td></tr>
           <tr><td style="padding:8px 0;color:#6b7280;">Project</td>
-              <td style="padding:8px 0;">${lead.description || 'No description provided'}</td></tr>
+              <td style="padding:8px 0;">${esc(lead.description) || 'No description provided'}</td></tr>
         </table>
         <p style="color:#6b7280;margin-top:24px;">
           The homeowner has been sent a booking link. You'll get a confirmation once they pick a time.
@@ -132,8 +143,8 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
         <h1 style="color:white;margin:0;">Appointment Confirmed ✓</h1>
       </div>
       <div style="background:#fff;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;">
-        <p>Hi ${recipientName},</p>
-        <p>Your appointment with <strong>${otherPartyName}</strong> is confirmed.</p>
+        <p>Hi ${esc(recipientName)},</p>
+        <p>Your appointment with <strong>${esc(otherPartyName)}</strong> is confirmed.</p>
         <div style="background:#f0fdf4;border-left:4px solid #10b981;padding:16px;border-radius:4px;margin:20px 0;">
           <strong>📅 ${dateStr}</strong><br>
           <strong>🕐 ${appointment.scheduled_time}</strong>
@@ -169,8 +180,8 @@ async function sendCancellationAndRebook(lead, contractor, newBookingUrl) {
         <h1 style="color:white;margin:0;font-size:24px;">${BRAND}</h1>
       </div>
       <div style="background:#fff;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;">
-        <h2 style="color:#1a1a2e;margin-top:0;">Hi ${lead.name},</h2>
-        <p>Unfortunately, <strong>${contractor.company_name || contractor.name}</strong> had to cancel your appointment.</p>
+        <h2 style="color:#1a1a2e;margin-top:0;">Hi ${esc(lead.name)},</h2>
+        <p>Unfortunately, <strong>${esc(contractor.company_name || contractor.name)}</strong> had to cancel your appointment.</p>
         <p>No worries — we've issued you a new booking link so you can pick a new time:</p>
         <a href="${newBookingUrl}"
            style="display:inline-block;background:#6366f1;color:white;text-decoration:none;
@@ -184,4 +195,38 @@ async function sendCancellationAndRebook(lead, contractor, newBookingUrl) {
   );
 }
 
-module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook };
+// Notify admin when no contractor could be matched to a new lead
+async function sendAdminNoMatch(lead) {
+  return sendEmail(
+    ADMIN_EMAIL,
+    `[Action Required] No contractor matched for ${lead.name} — ${lead.zip_code}`,
+    `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;">
+      <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:32px;border-radius:12px 12px 0 0;">
+        <h1 style="color:white;margin:0;font-size:22px;">⚠️ Unmatched Lead</h1>
+      </div>
+      <div style="background:#fff;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;">
+        <p>A new lead came in but <strong>no contractor was available</strong> for their niche and zip code.</p>
+        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+          <tr><td style="padding:8px 0;color:#6b7280;width:100px;">Name</td>
+              <td style="padding:8px 0;font-weight:600;">${esc(lead.name)}</td></tr>
+          <tr><td style="padding:8px 0;color:#6b7280;">Email</td>
+              <td style="padding:8px 0;">${esc(lead.email)}</td></tr>
+          <tr><td style="padding:8px 0;color:#6b7280;">Zip</td>
+              <td style="padding:8px 0;font-weight:600;">${esc(lead.zip_code)}</td></tr>
+          <tr><td style="padding:8px 0;color:#6b7280;">Project</td>
+              <td style="padding:8px 0;">${esc(lead.description) || 'No description'}</td></tr>
+        </table>
+        <p style="color:#6b7280;font-size:14px;">Log in to the admin dashboard to manually assign a contractor.</p>
+        <a href="${APP_URL}/admin"
+           style="display:inline-block;background:#6366f1;color:white;text-decoration:none;
+                  padding:14px 28px;border-radius:8px;font-weight:600;">
+          Open Admin Dashboard →
+        </a>
+      </div>
+    </div>
+    `
+  );
+}
+
+module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch };

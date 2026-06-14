@@ -242,8 +242,27 @@ router.put('/:id/complete', requireContractor, async (req, res) => {
 router.put('/:id/admin-cancel', requireAdmin, async (req, res) => {
   const appt = await db.prepare('SELECT * FROM appointments WHERE id = $1').get(req.params.id);
   if (!appt) return res.status(404).json({ error: 'Appointment not found' });
+
   await db.prepare("UPDATE appointments SET status = 'cancelled', updated_at = NOW() WHERE id = $1").run(req.params.id);
-  await db.prepare("UPDATE leads SET status = 'matched' WHERE id = $1").run(appt.lead_id);
+
+  // Only send rebook flow for real ProBook appointments (not external blocks)
+  if (appt.lead_id) {
+    await db.prepare("UPDATE leads SET status = 'matched' WHERE id = $1").run(appt.lead_id);
+
+    const lead       = await db.prepare('SELECT * FROM leads WHERE id = $1').get(appt.lead_id);
+    const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(appt.contractor_id);
+    if (lead && contractor) {
+      const { v4: uuidv4 } = require('uuid');
+      await db.prepare('UPDATE booking_tokens SET used = 1 WHERE lead_id = $1 AND used = 0').run(lead.id);
+      const newToken   = uuidv4();
+      const expiresAt  = new Date(Date.now() + 24 * 3600 * 1000);
+      await db.prepare('INSERT INTO booking_tokens (id, lead_id, token, expires_at) VALUES ($1, $2, $3, $4)')
+        .run(uuidv4(), lead.id, newToken, expiresAt);
+      const bookingUrl = `${process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app'}/book/${newToken}`;
+      notifications.sendCancellationAndRebook(lead, contractor, bookingUrl).catch(console.error);
+    }
+  }
+
   res.json({ message: 'Appointment cancelled' });
 });
 

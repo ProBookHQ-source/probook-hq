@@ -36,7 +36,7 @@ router.put('/:contractorId/slots', requireContractor, async (req, res) => {
 });
 
 // ── Get overrides ─────────────────────────────────────────────────────────────
-router.get('/:contractorId/overrides', async (req, res) => {
+router.get('/:contractorId/overrides', requireContractor, async (req, res) => {
   const { contractorId } = req.params;
   const { from, to } = req.query;
   let query = 'SELECT * FROM availability_overrides WHERE contractor_id = $1';

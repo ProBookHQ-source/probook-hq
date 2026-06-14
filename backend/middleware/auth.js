@@ -2,6 +2,9 @@ const jwt = require('jsonwebtoken');
 const db = require('../database/db');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change-me-in-production') {
+  console.warn('⚠️  auth.js: JWT_SECRET is not set — tokens are signed with an insecure default. Set JWT_SECRET in your environment.');
+}
 
 // Verify JWT and attach user to req
 function requireAuth(req, res, next) {

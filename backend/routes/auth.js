@@ -19,11 +19,16 @@ router.post('/admin/login', async (req, res) => {
   res.json({ token, user: { id: admin.id, email: admin.email, name: admin.name, role: 'admin' } });
 });
 
-// ── Admin register (first-time setup) ────────────────────────────────────────
+// ── Admin register (first-time setup only — disabled once any admin exists) ───
 router.post('/admin/register', async (req, res) => {
   const { email, password, name, setupKey } = req.body;
   if (setupKey !== (process.env.SETUP_KEY || 'setup-1234')) {
     return res.status(403).json({ error: 'Invalid setup key' });
+  }
+  // Permanently disable after first admin is created
+  const { rows: countRows } = await db.query('SELECT COUNT(*) as cnt FROM admins');
+  if (parseInt(countRows[0].cnt, 10) > 0) {
+    return res.status(410).json({ error: 'Setup is complete. Registration is disabled.' });
   }
   const existing = await db.prepare('SELECT id FROM admins WHERE email = $1').get(email);
   if (existing) return res.status(409).json({ error: 'Admin already exists' });
@@ -55,7 +60,8 @@ router.post('/contractor/login', async (req, res) => {
     token,
     user: {
       id: contractor.id, email: contractor.email, name: contractor.name,
-      company_name: contractor.company_name, role: 'contractor',
+      company_name: contractor.company_name, phone: contractor.phone || '',
+      role: 'contractor',
     },
   });
 });
