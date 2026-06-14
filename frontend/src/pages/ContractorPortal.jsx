@@ -281,18 +281,37 @@ export default function ContractorPortal() {
   });
 
   // Override date picker: month+day with smart year detection
-  const [newOverride, setNewOverride] = useState({ month: '', day: '', nextYear: false, type: 'block', start: '09:00', end: '17:00' });
+  const [newOverride, setNewOverride] = useState({ month: '', day: '', year: null, type: 'block', start: '09:00', end: '17:00' });
 
-  // Compute the actual YYYY-MM-DD from the month+day picker
+  // Compute the actual YYYY-MM-DD from the month+day+year picker
   const computedOverrideDate = (() => {
     if (!newOverride.month || !newOverride.day) return '';
     const today = new Date();
-    const yr = today.getFullYear();
-    const m  = parseInt(newOverride.month);
-    const d  = parseInt(newOverride.day);
-    const candidate = new Date(yr, m - 1, d);
-    const useNext = newOverride.nextYear || isBefore(candidate, startOfDay(today));
-    return format(new Date(useNext ? yr + 1 : yr, m - 1, d), 'yyyy-MM-dd');
+    const thisYr = today.getFullYear();
+    const m = parseInt(newOverride.month);
+    const d = parseInt(newOverride.day);
+    const candidateThisYear = new Date(thisYr, m - 1, d);
+    // Auto-detect: if date has passed this year, default to next year
+    const autoYear = isBefore(candidateThisYear, startOfDay(today)) ? thisYr + 1 : thisYr;
+    const yr = newOverride.year ?? autoYear;
+    return format(new Date(yr, m - 1, d), 'yyyy-MM-dd');
+  })();
+
+  // Which years to offer in the pill selector
+  const overrideYearOptions = (() => {
+    if (!newOverride.month || !newOverride.day) return [];
+    const today = new Date();
+    const thisYr = today.getFullYear();
+    const m = parseInt(newOverride.month);
+    const d = parseInt(newOverride.day);
+    const candidateThisYear = new Date(thisYr, m - 1, d);
+    const thisYrIsPast = isBefore(candidateThisYear, startOfDay(today));
+    const autoYear = thisYrIsPast ? thisYr + 1 : thisYr;
+    const selectedYear = newOverride.year ?? autoYear;
+    return [
+      { year: thisYr, past: thisYrIsPast, active: selectedYear === thisYr },
+      { year: thisYr + 1, past: false, active: selectedYear === thisYr + 1 },
+    ];
   })();
 
   // Days available in the selected month (uses current year for leap-year accuracy)
@@ -326,7 +345,7 @@ export default function ContractorPortal() {
     onSuccess: () => {
       toast.success('Date override saved!');
       qc.invalidateQueries(['overrides']);
-      setNewOverride({ month: '', day: '', nextYear: false, type: 'block', start: '09:00', end: '17:00' });
+      setNewOverride({ month: '', day: '', year: null, type: 'block', start: '09:00', end: '17:00' });
     },
     onError: () => toast.error('Failed to save'),
   });
@@ -798,6 +817,7 @@ export default function ContractorPortal() {
                   const dateStr    = format(day, 'yyyy-MM-dd');
                   const dayAppts   = appointments.filter(a => a.scheduled_date === dateStr);
                   const isDayOff   = overrides.some(o => o.date === dateStr && !o.is_available);
+                  const isCustom   = overrides.some(o => o.date === dateStr && o.is_available);
 
                   return (
                     <div
@@ -813,6 +833,16 @@ export default function ContractorPortal() {
                           style={{
                             backgroundImage: 'repeating-linear-gradient(45deg, rgba(239,68,68,0.06), rgba(239,68,68,0.06) 6px, rgba(254,202,202,0.10) 6px, rgba(254,202,202,0.10) 12px)',
                             borderLeft: '2px solid rgba(252,165,165,0.5)',
+                          }}
+                        />
+                      )}
+                      {/* Custom hours overlay */}
+                      {isCustom && (
+                        <div
+                          className="absolute inset-0 z-10 pointer-events-none"
+                          style={{
+                            backgroundImage: 'repeating-linear-gradient(45deg, rgba(99,102,241,0.05), rgba(99,102,241,0.05) 6px, rgba(199,210,254,0.08) 6px, rgba(199,210,254,0.08) 12px)',
+                            borderLeft: '2px solid rgba(99,102,241,0.35)',
                           }}
                         />
                       )}
@@ -986,21 +1016,33 @@ export default function ContractorPortal() {
                         ))}
                       </select>
                     </div>
-                    {/* Show computed date + optional next-year toggle */}
-                    {computedOverrideDate && (
-                      <div className="flex flex-col gap-1 pb-1">
-                        <p className="text-xs font-semibold text-gray-700">
-                          → {format(parseISO(computedOverrideDate), 'MMMM d, yyyy')}
-                        </p>
-                        <label className="flex items-center gap-1.5 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={newOverride.nextYear}
-                            onChange={e => setNewOverride(p => ({ ...p, nextYear: e.target.checked }))}
-                            className="rounded"
-                          />
-                          <span className="text-xs text-gray-400">Next year</span>
-                        </label>
+                    {/* Year pill selector — shows once month + day are picked */}
+                    {overrideYearOptions.length > 0 && (
+                      <div className="flex flex-col gap-1.5 pb-1">
+                        <span className="text-xs font-medium text-gray-500">Year</span>
+                        <div className="flex gap-1.5">
+                          {overrideYearOptions.map(({ year, past, active }) => (
+                            <button
+                              key={year}
+                              type="button"
+                              onClick={() => setNewOverride(p => ({ ...p, year }))}
+                              className={`px-3 py-1 rounded-lg text-sm font-semibold border transition-all ${
+                                active
+                                  ? 'bg-brand-500 text-white border-brand-500'
+                                  : past
+                                  ? 'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed line-through'
+                                  : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300 hover:text-brand-600'
+                              }`}
+                            >
+                              {year}
+                            </button>
+                          ))}
+                        </div>
+                        {computedOverrideDate && (
+                          <p className="text-xs text-gray-400">
+                            → {format(parseISO(computedOverrideDate), 'EEEE, MMMM d, yyyy')}
+                          </p>
+                        )}
                       </div>
                     )}
                     <div>
