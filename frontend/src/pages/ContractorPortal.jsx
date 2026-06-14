@@ -121,84 +121,97 @@ function TimeSelect({ value, onChange }) {
 }
 
 // ── Appointment Card ──────────────────────────────────────────────────────────
+const STATUS_LABEL = { confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled', pending: 'Pending' };
+
 function AppointmentCard({ appt, confirmCancelId, setConfirmCancelId, cancelAppt, completeAppt }) {
   const colors = APPT_COLORS[appt.status] || APPT_COLORS.confirmed;
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-start justify-between gap-4 hover:shadow-sm transition-shadow">
-      {/* Date block */}
-      <div className="text-center min-w-[52px]">
-        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">
-          {format(parseISO(appt.scheduled_date), 'EEE')}
-        </p>
-        <p className={`text-3xl font-bold leading-tight ${colors.label}`}>
-          {format(parseISO(appt.scheduled_date), 'd')}
-        </p>
-        <p className="text-xs text-gray-500 font-medium mt-0.5">{fmtTime(appt.scheduled_time)}</p>
-      </div>
-
-      {/* Divider */}
-      <div className={`w-0.5 self-stretch rounded-full ${colors.dot} opacity-40`} />
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className={`text-xs font-semibold uppercase tracking-widest ${colors.label}`}>
-            {appt.status}
-          </span>
-        </div>
-        <p className="font-semibold text-gray-900 text-base leading-snug">{appt.lead_name}</p>
-        <p className="text-sm text-gray-400 mb-3">{appt.niche_name}</p>
-        <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-gray-400">
-          {appt.lead_phone && (
-            <a href={`tel:${appt.lead_phone}`} className="flex items-center gap-1 hover:text-brand-500 transition-colors">
-              <Phone className="w-3 h-3" />{appt.lead_phone}
-            </a>
-          )}
-          {appt.lead_email && (
-            <a href={`mailto:${appt.lead_email}`} className="flex items-center gap-1 hover:text-brand-500 transition-colors">
-              <Mail className="w-3 h-3" />{appt.lead_email}
-            </a>
-          )}
-        </div>
-        {appt.lead_description && (
-          <p className="text-xs text-gray-400 mt-2 leading-relaxed line-clamp-2 italic">
-            "{appt.lead_description}"
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-sm transition-shadow">
+      <div className="flex items-start gap-4">
+        {/* Date block */}
+        <div className="text-center min-w-[52px]">
+          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">
+            {format(parseISO(appt.scheduled_date), 'EEE')}
           </p>
+          <p className={`text-3xl font-bold leading-tight ${colors.label}`}>
+            {format(parseISO(appt.scheduled_date), 'd')}
+          </p>
+          <p className="text-xs text-gray-500 font-medium mt-0.5">{fmtTime(appt.scheduled_time)}</p>
+        </div>
+
+        {/* Divider */}
+        <div className={`w-0.5 self-stretch rounded-full ${colors.dot} opacity-40`} />
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${colors.badge}`}>
+              {STATUS_LABEL[appt.status] || appt.status}
+            </span>
+          </div>
+          <p className="font-bold text-gray-900 text-lg leading-snug">{appt.lead_name}</p>
+          <p className="text-sm text-gray-400 mb-3">{appt.niche_name}</p>
+          {appt.lead_description && (
+            <p className="text-xs text-gray-400 mb-3 leading-relaxed line-clamp-2 italic">
+              "{appt.lead_description}"
+            </p>
+          )}
+        </div>
+
+        {/* Cancel (top-right) */}
+        {appt.status === 'confirmed' && (
+          <div className="shrink-0">
+            {confirmCancelId === appt.id ? (
+              <div className="flex flex-col gap-1 items-end">
+                <button
+                  onClick={() => cancelAppt.mutate(appt.id)}
+                  disabled={cancelAppt.isPending}
+                  className="text-xs font-bold bg-red-500 text-white px-3 py-2 rounded-xl hover:bg-red-600 disabled:opacity-50 transition-all"
+                >
+                  {cancelAppt.isPending ? '…' : 'Yes, Cancel'}
+                </button>
+                <button onClick={() => setConfirmCancelId(null)} className="text-xs text-gray-400 hover:text-gray-600 py-1 px-2">
+                  Keep it
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmCancelId(appt.id)}
+                className="text-xs font-medium text-gray-400 hover:text-red-400 hover:bg-red-50 px-3 py-1.5 rounded-xl border border-gray-200 transition-all"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Actions */}
-      {appt.status === 'confirmed' && (
-        <div className="flex flex-col gap-2 shrink-0 pt-1">
-          <button
-            onClick={() => completeAppt.mutate(appt.id)}
-            disabled={completeAppt.isPending}
-            className="flex items-center gap-1.5 text-xs font-medium text-green-600 hover:bg-green-50 px-3 py-2 rounded-xl border border-green-100 transition-all disabled:opacity-40"
-          >
-            <CheckCircle className="w-3.5 h-3.5" /> Complete
-          </button>
-          {confirmCancelId === appt.id ? (
-            <div className="flex flex-col gap-1">
-              <button
-                onClick={() => cancelAppt.mutate(appt.id)}
-                disabled={cancelAppt.isPending}
-                className="text-xs font-medium bg-red-500 text-white px-3 py-2 rounded-xl hover:bg-red-600 disabled:opacity-50 transition-all"
-              >
-                {cancelAppt.isPending ? '…' : 'Confirm Cancel'}
-              </button>
-              <button
-                onClick={() => setConfirmCancelId(null)}
-                className="text-xs text-gray-400 hover:text-gray-600 text-center py-1"
-              >
-                Keep
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setConfirmCancelId(appt.id)}
-              className="flex items-center gap-1.5 text-xs font-medium text-red-400 hover:bg-red-50 px-3 py-2 rounded-xl border border-red-100 transition-all"
+      {/* Action row — phone call + complete */}
+      {(appt.lead_phone || appt.lead_email || appt.status === 'confirmed') && (
+        <div className="mt-4 pt-4 border-t border-gray-50 flex items-center gap-3 flex-wrap">
+          {appt.lead_phone && (
+            <a
+              href={`tel:${appt.lead_phone}`}
+              className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold text-sm px-4 py-2.5 rounded-xl transition-all shadow-sm"
             >
-              <XCircle className="w-3.5 h-3.5" /> Cancel
+              <Phone className="w-4 h-4" /> Call {appt.lead_name.split(' ')[0]}
+            </a>
+          )}
+          {appt.lead_email && (
+            <a
+              href={`mailto:${appt.lead_email}`}
+              className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-brand-500 hover:bg-brand-50 px-3 py-2.5 rounded-xl border border-gray-200 transition-all"
+            >
+              <Mail className="w-4 h-4" /> Email
+            </a>
+          )}
+          {appt.status === 'confirmed' && (
+            <button
+              onClick={() => completeAppt.mutate(appt.id)}
+              disabled={completeAppt.isPending}
+              className="flex items-center gap-2 text-sm font-semibold text-green-600 hover:bg-green-50 px-4 py-2.5 rounded-xl border border-green-200 transition-all disabled:opacity-40 ml-auto"
+            >
+              <CheckCircle className="w-4 h-4" /> Mark Complete
             </button>
           )}
         </div>
@@ -460,10 +473,10 @@ export default function ContractorPortal() {
 
   // ── Sidebar nav items ──────────────────────────────────────────────────────
   const NAV = [
-    { id: 'home',         label: 'Home',         icon: Home },
-    { id: 'calendar',     label: 'Calendar',     icon: Calendar },
-    { id: 'availability', label: 'Availability', icon: Clock },
-    { id: 'settings',     label: 'Settings',     icon: Settings },
+    { id: 'home',         label: 'Home',        icon: Home,     badge: todayCount || null },
+    { id: 'calendar',     label: 'Calendar',    icon: Calendar, badge: null },
+    { id: 'availability', label: 'My Schedule', icon: Clock,    badge: null },
+    { id: 'settings',     label: 'Settings',    icon: Settings, badge: null },
   ];
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -484,7 +497,7 @@ export default function ContractorPortal() {
 
         {/* Nav */}
         <nav className="flex-1 px-3 space-y-0.5">
-          {NAV.map(({ id, label, icon: Icon }) => (
+          {NAV.map(({ id, label, icon: Icon, badge }) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -495,7 +508,12 @@ export default function ContractorPortal() {
               }`}
             >
               <Icon className="w-4 h-4 shrink-0" />
-              {label}
+              <span className="flex-1">{label}</span>
+              {badge ? (
+                <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
+                  tab === id ? 'bg-white/30 text-white' : 'bg-brand-500 text-white'
+                }`}>{badge}</span>
+              ) : null}
             </button>
           ))}
         </nav>
@@ -546,12 +564,41 @@ export default function ContractorPortal() {
                 ))}
               </div>
 
+              {/* Next Job Hero */}
+              {(() => {
+                const nextJob = todayAppts[0] || upcomingAppts[0];
+                if (!nextJob) return (
+                  <div className="bg-gradient-to-br from-brand-50 to-blue-50 border border-brand-100 rounded-2xl px-6 py-8 text-center mb-8">
+                    <Calendar className="w-10 h-10 text-brand-200 mx-auto mb-3" />
+                    <p className="text-gray-600 font-semibold text-lg">No jobs booked yet</p>
+                    <p className="text-gray-400 text-sm mt-1">Once a customer books with you, it'll show up right here.</p>
+                  </div>
+                );
+                const isToday = nextJob.scheduled_date === todayStr;
+                return (
+                  <div className="bg-gradient-to-br from-brand-500 to-brand-600 rounded-2xl p-6 mb-8 text-white shadow-lg">
+                    <p className="text-brand-200 text-xs font-semibold uppercase tracking-widest mb-1">
+                      {isToday ? '📅 Your Next Job — Today' : `📅 Your Next Job — ${format(parseISO(nextJob.scheduled_date), 'EEEE, MMM d')}`}
+                    </p>
+                    <p className="text-2xl font-bold mb-0.5">{nextJob.lead_name}</p>
+                    <p className="text-brand-200 text-sm mb-4">{fmtTime(nextJob.scheduled_time)} · {nextJob.niche_name}</p>
+                    {nextJob.lead_phone && (
+                      <a
+                        href={`tel:${nextJob.lead_phone}`}
+                        className="inline-flex items-center gap-2 bg-white text-brand-600 font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-brand-50 transition-all shadow-sm"
+                      >
+                        <Phone className="w-4 h-4" /> Call {nextJob.lead_name.split(' ')[0]}
+                      </a>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Today */}
               <div className="mb-8">
-                <h2 className="text-base font-semibold text-gray-900 mb-3">Today</h2>
+                <h2 className="text-base font-semibold text-gray-900 mb-3">Today's Jobs</h2>
                 {todayAppts.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-gray-100 px-6 py-10 text-center">
-                    <Calendar className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                  <div className="bg-white rounded-2xl border border-gray-100 px-6 py-8 text-center">
                     <p className="text-gray-400 font-medium">Nothing scheduled for today</p>
                     <p className="text-gray-300 text-sm mt-1">Enjoy the day!</p>
                   </div>
@@ -574,7 +621,7 @@ export default function ContractorPortal() {
               {/* Upcoming */}
               {upcomingAppts.length > 0 && (
                 <div>
-                  <h2 className="text-base font-semibold text-gray-900 mb-3">Coming Up</h2>
+                  <h2 className="text-base font-semibold text-gray-900 mb-3">Upcoming Jobs</h2>
                   <div className="space-y-3">
                     {upcomingAppts.map(appt => (
                       <AppointmentCard
@@ -702,7 +749,7 @@ export default function ContractorPortal() {
                   {/* Time + duration + confirm */}
                   <div className="flex-1 pt-1">
                     <div className="flex items-center justify-between mb-4">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Block an outside appointment</p>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Block off your time</p>
                       <button onClick={() => setShowBlockForm(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
                         <X className="w-4 h-4" />
                       </button>
@@ -786,8 +833,8 @@ export default function ContractorPortal() {
                     }`}>
                       {format(day, 'd')}
                     </div>
-                    {isDayOff && <p className="text-[9px] text-red-400 font-semibold uppercase tracking-wider mt-0.5">Day Off</p>}
-                    {isCustom && <p className="text-[9px] text-brand-400 font-semibold uppercase tracking-wider mt-0.5">Custom</p>}
+                    {isDayOff && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider mt-0.5">Day Off</p>}
+                    {isCustom && <p className="text-[10px] text-brand-500 font-bold uppercase tracking-wider mt-0.5">Diff Hours</p>}
                   </div>
                 );
               })}
@@ -887,7 +934,7 @@ export default function ContractorPortal() {
                                   </div>
                                 ) : (
                                   <div className="absolute inset-0 flex items-center px-2 gap-1">
-                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Outside Appt</span>
+                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Blocked</span>
                                     <X className="w-3 h-3 text-gray-300 opacity-0 group-hover:opacity-100 ml-auto transition-opacity" />
                                   </div>
                                 )}
@@ -981,18 +1028,18 @@ export default function ContractorPortal() {
                 </div>
               </div>
 
-              {/* Date overrides */}
+              {/* Days Off & Special Hours */}
               <div>
                 <div className="mb-6">
-                  <h2 className="text-xl font-bold text-gray-900">Date Overrides</h2>
-                  <p className="text-sm text-gray-400 mt-1">Block specific days off or set custom hours — overrides your weekly schedule</p>
+                  <h2 className="text-xl font-bold text-gray-900">Days Off & Special Hours</h2>
+                  <p className="text-sm text-gray-400 mt-1">Take a specific day off or change your hours for one day — won't affect your regular schedule</p>
                 </div>
 
                 {/* Add form */}
                 <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-4 shadow-sm">
                   <div className="flex items-center gap-2 mb-4">
                     <CalendarPlus className="w-4 h-4 text-brand-500" />
-                    <h3 className="text-sm font-semibold text-gray-800">Add an Override</h3>
+                    <h3 className="text-sm font-semibold text-gray-800">Add a Day Off or Special Hours</h3>
                   </div>
                   <div className="flex flex-wrap gap-3 items-end">
                     {/* Month + Day picker (no year clutter) */}
@@ -1059,8 +1106,8 @@ export default function ContractorPortal() {
                         onChange={e => setNewOverride(p => ({ ...p, type: e.target.value }))}
                         className="input"
                       >
-                        <option value="block">Block day off</option>
-                        <option value="custom">Custom hours</option>
+                        <option value="block">Take a Day Off</option>
+                        <option value="custom">Change My Hours That Day</option>
                       </select>
                     </div>
                     {newOverride.type === 'custom' && (
@@ -1091,7 +1138,7 @@ export default function ContractorPortal() {
                 {overrides.length === 0 ? (
                   <div className="bg-white rounded-2xl border border-gray-100 px-6 py-8 text-center">
                     <Ban className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                    <p className="text-sm text-gray-400">No overrides set. Add one above to block a day or set custom hours.</p>
+                    <p className="text-sm text-gray-400">Nothing here yet. Use the form above to take a day off or set different hours for a specific day.</p>
                   </div>
                 ) : (
                   <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm divide-y divide-gray-50">
@@ -1215,14 +1262,18 @@ export default function ContractorPortal() {
 
                 {/* Google Calendar */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                  <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2.5">
-                    <LinkIcon className="w-4 h-4 text-brand-500" />
-                    <h3 className="font-semibold text-gray-900">Google Calendar</h3>
+                  <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <LinkIcon className="w-4 h-4 text-brand-500" />
+                      <h3 className="font-semibold text-gray-900">Google Calendar</h3>
+                    </div>
+                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full font-medium">Optional</span>
                   </div>
                   <div className="px-6 py-5">
-                    <p className="text-sm text-gray-500 mb-4">
-                      Connect your Google Calendar and new bookings will be added automatically.
+                    <p className="text-sm text-gray-500 mb-1">
+                      If you use Google Calendar, connect it here and your bookings will show up there automatically.
                     </p>
+                    <p className="text-xs text-gray-400 mb-4">You don't need this for ProBook to work — it's just a bonus if you want it.</p>
                     <button onClick={connectGoogle} className="btn-secondary gap-2">
                       <LinkIcon className="w-4 h-4" />
                       Connect Google Calendar
