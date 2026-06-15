@@ -6,7 +6,8 @@ import toast from 'react-hot-toast';
 import api from '../api/client';
 import {
   LayoutDashboard, Users, FileText, Calendar, LogOut, Zap,
-  Plus, RefreshCw, CheckCircle, XCircle, Search, Trash2, Send, Phone, AlignLeft, KeyRound
+  Plus, RefreshCw, CheckCircle, XCircle, Search, Trash2, Send, Phone, AlignLeft, KeyRound,
+  Eye, EyeOff, Copy, ShieldCheck, BarChart2
 } from 'lucide-react';
 
 const STATUS_BADGE = {
@@ -28,6 +29,10 @@ export default function AdminDashboard() {
   const [confirmCancelAppt, setConfirmCancelAppt] = useState(null);
   const [setPasswordFor, setSetPasswordFor] = useState(null);
   const [newPwValue, setNewPwValue] = useState('');
+  const [newKeyName, setNewKeyName] = useState('');
+  const [newKeySlug, setNewKeySlug] = useState('');
+  const [createdKey, setCreatedKey] = useState(null); // shown once after creation
+  const [confirmDeleteKey, setConfirmDeleteKey] = useState(null);
   const qc = useQueryClient();
 
   const { data: leads = [] } = useQuery({
@@ -48,6 +53,46 @@ export default function AdminDashboard() {
   const { data: niches = [] } = useQuery({
     queryKey: ['niches'],
     queryFn: () => api.get('/leads/meta/niches').then(r => r.data),
+  });
+
+  const { data: apiKeys = [] } = useQuery({
+    queryKey: ['apikeys'],
+    queryFn: () => api.get('/apikeys').then(r => r.data),
+  });
+
+  const { data: performance = [] } = useQuery({
+    queryKey: ['performance'],
+    queryFn: () => api.get('/contractors/admin/performance').then(r => r.data),
+    enabled: tab === 'performance',
+  });
+
+  const createApiKey = useMutation({
+    mutationFn: (data) => api.post('/apikeys', data),
+    onSuccess: (res) => {
+      setCreatedKey(res.data); // show the key once
+      setNewKeyName('');
+      setNewKeySlug('');
+      qc.invalidateQueries(['apikeys']);
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to create key'),
+  });
+
+  const deactivateKey = useMutation({
+    mutationFn: (id) => api.put(`/apikeys/${id}/deactivate`),
+    onSuccess: () => { toast.success('Key deactivated'); qc.invalidateQueries(['apikeys']); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed'),
+  });
+
+  const activateKey = useMutation({
+    mutationFn: (id) => api.put(`/apikeys/${id}/activate`),
+    onSuccess: () => { toast.success('Key activated'); qc.invalidateQueries(['apikeys']); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed'),
+  });
+
+  const deleteKey = useMutation({
+    mutationFn: (id) => api.delete(`/apikeys/${id}`),
+    onSuccess: () => { toast.success('Key deleted'); qc.invalidateQueries(['apikeys']); setConfirmDeleteKey(null); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed'),
   });
 
   const matchLead = useMutation({
@@ -157,6 +202,8 @@ export default function AdminDashboard() {
             { id: 'leads', label: 'Leads', icon: FileText, badge: leads.filter(l => l.status === 'new').length },
             { id: 'contractors', label: 'Contractors', icon: Users },
             { id: 'appointments', label: 'Appointments', icon: Calendar },
+            { id: 'apikeys', label: 'API Keys', icon: ShieldCheck },
+            { id: 'performance', label: 'Performance', icon: BarChart2 },
           ].map(({ id, label, icon: Icon, badge }) => (
             <button
               key={id}
@@ -483,6 +530,144 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* ── API KEYS ── */}
+        {tab === 'apikeys' && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">API Keys</h1>
+                <p className="text-sm text-gray-500 mt-1">One key per website. Each site uses its key to send leads to ProBook.</p>
+              </div>
+            </div>
+
+            {/* Create new key form */}
+            <div className="card mb-6">
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <Plus className="w-4 h-4" /> Create New Key
+              </h3>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="label">Key Name *</label>
+                  <input
+                    value={newKeyName}
+                    onChange={e => setNewKeyName(e.target.value)}
+                    className="input"
+                    placeholder="e.g. OilToHeatRebate.com"
+                  />
+                </div>
+                <div>
+                  <label className="label">Site Slug *</label>
+                  <input
+                    value={newKeySlug}
+                    onChange={e => setNewKeySlug(e.target.value)}
+                    className="input"
+                    placeholder="e.g. oil-to-heat-rebate"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Short identifier, lowercase, no spaces</p>
+                </div>
+              </div>
+              <button
+                disabled={!newKeyName || !newKeySlug || createApiKey.isPending}
+                onClick={() => createApiKey.mutate({ name: newKeyName, source_slug: newKeySlug })}
+                className="btn-primary disabled:opacity-40"
+              >
+                {createApiKey.isPending ? 'Creating...' : 'Generate Key'}
+              </button>
+            </div>
+
+            {/* Newly created key — shown once */}
+            {createdKey && (
+              <div className="card mb-6 border-2 border-green-200 bg-green-50">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-semibold text-green-800 mb-1">Key created for {createdKey.name}</p>
+                    <p className="text-xs text-green-600 mb-3">Copy this now — it won't be shown again.</p>
+                    <div className="flex items-center gap-2">
+                      <code className="text-sm font-mono bg-white border border-green-200 px-3 py-1.5 rounded-lg text-gray-800 select-all">
+                        {createdKey.key}
+                      </code>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(createdKey.key); toast.success('Copied!'); }}
+                        className="p-1.5 text-green-700 hover:bg-green-100 rounded-lg"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <button onClick={() => setCreatedKey(null)} className="text-xs text-green-600 hover:text-green-800 font-medium mt-1">
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Keys list */}
+            <div className="card p-0 overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    {['Name', 'Slug', 'Status', 'Last Used', 'Actions'].map(h => (
+                      <th key={h} className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {apiKeys.map(k => (
+                    <tr key={k.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <p className="text-sm font-medium text-gray-900">{k.name}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <code className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600">{k.source_slug}</code>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`badge ${k.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {k.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-400">
+                        {k.last_used_at ? format(parseISO(k.last_used_at), 'MMM d, yyyy h:mm a') : 'Never'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          {k.is_active ? (
+                            <button
+                              onClick={() => deactivateKey.mutate(k.id)}
+                              className="text-xs text-yellow-600 hover:text-yellow-700 font-medium flex items-center gap-1"
+                            >
+                              <EyeOff className="w-3 h-3" /> Deactivate
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => activateKey.mutate(k.id)}
+                              className="text-xs text-green-600 hover:text-green-700 font-medium flex items-center gap-1"
+                            >
+                              <Eye className="w-3 h-3" /> Activate
+                            </button>
+                          )}
+                          {confirmDeleteKey === k.id ? (
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => deleteKey.mutate(k.id)} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium">Confirm</button>
+                              <button onClick={() => setConfirmDeleteKey(null)} className="text-xs text-gray-500 font-medium">Cancel</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => setConfirmDeleteKey(k.id)} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium">
+                              <Trash2 className="w-3 h-3" /> Delete
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {apiKeys.length === 0 && (
+                    <tr><td colSpan={5} className="text-center py-10 text-gray-400 text-sm">No API keys yet — create one above</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* ── APPOINTMENTS ── */}
         {tab === 'appointments' && (
           <div>
@@ -547,6 +732,63 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+        {/* ── PERFORMANCE ── */}
+        {tab === 'performance' && (
+          <div>
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold text-gray-900">Performance</h1>
+              <p className="text-sm text-gray-500 mt-1">Conversion stats for each active contractor.</p>
+            </div>
+
+            <div className="card p-0 overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    {['Contractor', 'Niche', 'Leads Matched', 'Booked', 'Completed', 'Cancelled', 'Conversion %'].map(h => (
+                      <th key={h} className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {performance.map(p => (
+                    <tr key={p.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <p className="text-sm font-medium text-gray-900">{p.name}</p>
+                        {p.company_name && <p className="text-xs text-gray-400">{p.company_name}</p>}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{p.niche_name}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-800">{p.leads_matched}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{p.leads_booked}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-sm font-medium text-green-600">{p.appts_completed}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-sm text-red-500">{p.appts_cancelled}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-20 bg-gray-100 rounded-full h-1.5">
+                            <div
+                              className="bg-brand-500 h-1.5 rounded-full"
+                              style={{ width: `${Math.min(parseFloat(p.conversion_pct), 100)}%` }}
+                            />
+                          </div>
+                          <span className={`text-sm font-semibold ${parseFloat(p.conversion_pct) >= 50 ? 'text-green-600' : parseFloat(p.conversion_pct) >= 25 ? 'text-yellow-600' : 'text-red-500'}`}>
+                            {p.conversion_pct}%
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {performance.length === 0 && (
+                    <tr><td colSpan={7} className="text-center py-10 text-gray-400 text-sm">No data yet — stats appear once leads are matched</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

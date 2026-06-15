@@ -52,14 +52,34 @@ router.get('/:id', requireAdmin, async (req, res) => {
 // Auth: Bearer token matching INBOUND_API_KEY env var.
 // Niche resolved by slug or name — auto-created if new (future-proof).
 router.post('/inbound', async (req, res) => {
-  // API key check
+  // API key check — accepts either the global INBOUND_API_KEY env var
+  // or any active key from the inbound_api_keys table (per-site keys)
   const apiKey = (req.headers.authorization || '').replace('Bearer ', '').trim();
-  const validKey = process.env.INBOUND_API_KEY;
-  if (!validKey) {
-    console.error('INBOUND_API_KEY not set in environment');
-    return res.status(500).json({ error: 'Server misconfiguration' });
+  if (!apiKey) {
+    return res.status(401).json({ error: 'Authorization header required' });
   }
-  if (apiKey !== validKey) {
+
+  let keyAuthorized = false;
+
+  // Check global fallback key first (fast, no DB hit)
+  if (process.env.INBOUND_API_KEY && apiKey === process.env.INBOUND_API_KEY) {
+    keyAuthorized = true;
+  }
+
+  // Check per-site keys table
+  if (!keyAuthorized) {
+    const siteKey = await db.prepare(
+      `SELECT id FROM inbound_api_keys WHERE key = $1 AND is_active = 1 LIMIT 1`
+    ).get(apiKey);
+    if (siteKey) {
+      keyAuthorized = true;
+      // Stamp last_used_at asynchronously (don't block response)
+      db.prepare('UPDATE inbound_api_keys SET last_used_at = NOW() WHERE id = $1')
+        .run(siteKey.id).catch(() => {});
+    }
+  }
+
+  if (!keyAuthorized) {
     return res.status(401).json({ error: 'Invalid API key' });
   }
 
@@ -75,6 +95,19 @@ router.post('/inbound', async (req, res) => {
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: 'Invalid email address' });
+  }
+
+  // Deduplication: reject if same email submitted within 30 days
+  const recentLead = await db.prepare(`
+    SELECT id FROM leads
+    WHERE email = $1 AND created_at > NOW() - INTERVAL '30 days'
+    LIMIT 1
+  `).get(email.toLowerCase().trim());
+  if (recentLead) {
+    console.log(`🔁 Duplicate inbound lead blocked — ${email} (within 30 days)`);
+    return res.status(409).json({
+      error: 'A lead with this email was already submitted recently. Please wait before submitting again.',
+    });
   }
 
   // Resolve niche by slug — case-insensitive, partial match, auto-create if new
@@ -178,6 +211,19 @@ router.post('/', async (req, res) => {
   // Cap description length
   if (description && description.length > 2000) {
     return res.status(400).json({ error: 'Description must be 2000 characters or fewer' });
+  }
+
+  // Deduplication: reject if same email submitted within 30 days
+  const recentLead = await db.prepare(`
+    SELECT id FROM leads
+    WHERE email = $1 AND created_at > NOW() - INTERVAL '30 days'
+    LIMIT 1
+  `).get(email.toLowerCase().trim());
+  if (recentLead) {
+    console.log(`🔁 Duplicate lead blocked — ${email} (within 30 days)`);
+    return res.status(409).json({
+      error: 'A lead with this email was already submitted recently.',
+    });
   }
 
   const niche = await db.prepare('SELECT id FROM niches WHERE id = $1').get(niche_id);

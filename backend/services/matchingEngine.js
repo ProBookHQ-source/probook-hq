@@ -1,8 +1,44 @@
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database/db');
 const notifications = require('./notifications');
+const zipcodes = require('zipcodes');
 
-const BOOKING_LINK_EXPIRY_HOURS = 24;
+// ── Haversine distance (miles) ────────────────────────────────────────────────
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 3958.8; // Earth radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Returns true if a contractor serves a given zip code.
+// Logic: exact zip match (fast) OR radius match if contractor has service_radius_miles set.
+function contractorServesZip(contractor, leadZip) {
+  try {
+    const zips = JSON.parse(contractor.service_zip_codes);
+    if (zips.includes(leadZip) || zips.includes('*')) return true;
+
+    // Radius fallback — only if contractor opted in with a radius
+    const radius = contractor.service_radius_miles;
+    if (!radius) return false;
+
+    const leadLoc = zipcodes.lookup(leadZip);
+    if (!leadLoc) return false;
+
+    return zips.some(zip => {
+      const loc = zipcodes.lookup(zip);
+      if (!loc) return false;
+      return haversine(leadLoc.latitude, leadLoc.longitude, loc.latitude, loc.longitude) <= radius;
+    });
+  } catch {
+    return false;
+  }
+}
+
+const BOOKING_LINK_EXPIRY_HOURS = 48;
 
 async function matchOnly(leadId) {
   const lead = await db.prepare(`
@@ -19,12 +55,7 @@ async function matchOnly(leadId) {
     SELECT * FROM contractors WHERE niche_id = $1 AND is_active = 1
   `).all(lead.niche_id);
 
-  const eligible = contractors.filter(c => {
-    try {
-      const zips = JSON.parse(c.service_zip_codes);
-      return zips.includes(lead.zip_code) || zips.includes('*');
-    } catch { return false; }
-  });
+  const eligible = contractors.filter(c => contractorServesZip(c, lead.zip_code));
 
   if (!eligible.length) {
     console.log(`No contractors for niche ${lead.niche_name} in zip ${lead.zip_code}`);

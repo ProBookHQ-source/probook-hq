@@ -199,6 +199,26 @@ async function initialize() {
   await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS external_score INTEGER`).catch(() => {});
   await db.query(`CREATE INDEX IF NOT EXISTS idx_leads_source ON leads(source_site)`).catch(() => {});
 
+  // Migration: radius matching + max appointments per day on contractors
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS service_radius_miles INTEGER DEFAULT 25`).catch(() => {});
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS max_appointments_per_day INTEGER`).catch(() => {});
+
+  // Migration: per-site API keys table
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS inbound_api_keys (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      key TEXT UNIQUE NOT NULL,
+      source_slug TEXT NOT NULL,
+      is_active INTEGER DEFAULT 1,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      last_used_at TIMESTAMPTZ
+    )
+  `).catch(() => {});
+
+  // Migration: lead dedup index on email + created_at
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_leads_email ON leads(email, created_at DESC)`).catch(() => {});
+
   // Seed niches if not already present
   const { rows } = await pool.query('SELECT COUNT(*) FROM niches');
   if (parseInt(rows[0].count) === 0) {

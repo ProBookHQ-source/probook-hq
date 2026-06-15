@@ -148,7 +148,18 @@ router.post('/book', async (req, res) => {
     return res.status(409).json({ error: 'That time is no longer in the contractor\'s schedule. Please pick another time.' });
   }
 
-  // ── 6. Check for conflicts (also caught by DB unique index as a safety net) ─
+  // ── 6a. Check daily max (if contractor has one set) ───────────────────────────
+  if (contractor.max_appointments_per_day) {
+    const { rows: countRows } = await db.query(`
+      SELECT COUNT(*) AS cnt FROM appointments
+      WHERE contractor_id = $1 AND scheduled_date = $2 AND status NOT IN ('cancelled')
+    `, [lead.assigned_contractor_id, date]);
+    if (parseInt(countRows[0].cnt) >= contractor.max_appointments_per_day) {
+      return res.status(409).json({ error: 'The contractor is fully booked on that day. Please pick another date.' });
+    }
+  }
+
+  // ── 6b. Check for conflicts (also caught by DB unique index as a safety net) ─
   const conflict = await db.prepare(`
     SELECT id FROM appointments
     WHERE contractor_id = $1 AND scheduled_date = $2 AND scheduled_time = $3

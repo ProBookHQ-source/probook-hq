@@ -11,12 +11,45 @@ router.get('/', requireAdmin, async (req, res) => {
   const contractors = await db.prepare(`
     SELECT c.id, c.email, c.name, c.phone, c.company_name, c.niche_id,
            c.service_zip_codes, c.google_calendar_id, c.is_active, c.created_at,
+           c.service_radius_miles, c.max_appointments_per_day,
            n.name as niche_name
     FROM contractors c
     LEFT JOIN niches n ON c.niche_id = n.id
     ORDER BY c.created_at DESC
   `).all();
   res.json(contractors);
+});
+
+// ── Performance stats (admin only) — MUST be before /:id ─────────────────────
+// Returns per-contractor breakdown: leads matched, booked, completed, cancelled, conversion rate
+router.get('/admin/performance', requireAdmin, async (req, res) => {
+  const { rows } = await db.query(`
+    SELECT
+      c.id,
+      c.name,
+      c.company_name,
+      n.name                                                         AS niche_name,
+      COUNT(DISTINCT l.id)                                           AS leads_matched,
+      COUNT(DISTINCT CASE WHEN l.status IN ('booked','completed','cancelled') THEN l.id END) AS leads_booked,
+      COUNT(DISTINCT CASE WHEN l.status = 'completed'  THEN l.id END) AS leads_completed,
+      COUNT(DISTINCT CASE WHEN a.status = 'cancelled'  THEN a.id END) AS appts_cancelled,
+      COUNT(DISTINCT CASE WHEN a.status = 'confirmed'  THEN a.id END) AS appts_confirmed,
+      COUNT(DISTINCT CASE WHEN a.status = 'completed'  THEN a.id END) AS appts_completed,
+      ROUND(
+        CASE WHEN COUNT(DISTINCT l.id) = 0 THEN 0
+             ELSE COUNT(DISTINCT CASE WHEN l.status IN ('booked','completed') THEN l.id END)::numeric
+                  / COUNT(DISTINCT l.id) * 100
+        END, 1
+      )                                                              AS conversion_pct
+    FROM contractors c
+    LEFT JOIN niches n ON c.niche_id = n.id
+    LEFT JOIN leads l ON l.assigned_contractor_id = c.id
+    LEFT JOIN appointments a ON a.contractor_id = c.id AND a.lead_id IS NOT NULL
+    WHERE c.is_active = 1
+    GROUP BY c.id, c.name, c.company_name, n.name
+    ORDER BY leads_matched DESC
+  `);
+  res.json(rows);
 });
 
 // ── Get single contractor ─────────────────────────────────────────────────────
@@ -28,6 +61,7 @@ router.get('/:id', requireContractor, async (req, res) => {
   const contractor = await db.prepare(`
     SELECT c.id, c.email, c.name, c.phone, c.company_name, c.niche_id,
            c.service_zip_codes, c.google_calendar_id, c.is_active, c.created_at,
+           c.service_radius_miles, c.max_appointments_per_day,
            n.name as niche_name
     FROM contractors c
     LEFT JOIN niches n ON c.niche_id = n.id
@@ -66,21 +100,25 @@ router.put('/:id', requireContractor, async (req, res) => {
   const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(id);
   if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
 
-  const { name, phone, company_name, service_zip_codes, is_active } = req.body;
+  const { name, phone, company_name, service_zip_codes, is_active, service_radius_miles, max_appointments_per_day } = req.body;
   await db.prepare(`
     UPDATE contractors SET
       name = COALESCE($1, name),
       phone = COALESCE($2, phone),
       company_name = COALESCE($3, company_name),
       service_zip_codes = COALESCE($4, service_zip_codes),
-      is_active = COALESCE($5, is_active)
-    WHERE id = $6
+      is_active = COALESCE($5, is_active),
+      service_radius_miles = COALESCE($6, service_radius_miles),
+      max_appointments_per_day = $7
+    WHERE id = $8
   `).run(
     name || null,
     phone || null,
     company_name || null,
     service_zip_codes ? JSON.stringify(service_zip_codes) : null,
     is_active !== undefined ? (is_active ? 1 : 0) : null,
+    service_radius_miles !== undefined ? (parseInt(service_radius_miles) || null) : null,
+    max_appointments_per_day !== undefined ? (parseInt(max_appointments_per_day) || null) : null,
     id
   );
   res.json({ message: 'Contractor updated' });

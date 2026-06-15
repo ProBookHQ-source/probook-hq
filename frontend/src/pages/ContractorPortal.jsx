@@ -239,6 +239,10 @@ export default function ContractorPortal() {
     phone: user.phone || '',
     company_name: user.company_name || '',
   });
+  const [prefForm, setPrefForm] = useState({
+    service_radius_miles: '',
+    max_appointments_per_day: '',
+  });
 
   const from     = format(weekStart, 'yyyy-MM-dd');
   const to       = format(addDays(weekStart, 6), 'yyyy-MM-dd');
@@ -259,6 +263,10 @@ export default function ContractorPortal() {
         name: data.name || '',
         phone: data.phone || '',
         company_name: data.company_name || '',
+      });
+      setPrefForm({
+        service_radius_miles: data.service_radius_miles ?? '',
+        max_appointments_per_day: data.max_appointments_per_day ?? '',
       });
     },
   });
@@ -1231,6 +1239,53 @@ export default function ContractorPortal() {
                     </div>
                     <button onClick={() => updateProfile.mutate(profileForm)} disabled={updateProfile.isPending} className="btn-primary">
                       {updateProfile.isPending ? 'Saving…' : 'Save Profile'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Booking Preferences */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2.5">
+                    <Settings className="w-4 h-4 text-brand-500" />
+                    <h3 className="font-semibold text-gray-900">Booking Preferences</h3>
+                  </div>
+                  <div className="px-6 py-5 space-y-4">
+                    <div>
+                      <label className="label">Service Radius (miles)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="200"
+                        className="input"
+                        value={prefForm.service_radius_miles}
+                        onChange={e => setPrefForm(p => ({ ...p, service_radius_miles: e.target.value }))}
+                        placeholder="e.g. 25"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">
+                        How far (in miles) from your listed zip codes you're willing to travel. Leave blank to only match exact zips.
+                      </p>
+                    </div>
+                    <div>
+                      <label className="label">Max Appointments Per Day</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="20"
+                        className="input"
+                        value={prefForm.max_appointments_per_day}
+                        onChange={e => setPrefForm(p => ({ ...p, max_appointments_per_day: e.target.value }))}
+                        placeholder="e.g. 3 (leave blank for no limit)"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">
+                        ProBook won't book more than this many appointments on any single day. Leave blank for no limit.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => updateProfile.mutate(prefForm)}
+                      disabled={updateProfile.isPending}
+                      className="btn-primary"
+                    >
+                      {updateProfile.isPending ? 'Saving…' : 'Save Preferences'}
                     </button>
                   </div>
                 </div>
