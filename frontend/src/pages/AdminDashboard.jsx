@@ -29,6 +29,7 @@ export default function AdminDashboard() {
   const [confirmCancelAppt, setConfirmCancelAppt] = useState(null);
   const [setPasswordFor, setSetPasswordFor] = useState(null);
   const [newPwValue, setNewPwValue] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeySlug, setNewKeySlug] = useState('');
   const [createdKey, setCreatedKey] = useState(null); // shown once after creation
@@ -510,14 +511,23 @@ export default function AdminDashboard() {
                     {/* Set Password */}
                     {setPasswordFor === c.id ? (
                       <div className="flex items-center gap-2">
-                        <input
-                          type="password"
-                          value={newPwValue}
-                          onChange={e => setNewPwValue(e.target.value)}
-                          placeholder="New password"
-                          className="input text-xs py-1 px-2 h-7 flex-1"
-                          autoFocus
-                        />
+                        <div className="relative flex-1">
+                          <input
+                            type={showPw ? 'text' : 'password'}
+                            value={newPwValue}
+                            onChange={e => setNewPwValue(e.target.value)}
+                            placeholder="New password"
+                            className="input text-xs py-1 px-2 h-7 w-full pr-7"
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPw(v => !v)}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          >
+                            {showPw ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
                         <button
                           onClick={() => newPwValue && setContractorPassword.mutate({ id: c.id, password: newPwValue })}
                           disabled={!newPwValue || setContractorPassword.isPending}
@@ -525,7 +535,7 @@ export default function AdminDashboard() {
                         >
                           Save
                         </button>
-                        <button onClick={() => { setSetPasswordFor(null); setNewPwValue(''); }} className="text-xs text-gray-500 hover:text-gray-700 font-medium">
+                        <button onClick={() => { setSetPasswordFor(null); setNewPwValue(''); setShowPw(false); }} className="text-xs text-gray-500 hover:text-gray-700 font-medium">
                           Cancel
                         </button>
                       </div>

@@ -13,16 +13,24 @@ import toast from 'react-hot-toast';
 import api from '../api/client';
 import { CheckCircle, Zap, ArrowRight } from 'lucide-react';
 
+function formatPhone(val) {
+  const digits = val.replace(/\D/g, '').slice(0, 10);
+  if (digits.length < 4) return digits;
+  if (digits.length < 7) return `(${digits.slice(0,3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
+}
+
 export default function LeadIntakeWidget() {
   const [submitted, setSubmitted] = useState(false);
   const [matched, setMatched] = useState(false);
+  const [phoneDisplay, setPhoneDisplay] = useState('');
 
   const { data: niches = [] } = useQuery({
     queryKey: ['niches'],
     queryFn: () => api.get('/leads/meta/niches').then(r => r.data),
   });
 
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm();
 
   const submitLead = useMutation({
     mutationFn: (data) => api.post('/leads', data),
@@ -100,8 +108,13 @@ export default function LeadIntakeWidget() {
               <div>
                 <label className="label">Phone</label>
                 <input
-                  {...register('phone')}
                   type="tel"
+                  value={phoneDisplay}
+                  onChange={e => {
+                    const formatted = formatPhone(e.target.value);
+                    setPhoneDisplay(formatted);
+                    setValue('phone', formatted);
+                  }}
                   className="input"
                   placeholder="(555) 000-0000"
                 />
@@ -113,7 +126,7 @@ export default function LeadIntakeWidget() {
                   {...register('niche_id', { required: 'Please select a service' })}
                   className="input"
                 >
-                  <option value="">Select a service...</option>
+                  <option value="" disabled>Select a service...</option>
                   {niches.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
                 </select>
                 {errors.niche_id && <p className="text-red-500 text-xs mt-1">{errors.niche_id.message}</p>}
