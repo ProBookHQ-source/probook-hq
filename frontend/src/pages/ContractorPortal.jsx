@@ -479,6 +479,11 @@ export default function ContractorPortal() {
   const completedCount = appointments.filter(a => a.status === 'completed').length;
   const todayCount     = appointments.filter(a => a.scheduled_date === todayStr && a.status === 'confirmed').length;
 
+  const cancelledAppts = appointments
+    .filter(a => a.status === 'cancelled')
+    .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
+    .slice(0, 5);
+
   // ── Sidebar nav items ──────────────────────────────────────────────────────
   const NAV = [
     { id: 'home',         label: 'Home',        icon: Home,     badge: todayCount || null },
@@ -628,7 +633,7 @@ export default function ContractorPortal() {
 
               {/* Upcoming */}
               {upcomingAppts.length > 0 && (
-                <div>
+                <div className="mb-8">
                   <h2 className="text-base font-semibold text-gray-900 mb-3">Upcoming Jobs</h2>
                   <div className="space-y-3">
                     {upcomingAppts.map(appt => (
@@ -640,6 +645,35 @@ export default function ContractorPortal() {
                         cancelAppt={cancelAppt}
                         completeAppt={completeAppt}
                       />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Cancellations */}
+              {cancelledAppts.length > 0 && (
+                <div className="mb-8">
+                  <h2 className="text-base font-semibold text-gray-900 mb-3">Recent Cancellations</h2>
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    {cancelledAppts.map((appt, i) => (
+                      <div
+                        key={appt.id}
+                        className={`flex items-center gap-4 px-5 py-4 ${i < cancelledAppts.length - 1 ? 'border-b border-gray-50' : ''}`}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                          <XCircle className="w-4 h-4 text-red-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{appt.lead_name}</p>
+                          <p className="text-xs text-gray-400">
+                            {format(parseISO(appt.scheduled_date), 'EEE, MMM d')} · {fmtTime(appt.scheduled_time)}
+                            {appt.niche_name ? ` · ${appt.niche_name}` : ''}
+                          </p>
+                        </div>
+                        <span className="text-xs font-medium text-red-400 bg-red-50 px-2.5 py-1 rounded-full shrink-0">
+                          Cancelled
+                        </span>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -948,7 +982,7 @@ export default function ContractorPortal() {
                                 )}
                               </div>
                             )}
-                            {appt && appt.status !== 'external' && (
+                            {appt && appt.status !== 'external' && appt.status !== 'cancelled' && (
                               // Normal ProBook appointment block
                               <div
                                 className={`absolute inset-x-1 inset-y-0.5 rounded-xl ${(APPT_COLORS[appt.status] || APPT_COLORS.confirmed).block} px-2 py-1 overflow-hidden shadow-sm`}
