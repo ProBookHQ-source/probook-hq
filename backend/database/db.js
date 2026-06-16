@@ -242,6 +242,9 @@ async function initialize() {
   // Migration: track how many times a homeowner has self-cancelled/rescheduled (abuse prevention)
   await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS reschedule_count INTEGER DEFAULT 0`).catch(() => {});
 
+  // Migration: track whether a booking token was issued from a reschedule (for contextual emails)
+  await db.query(`ALTER TABLE booking_tokens ADD COLUMN IF NOT EXISTS source TEXT`).catch(() => {});
+
   // Seed niches if not already present
   const { rows } = await pool.query('SELECT COUNT(*) FROM niches');
   if (parseInt(rows[0].count) === 0) {

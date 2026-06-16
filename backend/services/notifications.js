@@ -341,13 +341,18 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
   const dateStr = new Date(appointment.scheduled_date + 'T12:00:00').toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
+  const isReschedule = !!appointment.is_reschedule;
 
   const makeHtml = (recipientName, otherPartyName, isContractor = false) => emailBase({
     accentColor: '#6366f1',
-    label: 'APPOINTMENT CONFIRMED',
-    headline: isContractor ? `Appointment confirmed` : `You're all set!`,
+    label: isContractor && isReschedule ? 'APPOINTMENT RESCHEDULED' : 'APPOINTMENT CONFIRMED',
+    headline: isContractor
+      ? (isReschedule ? `Appointment rescheduled` : `Appointment confirmed`)
+      : `You're all set!`,
     sub: isContractor
-      ? `An appointment with ${esc(otherPartyName)} has been confirmed.`
+      ? (isReschedule
+          ? `${esc(otherPartyName)} has rescheduled their appointment.`
+          : `An appointment with ${esc(otherPartyName)} has been confirmed.`)
       : `Your appointment with ${esc(otherPartyName)} is confirmed.`,
     bodyContent: `
       <tr><td style="padding:0 0 20px;">
@@ -356,17 +361,19 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
       <tr><td style="padding:0 0 4px;">
         <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
           ${isContractor
-            ? `An appointment has been confirmed with <strong>${esc(otherPartyName)}</strong>. Here are the details:`
+            ? (isReschedule
+                ? `<strong>${esc(otherPartyName)}</strong> has rescheduled their appointment to a new time. Please review the updated details below:`
+                : `An appointment has been confirmed with <strong>${esc(otherPartyName)}</strong>. Here are the details:`)
             : `Your appointment has been confirmed. Here are your details:`}
         </p>
       </td></tr>
 
       ${apptCard(dateStr, fmtTime(appointment.scheduled_time))}
 
-      ${sectionLabel("What Happens Next")}
+      ${sectionLabel(isContractor && isReschedule ? "Updated Schedule" : "What Happens Next")}
       <tr><td style="padding:0 0 20px;">
         ${isContractor ? `
-        ${stepCard(1, 'Review the lead details', 'Check the homeowner\'s project description before the visit.')}
+        ${stepCard(1, isReschedule ? 'Note the new time' : 'Review the lead details', isReschedule ? 'Make sure your calendar reflects this updated appointment time.' : 'Check the homeowner\'s project description before the visit.')}
         ${stepCard(2, 'Show up ready', `Arrive at the scheduled time prepared to assess and discuss the project with ${esc(otherPartyName)}.`)}
         ${stepCard(3, 'Close the job', 'Provide your quote or service on-site. ProBook will keep sending you matched leads.')}
         ` : `
@@ -388,9 +395,13 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
       </td></tr>`,
   });
 
+  const contractorSubject = isReschedule
+    ? `Appointment rescheduled: ${dateStr} — ${lead.name} | ${BRAND}`
+    : `Appointment confirmed: ${dateStr} — ${lead.name} | ${BRAND}`;
+
   await Promise.allSettled([
-    sendEmail(lead.email,       `Appointment confirmed: ${dateStr} | ${BRAND}`,                makeHtml(lead.name, contractor.company_name || contractor.name, false)),
-    sendEmail(contractor.email, `Appointment confirmed: ${dateStr} — ${lead.name} | ${BRAND}`, makeHtml(contractor.name, lead.name, true)),
+    sendEmail(lead.email,       `Appointment confirmed: ${dateStr} | ${BRAND}`, makeHtml(lead.name, contractor.company_name || contractor.name, false)),
+    sendEmail(contractor.email, contractorSubject,                               makeHtml(contractor.name, lead.name, true)),
   ]);
 }
 

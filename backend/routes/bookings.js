@@ -208,6 +208,7 @@ router.post('/book', async (req, res) => {
   notifications.sendAppointmentConfirmation(lead, contractor, {
     scheduled_date: date, scheduled_time: time,
     cancel_token: cancelToken, reschedule_token: rescheduleToken,
+    is_reschedule: bookingToken.source === 'reschedule',
   }).catch(err => console.error('Confirmation email error:', err.message));
 });
 
@@ -307,23 +308,24 @@ router.post('/reschedule-token/:token', async (req, res) => {
   if (appt.status === 'cancelled') return res.status(410).json({ error: 'This appointment has already been cancelled.' });
   if (appt.status === 'completed') return res.status(410).json({ error: 'This appointment has already been completed.' });
 
+  // ── Check abuse limit BEFORE cancelling so the appointment isn't wiped on a 2nd attempt
+  const lead = await db.prepare('SELECT * FROM leads WHERE id = $1').get(appt.lead_id);
+  const hitLimit = (lead.reschedule_count || 0) >= 1;
+  if (hitLimit) {
+    notifications.sendAdminNoMatch({ ...lead, description: `[ABUSE FLAG] Homeowner attempted a 2nd self-service reschedule. Manual review needed.` }).catch(console.error);
+    return res.status(429).json({ error: 'You\'ve used your self-service reschedule. Please contact bookings@probookhq.com to arrange a new time.' });
+  }
+
   await db.prepare("UPDATE appointments SET status = 'cancelled', updated_at = NOW() WHERE id = $1").run(appt.id);
   await db.prepare("UPDATE leads SET status = 'matched' WHERE id = $1").run(appt.lead_id);
   logEvent(appt.lead_id, 'reschedule_requested', 'homeowner', 'Homeowner requested reschedule via email link');
 
-  const lead = await db.prepare('SELECT * FROM leads WHERE id = $1').get(appt.lead_id);
-  const hitLimit = (lead.reschedule_count || 0) >= 1;
-  if (hitLimit) {
-    const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(appt.contractor_id);
-    notifications.sendAdminNoMatch({ ...lead, description: `[ABUSE FLAG] Homeowner attempted a 2nd self-service reschedule. Manual review needed.` }).catch(console.error);
-    return res.status(429).json({ error: 'You\'ve used your self-service reschedule. Please contact bookings@probookhq.com to arrange a new time.' });
-  }
   await db.prepare('UPDATE leads SET reschedule_count = COALESCE(reschedule_count, 0) + 1 WHERE id = $1').run(lead.id);
   await db.prepare('UPDATE booking_tokens SET used = 1 WHERE lead_id = $1 AND used = 0').run(lead.id);
   const newToken  = uuidv4();
   const expiresAt = new Date(Date.now() + 48 * 3600 * 1000);
-  await db.prepare('INSERT INTO booking_tokens (id, lead_id, token, expires_at) VALUES ($1, $2, $3, $4)')
-    .run(uuidv4(), lead.id, newToken, expiresAt);
+  await db.prepare('INSERT INTO booking_tokens (id, lead_id, token, expires_at, source) VALUES ($1, $2, $3, $4, $5)')
+    .run(uuidv4(), lead.id, newToken, expiresAt, 'reschedule');
 
   res.json({ booking_token: newToken });
 });
