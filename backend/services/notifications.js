@@ -254,7 +254,7 @@ async function sendBookingLink(lead, contractor, bookingUrl) {
         ${stepCard(3, 'Your contractor arrives', `${contractorName} will show up ready to help with your project.`)}
       </td></tr>
 
-      ${calloutBox('<strong>Heads up:</strong> This booking link expires in 48 hours. Don\'t see this email? Check your spam or junk folder.')}
+      ${calloutBox('<strong>Heads up:</strong> This booking link expires in 48 hours. Add bookings@probookhq.com to your contacts so future emails don\'t get missed.')}
 
       <tr><td>
         <p style="margin:0;font-size:13px;color:#9ca3af;">Questions? Just reply to this email and we'll get back to you promptly.</p>
@@ -348,7 +348,7 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
         ${stepCard(2, 'Show up ready', `Arrive at the scheduled time prepared to assess and discuss the project with ${esc(otherPartyName)}.`)}
         ${stepCard(3, 'Close the job', 'Provide your quote or service on-site. ProBook will keep sending you matched leads.')}
         ` : `
-        ${stepCard(1, 'You\'re all set', 'No additional steps required — we\'ll see you on the day.')}
+        ${stepCard(1, 'You\'re all set', 'No additional steps needed — your contractor will handle the rest.')}
         ${stepCard(2, 'Be ready for your contractor', `${esc(otherPartyName)} will arrive at the scheduled time.`)}
         ${stepCard(3, 'Questions?', 'Reply to this email anytime and we\'ll get back to you right away.')}
         `}
@@ -450,7 +450,7 @@ async function sendAppointmentReminder(appt) {
       ${calloutBox('If anything comes up and you need to reschedule, please reply to this email as soon as possible so we can find you a new time.')}
 
       <tr><td>
-        <p style="margin:0;font-size:13px;color:#9ca3af;">Your contractor will be there. If anything comes up, just reply to this email.</p>
+        <p style="margin:0;font-size:13px;color:#9ca3af;">Your contractor will be there — we'll see you on the day.</p>
       </td></tr>`,
   });
 
