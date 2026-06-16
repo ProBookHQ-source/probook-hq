@@ -234,7 +234,7 @@ async function sendBookingLink(lead, contractor, bookingUrl) {
     accentColor: '#6366f1',
     label: 'YOUR CONTRACTOR MATCH',
     headline: `You've been matched!`,
-    sub: `${contractorName} is ready to schedule your appointment.`,
+    sub: `${contractorName} is ready for your project.`,
     bodyContent: `
       <tr><td style="padding:0 0 20px;">
         <p style="margin:0;font-size:16px;color:#374151;">Hi <strong>${esc(lead.name)}</strong>,</p>
@@ -250,11 +250,11 @@ async function sendBookingLink(lead, contractor, bookingUrl) {
       ${sectionLabel("Here's What Happens Next")}
       <tr><td style="padding:0 0 8px;">
         ${stepCard(1, 'Pick your time', 'Choose any available slot from the calendar — no phone calls needed.')}
-        ${stepCard(2, 'Get a confirmation', 'You\'ll receive an email confirmation with your appointment details.')}
+        ${stepCard(2, 'Get a confirmation', 'You\'ll get a confirmation email the moment you book.')}
         ${stepCard(3, 'Your contractor arrives', `${contractorName} will show up ready to help with your project.`)}
       </td></tr>
 
-      ${calloutBox('<strong>Important:</strong> This booking link expires in 48 hours. If you don\'t see the email next time, check your spam or junk folder.')}
+      ${calloutBox('<strong>Heads up:</strong> This booking link expires in 48 hours. Don\'t see this email? Check your spam or junk folder.')}
 
       <tr><td>
         <p style="margin:0;font-size:13px;color:#9ca3af;">Questions? Just reply to this email and we'll get back to you promptly.</p>
@@ -287,7 +287,7 @@ async function notifyContractor(contractor, lead) {
     accentColor: '#6366f1',
     label: 'NEW LEAD ASSIGNED',
     headline: esc(lead.name),
-    sub: `${esc(lead.zip_code)} &mdash; ready to book`,
+    sub: `${esc(lead.zip_code)} &mdash; booking link sent`,
     bodyContent: `
       <tr><td style="padding:0 0 20px;">
         <p style="margin:0;font-size:16px;color:#374151;">Hi <strong>${esc(contractor.name)}</strong>,</p>
@@ -310,11 +310,7 @@ async function notifyContractor(contractor, lead) {
       </td></tr>
       ${metaRows}
 
-      ${ctaBtn(`${APP_URL}/contractor`, 'View Your Dashboard')}
-
-      <tr><td>
-        <p style="margin:0;font-size:13px;color:#9ca3af;">You'll receive another email once the homeowner picks their appointment time.</p>
-      </td></tr>`,
+      ${ctaBtn(`${APP_URL}/contractor`, 'View Your Dashboard')}`,
   });
   return sendEmail(contractor.email, `New lead assigned: ${lead.name} in ${lead.zip_code} | ${BRAND}`, html);
 }
@@ -325,17 +321,21 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
   });
 
   const makeHtml = (recipientName, otherPartyName, isContractor = false) => emailBase({
-    accentColor: '#059669',
+    accentColor: '#6366f1',
     label: 'APPOINTMENT CONFIRMED',
-    headline: `You're all set!`,
-    sub: `Your appointment with ${esc(otherPartyName)} is confirmed.`,
+    headline: isContractor ? `Appointment confirmed` : `You're all set!`,
+    sub: isContractor
+      ? `An appointment with ${esc(otherPartyName)} has been confirmed.`
+      : `Your appointment with ${esc(otherPartyName)} is confirmed.`,
     bodyContent: `
       <tr><td style="padding:0 0 20px;">
         <p style="margin:0;font-size:16px;color:#374151;">Hi <strong>${esc(recipientName)}</strong>,</p>
       </td></tr>
       <tr><td style="padding:0 0 4px;">
         <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
-          Your appointment has been confirmed. Here are your details:
+          ${isContractor
+            ? `An appointment has been confirmed with <strong>${esc(otherPartyName)}</strong>. Here are the details:`
+            : `Your appointment has been confirmed. Here are your details:`}
         </p>
       </td></tr>
 
@@ -344,17 +344,17 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
       ${sectionLabel("What Happens Next")}
       <tr><td style="padding:0 0 20px;">
         ${isContractor ? `
-        ${stepCard(1, 'Review the lead details', 'Check the homeowner\'s project description and zip code before the visit.', '#059669')}
-        ${stepCard(2, 'Show up ready', `Arrive at the scheduled time prepared to assess and discuss the project with ${esc(otherPartyName)}.`, '#059669')}
-        ${stepCard(3, 'Close the job', 'Provide your quote or service on-site. ProBook will keep sending you matched leads.', '#059669')}
+        ${stepCard(1, 'Review the lead details', 'Check the homeowner\'s project description before the visit.')}
+        ${stepCard(2, 'Show up ready', `Arrive at the scheduled time prepared to assess and discuss the project with ${esc(otherPartyName)}.`)}
+        ${stepCard(3, 'Close the job', 'Provide your quote or service on-site. ProBook will keep sending you matched leads.')}
         ` : `
-        ${stepCard(1, 'You\'re all set', 'No further action needed — your appointment is locked in.', '#059669')}
-        ${stepCard(2, 'Be ready for your contractor', `${esc(otherPartyName)} will arrive at the scheduled time.`, '#059669')}
-        ${stepCard(3, 'Questions?', 'Reply to this email anytime and we\'ll get back to you right away.', '#059669')}
+        ${stepCard(1, 'You\'re all set', 'No additional steps required — we\'ll see you on the day.')}
+        ${stepCard(2, 'Be ready for your contractor', `${esc(otherPartyName)} will arrive at the scheduled time.`)}
+        ${stepCard(3, 'Questions?', 'Reply to this email anytime and we\'ll get back to you right away.')}
         `}
       </td></tr>
 
-      ${isContractor ? ctaBtn(`${APP_URL}/contractor`, 'View Your Dashboard', '#059669') : ''}
+      ${isContractor ? ctaBtn(`${APP_URL}/contractor`, 'View Your Dashboard') : ''}
 
       <tr><td>
         <p style="margin:0;font-size:13px;color:#9ca3af;">Need to reschedule? Reply to this email and we'll get it sorted out right away.</p>
@@ -369,7 +369,7 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
 
 async function sendCancellationAndRebook(lead, contractor, newBookingUrl) {
   const html = emailBase({
-    accentColor: '#dc2626',
+    accentColor: '#6366f1',
     label: 'APPOINTMENT UPDATE',
     headline: `Your appointment was cancelled`,
     sub: `No worries — we'll get you rebooked right away.`,
@@ -379,16 +379,16 @@ async function sendCancellationAndRebook(lead, contractor, newBookingUrl) {
       </td></tr>
       <tr><td style="padding:0 0 4px;">
         <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
-          Unfortunately, <strong>${esc(contractor.company_name || contractor.name)}</strong> had to cancel your appointment. We've already issued you a new booking link so you can pick a new time at no extra hassle.
+          Unfortunately, <strong>${esc(contractor.company_name || contractor.name)}</strong> had to cancel your appointment. We've already issued you a new booking link so you can pick a new time without any extra hassle.
         </p>
       </td></tr>
 
-      ${ctaBtn(newBookingUrl, 'Pick a New Time', '#dc2626')}
+      ${ctaBtn(newBookingUrl, 'Pick a New Time')}
 
       ${calloutBox('<strong>Your new booking link is active and ready.</strong> Simply click the button above to choose a new appointment time. This link expires in 48 hours.')}
 
       <tr><td>
-        <p style="margin:0;font-size:13px;color:#9ca3af;">We sincerely apologize for the inconvenience. If you have any questions, just reply to this email.</p>
+        <p style="margin:0;font-size:13px;color:#9ca3af;">Sorry for the disruption — if you have any questions, just reply to this email.</p>
       </td></tr>`,
   });
   return sendEmail(lead.email, `Your appointment was cancelled — rebook now | ${BRAND}`, html);
@@ -397,7 +397,7 @@ async function sendCancellationAndRebook(lead, contractor, newBookingUrl) {
 // Notify admin when no contractor could be matched to a new lead
 async function sendAdminNoMatch(lead) {
   const html = emailBase({
-    accentColor: '#d97706',
+    accentColor: '#6366f1',
     label: 'ACTION REQUIRED',
     headline: `Unmatched Lead`,
     sub: `No contractor available for ${esc(lead.zip_code)}.`,
@@ -420,7 +420,7 @@ async function sendAdminNoMatch(lead) {
 
       ${calloutBox('<strong>Heads up:</strong> This homeowner is waiting. Assign a contractor and send them a booking link as soon as possible to avoid losing the lead.', '#fef3c7', '#f59e0b', '#92400e')}
 
-      ${ctaBtn(`${APP_URL}/admin`, 'Open Admin Dashboard', '#d97706')}`,
+      ${ctaBtn(`${APP_URL}/admin`, 'Open Admin Dashboard')}`,
   });
   return sendEmail(ADMIN_EMAIL, `[Action Required] Unmatched lead — ${lead.name} in ${lead.zip_code} | ${BRAND}`, html);
 }
@@ -441,7 +441,7 @@ async function sendAppointmentReminder(appt) {
       </td></tr>
       <tr><td style="padding:0 0 4px;">
         <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
-          This is a reminder that your appointment with <strong>${esc(appt.company_name || appt.contractor_name)}</strong> is scheduled for tomorrow.
+          Your appointment with <strong>${esc(appt.company_name || appt.contractor_name)}</strong> is scheduled for tomorrow.
         </p>
       </td></tr>
 
@@ -450,7 +450,7 @@ async function sendAppointmentReminder(appt) {
       ${calloutBox('If anything comes up and you need to reschedule, please reply to this email as soon as possible so we can find you a new time.')}
 
       <tr><td>
-        <p style="margin:0;font-size:13px;color:#9ca3af;">We look forward to helping you with your project. See you tomorrow!</p>
+        <p style="margin:0;font-size:13px;color:#9ca3af;">Your contractor will be there. If anything comes up, just reply to this email.</p>
       </td></tr>`,
   });
 
@@ -465,7 +465,7 @@ async function sendAppointmentReminder(appt) {
       </td></tr>
       <tr><td style="padding:0 0 4px;">
         <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
-          This is a reminder that you have a scheduled appointment with <strong>${esc(appt.lead_name)}</strong> tomorrow.
+          You have an appointment with <strong>${esc(appt.lead_name)}</strong> tomorrow.
         </p>
       </td></tr>
 
