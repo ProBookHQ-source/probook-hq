@@ -68,6 +68,11 @@ export default function LeadIntakeWidget() {
               📧 Check your inbox — booking link on its way!
             </div>
           )}
+          {matched && (
+            <p className="mt-3 text-xs text-gray-400">
+              Don't see it? Check your spam or junk folder — sometimes the first email ends up there.
+            </p>
+          )}
         </div>
       </div>
     );
