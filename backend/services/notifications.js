@@ -6,6 +6,14 @@
 const https = require('https');
 
 const FROM      = process.env.FROM_EMAIL  || 'bookings@probookhq.com';
+
+function fmtTime(t) {
+  if (!t) return '';
+  const [h, m] = String(t).split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
 const BRAND     = process.env.BRAND_NAME  || 'ProBook';
 const APP_URL   = process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.FROM_EMAIL || 'bookings@probookhq.com';
@@ -192,7 +200,7 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
         <p>Your appointment with <strong>${esc(otherPartyName)}</strong> is confirmed.</p>
         <div style="background:#f0fdf4;border-left:4px solid #10b981;padding:16px;border-radius:4px;margin:20px 0;">
           <strong>📅 ${dateStr}</strong><br>
-          <strong>🕐 ${appointment.scheduled_time}</strong>
+          <strong>🕐 ${fmtTime(appointment.scheduled_time)}</strong>
         </div>
         <p style="color:#6b7280;font-size:14px;">
           If you need to reschedule, please contact us by replying to this email.
@@ -289,7 +297,7 @@ async function sendAppointmentReminder(appt) {
         <p>Just a reminder — your appointment with <strong>${esc(appt.company_name || appt.contractor_name)}</strong> is tomorrow.</p>
         <div style="background:#f5f3ff;border-left:4px solid #6366f1;padding:16px;border-radius:4px;margin:20px 0;">
           <strong>📅 ${dateStr}</strong><br>
-          <strong>🕐 ${appt.scheduled_time}</strong>
+          <strong>🕐 ${fmtTime(appt.scheduled_time)}</strong>
         </div>
         <p style="color:#6b7280;font-size:14px;">If anything comes up, please contact your contractor as soon as possible.</p>
       </div>
@@ -306,7 +314,7 @@ async function sendAppointmentReminder(appt) {
         <p>Reminder — you have an appointment tomorrow with <strong>${esc(appt.lead_name)}</strong>.</p>
         <div style="background:#f5f3ff;border-left:4px solid #6366f1;padding:16px;border-radius:4px;margin:20px 0;">
           <strong>📅 ${dateStr}</strong><br>
-          <strong>🕐 ${appt.scheduled_time}</strong><br>
+          <strong>🕐 ${fmtTime(appt.scheduled_time)}</strong><br>
           ${appt.lead_phone ? `<strong>📞 ${esc(appt.lead_phone)}</strong>` : ''}
         </div>
         <a href="${APP_URL}/contractor"

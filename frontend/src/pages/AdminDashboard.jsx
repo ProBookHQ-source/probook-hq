@@ -1,4 +1,12 @@
 import { useState } from 'react';
+
+function fmtTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { useForm } from 'react-hook-form';
@@ -307,7 +315,7 @@ export default function AdminDashboard() {
                     <div key={appt.id} className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-900">{appt.lead_name}</p>
-                        <p className="text-xs text-gray-400">{format(parseISO(appt.scheduled_date), 'MMM d')} at {appt.scheduled_time} · {appt.contractor_name}</p>
+                        <p className="text-xs text-gray-400">{format(parseISO(appt.scheduled_date), 'MMM d')} at {fmtTime(appt.scheduled_time)} · {appt.contractor_name}</p>
                       </div>
                     </div>
                   ))}
@@ -746,7 +754,7 @@ export default function AdminDashboard() {
                       <td className="px-4 py-3 text-sm text-gray-600">{appt.niche_name}</td>
                       <td className="px-4 py-3">
                         <p className="text-sm font-medium text-gray-900">{format(parseISO(appt.scheduled_date), 'MMM d, yyyy')}</p>
-                        <p className="text-xs text-gray-400">{appt.scheduled_time}</p>
+                        <p className="text-xs text-gray-400">{fmtTime(appt.scheduled_time)}</p>
                       </td>
                       <td className="px-4 py-3">
                         <span className={`badge ${STATUS_BADGE[appt.status] || 'bg-gray-100 text-gray-600'}`}>{appt.status}</span>
