@@ -343,11 +343,15 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
 
       ${sectionLabel("What Happens Next")}
       <tr><td style="padding:0 0 20px;">
-        ${stepCard(1, 'Save the date', 'Add this appointment to your calendar so you don\'t forget.', '#059669')}
-        ${isContractor
-          ? stepCard(2, 'Prepare for the visit', 'Review the project details and arrive ready to help.', '#059669')
-          : stepCard(2, 'Be ready for your contractor', `${esc(otherPartyName)} will arrive at the scheduled time.`, '#059669')}
-        ${stepCard(3, 'Get it done', 'Your appointment is confirmed — no further action needed.', '#059669')}
+        ${isContractor ? `
+        ${stepCard(1, 'Review the lead details', 'Check the homeowner\'s project description and zip code before the visit.', '#059669')}
+        ${stepCard(2, 'Show up ready', `Arrive at the scheduled time prepared to assess and discuss the project with ${esc(otherPartyName)}.`, '#059669')}
+        ${stepCard(3, 'Close the job', 'Provide your quote or service on-site. ProBook will keep sending you matched leads.', '#059669')}
+        ` : `
+        ${stepCard(1, 'You\'re all set', 'No further action needed — your appointment is locked in.', '#059669')}
+        ${stepCard(2, 'Be ready for your contractor', `${esc(otherPartyName)} will arrive at the scheduled time.`, '#059669')}
+        ${stepCard(3, 'Questions?', 'Reply to this email anytime and we\'ll get back to you right away.', '#059669')}
+        `}
       </td></tr>
 
       ${isContractor ? ctaBtn(`${APP_URL}/contractor`, 'View Your Dashboard', '#059669') : ''}
