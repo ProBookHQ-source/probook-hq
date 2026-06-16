@@ -82,77 +82,76 @@ async function sendEmail(to, subject, html) {
 
 // ── Shared email components ───────────────────────────────────────────────────
 
-// Inline bolt SVG (36×36 for header use)
-const BOLT_SVG_LG = `<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
-  <rect width="36" height="36" rx="9" fill="#6366f1"/>
-  <polygon points="13.5,4.5 23.5,4.5 19,17.5 25.5,17.5 16.5,31.5 14,21 8.5,21" fill="white"/>
-</svg>`;
+// Clean white master wrapper — indigo accents only, no dark backgrounds
+function emailBase({ accentColor = '#6366f1', label, headline, sub = '', bodyContent }) {
+  const boltSvg = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+    <rect width="32" height="32" rx="8" fill="${accentColor}"/>
+    <polygon points="12,3 21,3 17,15 23,15 15,29 12.5,18.5 7,18.5" fill="white"/>
+  </svg>`;
 
-// Master wrapper — centered logo header, colored band, body, signature, dark footer
-function emailBase({ bandBg = '#6366f1', bandLabel, bandHeadline, bandSub = '', bodyContent, showSig = true }) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
 </head>
-<body style="margin:0;padding:0;background:#f0f0f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f0f0f5;padding:36px 16px;">
+<body style="margin:0;padding:0;background:#f4f4f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f4f8;padding:32px 16px;">
 <tr><td align="center">
-<table role="presentation" width="100%" style="max-width:580px;">
+<table role="presentation" width="100%" style="max-width:580px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.07);">
 
-  <!-- Top logo header -->
-  <tr><td style="background:#0f0e17;border-radius:14px 14px 0 0;padding:24px 40px;text-align:center;">
+  <!-- Logo row — white bg, centered -->
+  <tr><td style="padding:28px 40px 0;text-align:center;border-bottom:none;">
     <table role="presentation" cellspacing="0" cellpadding="0" align="center">
       <tr>
-        <td style="padding-right:12px;vertical-align:middle;">${BOLT_SVG_LG}</td>
+        <td style="padding-right:10px;vertical-align:middle;">${boltSvg}</td>
         <td style="vertical-align:middle;line-height:1;">
-          <span style="font-size:26px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">Pro</span><span style="font-size:26px;font-weight:300;color:#a5a8f0;letter-spacing:-0.5px;">Book</span>
+          <span style="font-size:24px;font-weight:800;color:${accentColor};letter-spacing:-0.5px;">Pro</span><span style="font-size:24px;font-weight:400;color:#1a1a2e;letter-spacing:-0.5px;">Book</span>
         </td>
       </tr>
     </table>
   </td></tr>
 
-  <!-- Colored band -->
-  <tr><td style="background:${bandBg};padding:32px 40px 28px;text-align:center;">
-    ${bandLabel ? `<p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.7);">${bandLabel}</p>` : ''}
-    <h1 style="margin:0 0 ${bandSub ? '8px' : '0'};font-size:28px;font-weight:800;color:#ffffff;line-height:1.2;">${bandHeadline}</h1>
-    ${bandSub ? `<p style="margin:0;font-size:15px;color:rgba(255,255,255,0.8);">${bandSub}</p>` : ''}
+  <!-- Thin accent divider -->
+  <tr><td style="padding:20px 40px 0;">
+    <div style="height:3px;background:${accentColor};border-radius:2px;"></div>
   </td></tr>
 
-  <!-- White body -->
-  <tr><td style="background:#ffffff;padding:36px 40px;">
+  <!-- Headline section — white with colored text -->
+  <tr><td style="padding:28px 40px 0;text-align:center;">
+    ${label ? `<p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:${accentColor};">${label}</p>` : ''}
+    <h1 style="margin:0 0 ${sub ? '10px' : '0'};font-size:26px;font-weight:800;color:#1a1a2e;line-height:1.25;">${headline}</h1>
+    ${sub ? `<p style="margin:0;font-size:15px;color:#6b7280;">${sub}</p>` : ''}
+  </td></tr>
+
+  <!-- Body -->
+  <tr><td style="padding:28px 40px 8px;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
       ${bodyContent}
     </table>
   </td></tr>
 
-  ${showSig ? `
   <!-- Signature -->
-  <tr><td style="background:#f7f7fb;border-top:1px solid #e8e8f0;padding:24px 40px;">
-    <table role="presentation" cellspacing="0" cellpadding="0">
+  <tr><td style="padding:4px 40px 28px;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #f0f0f5;padding-top:20px;margin-top:8px;">
       <tr>
-        <td style="padding-right:14px;vertical-align:middle;">
-          <div style="width:44px;height:44px;background:#6366f1;border-radius:10px;display:flex;align-items:center;justify-content:center;">
-            <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="44" height="44" rx="10" fill="#6366f1"/>
-              <polygon points="16.5,5.5 28.5,5.5 23,21.5 31.5,21.5 20.5,38.5 17.5,25.5 10,25.5" fill="white"/>
-            </svg>
-          </div>
+        <td style="padding-right:12px;vertical-align:middle;width:44px;">
+          <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="44" height="44" rx="10" fill="${accentColor}"/>
+            <polygon points="16.5,5.5 28.5,5.5 23,21.5 31.5,21.5 20.5,38.5 17.5,25.5 10,25.5" fill="white"/>
+          </svg>
         </td>
         <td style="vertical-align:middle;">
-          <p style="margin:0;font-size:14px;font-weight:700;color:#1a1a2e;">The <span style="color:#6366f1;">ProBook</span> Team</p>
-          <p style="margin:2px 0 0;font-size:13px;color:#6b7280;">bookings@probookhq.com</p>
-          <p style="margin:2px 0 0;font-size:13px;color:#6b7280;">Auto-Booking Platform</p>
+          <p style="margin:0;font-size:14px;font-weight:700;color:#1a1a2e;">The <span style="color:${accentColor};">ProBook</span> Team</p>
+          <p style="margin:2px 0 0;font-size:13px;color:#9ca3af;">bookings@probookhq.com &nbsp;·&nbsp; probookhq.com</p>
         </td>
       </tr>
     </table>
-  </td></tr>` : ''}
+  </td></tr>
 
-  <!-- Dark footer -->
-  <tr><td style="background:#0f0e17;border-radius:0 0 14px 14px;padding:20px 40px;text-align:center;">
-    <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#a5a8f0;">probookhq.com</p>
-    <p style="margin:0;font-size:12px;color:#4a4a6a;">You received this because you have an active request with ProBook. Questions? Reply to this email.</p>
+  <!-- Footer -->
+  <tr><td style="background:#f9f9fc;border-top:1px solid #ebebf0;padding:16px 40px;border-radius:0 0 16px 16px;text-align:center;">
+    <p style="margin:0;font-size:12px;color:#b0b0c0;">You received this because you have an active request with ProBook. Questions? Reply to this email.</p>
   </td></tr>
 
 </table>
@@ -237,10 +236,10 @@ function sectionLabel(text) {
 async function sendBookingLink(lead, contractor, bookingUrl) {
   const contractorName = esc(contractor.company_name || contractor.name);
   const html = emailBase({
-    bandBg: '#6366f1',
-    bandLabel: 'YOUR CONTRACTOR MATCH',
-    bandHeadline: `You've been matched!`,
-    bandSub: `${contractorName} is ready to schedule your appointment.`,
+    accentColor: '#6366f1',
+    label: 'YOUR CONTRACTOR MATCH',
+    headline: `You've been matched!`,
+    sub: `${contractorName} is ready to schedule your appointment.`,
     bodyContent: `
       <tr><td style="padding:0 0 20px;">
         <p style="margin:0;font-size:16px;color:#374151;">Hi <strong>${esc(lead.name)}</strong>,</p>
@@ -290,10 +289,10 @@ async function notifyContractor(contractor, lead) {
   } catch (e) { /* non-fatal */ }
 
   const html = emailBase({
-    bandBg: '#6366f1',
-    bandLabel: 'NEW LEAD ASSIGNED',
-    bandHeadline: esc(lead.name),
-    bandSub: `${esc(lead.zip_code)} &mdash; ready to book`,
+    accentColor: '#6366f1',
+    label: 'NEW LEAD ASSIGNED',
+    headline: esc(lead.name),
+    sub: `${esc(lead.zip_code)} &mdash; ready to book`,
     bodyContent: `
       <tr><td style="padding:0 0 20px;">
         <p style="margin:0;font-size:16px;color:#374151;">Hi <strong>${esc(contractor.name)}</strong>,</p>
@@ -331,10 +330,10 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
   });
 
   const makeHtml = (recipientName, otherPartyName, isContractor = false) => emailBase({
-    bandBg: '#059669',
-    bandLabel: 'APPOINTMENT CONFIRMED',
-    bandHeadline: `You're all set!`,
-    bandSub: `Your appointment with ${esc(otherPartyName)} is confirmed.`,
+    accentColor: '#059669',
+    label: 'APPOINTMENT CONFIRMED',
+    headline: `You're all set!`,
+    sub: `Your appointment with ${esc(otherPartyName)} is confirmed.`,
     bodyContent: `
       <tr><td style="padding:0 0 20px;">
         <p style="margin:0;font-size:16px;color:#374151;">Hi <strong>${esc(recipientName)}</strong>,</p>
@@ -371,10 +370,10 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
 
 async function sendCancellationAndRebook(lead, contractor, newBookingUrl) {
   const html = emailBase({
-    bandBg: '#dc2626',
-    bandLabel: 'APPOINTMENT UPDATE',
-    bandHeadline: `Your appointment was cancelled`,
-    bandSub: `No worries — we'll get you rebooked right away.`,
+    accentColor: '#dc2626',
+    label: 'APPOINTMENT UPDATE',
+    headline: `Your appointment was cancelled`,
+    sub: `No worries — we'll get you rebooked right away.`,
     bodyContent: `
       <tr><td style="padding:0 0 20px;">
         <p style="margin:0;font-size:16px;color:#374151;">Hi <strong>${esc(lead.name)}</strong>,</p>
@@ -399,10 +398,10 @@ async function sendCancellationAndRebook(lead, contractor, newBookingUrl) {
 // Notify admin when no contractor could be matched to a new lead
 async function sendAdminNoMatch(lead) {
   const html = emailBase({
-    bandBg: '#d97706',
-    bandLabel: 'ACTION REQUIRED',
-    bandHeadline: `Unmatched Lead`,
-    bandSub: `No contractor available for ${esc(lead.zip_code)}.`,
+    accentColor: '#d97706',
+    label: 'ACTION REQUIRED',
+    headline: `Unmatched Lead`,
+    sub: `No contractor available for ${esc(lead.zip_code)}.`,
     bodyContent: `
       <tr><td style="padding:0 0 20px;">
         <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
@@ -433,10 +432,10 @@ async function sendAppointmentReminder(appt) {
   });
 
   const homeownerHtml = emailBase({
-    bandBg: '#6366f1',
-    bandLabel: 'APPOINTMENT REMINDER',
-    bandHeadline: `Your appointment is tomorrow`,
-    bandSub: `Just a heads-up so you're ready.`,
+    accentColor: '#6366f1',
+    label: 'APPOINTMENT REMINDER',
+    headline: `Your appointment is tomorrow`,
+    sub: `Just a heads-up so you're ready.`,
     bodyContent: `
       <tr><td style="padding:0 0 20px;">
         <p style="margin:0;font-size:16px;color:#374151;">Hi <strong>${esc(appt.lead_name)}</strong>,</p>
@@ -457,10 +456,10 @@ async function sendAppointmentReminder(appt) {
   });
 
   const contractorHtml = emailBase({
-    bandBg: '#6366f1',
-    bandLabel: 'APPOINTMENT REMINDER',
-    bandHeadline: `You have an appointment tomorrow`,
-    bandSub: `${esc(appt.lead_name)} &mdash; ${dateStr}`,
+    accentColor: '#6366f1',
+    label: 'APPOINTMENT REMINDER',
+    headline: `You have an appointment tomorrow`,
+    sub: `${esc(appt.lead_name)} &mdash; ${dateStr}`,
     bodyContent: `
       <tr><td style="padding:0 0 20px;">
         <p style="margin:0;font-size:16px;color:#374151;">Hi <strong>${esc(appt.contractor_name)}</strong>,</p>
