@@ -274,4 +274,54 @@ async function sendAdminNoMatch(lead) {
   );
 }
 
-module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch };
+async function sendAppointmentReminder(appt) {
+  const dateStr = new Date(appt.scheduled_date + 'T12:00:00').toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+
+  const homeownerHtml = `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;">
+      <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:32px;border-radius:12px 12px 0 0;">
+        <h1 style="color:white;margin:0;font-size:24px;">⏰ Appointment Tomorrow</h1>
+      </div>
+      <div style="background:#fff;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;">
+        <p>Hi ${esc(appt.lead_name)},</p>
+        <p>Just a reminder — your appointment with <strong>${esc(appt.company_name || appt.contractor_name)}</strong> is tomorrow.</p>
+        <div style="background:#f5f3ff;border-left:4px solid #6366f1;padding:16px;border-radius:4px;margin:20px 0;">
+          <strong>📅 ${dateStr}</strong><br>
+          <strong>🕐 ${appt.scheduled_time}</strong>
+        </div>
+        <p style="color:#6b7280;font-size:14px;">If anything comes up, please contact your contractor as soon as possible.</p>
+      </div>
+    </div>
+  `;
+
+  const contractorHtml = `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;">
+      <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:32px;border-radius:12px 12px 0 0;">
+        <h1 style="color:white;margin:0;font-size:24px;">⏰ Appointment Tomorrow</h1>
+      </div>
+      <div style="background:#fff;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;">
+        <p>Hi ${esc(appt.contractor_name)},</p>
+        <p>Reminder — you have an appointment tomorrow with <strong>${esc(appt.lead_name)}</strong>.</p>
+        <div style="background:#f5f3ff;border-left:4px solid #6366f1;padding:16px;border-radius:4px;margin:20px 0;">
+          <strong>📅 ${dateStr}</strong><br>
+          <strong>🕐 ${appt.scheduled_time}</strong><br>
+          ${appt.lead_phone ? `<strong>📞 ${esc(appt.lead_phone)}</strong>` : ''}
+        </div>
+        <a href="${APP_URL}/contractor"
+           style="display:inline-block;background:#6366f1;color:white;text-decoration:none;
+                  padding:14px 28px;border-radius:8px;font-weight:600;">
+          Open Your Dashboard →
+        </a>
+      </div>
+    </div>
+  `;
+
+  await Promise.allSettled([
+    sendEmail(appt.lead_email, `Reminder: Your appointment is tomorrow — ${BRAND}`, homeownerHtml),
+    sendEmail(appt.contractor_email, `Reminder: Appointment tomorrow — ${appt.lead_name}`, contractorHtml),
+  ]);
+}
+
+module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder };

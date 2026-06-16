@@ -219,6 +219,22 @@ async function initialize() {
   // Migration: lead dedup index on email + created_at
   await db.query(`CREATE INDEX IF NOT EXISTS idx_leads_email ON leads(email, created_at DESC)`).catch(() => {});
 
+  // Migration: lead audit trail
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS lead_events (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+      event_type TEXT NOT NULL,
+      actor TEXT DEFAULT 'system',
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(() => {});
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_lead_events_lead ON lead_events(lead_id, created_at DESC)`).catch(() => {});
+
+  // Migration: appointment reminder tracking
+  await db.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ`).catch(() => {});
+
   // Seed niches if not already present
   const { rows } = await pool.query('SELECT COUNT(*) FROM niches');
   if (parseInt(rows[0].count) === 0) {

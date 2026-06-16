@@ -7,7 +7,7 @@ import api from '../api/client';
 import {
   LayoutDashboard, Users, FileText, Calendar, LogOut, Zap,
   Plus, RefreshCw, CheckCircle, XCircle, Search, Trash2, Send, Phone, AlignLeft, KeyRound,
-  Eye, EyeOff, Copy, ShieldCheck, BarChart2
+  Eye, EyeOff, Copy, ShieldCheck, BarChart2, Shuffle
 } from 'lucide-react';
 
 const STATUS_BADGE = {
@@ -66,6 +66,29 @@ export default function AdminDashboard() {
     enabled: tab === 'performance',
   });
 
+  const [newNicheName, setNewNicheName] = useState('');
+  const [newNicheDesc, setNewNicheDesc] = useState('');
+  const [editingNiche, setEditingNiche] = useState(null); // { id, name, description }
+  const [confirmDeleteNiche, setConfirmDeleteNiche] = useState(null);
+
+  const createNiche = useMutation({
+    mutationFn: (data) => api.post('/niches', data),
+    onSuccess: () => { toast.success('Niche created'); setNewNicheName(''); setNewNicheDesc(''); qc.invalidateQueries(['niches']); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to create niche'),
+  });
+
+  const updateNiche = useMutation({
+    mutationFn: ({ id, ...data }) => api.put(`/niches/${id}`, data),
+    onSuccess: () => { toast.success('Niche updated'); setEditingNiche(null); qc.invalidateQueries(['niches']); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to update niche'),
+  });
+
+  const deleteNiche = useMutation({
+    mutationFn: (id) => api.delete(`/niches/${id}`),
+    onSuccess: () => { toast.success('Niche deleted'); setConfirmDeleteNiche(null); qc.invalidateQueries(['niches']); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Cannot delete — niche is in use'),
+  });
+
   const createApiKey = useMutation({
     mutationFn: (data) => api.post('/apikeys', data),
     onSuccess: (res) => {
@@ -108,6 +131,12 @@ export default function AdminDashboard() {
     mutationFn: (id) => api.post(`/leads/${id}/resend-link`),
     onSuccess: () => { toast.success('Booking link resent!'); qc.invalidateQueries(['admin-leads']); },
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to resend'),
+  });
+
+  const reassignLead = useMutation({
+    mutationFn: (id) => api.post(`/leads/${id}/reassign`),
+    onSuccess: () => { toast.success('Lead reassigned — new booking link sent'); qc.invalidateQueries(['admin-leads']); },
+    onError: (err) => toast.error(err.response?.data?.error || 'No other contractors available'),
   });
 
   const adminCancelAppt = useMutation({
@@ -204,6 +233,7 @@ export default function AdminDashboard() {
             { id: 'appointments', label: 'Appointments', icon: Calendar },
             { id: 'apikeys', label: 'API Keys', icon: ShieldCheck },
             { id: 'performance', label: 'Performance', icon: BarChart2 },
+            { id: 'niches', label: 'Niches', icon: Zap },
           ].map(({ id, label, icon: Icon, badge }) => (
             <button
               key={id}
@@ -349,6 +379,17 @@ export default function AdminDashboard() {
                             >
                               <Send className="w-3 h-3" />
                               Resend Link
+                            </button>
+                          )}
+                          {['matched', 'booked'].includes(lead.status) && lead.assigned_contractor_id && (
+                            <button
+                              onClick={() => reassignLead.mutate(lead.id)}
+                              disabled={reassignLead.isPending}
+                              className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-700 font-medium"
+                              title="Skip current contractor and assign to next available"
+                            >
+                              <Shuffle className="w-3 h-3" />
+                              Reassign
                             </button>
                           )}
                           {confirmDeleteLead === lead.id ? (
@@ -732,6 +773,104 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+        {/* ── NICHES ── */}
+        {tab === 'niches' && (
+          <div>
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold text-gray-900">Niches</h1>
+              <p className="text-sm text-gray-500 mt-1">The service categories contractors specialize in. Leads are matched by niche.</p>
+            </div>
+
+            {/* Create */}
+            <div className="card mb-6">
+              <h3 className="font-semibold mb-4 flex items-center gap-2"><Plus className="w-4 h-4" /> Add Niche</h3>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="label">Name *</label>
+                  <input value={newNicheName} onChange={e => setNewNicheName(e.target.value)} className="input" placeholder="e.g. Heat Pump Installation" />
+                </div>
+                <div>
+                  <label className="label">Description</label>
+                  <input value={newNicheDesc} onChange={e => setNewNicheDesc(e.target.value)} className="input" placeholder="Short description (optional)" />
+                </div>
+              </div>
+              <button
+                disabled={!newNicheName || createNiche.isPending}
+                onClick={() => createNiche.mutate({ name: newNicheName, description: newNicheDesc })}
+                className="btn-primary disabled:opacity-40"
+              >
+                {createNiche.isPending ? 'Creating…' : 'Create Niche'}
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="card p-0 overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    {['Name', 'Description', 'Actions'].map(h => (
+                      <th key={h} className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {niches.map(n => (
+                    <tr key={n.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        {editingNiche?.id === n.id ? (
+                          <input
+                            className="input text-sm py-1"
+                            value={editingNiche.name}
+                            onChange={e => setEditingNiche(p => ({ ...p, name: e.target.value }))}
+                          />
+                        ) : (
+                          <p className="text-sm font-medium text-gray-900">{n.name}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {editingNiche?.id === n.id ? (
+                          <input
+                            className="input text-sm py-1"
+                            value={editingNiche.description || ''}
+                            onChange={e => setEditingNiche(p => ({ ...p, description: e.target.value }))}
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-500">{n.description || '—'}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          {editingNiche?.id === n.id ? (
+                            <>
+                              <button onClick={() => updateNiche.mutate(editingNiche)} className="text-xs text-green-600 hover:text-green-700 font-medium">Save</button>
+                              <button onClick={() => setEditingNiche(null)} className="text-xs text-gray-500 font-medium">Cancel</button>
+                            </>
+                          ) : (
+                            <button onClick={() => setEditingNiche({ id: n.id, name: n.name, description: n.description || '' })} className="text-xs text-brand-600 hover:text-brand-700 font-medium">Edit</button>
+                          )}
+                          {confirmDeleteNiche === n.id ? (
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => deleteNiche.mutate(n.id)} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium">Confirm</button>
+                              <button onClick={() => setConfirmDeleteNiche(null)} className="text-xs text-gray-500 font-medium">Cancel</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => setConfirmDeleteNiche(n.id)} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium">
+                              <Trash2 className="w-3 h-3" /> Delete
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {niches.length === 0 && (
+                    <tr><td colSpan={3} className="text-center py-10 text-gray-400 text-sm">No niches yet</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* ── PERFORMANCE ── */}
         {tab === 'performance' && (
           <div>

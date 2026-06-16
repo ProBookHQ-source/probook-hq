@@ -6,6 +6,20 @@ const cors    = require('cors');
 const path    = require('path');
 const fs      = require('fs');
 const rateLimit = require('express-rate-limit');
+const helmet  = require('helmet');
+
+// ── Sentry — activates only when SENTRY_DSN is set in Railway env vars ────────
+const Sentry = require('@sentry/node');
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'production',
+    tracesSampleRate: 0.2, // capture 20% of transactions for performance monitoring
+  });
+  console.log('🔍 Sentry error monitoring active');
+} else {
+  console.log('ℹ️  SENTRY_DSN not set — error monitoring inactive (add it in Railway to enable)');
+}
 
 const app  = express();
 const PORT = process.env.PORT || 4000;
@@ -17,6 +31,11 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change-me-in-producti
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.set('trust proxy', 1); // trust Cloudflare + Railway proxy
+
+// Security headers — protects against XSS, clickjacking, MIME sniffing, etc.
+// contentSecurityPolicy disabled because we serve our own frontend from the same origin
+app.use(helmet({ contentSecurityPolicy: false }));
+
 app.use(cors({
   origin: process.env.FRONTEND_URL || true,
   credentials: true,
@@ -92,12 +111,21 @@ if (fs.existsSync(FRONTEND_DIST)) {
 app.use((err, req, res, next) => {
   const reqId = Math.random().toString(36).slice(2, 8);
   console.error(`[${reqId}] ${req.method} ${req.path}`, err.message || err);
+
+  // Report to Sentry if configured
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(err, { tags: { requestId: reqId, path: req.path } });
+  }
+
   res.status(500).json({ error: 'Internal server error', requestId: reqId });
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 // Wait for DB schema to be ready before accepting requests
 db._ready.then(() => {
+  // Start scheduled jobs (appointment reminders, etc.)
+  require('./services/cron');
+
   app.listen(PORT, () => {
     console.log(`
 ╔════════════════════════════════════════╗

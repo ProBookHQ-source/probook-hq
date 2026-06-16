@@ -4,6 +4,7 @@ const db = require('../database/db');
 const { requireContractor, requireAdmin } = require('../middleware/auth');
 const googleCalendar  = require('../services/googleCalendar');
 const notifications   = require('../services/notifications');
+const { logEvent }    = require('../services/auditLog');
 
 const router = express.Router();
 
@@ -195,6 +196,8 @@ router.post('/book', async (req, res) => {
     }).catch(console.error);
   }
 
+  logEvent(lead.id, 'booked', 'homeowner', `Booked ${date} at ${time} with contractor ${lead.assigned_contractor_id}`);
+
   res.status(201).json({
     appointment_id: appointmentId, date, time,
     message: 'Appointment confirmed! You will receive a confirmation email shortly.',
@@ -214,6 +217,7 @@ router.put('/:id/cancel', requireContractor, async (req, res) => {
   }
   await db.prepare("UPDATE appointments SET status = 'cancelled', updated_at = NOW() WHERE id = $1").run(id);
   await db.prepare("UPDATE leads SET status = 'matched' WHERE id = $1").run(appt.lead_id);
+  if (appt.lead_id) logEvent(appt.lead_id, 'cancelled', 'contractor', `Appointment ${id} cancelled by contractor`);
 
   const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(appt.contractor_id);
   if (appt.google_event_id && contractor?.google_refresh_token) {
@@ -246,6 +250,7 @@ router.put('/:id/complete', requireContractor, async (req, res) => {
   }
   await db.prepare("UPDATE appointments SET status = 'completed', updated_at = NOW() WHERE id = $1").run(id);
   await db.prepare("UPDATE leads SET status = 'completed' WHERE id = $1").run(appt.lead_id);
+  if (appt.lead_id) logEvent(appt.lead_id, 'completed', 'contractor', `Appointment ${id} marked complete`);
   res.json({ message: 'Appointment marked complete' });
 });
 
@@ -283,6 +288,7 @@ router.put('/:id/admin-complete', requireAdmin, async (req, res) => {
   if (!appt) return res.status(404).json({ error: 'Appointment not found' });
   await db.prepare("UPDATE appointments SET status = 'completed', updated_at = NOW() WHERE id = $1").run(req.params.id);
   await db.prepare("UPDATE leads SET status = 'completed' WHERE id = $1").run(appt.lead_id);
+  if (appt.lead_id) logEvent(appt.lead_id, 'completed', 'admin', `Appointment ${req.params.id} marked complete by admin`);
   res.json({ message: 'Appointment marked complete' });
 });
 

@@ -4,6 +4,7 @@ const db = require('../database/db');
 const { requireAdmin } = require('../middleware/auth');
 const matchingEngine = require('../services/matchingEngine');
 const { sendAdminNoMatch } = require('../services/notifications');
+const { logEvent, getEvents } = require('../services/auditLog');
 
 const router = express.Router();
 
@@ -32,6 +33,12 @@ router.get('/', requireAdmin, async (req, res) => {
 
   const { rows } = await db.query(query, params);
   res.json(rows);
+});
+
+// ── Get lead event history (admin) ───────────────────────────────────────────
+router.get('/:id/events', requireAdmin, async (req, res) => {
+  const events = await getEvents(req.params.id);
+  res.json(events);
 });
 
 // ── Get single lead ───────────────────────────────────────────────────────────
@@ -189,6 +196,7 @@ router.post('/inbound', async (req, res) => {
       console.error('Notification error:', err)
     );
   } else {
+    logEvent(id, 'no_match', 'system', 'No eligible contractor found after inbound submission');
     const leadForNotif = await db.prepare('SELECT * FROM leads WHERE id = $1').get(id);
     if (leadForNotif) {
       sendAdminNoMatch(leadForNotif).catch(err =>
@@ -260,7 +268,7 @@ router.post('/', async (req, res) => {
       console.error('Notification error:', err)
     );
   } else {
-    // Alert admin so no lead falls through the cracks
+    logEvent(id, 'no_match', 'system', 'No eligible contractor found after public submission');
     const leadForNotif = await db.prepare('SELECT * FROM leads WHERE id = $1').get(id);
     if (leadForNotif) {
       sendAdminNoMatch(leadForNotif).catch(err =>
@@ -283,6 +291,31 @@ router.put('/:id', requireAdmin, async (req, res) => {
     WHERE id = $3
   `).run(status || null, assigned_contractor_id || null, req.params.id);
   res.json({ message: 'Lead updated' });
+});
+
+// ── Reassign lead to next eligible contractor, skipping the current one ───────
+router.post('/:id/reassign', requireAdmin, async (req, res) => {
+  const lead = await db.prepare('SELECT * FROM leads WHERE id = $1').get(req.params.id);
+  if (!lead) return res.status(404).json({ error: 'Lead not found' });
+  if (!lead.assigned_contractor_id) {
+    return res.status(400).json({ error: 'Lead has no assigned contractor to reassign from' });
+  }
+  if (!['matched', 'booked'].includes(lead.status)) {
+    return res.status(400).json({ error: 'Lead must be in matched or booked status to reassign' });
+  }
+
+  const previousContractorId = lead.assigned_contractor_id;
+  const matched = await matchingEngine.reassign(lead.id, previousContractorId);
+
+  if (!matched) {
+    return res.status(409).json({ error: 'No other eligible contractors available for this lead' });
+  }
+
+  logEvent(lead.id, 'reassigned', 'admin', `Reassigned away from contractor ${previousContractorId}`);
+
+  await matchingEngine.sendMatchNotifications(lead.id);
+
+  res.json({ message: 'Lead reassigned and new booking link sent to homeowner' });
 });
 
 // ── Manually trigger matching (admin) ─────────────────────────────────────────
