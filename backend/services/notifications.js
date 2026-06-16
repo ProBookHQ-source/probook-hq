@@ -84,9 +84,10 @@ async function sendEmail(to, subject, html) {
 
 // Clean white master wrapper — indigo accents only, no dark backgrounds
 function emailBase({ accentColor = '#6366f1', label, headline, sub = '', bodyContent }) {
+  // 8-point bolt exactly matching the Python logo proportions
   const boltSvg = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
     <rect width="32" height="32" rx="8" fill="${accentColor}"/>
-    <polygon points="12,3 21,3 17,15 23,15 15,29 12.5,18.5 7,18.5" fill="white"/>
+    <polygon points="14,4 19,4 16,15 21,15 18,28 13,28 16,17 11,17" fill="white"/>
   </svg>`;
 
   return `<!DOCTYPE html>
@@ -138,7 +139,7 @@ function emailBase({ accentColor = '#6366f1', label, headline, sub = '', bodyCon
         <td style="padding-right:12px;vertical-align:middle;width:44px;">
           <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect width="44" height="44" rx="10" fill="${accentColor}"/>
-            <polygon points="16.5,5.5 28.5,5.5 23,21.5 31.5,21.5 20.5,38.5 17.5,25.5 10,25.5" fill="white"/>
+            <polygon points="19,6 26,6 22,21 29,21 25,39 18,39 22,23 15,23" fill="white"/>
           </svg>
         </td>
         <td style="vertical-align:middle;">
