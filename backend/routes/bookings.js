@@ -171,13 +171,15 @@ router.post('/book', async (req, res) => {
   }
 
   // ── 7. Create appointment inside a transaction ─────────────────────────────
-  const appointmentId = uuidv4();
+  const appointmentId  = uuidv4();
+  const cancelToken    = uuidv4();
+  const rescheduleToken = uuidv4();
   try {
     await db.transaction(async (client) => {
       await client.query(
-        `INSERT INTO appointments (id, lead_id, contractor_id, scheduled_date, scheduled_time, status)
-         VALUES ($1, $2, $3, $4, $5, 'confirmed')`,
-        [appointmentId, lead.id, lead.assigned_contractor_id, date, time]
+        `INSERT INTO appointments (id, lead_id, contractor_id, scheduled_date, scheduled_time, status, cancel_token, reschedule_token)
+         VALUES ($1, $2, $3, $4, $5, 'confirmed', $6, $7)`,
+        [appointmentId, lead.id, lead.assigned_contractor_id, date, time, cancelToken, rescheduleToken]
       );
       await client.query('UPDATE booking_tokens SET used = 1 WHERE id = $1', [bookingToken.id]);
       await client.query("UPDATE leads SET status = 'booked' WHERE id = $1", [lead.id]);
@@ -203,8 +205,113 @@ router.post('/book', async (req, res) => {
     message: 'Appointment confirmed! You will receive a confirmation email shortly.',
   });
 
-  notifications.sendAppointmentConfirmation(lead, contractor, { scheduled_date: date, scheduled_time: time })
-    .catch(err => console.error('Confirmation email error:', err.message));
+  notifications.sendAppointmentConfirmation(lead, contractor, {
+    scheduled_date: date, scheduled_time: time,
+    cancel_token: cancelToken, reschedule_token: rescheduleToken,
+  }).catch(err => console.error('Confirmation email error:', err.message));
+});
+
+// ── Self-service: get cancel info (public) ────────────────────────────────────
+router.get('/cancel-info/:token', async (req, res) => {
+  const appt = await db.prepare(`
+    SELECT a.id, a.scheduled_date, a.scheduled_time, a.status,
+           l.name AS lead_name, c.name AS contractor_name, c.company_name
+    FROM appointments a
+    JOIN leads l ON a.lead_id = l.id
+    JOIN contractors c ON a.contractor_id = c.id
+    WHERE a.cancel_token = $1
+  `).get(req.params.token);
+  if (!appt) return res.status(404).json({ error: 'Invalid or expired cancellation link.' });
+  if (appt.status === 'cancelled') return res.status(410).json({ error: 'This appointment has already been cancelled.' });
+  if (appt.status === 'completed') return res.status(410).json({ error: 'This appointment has already been completed.' });
+  res.json({
+    lead_name:       appt.lead_name,
+    contractor_name: appt.company_name || appt.contractor_name,
+    scheduled_date:  appt.scheduled_date,
+    scheduled_time:  appt.scheduled_time,
+  });
+});
+
+// ── Self-service: confirm cancellation (public) ───────────────────────────────
+router.post('/cancel-token/:token', async (req, res) => {
+  const appt = await db.prepare(`
+    SELECT a.*, l.name AS lead_name, l.email AS lead_email,
+           c.name AS contractor_name, c.company_name, c.email AS contractor_email
+    FROM appointments a
+    JOIN leads l ON a.lead_id = l.id
+    JOIN contractors c ON a.contractor_id = c.id
+    WHERE a.cancel_token = $1
+  `).get(req.params.token);
+  if (!appt) return res.status(404).json({ error: 'Invalid or expired cancellation link.' });
+  if (appt.status === 'cancelled') return res.status(410).json({ error: 'This appointment has already been cancelled.' });
+  if (appt.status === 'completed') return res.status(410).json({ error: 'This appointment has already been completed.' });
+
+  await db.prepare("UPDATE appointments SET status = 'cancelled', updated_at = NOW() WHERE id = $1").run(appt.id);
+  await db.prepare("UPDATE leads SET status = 'matched' WHERE id = $1").run(appt.lead_id);
+  logEvent(appt.lead_id, 'cancelled', 'homeowner', 'Appointment cancelled by homeowner via email link');
+
+  const lead       = await db.prepare('SELECT * FROM leads WHERE id = $1').get(appt.lead_id);
+  const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(appt.contractor_id);
+  if (lead && contractor) {
+    await db.prepare('UPDATE booking_tokens SET used = 1 WHERE lead_id = $1 AND used = 0').run(lead.id);
+    const newToken  = uuidv4();
+    const expiresAt = new Date(Date.now() + 48 * 3600 * 1000);
+    await db.prepare('INSERT INTO booking_tokens (id, lead_id, token, expires_at) VALUES ($1, $2, $3, $4)')
+      .run(uuidv4(), lead.id, newToken, expiresAt);
+    const bookingUrl = `${process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app'}/book/${newToken}`;
+    notifications.sendCancellationAndRebook(lead, contractor, bookingUrl).catch(console.error);
+    notifications.sendHomeownerCancelledNotice(contractor, lead, appt).catch(console.error);
+  }
+  res.json({ message: 'Appointment cancelled. A new booking link has been sent to your email.' });
+});
+
+// ── Self-service: get reschedule info (public) ────────────────────────────────
+router.get('/reschedule-info/:token', async (req, res) => {
+  const appt = await db.prepare(`
+    SELECT a.id, a.scheduled_date, a.scheduled_time, a.status,
+           l.name AS lead_name, c.name AS contractor_name, c.company_name
+    FROM appointments a
+    JOIN leads l ON a.lead_id = l.id
+    JOIN contractors c ON a.contractor_id = c.id
+    WHERE a.reschedule_token = $1
+  `).get(req.params.token);
+  if (!appt) return res.status(404).json({ error: 'Invalid or expired reschedule link.' });
+  if (appt.status === 'cancelled') return res.status(410).json({ error: 'This appointment has already been cancelled.' });
+  if (appt.status === 'completed') return res.status(410).json({ error: 'This appointment has already been completed.' });
+  res.json({
+    lead_name:       appt.lead_name,
+    contractor_name: appt.company_name || appt.contractor_name,
+    scheduled_date:  appt.scheduled_date,
+    scheduled_time:  appt.scheduled_time,
+  });
+});
+
+// ── Self-service: confirm reschedule (public) ─────────────────────────────────
+router.post('/reschedule-token/:token', async (req, res) => {
+  const appt = await db.prepare(`
+    SELECT a.*, l.name AS lead_name, l.email AS lead_email,
+           c.name AS contractor_name, c.company_name
+    FROM appointments a
+    JOIN leads l ON a.lead_id = l.id
+    JOIN contractors c ON a.contractor_id = c.id
+    WHERE a.reschedule_token = $1
+  `).get(req.params.token);
+  if (!appt) return res.status(404).json({ error: 'Invalid or expired reschedule link.' });
+  if (appt.status === 'cancelled') return res.status(410).json({ error: 'This appointment has already been cancelled.' });
+  if (appt.status === 'completed') return res.status(410).json({ error: 'This appointment has already been completed.' });
+
+  await db.prepare("UPDATE appointments SET status = 'cancelled', updated_at = NOW() WHERE id = $1").run(appt.id);
+  await db.prepare("UPDATE leads SET status = 'matched' WHERE id = $1").run(appt.lead_id);
+  logEvent(appt.lead_id, 'reschedule_requested', 'homeowner', 'Homeowner requested reschedule via email link');
+
+  const lead = await db.prepare('SELECT * FROM leads WHERE id = $1').get(appt.lead_id);
+  await db.prepare('UPDATE booking_tokens SET used = 1 WHERE lead_id = $1 AND used = 0').run(lead.id);
+  const newToken  = uuidv4();
+  const expiresAt = new Date(Date.now() + 48 * 3600 * 1000);
+  await db.prepare('INSERT INTO booking_tokens (id, lead_id, token, expires_at) VALUES ($1, $2, $3, $4)')
+    .run(uuidv4(), lead.id, newToken, expiresAt);
+
+  res.json({ booking_token: newToken });
 });
 
 // ── Cancel an appointment (contractor) ───────────────────────────────────────

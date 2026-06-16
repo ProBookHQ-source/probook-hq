@@ -235,6 +235,10 @@ async function initialize() {
   // Migration: appointment reminder tracking
   await db.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ`).catch(() => {});
 
+  // Migration: self-service cancel/reschedule tokens for homeowner email links
+  await db.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS cancel_token TEXT UNIQUE`).catch(() => {});
+  await db.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reschedule_token TEXT UNIQUE`).catch(() => {});
+
   // Seed niches if not already present
   const { rows } = await pool.query('SELECT COUNT(*) FROM niches');
   if (parseInt(rows[0].count) === 0) {

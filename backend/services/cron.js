@@ -30,6 +30,7 @@ cron.schedule('0 * * * *', async () => {
     const { rows: appointments } = await db.query(`
       SELECT
         a.id, a.scheduled_date, a.scheduled_time, a.lead_id,
+        a.cancel_token, a.reschedule_token,
         l.name  AS lead_name,  l.email AS lead_email,  l.phone AS lead_phone,
         c.name  AS contractor_name, c.email AS contractor_email,
         c.company_name

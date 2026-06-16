@@ -218,6 +218,28 @@ function infoRow(label, value, bold = false) {
   </tr>`;
 }
 
+// Cancel / Reschedule action links for homeowner emails
+function actionLinks(cancelUrl, rescheduleUrl) {
+  return `
+  <tr><td style="padding:20px 0 4px;border-top:1px solid #f0f0f5;">
+    <p style="margin:0 0 14px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#9ca3af;text-align:center;">Need to make a change?</p>
+    <table role="presentation" cellspacing="0" cellpadding="0" align="center">
+      <tr>
+        <td style="padding-right:10px;">
+          <a href="${rescheduleUrl}" style="display:inline-block;background:#f5f3ff;color:#6366f1;text-decoration:none;padding:10px 22px;border-radius:8px;font-size:13px;font-weight:600;border:1px solid #e0e7ff;">
+            &#128197; Reschedule
+          </a>
+        </td>
+        <td>
+          <a href="${cancelUrl}" style="display:inline-block;background:#fff5f5;color:#dc2626;text-decoration:none;padding:10px 22px;border-radius:8px;font-size:13px;font-weight:600;border:1px solid #fee2e2;">
+            &#10005; Cancel
+          </a>
+        </td>
+      </tr>
+    </table>
+  </td></tr>`;
+}
+
 // Section divider with label
 function sectionLabel(text) {
   return `
@@ -356,8 +378,13 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
 
       ${isContractor ? ctaBtn(`${APP_URL}/contractor`, 'View Your Dashboard') : ''}
 
+      ${!isContractor && appointment.cancel_token ? actionLinks(
+        `${APP_URL}/cancel/${appointment.cancel_token}`,
+        `${APP_URL}/reschedule/${appointment.reschedule_token}`
+      ) : ''}
+
       <tr><td>
-        <p style="margin:0;font-size:13px;color:#9ca3af;">Need to reschedule? Reply to this email and we'll get it sorted out right away.</p>
+        <p style="margin:0;font-size:13px;color:#9ca3af;">${isContractor ? 'If you need to cancel, use your dashboard or reply to this email.' : 'Questions? Reply to this email and we\'ll get back to you right away.'}</p>
       </td></tr>`,
   });
 
@@ -447,7 +474,10 @@ async function sendAppointmentReminder(appt) {
 
       ${apptCard(dateStr, fmtTime(appt.scheduled_time))}
 
-      ${calloutBox('If anything comes up and you need to reschedule, please reply to this email as soon as possible so we can find you a new time.')}
+      ${appt.cancel_token ? actionLinks(
+        `${APP_URL}/cancel/${appt.cancel_token}`,
+        `${APP_URL}/reschedule/${appt.reschedule_token}`
+      ) : calloutBox('If anything comes up and you need to reschedule, please reply to this email as soon as possible so we can find you a new time.')}
 
       <tr><td>
         <p style="margin:0;font-size:13px;color:#9ca3af;">Your contractor will be there — we'll see you on the day.</p>
@@ -484,4 +514,33 @@ async function sendAppointmentReminder(appt) {
   ]);
 }
 
-module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder };
+// Notify contractor when homeowner cancels via self-service link
+async function sendHomeownerCancelledNotice(contractor, lead, appointment) {
+  const dateStr = new Date(appointment.scheduled_date + 'T12:00:00').toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+  const html = emailBase({
+    accentColor: '#6366f1',
+    label: 'APPOINTMENT CANCELLED',
+    headline: `Appointment cancelled`,
+    sub: `${esc(lead.name)} cancelled their appointment.`,
+    bodyContent: `
+      <tr><td style="padding:0 0 20px;">
+        <p style="margin:0;font-size:16px;color:#374151;">Hi <strong>${esc(contractor.name)}</strong>,</p>
+      </td></tr>
+      <tr><td style="padding:0 0 4px;">
+        <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
+          <strong>${esc(lead.name)}</strong> has cancelled their appointment scheduled for ${dateStr}. We've sent them a new booking link so they can reschedule. No action needed on your end — ProBook will keep sending you matched leads.
+        </p>
+      </td></tr>
+
+      ${ctaBtn(`${APP_URL}/contractor`, 'View Your Dashboard')}`,
+  });
+  return sendEmail(
+    contractor.email,
+    `Appointment cancelled by homeowner — ${esc(lead.name)} | ${BRAND}`,
+    html
+  );
+}
+
+module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice };
