@@ -84,11 +84,8 @@ async function sendEmail(to, subject, html) {
 
 // Clean white master wrapper — indigo accents only, no dark backgrounds
 function emailBase({ accentColor = '#6366f1', label, headline, sub = '', bodyContent }) {
-  // 8-point bolt exactly matching the Python logo proportions
-  const boltSvg = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
-    <rect width="32" height="32" rx="8" fill="${accentColor}"/>
-    <polygon points="14,4 19,4 16,15 21,15 18,28 13,28 16,17 11,17" fill="white"/>
-  </svg>`;
+  // Hosted PNG — works in Gmail, iCloud, Outlook, everywhere (SVG is stripped by Gmail)
+  const iconImg = `<img src="${APP_URL}/probook-icon-64.png" width="36" height="36" alt="ProBook" style="display:block;border-radius:8px;" />`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -105,7 +102,7 @@ function emailBase({ accentColor = '#6366f1', label, headline, sub = '', bodyCon
   <tr><td style="padding:28px 40px 0;text-align:center;border-bottom:none;">
     <table role="presentation" cellspacing="0" cellpadding="0" align="center">
       <tr>
-        <td style="padding-right:10px;vertical-align:middle;">${boltSvg}</td>
+        <td style="padding-right:10px;vertical-align:middle;">${iconImg}</td>
         <td style="vertical-align:middle;line-height:1;">
           <span style="font-size:24px;font-weight:800;color:${accentColor};letter-spacing:-0.5px;">Pro</span><span style="font-size:24px;font-weight:400;color:#1a1a2e;letter-spacing:-0.5px;">Book</span>
         </td>
@@ -137,10 +134,7 @@ function emailBase({ accentColor = '#6366f1', label, headline, sub = '', bodyCon
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #f0f0f5;padding-top:20px;margin-top:8px;">
       <tr>
         <td style="padding-right:12px;vertical-align:middle;width:44px;">
-          <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="44" height="44" rx="10" fill="${accentColor}"/>
-            <polygon points="19,6 26,6 22,21 29,21 25,39 18,39 22,23 15,23" fill="white"/>
-          </svg>
+          <img src="${APP_URL}/probook-icon-64.png" width="44" height="44" alt="ProBook" style="display:block;border-radius:10px;" />
         </td>
         <td style="vertical-align:middle;">
           <p style="margin:0;font-size:14px;font-weight:700;color:#1a1a2e;">The <span style="color:${accentColor};">ProBook</span> Team</p>
