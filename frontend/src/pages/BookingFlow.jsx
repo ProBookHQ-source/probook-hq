@@ -91,7 +91,14 @@ export default function BookingFlow() {
             <p className="text-lg font-bold text-green-700">
               {format(parseISO(selectedDate), 'EEEE, MMMM d, yyyy')}
             </p>
-            <p className="text-green-600 font-medium">{selectedTime}</p>
+            <p className="text-green-600 font-medium">
+              {(() => {
+                const [h, m] = selectedTime.split(':').map(Number);
+                const period = h >= 12 ? 'PM' : 'AM';
+                const hour = h % 12 || 12;
+                return `${hour}:${String(m).padStart(2,'0')} ${period}`;
+              })()}
+            </p>
           </div>
           <p className="text-sm text-gray-400">A confirmation email has been sent to you and the contractor.</p>
         </div>
@@ -208,7 +215,12 @@ export default function BookingFlow() {
               <div className="bg-brand-50 rounded-xl p-4 mb-4">
                 <p className="text-sm text-brand-700 font-medium">Selected appointment:</p>
                 <p className="font-bold text-brand-900">
-                  {format(parseISO(selectedDate), 'EEEE, MMMM d, yyyy')} at {selectedTime}
+                  {format(parseISO(selectedDate), 'EEEE, MMMM d, yyyy')} at {(() => {
+                    const [h, m] = selectedTime.split(':').map(Number);
+                    const period = h >= 12 ? 'PM' : 'AM';
+                    const hour = h % 12 || 12;
+                    return `${hour}:${String(m).padStart(2,'0')} ${period}`;
+                  })()}
                 </p>
               </div>
               <button

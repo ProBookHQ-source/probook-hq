@@ -30,7 +30,14 @@ export default function LeadIntakeWidget() {
     queryFn: () => api.get('/leads/meta/niches').then(r => r.data),
   });
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm();
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm({
+    defaultValues: { niche_id: '', phone: '' },
+  });
+
+  // Register phone with optional-but-valid-if-filled rule
+  register('phone', {
+    validate: v => !v || v.replace(/\D/g, '').length === 10 || 'Please enter a valid 10-digit phone number',
+  });
 
   const submitLead = useMutation({
     mutationFn: (data) => api.post('/leads', data),
@@ -113,17 +120,19 @@ export default function LeadIntakeWidget() {
                   onChange={e => {
                     const formatted = formatPhone(e.target.value);
                     setPhoneDisplay(formatted);
-                    setValue('phone', formatted);
+                    setValue('phone', formatted, { shouldValidate: true });
                   }}
                   className="input"
                   placeholder="(555) 000-0000"
                 />
+                {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
               </div>
 
               <div>
                 <label className="label">Service Type *</label>
                 <select
                   {...register('niche_id', { required: 'Please select a service' })}
+                  defaultValue=""
                   className="input"
                 >
                   <option value="" disabled>Select a service...</option>

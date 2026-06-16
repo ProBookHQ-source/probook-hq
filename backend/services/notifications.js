@@ -92,7 +92,7 @@ async function sendBookingLink(lead, contractor, bookingUrl) {
                   padding:14px 28px;border-radius:8px;font-weight:600;margin:16px 0;">
           Pick Your Appointment Time →
         </a>
-        <p style="color:#6b7280;font-size:14px;">This link expires in 24 hours.</p>
+        <p style="color:#6b7280;font-size:14px;">This link expires in 48 hours.</p>
       </div>
     </div>
     `
@@ -233,7 +233,7 @@ async function sendCancellationAndRebook(lead, contractor, newBookingUrl) {
                   padding:14px 28px;border-radius:8px;font-weight:600;margin:16px 0;">
           Pick a New Time →
         </a>
-        <p style="color:#6b7280;font-size:14px;">This link expires in 24 hours.</p>
+        <p style="color:#6b7280;font-size:14px;">This link expires in 48 hours.</p>
       </div>
     </div>
     `
