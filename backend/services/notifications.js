@@ -85,7 +85,7 @@ async function sendEmail(to, subject, html) {
 // Clean white master wrapper — indigo accents only, no dark backgrounds
 function emailBase({ accentColor = '#6366f1', label, headline, sub = '', bodyContent }) {
   // Hosted PNG — works in Gmail, iCloud, Outlook, everywhere (SVG is stripped by Gmail)
-  const iconImg = `<img src="${APP_URL}/probook-icon-64.png" width="36" height="36" alt="ProBook" style="display:block;border-radius:8px;" />`;
+  const iconImg = `<img src="${APP_URL}/probook-icon-128.png" width="36" height="36" alt="ProBook" style="display:block;border-radius:8px;" />`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -134,7 +134,7 @@ function emailBase({ accentColor = '#6366f1', label, headline, sub = '', bodyCon
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #f0f0f5;padding-top:20px;margin-top:8px;">
       <tr>
         <td style="padding-right:12px;vertical-align:middle;width:44px;">
-          <img src="${APP_URL}/probook-icon-64.png" width="44" height="44" alt="ProBook" style="display:block;border-radius:10px;" />
+          <img src="${APP_URL}/probook-icon-128.png" width="44" height="44" alt="ProBook" style="display:block;border-radius:10px;" />
         </td>
         <td style="vertical-align:middle;">
           <p style="margin:0;font-size:14px;font-weight:700;color:#1a1a2e;">The <span style="color:${accentColor};">ProBook</span> Team</p>
