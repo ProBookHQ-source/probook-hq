@@ -23,8 +23,12 @@ export default function BookingFlow() {
   const [confirmed, setConfirmed] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
 
-  const from = format(addDays(new Date(), weekOffset * 7), 'yyyy-MM-dd');
-  const to   = format(addDays(new Date(), weekOffset * 7 + LOOKAHEAD_DAYS - 1), 'yyyy-MM-dd');
+  const now  = new Date();
+  const from = format(addDays(now, weekOffset * 7), 'yyyy-MM-dd');
+  const to   = format(addDays(now, weekOffset * 7 + LOOKAHEAD_DAYS - 1), 'yyyy-MM-dd');
+  // Send client's local date + time so the backend can correctly filter past slots
+  const clientDate = format(now, 'yyyy-MM-dd');
+  const clientTime = format(now, 'HH:mm');
 
   // Validate the token and get lead info
   const { data: tokenData, isLoading: tokenLoading, isError: tokenError } = useQuery({
@@ -36,7 +40,7 @@ export default function BookingFlow() {
   // Get open slots for the matched contractor
   const { data: slots = [], isLoading: slotsLoading } = useQuery({
     queryKey: ['open-slots', tokenData?.contractor_id, from, to],
-    queryFn: () => api.get(`/availability/${tokenData.contractor_id}/open-slots?from=${from}&to=${to}`).then(r => r.data),
+    queryFn: () => api.get(`/availability/${tokenData.contractor_id}/open-slots?from=${from}&to=${to}&clientDate=${clientDate}&clientTime=${clientTime}`).then(r => r.data),
     enabled: !!tokenData?.contractor_id,
   });
 

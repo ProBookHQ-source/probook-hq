@@ -91,7 +91,7 @@ router.delete('/:contractorId/overrides/:overrideId', requireContractor, async (
 // ── Get open booking slots ────────────────────────────────────────────────────
 router.get('/:contractorId/open-slots', async (req, res) => {
   const { contractorId } = req.params;
-  const { from, to } = req.query;
+  const { from, to, clientDate, clientTime } = req.query;
   if (!from || !to) return res.status(400).json({ error: 'from and to dates required (YYYY-MM-DD)' });
 
   const weeklySlots = await db.prepare(
@@ -110,11 +110,12 @@ router.get('/:contractorId/open-slots', async (req, res) => {
   `).all(contractorId, from, to);
 
   const result = [];
-  const now = new Date();
-  // Use YYYY-MM-DD in local time (avoids UTC shift on Railway which runs UTC)
-  const todayStr = now.toISOString().split('T')[0];
-  // Current time in minutes, plus a 30-minute buffer so homeowners can't book a slot starting very soon
-  const nowMinutes = now.getUTCHours() * 60 + now.getUTCMinutes() + 30;
+  // Use client's local date/time if provided (avoids UTC vs local timezone mismatch)
+  // Falls back to server UTC if client params not sent
+  const todayStr = clientDate || new Date().toISOString().split('T')[0];
+  const [clientH, clientM] = (clientTime || '00:00').split(':').map(Number);
+  // 30-minute buffer so homeowners can't book a slot starting very soon
+  const nowMinutes = clientH * 60 + clientM + 30;
 
   for (let cursor = new Date(from + 'T00:00:00Z'); ; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
     const dateStr = cursor.toISOString().split('T')[0];
