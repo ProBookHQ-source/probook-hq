@@ -24,7 +24,7 @@ export default function CancelPage({ mode = 'cancel' }) {
   const isReschedule = mode === 'reschedule';
 
   const [appt,    setAppt]    = useState(null);
-  const [status,  setStatus]  = useState('loading'); // loading | confirm | success | error
+  const [status,  setStatus]  = useState('loading'); // loading | confirm | kept | success | error
   const [message, setMessage] = useState('');
   const [working, setWorking] = useState(false);
 
@@ -52,12 +52,16 @@ export default function CancelPage({ mode = 'cancel' }) {
     try {
       const r    = await fetch(`${API}${endpoint}`, { method: 'POST' });
       const data = await r.json();
-      if (!r.ok) { setMessage(data.error || 'Something went wrong.'); setStatus('error'); return; }
-
+      if (!r.ok) {
+        setMessage(data.error || 'Something went wrong.');
+        setStatus('error');
+        return;
+      }
       if (isReschedule && data.booking_token) {
-        // Redirect straight into the booking calendar
         navigate(`/book/${data.booking_token}`);
       } else {
+        // Handle limit_reached: show success but with contact-us message
+        if (data.limit_reached) setMessage('contact_us');
         setStatus('success');
       }
     } catch {
@@ -121,12 +125,63 @@ export default function CancelPage({ mode = 'cancel' }) {
             <CheckCircle className="w-8 h-8 text-green-500" />
           </div>
           <h1 className="text-xl font-bold text-gray-900 mb-2">Appointment cancelled</h1>
-          <p className="text-gray-500 mb-6">
-            Your appointment has been cancelled. We've sent a new booking link to your email so you can reschedule whenever you're ready.
-          </p>
+          {message === 'contact_us' ? (
+            <p className="text-gray-500 mb-6">
+              Your appointment has been cancelled. To book a new time, please contact us directly at{' '}
+              <a href="mailto:bookings@probookhq.com" className="text-brand-600 hover:underline font-semibold">
+                bookings@probookhq.com
+              </a>
+            </p>
+          ) : (
+            <p className="text-gray-500 mb-6">
+              Your appointment has been cancelled. We've sent a new booking link to your email so you can reschedule whenever you're ready.
+            </p>
+          )}
           <p className="text-sm text-gray-400">
-            Questions? Reply to the email or contact{' '}
-            <a href="mailto:bookings@probookhq.com" className="text-brand-600 hover:underline">
+            Questions?{' '}
+            <a href="mailto:bookings@probookhq.com" className="text-brand-500 hover:underline">
+              bookings@probookhq.com
+            </a>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Kept ─────────────────────────────────────────────────────────────────────
+  if (status === 'kept') {
+    return (
+      <div className={bgGradient}>
+        <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-8 text-center">
+          <div className="flex items-center justify-center gap-2 mb-8">
+            <div className="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center">
+              <Zap className="w-5 h-5 text-white fill-white" />
+            </div>
+            <span className="text-xl font-black text-brand-500">Pro</span>
+            <span className="text-xl font-light text-gray-800 -ml-1">Book</span>
+          </div>
+          <div className="w-16 h-16 bg-brand-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-8 h-8 text-brand-500" />
+          </div>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">You're all set!</h1>
+          <p className="text-gray-500 mb-4">
+            Your appointment with <strong>{appt?.contractor_name}</strong> is still on.
+          </p>
+          {appt && (
+            <div className="bg-brand-50 rounded-xl border-l-4 border-brand-500 p-4 text-left mb-6">
+              <div className="flex items-center gap-2 text-gray-800 font-semibold mb-1">
+                <Calendar className="w-4 h-4 text-brand-500" />
+                {fmtDate(appt.scheduled_date)}
+              </div>
+              <div className="flex items-center gap-2 text-gray-800 font-semibold">
+                <Clock className="w-4 h-4 text-brand-500" />
+                {fmtTime(appt.scheduled_time)}
+              </div>
+            </div>
+          )}
+          <p className="text-xs text-gray-400">
+            Need to make a change later? Use the links in your confirmation email or contact{' '}
+            <a href="mailto:bookings@probookhq.com" className="text-brand-500 hover:underline">
               bookings@probookhq.com
             </a>
           </p>
@@ -199,7 +254,7 @@ export default function CancelPage({ mode = 'cancel' }) {
             </button>
 
             <button
-              onClick={() => window.history.back()}
+              onClick={() => setStatus('kept')}
               disabled={working}
               className="w-full py-3 px-4 rounded-xl font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all disabled:opacity-50"
             >

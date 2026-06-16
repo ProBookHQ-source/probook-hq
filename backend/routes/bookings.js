@@ -253,13 +253,20 @@ router.post('/cancel-token/:token', async (req, res) => {
   const lead       = await db.prepare('SELECT * FROM leads WHERE id = $1').get(appt.lead_id);
   const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(appt.contractor_id);
   if (lead && contractor) {
+    const hitLimit = (lead.reschedule_count || 0) >= 1;
+    if (hitLimit) {
+      // Too many self-service actions — alert admin, don't auto-issue link
+      notifications.sendAdminNoMatch({ ...lead, description: `[ABUSE FLAG] Homeowner attempted a 2nd self-service cancellation. Manual review needed.` }).catch(console.error);
+      return res.json({ message: 'Your appointment has been cancelled. Please contact bookings@probookhq.com to arrange a new time.', limit_reached: true });
+    }
+    await db.prepare('UPDATE leads SET reschedule_count = COALESCE(reschedule_count, 0) + 1 WHERE id = $1').run(lead.id);
     await db.prepare('UPDATE booking_tokens SET used = 1 WHERE lead_id = $1 AND used = 0').run(lead.id);
     const newToken  = uuidv4();
     const expiresAt = new Date(Date.now() + 48 * 3600 * 1000);
     await db.prepare('INSERT INTO booking_tokens (id, lead_id, token, expires_at) VALUES ($1, $2, $3, $4)')
       .run(uuidv4(), lead.id, newToken, expiresAt);
     const bookingUrl = `${process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app'}/book/${newToken}`;
-    notifications.sendCancellationAndRebook(lead, contractor, bookingUrl).catch(console.error);
+    notifications.sendHomeownerRebookLink(lead, contractor, bookingUrl).catch(console.error);
     notifications.sendHomeownerCancelledNotice(contractor, lead, appt).catch(console.error);
   }
   res.json({ message: 'Appointment cancelled. A new booking link has been sent to your email.' });
@@ -305,6 +312,13 @@ router.post('/reschedule-token/:token', async (req, res) => {
   logEvent(appt.lead_id, 'reschedule_requested', 'homeowner', 'Homeowner requested reschedule via email link');
 
   const lead = await db.prepare('SELECT * FROM leads WHERE id = $1').get(appt.lead_id);
+  const hitLimit = (lead.reschedule_count || 0) >= 1;
+  if (hitLimit) {
+    const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(appt.contractor_id);
+    notifications.sendAdminNoMatch({ ...lead, description: `[ABUSE FLAG] Homeowner attempted a 2nd self-service reschedule. Manual review needed.` }).catch(console.error);
+    return res.status(429).json({ error: 'You\'ve used your self-service reschedule. Please contact bookings@probookhq.com to arrange a new time.' });
+  }
+  await db.prepare('UPDATE leads SET reschedule_count = COALESCE(reschedule_count, 0) + 1 WHERE id = $1').run(lead.id);
   await db.prepare('UPDATE booking_tokens SET used = 1 WHERE lead_id = $1 AND used = 0').run(lead.id);
   const newToken  = uuidv4();
   const expiresAt = new Date(Date.now() + 48 * 3600 * 1000);

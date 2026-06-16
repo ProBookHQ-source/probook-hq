@@ -514,6 +514,35 @@ async function sendAppointmentReminder(appt) {
   ]);
 }
 
+// Rebook link for homeowner-initiated cancellation (correct framing — they cancelled, not the contractor)
+async function sendHomeownerRebookLink(lead, contractor, bookingUrl) {
+  const contractorName = esc(contractor.company_name || contractor.name);
+  const html = emailBase({
+    accentColor: '#6366f1',
+    label: 'APPOINTMENT CANCELLED',
+    headline: `Your appointment was cancelled`,
+    sub: `Here's a new link to rebook whenever you're ready.`,
+    bodyContent: `
+      <tr><td style="padding:0 0 20px;">
+        <p style="margin:0;font-size:16px;color:#374151;">Hi <strong>${esc(lead.name)}</strong>,</p>
+      </td></tr>
+      <tr><td style="padding:0 0 4px;">
+        <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
+          Your appointment with <strong>${contractorName}</strong> has been cancelled. Use the link below to pick a new time whenever works for you.
+        </p>
+      </td></tr>
+
+      ${ctaBtn(bookingUrl, 'Pick a New Time')}
+
+      ${calloutBox('<strong>Your booking link is active and ready.</strong> This link expires in 48 hours.')}
+
+      <tr><td>
+        <p style="margin:0;font-size:13px;color:#9ca3af;">Questions? Just reply to this email and we'll get back to you right away.</p>
+      </td></tr>`,
+  });
+  return sendEmail(lead.email, `Your appointment was cancelled — book a new time | ${BRAND}`, html);
+}
+
 // Notify contractor when homeowner cancels via self-service link
 async function sendHomeownerCancelledNotice(contractor, lead, appointment) {
   const dateStr = new Date(appointment.scheduled_date + 'T12:00:00').toLocaleDateString('en-US', {
@@ -543,4 +572,4 @@ async function sendHomeownerCancelledNotice(contractor, lead, appointment) {
   );
 }
 
-module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice };
+module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink };
