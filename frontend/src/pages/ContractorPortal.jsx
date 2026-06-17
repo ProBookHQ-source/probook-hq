@@ -251,6 +251,8 @@ export default function ContractorPortal() {
   // Fixed current-week range (not tied to calendar navigation) — used for the "This Week" stat
   const thisWeekFrom = format(startOfWeek(new Date()), 'yyyy-MM-dd');
   const thisWeekTo   = format(addDays(startOfWeek(new Date()), 6), 'yyyy-MM-dd');
+  const homeFrom     = format(new Date(), 'yyyy-MM-dd');
+  const homeTo       = format(addDays(new Date(), 60), 'yyyy-MM-dd');
 
   // ── Queries ────────────────────────────────────────────────────────────────
 
@@ -274,12 +276,21 @@ export default function ContractorPortal() {
   const { data: appointments = [] } = useQuery({
     queryKey: ['appointments', user.id, from, to],
     queryFn: () => api.get(`/bookings/contractor/${user.id}?from=${from}&to=${to}`).then(r => r.data),
+    refetchInterval: 30000, // auto-refresh calendar every 30s to pick up new bookings
   });
 
   // Separate query for "This Week" stat — always current week, unaffected by calendar navigation
   const { data: thisWeekAppts = [] } = useQuery({
     queryKey: ['appointments-this-week', user.id, thisWeekFrom, thisWeekTo],
     queryFn: () => api.get(`/bookings/contractor/${user.id}?from=${thisWeekFrom}&to=${thisWeekTo}`).then(r => r.data),
+    refetchInterval: 30000,
+  });
+
+  // Home tab query — always today → 60 days out, independent of calendar week navigation
+  const { data: homeAppts = [] } = useQuery({
+    queryKey: ['appointments-home', user.id, homeFrom, homeTo],
+    queryFn: () => api.get(`/bookings/contractor/${user.id}?from=${homeFrom}&to=${homeTo}`).then(r => r.data),
+    refetchInterval: 30000,
   });
 
   const { data: slots = [] } = useQuery({
@@ -467,19 +478,20 @@ export default function ContractorPortal() {
   };
 
   // ── Derived data ───────────────────────────────────────────────────────────
-  const todayAppts = appointments
+  // Home tab uses homeAppts (today → 60 days) so it's never affected by calendar week navigation
+  const todayAppts = homeAppts
     .filter(a => a.scheduled_date === todayStr && a.status !== 'cancelled')
     .sort((a, b) => a.scheduled_time.localeCompare(b.scheduled_time));
 
-  const upcomingAppts = appointments
+  const upcomingAppts = homeAppts
     .filter(a => a.scheduled_date > todayStr && a.status !== 'cancelled')
     .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date) || a.scheduled_time.localeCompare(b.scheduled_time));
 
   const thisWeekCount  = thisWeekAppts.filter(a => a.status === 'confirmed').length;
-  const completedCount = appointments.filter(a => a.status === 'completed').length;
-  const todayCount     = appointments.filter(a => a.scheduled_date === todayStr && a.status === 'confirmed').length;
+  const completedCount = homeAppts.filter(a => a.status === 'completed').length;
+  const todayCount     = homeAppts.filter(a => a.scheduled_date === todayStr && a.status === 'confirmed').length;
 
-  const cancelledAppts = appointments
+  const cancelledAppts = homeAppts
     .filter(a => a.status === 'cancelled')
     .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
     .slice(0, 5);
