@@ -31,6 +31,7 @@ export default function AdminDashboard() {
   const user = JSON.parse(localStorage.getItem('user'));
   const [tab, setTab] = useState('overview');
   const [showAddContractor, setShowAddContractor] = useState(false);
+  const [showDeclined, setShowDeclined] = useState(false);
   const [leadFilter, setLeadFilter] = useState('');
   const [confirmDeleteLead, setConfirmDeleteLead] = useState(null);
   const [confirmDeleteContractor, setConfirmDeleteContractor] = useState(null);
@@ -55,7 +56,8 @@ export default function AdminDashboard() {
     queryFn: () => api.get('/contractors').then(r => r.data),
   });
 
-  const pendingContractors = contractors.filter(c => !c.is_active && c.applied_at);
+  const pendingContractors  = contractors.filter(c => !c.is_active && c.applied_at && !c.declined_at);
+  const declinedContractors = contractors.filter(c => !c.is_active && c.applied_at && c.declined_at);
 
   const { data: appointments = [] } = useQuery({
     queryKey: ['admin-appointments'],
@@ -203,6 +205,12 @@ export default function AdminDashboard() {
     mutationFn: (id) => api.put(`/auth/contractor/${id}/approve`),
     onSuccess: () => { toast.success('Contractor approved!'); qc.invalidateQueries(['admin-contractors']); },
     onError: (err) => toast.error(err.response?.data?.error || 'Approval failed'),
+  });
+
+  const declineContractor = useMutation({
+    mutationFn: (id) => api.put(`/auth/contractor/${id}/decline`),
+    onSuccess: () => { toast.success('Application declined.'); qc.invalidateQueries(['admin-contractors']); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to decline'),
   });
 
   const contractorForm = useForm();
@@ -486,17 +494,72 @@ export default function AdminDashboard() {
                           )}
                         </div>
                       </div>
-                      <button
-                        onClick={() => approveContractor.mutate(c.id)}
-                        disabled={approveContractor.isPending}
-                        className="ml-4 flex items-center gap-1.5 text-sm font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all shrink-0"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        Approve
-                      </button>
+                      <div className="ml-4 flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => approveContractor.mutate(c.id)}
+                          disabled={approveContractor.isPending}
+                          className="flex items-center gap-1.5 text-sm font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => declineContractor.mutate(c.id)}
+                          disabled={declineContractor.isPending}
+                          className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all"
+                        >
+                          <XCircle className="w-4 h-4" />
+                          Decline
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Declined Applications */}
+            {declinedContractors.length > 0 && (
+              <div className="card mb-6 border-gray-200 border">
+                <button
+                  onClick={() => setShowDeclined(v => !v)}
+                  className="w-full flex items-center justify-between text-sm font-semibold text-gray-500 hover:text-gray-700"
+                >
+                  <span>Declined Applications ({declinedContractors.length})</span>
+                  <span className="text-xs">{showDeclined ? '▲ Hide' : '▼ Show'}</span>
+                </button>
+                {showDeclined && (
+                  <div className="space-y-3 mt-4 pt-4 border-t border-gray-100">
+                    {declinedContractors.map(c => (
+                      <div key={c.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0 opacity-60">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <div>
+                              <p className="text-sm font-semibold text-gray-900">{c.name}</p>
+                              {c.company_name && <p className="text-xs text-gray-500">{c.company_name}</p>}
+                            </div>
+                            <span className="badge bg-brand-100 text-brand-700">{c.niche_name}</span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 flex-wrap">
+                            <p className="text-xs text-gray-500">{c.email}</p>
+                            <p className="text-xs text-gray-400">
+                              {(() => { try { const z = JSON.parse(c.service_zip_codes); return z.join(', '); } catch { return c.service_zip_codes; } })()}
+                            </p>
+                            {c.declined_at && <p className="text-xs text-red-400">Declined {format(parseISO(c.declined_at), 'MMM d, yyyy')}</p>}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => approveContractor.mutate(c.id)}
+                          disabled={approveContractor.isPending}
+                          className="ml-4 flex items-center gap-1.5 text-sm font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all shrink-0"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          Approve
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

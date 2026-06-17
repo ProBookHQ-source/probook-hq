@@ -102,6 +102,23 @@ router.post('/contractor/apply', async (req, res) => {
   }
 });
 
+// ── Decline a contractor application (admin) ──────────────────────────────────
+router.put('/contractor/:id/decline', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const jwt = require('jsonwebtoken');
+  if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const payload = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'probook-secret-key');
+    if (payload.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  } catch { return res.status(401).json({ error: 'Invalid token' }); }
+
+  const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(req.params.id);
+  if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
+
+  await db.prepare('UPDATE contractors SET declined_at = NOW() WHERE id = $1').run(req.params.id);
+  res.json({ message: 'Application declined.' });
+});
+
 // ── Approve a contractor application (admin) ──────────────────────────────────
 router.put('/contractor/:id/approve', async (req, res) => {
   const { requireAdmin } = require('../middleware/auth');
@@ -118,7 +135,7 @@ router.put('/contractor/:id/approve', async (req, res) => {
   if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
   if (contractor.is_active) return res.status(409).json({ error: 'Already active' });
 
-  await db.prepare("UPDATE contractors SET is_active = 1 WHERE id = $1").run(req.params.id);
+  await db.prepare("UPDATE contractors SET is_active = 1, declined_at = NULL WHERE id = $1").run(req.params.id);
 
   const notifications = require('../services/notifications');
   const niches = await db.prepare('SELECT name FROM niches WHERE id = $1').get(contractor.niche_id);

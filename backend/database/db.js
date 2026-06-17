@@ -248,6 +248,9 @@ async function initialize() {
   // Migration: contractor self-apply timestamp (is_active=0 until admin approves)
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS applied_at TIMESTAMPTZ`).catch(() => {});
 
+  // Migration: contractor application declined timestamp
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS declined_at TIMESTAMPTZ`).catch(() => {});
+
   // Seed niches if not already present
   const { rows } = await pool.query('SELECT COUNT(*) FROM niches');
   if (parseInt(rows[0].count) === 0) {
