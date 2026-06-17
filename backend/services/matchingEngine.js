@@ -125,7 +125,6 @@ async function sendMatchNotifications(leadId) {
 
   await Promise.allSettled([
     notifications.sendBookingLink(lead, contractor, bookingUrl),
-    notifications.notifyContractor(contractor, lead),
   ]);
 
   console.log(`📧 Notifications sent for lead ${leadId}`);

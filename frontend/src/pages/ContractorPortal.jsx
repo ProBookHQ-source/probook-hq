@@ -860,7 +860,7 @@ export default function ContractorPortal() {
             )}
 
             {/* Day headers */}
-            <div className="border-b border-gray-100 grid bg-white" style={{ gridTemplateColumns: '64px repeat(7, 1fr)' }}>
+            <div className="border-b border-gray-200 grid bg-white" style={{ gridTemplateColumns: '64px repeat(7, 1fr)' }}>
               <div /> {/* time spacer */}
               {Array.from({ length: 7 }, (_, i) => {
                 const day       = addDays(weekStart, i);
@@ -870,7 +870,7 @@ export default function ContractorPortal() {
                 const isDayOff  = overrides.some(o => o.date === dayStr && !o.is_available);
                 const isCustom  = overrides.some(o => o.date === dayStr && o.is_available);
                 return (
-                  <div key={i} className="py-2 text-center border-l border-gray-100">
+                  <div key={i} className="py-2 text-center border-l border-gray-200">
                     <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${
                       isDayOff ? 'text-red-400' : isToday ? 'text-brand-500' : isPast ? 'text-gray-300' : 'text-gray-500'
                     }`}>
@@ -924,7 +924,7 @@ export default function ContractorPortal() {
                   return (
                     <div
                       key={i}
-                      className={`border-l border-gray-100 relative ${
+                      className={`border-l border-gray-200 relative ${
                         isToday ? 'bg-brand-50/40' : isPast ? 'bg-gray-50/60' : 'bg-white'
                       }`}
                     >
@@ -950,7 +950,7 @@ export default function ContractorPortal() {
                           ? (hour < customStart || hour >= customEnd)
                           : false;
                         return (
-                          <div key={hour} className="h-[60px] border-b border-gray-50 relative">
+                          <div key={hour} className="h-[60px] border-b border-gray-200 relative">
                             {/* Custom hours: shade slots outside the available window (same style as day off) */}
                             {isOutsideCustom && (
                               <div
