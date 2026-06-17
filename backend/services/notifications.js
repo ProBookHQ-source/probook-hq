@@ -373,7 +373,7 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
       ${sectionLabel(isContractor && isReschedule ? "Updated Schedule" : "What Happens Next")}
       <tr><td style="padding:0 0 20px;">
         ${isContractor ? `
-        ${stepCard(1, isReschedule ? 'Note the new time' : 'Review the lead details', isReschedule ? 'Make sure your calendar reflects this updated appointment time.' : 'Check the homeowner\'s project description before the visit.')}
+        ${stepCard(1, isReschedule ? 'All updated' : 'Review the lead details', isReschedule ? 'Your ProBook schedule reflects the new time. If you have Google Calendar connected, it\'s already synced.' : 'Check the homeowner\'s project description before the visit.')}
         ${stepCard(2, 'Show up ready', `Arrive at the scheduled time prepared to assess and discuss the project with ${esc(otherPartyName)}.`)}
         ${stepCard(3, 'Close the job', 'Provide your quote or service on-site. ProBook will keep sending you matched leads.')}
         ` : `

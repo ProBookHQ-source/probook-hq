@@ -254,9 +254,12 @@ router.post('/cancel-token/:token', async (req, res) => {
   const lead       = await db.prepare('SELECT * FROM leads WHERE id = $1').get(appt.lead_id);
   const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(appt.contractor_id);
   if (lead && contractor) {
+    // Always notify the contractor — they need to know regardless of the homeowner's limit
+    notifications.sendHomeownerCancelledNotice(contractor, lead, appt).catch(console.error);
+
     const hitLimit = (lead.reschedule_count || 0) >= 1;
     if (hitLimit) {
-      // Too many self-service actions — alert admin, don't auto-issue link
+      // Too many self-service actions — alert admin, don't auto-issue rebook link
       notifications.sendAdminNoMatch({ ...lead, description: `[ABUSE FLAG] Homeowner attempted a 2nd self-service cancellation. Manual review needed.` }).catch(console.error);
       return res.json({ message: 'Your appointment has been cancelled. Please contact bookings@probookhq.com to arrange a new time.', limit_reached: true });
     }
@@ -268,7 +271,6 @@ router.post('/cancel-token/:token', async (req, res) => {
       .run(uuidv4(), lead.id, newToken, expiresAt);
     const bookingUrl = `${process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app'}/book/${newToken}`;
     notifications.sendHomeownerRebookLink(lead, contractor, bookingUrl).catch(console.error);
-    notifications.sendHomeownerCancelledNotice(contractor, lead, appt).catch(console.error);
   }
   res.json({ message: 'Appointment cancelled. A new booking link has been sent to your email.' });
 });
