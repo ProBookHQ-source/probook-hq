@@ -66,6 +66,67 @@ router.post('/contractor/login', async (req, res) => {
   });
 });
 
+// ── Contractor self-apply (public) ────────────────────────────────────────────
+router.post('/contractor/apply', async (req, res) => {
+  try {
+    const { name, email, password, phone, company_name, niche_id, service_zip_codes, service_radius_miles } = req.body;
+    if (!name || !email || !password || !niche_id || !service_zip_codes) {
+      return res.status(400).json({ error: 'Name, email, password, niche, and service zip codes are required.' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    }
+
+    const existing = await db.prepare('SELECT id FROM contractors WHERE email = $1').get(email);
+    if (existing) return res.status(409).json({ error: 'An account with that email already exists.' });
+
+    const niche = await db.prepare('SELECT * FROM niches WHERE id = $1').get(niche_id);
+    if (!niche) return res.status(400).json({ error: 'Invalid niche selected.' });
+
+    const id   = uuidv4();
+    const hash = bcrypt.hashSync(password, 10);
+    await db.prepare(
+      `INSERT INTO contractors (id, email, password_hash, name, phone, company_name, niche_id, service_zip_codes, service_radius_miles, is_active, applied_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0, NOW())`
+    ).run(id, email, hash, name, phone || null, company_name || null, niche_id, service_zip_codes, service_radius_miles || 25);
+
+    const notifications = require('../services/notifications');
+    const contractor = { id, name, email, phone, company_name, niche_name: niche.name, service_zip_codes };
+    notifications.sendContractorApplicationAck(contractor).catch(console.error);
+    notifications.sendContractorApplicationAlert(contractor).catch(console.error);
+
+    res.status(201).json({ message: 'Application received! We\'ll review it and email you within 1–2 business days.' });
+  } catch (err) {
+    console.error('Apply error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Approve a contractor application (admin) ──────────────────────────────────
+router.put('/contractor/:id/approve', async (req, res) => {
+  const { requireAdmin } = require('../middleware/auth');
+  // inline admin check
+  const authHeader = req.headers.authorization;
+  const jwt = require('jsonwebtoken');
+  if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const payload = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'probook-secret-key');
+    if (payload.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  } catch { return res.status(401).json({ error: 'Invalid token' }); }
+
+  const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(req.params.id);
+  if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
+  if (contractor.is_active) return res.status(409).json({ error: 'Already active' });
+
+  await db.prepare("UPDATE contractors SET is_active = 1 WHERE id = $1").run(req.params.id);
+
+  const notifications = require('../services/notifications');
+  const niches = await db.prepare('SELECT name FROM niches WHERE id = $1').get(contractor.niche_id);
+  notifications.sendContractorApproved({ ...contractor, niche_name: niches?.name }).catch(console.error);
+
+  res.json({ message: 'Contractor approved and notified.' });
+});
+
 // ── Get current user profile ──────────────────────────────────────────────────
 router.get('/me', requireContractor, (req, res) => {
   res.json({ user: req.user });
