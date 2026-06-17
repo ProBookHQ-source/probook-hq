@@ -17,7 +17,8 @@ function requireAuth(req, res, next) {
     const payload = jwt.verify(token, JWT_SECRET);
     req.user = payload;
     next();
-  } catch {
+  } catch (err) {
+    console.warn(`[AUTH] Invalid/expired token — ${req.method} ${req.path} — IP: ${req.ip} — ${err.message}`);
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
@@ -41,7 +42,9 @@ function requireContractor(req, res, next) {
 }
 
 function signToken(payload) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  // Admins get a shorter-lived token for security; contractors get 7 days for UX
+  const expiresIn = payload.role === 'admin' ? '24h' : '7d';
+  return jwt.sign(payload, JWT_SECRET, { expiresIn });
 }
 
 module.exports = { requireAuth, requireAdmin, requireContractor, signToken };

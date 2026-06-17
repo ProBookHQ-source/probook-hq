@@ -104,20 +104,23 @@ router.post('/inbound', async (req, res) => {
     return res.status(400).json({ error: 'Invalid email address' });
   }
 
+  // Normalize email before any DB check or insert
+  const normalizedEmail = email.toLowerCase().trim();
+
   // Deduplication: reject if same email submitted within 30 days
   const recentLead = await db.prepare(`
     SELECT id FROM leads
     WHERE email = $1 AND created_at > NOW() - INTERVAL '30 days'
     LIMIT 1
-  `).get(email.toLowerCase().trim());
+  `).get(normalizedEmail);
   if (recentLead) {
-    console.log(`🔁 Duplicate inbound lead blocked — ${email} (within 30 days)`);
+    console.log(`🔁 Duplicate inbound lead blocked — ${normalizedEmail} (within 30 days)`);
     return res.status(409).json({
       error: 'A lead with this email was already submitted recently. Please wait before submitting again.',
     });
   }
 
-  // Resolve niche by slug — case-insensitive, partial match, auto-create if new
+  // Resolve niche by slug — case-insensitive, partial match, auto-create if new (capped at 50)
   const slug = niche_slug.trim().toLowerCase();
   let niche = await db.prepare(`SELECT id, name FROM niches WHERE LOWER(name) = $1`).get(slug);
   if (!niche) {
@@ -125,15 +128,20 @@ router.post('/inbound', async (req, res) => {
     niche = allNiches.find(n =>
       n.name.toLowerCase().includes(slug) || slug.includes(n.name.toLowerCase())
     ) || null;
-  }
-  if (!niche) {
-    const newNicheId = uuidv4();
-    const nicheDisplayName = niche_slug.charAt(0).toUpperCase() + niche_slug.slice(1).toLowerCase();
-    await db.prepare(
-      'INSERT INTO niches (id, name, description) VALUES ($1, $2, $3) ON CONFLICT (name) DO NOTHING'
-    ).run(newNicheId, nicheDisplayName, `Auto-created from inbound lead (source: ${source_site || 'unknown'})`);
-    niche = await db.prepare('SELECT id, name FROM niches WHERE id = $1').get(newNicheId);
-    console.log(`🌱 Auto-created niche: ${nicheDisplayName}`);
+
+    if (!niche) {
+      // Auto-create only if under the niche cap (prevents unbounded DB growth from API key abuse)
+      if (allNiches.length >= 50) {
+        return res.status(400).json({ error: `Unknown niche: "${niche_slug}". Please use a valid niche slug.` });
+      }
+      const newNicheId = uuidv4();
+      const nicheDisplayName = niche_slug.charAt(0).toUpperCase() + niche_slug.slice(1).toLowerCase();
+      await db.prepare(
+        'INSERT INTO niches (id, name, description) VALUES ($1, $2, $3) ON CONFLICT (name) DO NOTHING'
+      ).run(newNicheId, nicheDisplayName, `Auto-created from inbound lead (source: ${source_site || 'unknown'})`);
+      niche = await db.prepare('SELECT id, name FROM niches WHERE id = $1').get(newNicheId);
+      console.log(`🌱 Auto-created niche: ${nicheDisplayName}`);
+    }
   }
 
   // Build metadata — strip tracking/consent fields, keep all qualifying data
@@ -171,7 +179,7 @@ router.post('/inbound', async (req, res) => {
          source_site, external_tier, external_score, metadata, status)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'new')
     `).run(
-      id, name, email, phone || null, niche.id, zip_code, description,
+      id, name, normalizedEmail, phone || null, niche.id, zip_code, description,
       source_site || null,
       lead_tier || null,
       lead_score ? parseInt(lead_score) : null,
@@ -212,8 +220,10 @@ router.post('/', async (req, res) => {
   if (!name || !email || !niche_id || !zip_code) {
     return res.status(400).json({ error: 'name, email, niche_id, and zip_code are required' });
   }
+  // Normalize email before any check or insert
+  const normalizedEmail = email.toLowerCase().trim();
   // Basic email format check
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
     return res.status(400).json({ error: 'Invalid email address' });
   }
   // Cap description length
@@ -226,9 +236,9 @@ router.post('/', async (req, res) => {
     SELECT id FROM leads
     WHERE email = $1 AND created_at > NOW() - INTERVAL '30 days'
     LIMIT 1
-  `).get(email.toLowerCase().trim());
+  `).get(normalizedEmail);
   if (recentLead) {
-    console.log(`🔁 Duplicate lead blocked — ${email} (within 30 days)`);
+    console.log(`🔁 Duplicate lead blocked — ${normalizedEmail} (within 30 days)`);
     return res.status(409).json({
       error: 'A lead with this email was already submitted recently.',
     });
@@ -242,7 +252,7 @@ router.post('/', async (req, res) => {
     await db.prepare(`
       INSERT INTO leads (id, name, email, phone, niche_id, zip_code, description, status)
       VALUES ($1, $2, $3, $4, $5, $6, $7, 'new')
-    `).run(id, name, email, phone || null, niche_id, zip_code, description || null);
+    `).run(id, name, normalizedEmail, phone || null, niche_id, zip_code, description || null);
   } catch (err) {
     console.error('Lead insert error:', err);
     return res.status(500).json({ error: 'Failed to create lead' });

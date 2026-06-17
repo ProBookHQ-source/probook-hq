@@ -26,7 +26,6 @@ router.get('/validate-token/:token', async (req, res) => {
   }
   res.json({
     lead_name:           bookingToken.lead_name,
-    lead_email:          bookingToken.lead_email,
     contractor_id:       bookingToken.contractor_id,
     contractor_name:     bookingToken.contractor_name,
     contractor_company:  bookingToken.contractor_company,

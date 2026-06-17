@@ -32,12 +32,26 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change-me-in-producti
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.set('trust proxy', 1); // trust Cloudflare + Railway proxy
 
-// Security headers — protects against XSS, clickjacking, MIME sniffing, etc.
-// contentSecurityPolicy disabled because we serve our own frontend from the same origin
-app.use(helmet({ contentSecurityPolicy: false }));
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc:      ["'self'"],
+      scriptSrc:       ["'self'", "'unsafe-inline'"],  // Vite SPA requires inline scripts
+      styleSrc:        ["'self'", "'unsafe-inline'"],
+      imgSrc:          ["'self'", "data:", "blob:", "https:"],
+      connectSrc:      ["'self'"],
+      fontSrc:         ["'self'", "data:"],
+      objectSrc:       ["'none'"],
+      baseUri:         ["'self'"],
+      frameAncestors:  ["'none'"],
+    },
+  },
+}));
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || true,
+  // Fail closed: if FRONTEND_URL isn't set, fall back to the known production URL
+  origin: process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app',
   credentials: true,
 }));
 app.use(express.json({ limit: '50kb' }));
@@ -46,7 +60,7 @@ app.use(express.json({ limit: '50kb' }));
 app.get('/health',     (req, res) => res.json({ ok: true }));
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
-// Rate limiting — public booking/lead endpoints
+// Rate limiting — public booking/lead endpoints (60 per 15 min)
 const publicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 60,
@@ -55,7 +69,7 @@ const publicLimiter = rateLimit({
 app.use('/api/leads',         publicLimiter);
 app.use('/api/bookings/book', publicLimiter);
 
-// Rate limiting — auth endpoints (stricter: 10 per 15 min)
+// Rate limiting — auth endpoints (10 per 15 min)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -63,6 +77,31 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth/admin/login',      authLimiter);
 app.use('/api/auth/contractor/login', authLimiter);
+
+// Rate limiting — contractor apply (3 per hour — applications shouldn't be frequent)
+const applyLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: { error: 'Too many applications from this IP. Please try again in an hour.' },
+});
+app.use('/api/auth/contractor/apply', applyLimiter);
+
+// Rate limiting — inbound API (30 per 15 min — stricter than public limiter)
+const inboundLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: { error: 'Too many inbound lead submissions. Please slow down.' },
+});
+app.use('/api/leads/inbound', inboundLimiter);
+
+// Rate limiting — homeowner self-service cancel/reschedule (10 per 15 min per IP)
+const selfServiceLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many requests. Please try again later.' },
+});
+app.use('/api/bookings/cancel-token',     selfServiceLimiter);
+app.use('/api/bookings/reschedule-token', selfServiceLimiter);
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth',         require('./routes/auth'));
