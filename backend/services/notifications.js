@@ -583,6 +583,33 @@ async function sendHomeownerCancelledNotice(contractor, lead, appointment) {
   );
 }
 
+// ── Contractor declined ───────────────────────────────────────────────────────
+async function sendContractorDeclined(contractor) {
+  const html = emailBase({
+    accentColor: '#6b7280',
+    label: 'APPLICATION UPDATE',
+    headline: `Your application wasn't approved`,
+    sub: `Thank you for your interest in partnering with ${BRAND}.`,
+    bodyContent: `
+      <tr><td style="padding:0 0 20px;">
+        <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
+          Hi <strong>${esc(contractor.name)}</strong>,
+        </p>
+      </td></tr>
+      <tr><td style="padding:0 0 20px;">
+        <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
+          After reviewing your application, we've decided not to move forward at this time. This could be due to service area overlap, capacity, or niche coverage — it's not a reflection of your business.
+        </p>
+      </td></tr>
+      <tr><td style="padding:0 0 20px;">
+        <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
+          If your situation changes or you'd like to reapply in the future, feel free to reach out by replying to this email.
+        </p>
+      </td></tr>`,
+  });
+  return sendEmail(contractor.email, `Application update — ${BRAND}`, html);
+}
+
 // ── Contractor applied: ack to applicant ──────────────────────────────────────
 async function sendContractorApplicationAck(contractor) {
   const html = emailBase({
@@ -683,4 +710,4 @@ async function sendContractorApproved(contractor) {
   return sendEmail(contractor.email, `You're approved — welcome to ${BRAND}!`, html);
 }
 
-module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved };
+module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined };

@@ -213,6 +213,12 @@ export default function AdminDashboard() {
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to decline'),
   });
 
+  const deleteApplication = useMutation({
+    mutationFn: (id) => api.delete(`/auth/contractor/${id}/application`),
+    onSuccess: () => { toast.success('Application removed.'); qc.invalidateQueries(['admin-contractors']); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to delete'),
+  });
+
   const contractorForm = useForm();
   const onAddContractor = (data) => {
     const zips = data.service_zip_codes.split(',').map(z => z.trim()).filter(Boolean);
@@ -548,14 +554,24 @@ export default function AdminDashboard() {
                             {c.declined_at && <p className="text-xs text-red-400">Declined {format(parseISO(c.declined_at), 'MMM d, yyyy')}</p>}
                           </div>
                         </div>
-                        <button
-                          onClick={() => approveContractor.mutate(c.id)}
-                          disabled={approveContractor.isPending}
-                          className="ml-4 flex items-center gap-1.5 text-sm font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all shrink-0"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                          Approve
-                        </button>
+                        <div className="ml-4 flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => approveContractor.mutate(c.id)}
+                            disabled={approveContractor.isPending}
+                            className="flex items-center gap-1.5 text-sm font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => deleteApplication.mutate(c.id)}
+                            disabled={deleteApplication.isPending}
+                            className="flex items-center gap-1.5 text-sm font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

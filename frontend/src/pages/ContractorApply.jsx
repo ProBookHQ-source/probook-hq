@@ -125,7 +125,7 @@ export default function ContractorApply() {
               <div className="space-y-4">
                 {field('Full Name', 'name', 'text', 'Jane Smith')}
                 {field('Email Address', 'email', 'email', 'jane@smithroofing.com')}
-                {field('Password', 'password', 'password', '••••••••', 'At least 8 characters')}
+                {field('Password', 'password', 'password', '••••••••', 'Set a password — you\'ll use this to log in if your application is approved. At least 8 characters.')}
                 {field('Confirm Password', 'confirm', 'password', '••••••••')}
               </div>
             </div>

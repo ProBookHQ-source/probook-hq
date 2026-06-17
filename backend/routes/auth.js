@@ -116,7 +116,29 @@ router.put('/contractor/:id/decline', async (req, res) => {
   if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
 
   await db.prepare('UPDATE contractors SET declined_at = NOW() WHERE id = $1').run(req.params.id);
+
+  const notifications = require('../services/notifications');
+  notifications.sendContractorDeclined(contractor).catch(console.error);
+
   res.json({ message: 'Application declined.' });
+});
+
+// ── Delete a declined contractor application (admin) ──────────────────────────
+router.delete('/contractor/:id/application', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const jwt = require('jsonwebtoken');
+  if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const payload = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'probook-secret-key');
+    if (payload.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  } catch { return res.status(401).json({ error: 'Invalid token' }); }
+
+  const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(req.params.id);
+  if (!contractor) return res.status(404).json({ error: 'Not found' });
+  if (contractor.is_active) return res.status(400).json({ error: 'Cannot delete an active contractor this way.' });
+
+  await db.prepare('DELETE FROM contractors WHERE id = $1').run(req.params.id);
+  res.json({ message: 'Application deleted.' });
 });
 
 // ── Approve a contractor application (admin) ──────────────────────────────────
