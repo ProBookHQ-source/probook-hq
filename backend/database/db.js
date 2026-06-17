@@ -245,6 +245,9 @@ async function initialize() {
   // Migration: track whether a booking token was issued from a reschedule (for contextual emails)
   await db.query(`ALTER TABLE booking_tokens ADD COLUMN IF NOT EXISTS source TEXT`).catch(() => {});
 
+  // Migration: contractor self-apply timestamp (is_active=0 until admin approves)
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS applied_at TIMESTAMPTZ`).catch(() => {});
+
   // Seed niches if not already present
   const { rows } = await pool.query('SELECT COUNT(*) FROM niches');
   if (parseInt(rows[0].count) === 0) {
