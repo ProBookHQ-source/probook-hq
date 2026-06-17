@@ -583,4 +583,104 @@ async function sendHomeownerCancelledNotice(contractor, lead, appointment) {
   );
 }
 
-module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink };
+// ── Contractor applied: ack to applicant ──────────────────────────────────────
+async function sendContractorApplicationAck(contractor) {
+  const html = emailBase({
+    accentColor: '#6366f1',
+    label: 'APPLICATION RECEIVED',
+    headline: `We received your application`,
+    sub: `Thanks for applying to partner with ${BRAND}.`,
+    bodyContent: `
+      <tr><td style="padding:0 0 20px;">
+        <p style="margin:0;font-size:16px;color:#374151;">Hi <strong>${esc(contractor.name)}</strong>,</p>
+      </td></tr>
+      <tr><td style="padding:0 0 20px;">
+        <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
+          Thanks for applying to join the ${BRAND} contractor network. We've received your application and our team will review it within <strong>1–2 business days</strong>.
+        </p>
+      </td></tr>
+
+      ${sectionLabel('Your Application Details')}
+      <tr><td style="padding:0 0 20px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+          ${infoRow('Name',       esc(contractor.name),              true)}
+          ${infoRow('Email',      esc(contractor.email))}
+          ${infoRow('Service',    esc(contractor.niche_name),        true)}
+          ${infoRow('Zip Codes',  esc(contractor.service_zip_codes))}
+        </table>
+      </td></tr>
+
+      ${calloutBox(`Once approved, you'll receive a welcome email with instructions to log in, set your availability, and start receiving matched leads.`)}
+
+      <tr><td>
+        <p style="margin:0;font-size:13px;color:#9ca3af;">Questions? Reply to this email and we'll get back to you right away.</p>
+      </td></tr>`,
+  });
+  return sendEmail(contractor.email, `Application received — ${BRAND}`, html);
+}
+
+// ── Contractor applied: alert to admin ───────────────────────────────────────
+async function sendContractorApplicationAlert(contractor) {
+  const html = emailBase({
+    accentColor: '#6366f1',
+    label: 'NEW APPLICATION',
+    headline: `New contractor application`,
+    sub: `${esc(contractor.name)} has applied to join the network.`,
+    bodyContent: `
+      <tr><td style="padding:0 0 20px;">
+        <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
+          A new contractor has submitted an application. Review their details and approve from the admin dashboard.
+        </p>
+      </td></tr>
+
+      ${sectionLabel('Applicant Details')}
+      <tr><td style="padding:0 0 20px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+          ${infoRow('Name',       esc(contractor.name),              true)}
+          ${infoRow('Email',      esc(contractor.email))}
+          ${infoRow('Phone',      esc(contractor.phone || 'Not provided'), true)}
+          ${infoRow('Company',    esc(contractor.company_name || 'Not provided'))}
+          ${infoRow('Service',    esc(contractor.niche_name),        true)}
+          ${infoRow('Zip Codes',  esc(contractor.service_zip_codes))}
+        </table>
+      </td></tr>
+
+      ${ctaBtn(`${APP_URL}/admin`, 'Review in Dashboard')}`,
+  });
+  return sendEmail(ADMIN_EMAIL, `[New Application] ${contractor.name} — ${contractor.niche_name} | ${BRAND}`, html);
+}
+
+// ── Contractor approved ───────────────────────────────────────────────────────
+async function sendContractorApproved(contractor) {
+  const html = emailBase({
+    accentColor: '#6366f1',
+    label: 'YOU\'RE APPROVED',
+    headline: `Welcome to ${BRAND}!`,
+    sub: `Your contractor account is now active.`,
+    bodyContent: `
+      <tr><td style="padding:0 0 20px;">
+        <p style="margin:0;font-size:16px;color:#374151;">Hi <strong>${esc(contractor.name)}</strong>,</p>
+      </td></tr>
+      <tr><td style="padding:0 0 20px;">
+        <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
+          Great news — your application has been approved! Your ${BRAND} account is now active and ready to go.
+        </p>
+      </td></tr>
+
+      ${sectionLabel('Get Started')}
+      <tr><td style="padding:0 0 20px;">
+        ${stepCard(1, 'Log in to your portal', `Visit ${APP_URL}/login and sign in with the email and password you set during your application.`)}
+        ${stepCard(2, 'Set your availability', 'Head to My Schedule in your portal and add the hours you\'re available each week. ProBook will only book appointments during these windows.')}
+        ${stepCard(3, 'Start receiving leads', 'Once your availability is set, ProBook will automatically match you with homeowners in your area and send you confirmed appointments.')}
+      </td></tr>
+
+      ${ctaBtn(`${APP_URL}/login`, 'Log In to Your Portal')}
+
+      <tr><td>
+        <p style="margin:0;font-size:13px;color:#9ca3af;">Questions? Reply to this email anytime.</p>
+      </td></tr>`,
+  });
+  return sendEmail(contractor.email, `You're approved — welcome to ${BRAND}!`, html);
+}
+
+module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved };
