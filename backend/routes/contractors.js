@@ -11,7 +11,7 @@ router.get('/', requireAdmin, async (req, res) => {
   const contractors = await db.prepare(`
     SELECT c.id, c.email, c.name, c.phone, c.company_name, c.niche_id,
            c.service_zip_codes, c.google_calendar_id, c.is_active, c.created_at,
-           c.service_radius_miles, c.max_appointments_per_day,
+           c.service_radius_miles, c.max_appointments_per_day, c.applied_at,
            n.name as niche_name
     FROM contractors c
     LEFT JOIN niches n ON c.niche_id = n.id

@@ -54,6 +54,8 @@ export default function AdminDashboard() {
     queryFn: () => api.get('/contractors').then(r => r.data),
   });
 
+  const pendingContractors = contractors.filter(c => !c.is_active && c.applied_at);
+
   const { data: appointments = [] } = useQuery({
     queryKey: ['admin-appointments'],
     queryFn: () => api.get('/bookings').then(r => r.data),
@@ -196,6 +198,12 @@ export default function AdminDashboard() {
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to add contractor'),
   });
 
+  const approveContractor = useMutation({
+    mutationFn: (id) => api.put(`/auth/contractor/${id}/approve`),
+    onSuccess: () => { toast.success('Contractor approved!'); qc.invalidateQueries(['admin-contractors']); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Approval failed'),
+  });
+
   const contractorForm = useForm();
   const onAddContractor = (data) => {
     const zips = data.service_zip_codes.split(',').map(z => z.trim()).filter(Boolean);
@@ -238,7 +246,7 @@ export default function AdminDashboard() {
           {[
             { id: 'overview', label: 'Overview', icon: LayoutDashboard },
             { id: 'leads', label: 'Leads', icon: FileText, badge: leads.filter(l => l.status === 'new').length },
-            { id: 'contractors', label: 'Contractors', icon: Users },
+            { id: 'contractors', label: 'Contractors', icon: Users, badge: pendingContractors.length },
             { id: 'appointments', label: 'Appointments', icon: Calendar },
             { id: 'apikeys', label: 'API Keys', icon: ShieldCheck },
             { id: 'performance', label: 'Performance', icon: BarChart2 },
@@ -446,6 +454,51 @@ export default function AdminDashboard() {
               </button>
             </div>
 
+            {/* Pending Applications */}
+            {pendingContractors.length > 0 && (
+              <div className="card mb-6 border-amber-200 border-2">
+                <h3 className="font-semibold text-amber-800 mb-4 flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-5 h-5 bg-amber-500 text-white text-xs font-bold rounded-full">{pendingContractors.length}</span>
+                  Pending Applications
+                </h3>
+                <div className="space-y-3">
+                  {pendingContractors.map(c => (
+                    <div key={c.id} className="flex items-center justify-between py-2 border-b border-amber-100 last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">{c.name}</p>
+                            {c.company_name && <p className="text-xs text-gray-500">{c.company_name}</p>}
+                          </div>
+                          <span className="badge bg-brand-100 text-brand-700">{c.niche_name}</span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 flex-wrap">
+                          <p className="text-xs text-gray-500">{c.email}</p>
+                          {c.phone && <p className="text-xs text-gray-500">{c.phone}</p>}
+                          <p className="text-xs text-gray-400">
+                            {(() => { try { const z = JSON.parse(c.service_zip_codes); return z.join(', '); } catch { return c.service_zip_codes; } })()}
+                          </p>
+                          {c.applied_at && (
+                            <p className="text-xs text-gray-400">
+                              Applied {format(parseISO(c.applied_at), 'MMM d, yyyy')}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => approveContractor.mutate(c.id)}
+                        disabled={approveContractor.isPending}
+                        className="ml-4 flex items-center gap-1.5 text-sm font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all shrink-0"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        Approve
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {showAddContractor && (
               <div className="card mb-6 border-brand-100 border-2">
                 <h3 className="font-semibold mb-4">Add New Contractor</h3>
@@ -493,7 +546,7 @@ export default function AdminDashboard() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {contractors.map(c => (
+              {contractors.filter(c => !(c.applied_at && !c.is_active)).map(c => (
                 <div key={c.id} className={`card ${!c.is_active ? 'opacity-60' : ''}`}>
                   <div className="flex items-start justify-between mb-3">
                     <div>
