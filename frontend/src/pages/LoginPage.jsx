@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import api from '../api/client';
+import { Link } from 'react-router-dom';
 import { LogIn, Zap, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
@@ -95,7 +96,16 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+        {role === 'contractor' && (
+          <p className="text-center text-sm text-gray-500 mt-4">
+            Want to partner with us?{' '}
+            <Link to="/apply" className="text-brand-500 font-semibold hover:underline">
+              Apply here
+            </Link>
+          </p>
+        )}
+
+        <p className="text-center text-xs text-gray-400 mt-4">
           Powered by ProBook — Lead Generation & Scheduling
         </p>
       </div>

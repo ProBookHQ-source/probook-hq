@@ -4,6 +4,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import ContractorPortal from './pages/ContractorPortal';
 import BookingFlow from './pages/BookingFlow';
 import CancelPage from './pages/CancelPage';
+import ContractorApply from './pages/ContractorApply';
 import LeadIntakeWidget from './pages/LeadIntakeWidget';
 import LandingPage from './pages/LandingPage';
 import { Zap } from 'lucide-react';
@@ -41,6 +42,7 @@ export default function App() {
       <Route path="/cancel/:token" element={<CancelPage mode="cancel" />} />
       <Route path="/reschedule/:token" element={<CancelPage mode="reschedule" />} />
       <Route path="/get-quote" element={<LeadIntakeWidget />} />
+      <Route path="/apply" element={<ContractorApply />} />
 
       <Route path="/admin/*" element={
         <ProtectedRoute role="admin">
