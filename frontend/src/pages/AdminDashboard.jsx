@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatPhone } from '../utils/formatPhone';
 
 function fmtTime(t) {
   if (!t) return '';
@@ -517,7 +518,13 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <label className="label">Phone</label>
-                    <input {...contractorForm.register('phone')} className="input" placeholder="(555) 000-0000" />
+                    <input
+                      type="tel"
+                      className="input"
+                      placeholder="(555) 000-0000"
+                      value={contractorForm.watch('phone') || ''}
+                      onChange={e => contractorForm.setValue('phone', formatPhone(e.target.value))}
+                    />
                   </div>
                   <div>
                     <label className="label">Niche *</label>

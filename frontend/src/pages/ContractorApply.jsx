@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Zap, CheckCircle, ChevronDown } from 'lucide-react';
 import api from '../api/client';
+import { formatPhone } from '../utils/formatPhone';
 
 export default function ContractorApply() {
   const navigate = useNavigate();
@@ -133,7 +134,16 @@ export default function ContractorApply() {
             <div>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Business Info</p>
               <div className="space-y-4">
-                {field('Phone Number', 'phone', 'tel', '(555) 000-0000')}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Phone Number</label>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={e => set('phone', formatPhone(e.target.value))}
+                    placeholder="(555) 000-0000"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white text-sm transition-all outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                  />
+                </div>
                 {field('Company Name', 'company_name', 'text', 'Smith Roofing LLC')}
 
                 {/* Niche */}

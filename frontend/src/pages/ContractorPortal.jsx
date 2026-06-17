@@ -7,6 +7,7 @@ import {
 } from 'date-fns';
 import toast from 'react-hot-toast';
 import api from '../api/client';
+import { formatPhone } from '../utils/formatPhone';
 import {
   Calendar, Clock, CheckCircle, XCircle, LogOut, Zap,
   ChevronLeft, ChevronRight, ChevronDown, Phone, Mail,
@@ -1276,7 +1277,7 @@ export default function ContractorPortal() {
                     </div>
                     <div>
                       <label className="label">Phone</label>
-                      <input className="input" value={profileForm.phone} onChange={e => setProfileForm(p => ({ ...p, phone: e.target.value }))} />
+                      <input className="input" type="tel" value={profileForm.phone} placeholder="(555) 000-0000" onChange={e => setProfileForm(p => ({ ...p, phone: formatPhone(e.target.value) }))} />
                     </div>
                     <div>
                       <label className="label">Email</label>
