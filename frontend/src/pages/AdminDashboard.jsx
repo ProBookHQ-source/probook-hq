@@ -37,6 +37,7 @@ export default function AdminDashboard() {
   const [confirmDeleteContractor, setConfirmDeleteContractor] = useState(null);
   const [expandedLead, setExpandedLead] = useState(null);
   const [confirmCancelAppt, setConfirmCancelAppt] = useState(null);
+  const [confirmDeleteAppt, setConfirmDeleteAppt] = useState(null);
   const [setPasswordFor, setSetPasswordFor] = useState(null);
   const [newPwValue, setNewPwValue] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -925,13 +926,19 @@ export default function AdminDashboard() {
                             </>
                           )}
                           {(appt.status === 'cancelled' || appt.status === 'completed') && (
-                            <button
-                              onClick={() => deleteAppt.mutate(appt.id)}
-                              disabled={deleteAppt.isPending}
-                              className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 font-medium transition-colors"
-                            >
-                              <Trash2 className="w-3 h-3" /> Delete
-                            </button>
+                            confirmDeleteAppt === appt.id ? (
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => { deleteAppt.mutate(appt.id); setConfirmDeleteAppt(null); }} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium">Delete</button>
+                                <button onClick={() => setConfirmDeleteAppt(null)} className="text-xs text-gray-500 font-medium">No</button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmDeleteAppt(appt.id)}
+                                className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 font-medium transition-colors"
+                              >
+                                <Trash2 className="w-3 h-3" /> Delete
+                              </button>
+                            )
                           )}
                         </div>
                       </td>

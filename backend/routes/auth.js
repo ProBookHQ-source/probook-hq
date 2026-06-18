@@ -176,10 +176,6 @@ router.post('/contractor/forgot-password', async (req, res) => {
     return res.json({ message: 'If that email is in our system, a reset link has been sent.' });
   }
 
-  // Run migration if columns don't exist yet
-  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS reset_token TEXT`);
-  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ`);
-
   const token   = crypto.randomBytes(32).toString('hex');
   const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 

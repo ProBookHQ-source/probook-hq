@@ -161,7 +161,11 @@ app.use((err, req, res, next) => {
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 // Wait for DB schema to be ready before accepting requests
-db._ready.then(() => {
+db._ready.then(async () => {
+  // Run any pending column migrations
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS reset_token TEXT`);
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ`);
+
   // Start scheduled jobs (appointment reminders, etc.)
   require('./services/cron');
 
