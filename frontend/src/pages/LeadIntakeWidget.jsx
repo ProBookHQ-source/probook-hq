@@ -11,7 +11,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import api from '../api/client';
-import { CheckCircle, Zap, ArrowRight } from 'lucide-react';
+import { CheckCircle, ArrowRight } from 'lucide-react';
 
 function formatPhone(val) {
   const digits = val.replace(/\D/g, '').slice(0, 10);
@@ -83,9 +83,7 @@ export default function LeadIntakeWidget() {
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-brand-500 rounded-2xl shadow-lg mb-3">
-            <Zap className="w-6 h-6 text-white" />
-          </div>
+          <img src="/probook-icon-128.png" alt="ProBook" className="w-12 h-12 rounded-2xl shadow-lg mb-3 mx-auto" />
           <h1 className="text-3xl font-bold text-gray-900">Get a Free Quote</h1>
           <p className="text-gray-500 mt-2">We'll match you with the right contractor and schedule your appointment automatically.</p>
         </div>

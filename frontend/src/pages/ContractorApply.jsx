@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Zap, CheckCircle, ChevronDown } from 'lucide-react';
+import { CheckCircle, ChevronDown } from 'lucide-react';
 import api from '../api/client';
 import { formatPhone } from '../utils/formatPhone';
 
@@ -66,9 +66,7 @@ export default function ContractorApply() {
       <div className={bg}>
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 bg-brand-500 rounded-2xl shadow-lg mb-4">
-              <Zap className="w-7 h-7 text-white" />
-            </div>
+            <img src="/probook-icon-128.png" alt="ProBook" className="w-14 h-14 rounded-2xl shadow-lg mb-4 mx-auto" />
             <h1 className="text-2xl font-bold text-gray-900">ProBook</h1>
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
@@ -109,9 +107,7 @@ export default function ContractorApply() {
       <div className="w-full max-w-lg">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-brand-500 rounded-2xl shadow-lg mb-4">
-            <Zap className="w-7 h-7 text-white" />
-          </div>
+          <img src="/probook-icon-128.png" alt="ProBook" className="w-14 h-14 rounded-2xl shadow-lg mb-4 mx-auto" />
           <h1 className="text-2xl font-bold text-gray-900">ProBook</h1>
           <p className="text-gray-500 text-sm mt-1">Apply to join the contractor network</p>
         </div>

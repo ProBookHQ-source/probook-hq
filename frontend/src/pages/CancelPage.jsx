@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Zap, Calendar, Clock, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -114,11 +114,9 @@ export default function CancelPage({ mode = 'cancel' }) {
         <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-8 text-center">
           {/* Logo */}
           <div className="flex items-center justify-center gap-2 mb-8">
-            <div className="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center">
-              <Zap className="w-5 h-5 text-white fill-white" />
-            </div>
+            <img src="/probook-icon-128.png" alt="ProBook" className="w-9 h-9 rounded-xl" />
             <span className="text-xl font-black text-brand-500">Pro</span>
-            <span className="text-xl font-light text-gray-800 -ml-1">Book</span>
+            <span className="text-xl font-light text-gray-800">Book</span>
           </div>
 
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -154,11 +152,9 @@ export default function CancelPage({ mode = 'cancel' }) {
       <div className={bgGradient}>
         <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-8 text-center">
           <div className="flex items-center justify-center gap-2 mb-8">
-            <div className="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center">
-              <Zap className="w-5 h-5 text-white fill-white" />
-            </div>
+            <img src="/probook-icon-128.png" alt="ProBook" className="w-9 h-9 rounded-xl" />
             <span className="text-xl font-black text-brand-500">Pro</span>
-            <span className="text-xl font-light text-gray-800 -ml-1">Book</span>
+            <span className="text-xl font-light text-gray-800">Book</span>
           </div>
           <div className="w-16 h-16 bg-brand-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-brand-500" />
@@ -198,11 +194,9 @@ export default function CancelPage({ mode = 'cancel' }) {
         {/* Header */}
         <div className="px-8 pt-8 pb-6 text-center border-b border-gray-100">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <div className="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center">
-              <Zap className="w-5 h-5 text-white fill-white" />
-            </div>
+            <img src="/probook-icon-128.png" alt="ProBook" className="w-9 h-9 rounded-xl" />
             <span className="text-xl font-black text-brand-500">Pro</span>
-            <span className="text-xl font-light text-gray-800 -ml-1">Book</span>
+            <span className="text-xl font-light text-gray-800">Book</span>
           </div>
 
           <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">

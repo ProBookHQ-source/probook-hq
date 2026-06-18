@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { Link } from 'react-router-dom';
-import { LogIn, Zap, Eye, EyeOff } from 'lucide-react';
+import { LogIn, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const [role, setRole] = useState('contractor');
@@ -34,9 +34,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-brand-500 rounded-2xl shadow-lg mb-4">
-            <Zap className="w-7 h-7 text-white" />
-          </div>
+          <img src="/probook-icon-128.png" alt="ProBook" className="w-14 h-14 rounded-2xl shadow-lg mb-4 mx-auto" />
           <h1 className="text-2xl font-bold text-gray-900">ProBook</h1>
           <p className="text-gray-500 text-sm mt-1">Smart contractor scheduling</p>
         </div>

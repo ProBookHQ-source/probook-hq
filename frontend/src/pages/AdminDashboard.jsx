@@ -247,9 +247,7 @@ export default function AdminDashboard() {
       <div className="fixed inset-y-0 left-0 w-56 bg-white border-r border-gray-100 flex flex-col z-10">
         <div className="p-5 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center">
-              <Zap className="w-4 h-4 text-white" />
-            </div>
+            <img src="/probook-icon-128.png" alt="ProBook" className="w-8 h-8 rounded-lg" />
             <div>
               <p className="font-bold text-gray-900 text-sm">ProBook</p>
               <p className="text-xs text-gray-400">Admin</p>

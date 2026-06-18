@@ -4,7 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { format, addDays, parseISO } from 'date-fns';
 import toast from 'react-hot-toast';
 import api from '../api/client';
-import { Calendar, Clock, CheckCircle, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const LOOKAHEAD_DAYS = 14;
 
@@ -111,9 +111,7 @@ export default function BookingFlow() {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-brand-500 rounded-2xl shadow-lg mb-3">
-            <Zap className="w-6 h-6 text-white" />
-          </div>
+          <img src="/probook-icon-128.png" alt="ProBook" className="w-12 h-12 rounded-2xl shadow-lg mb-3 mx-auto" />
           <h1 className="text-2xl font-bold text-gray-900">Book Your Appointment</h1>
           {tokenData?.lead_name && (
             <p className="text-gray-500 text-sm mt-1">Hi {tokenData.lead_name}! Pick a time that works for you.</p>

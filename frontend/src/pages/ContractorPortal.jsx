@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import api from '../api/client';
 import { formatPhone } from '../utils/formatPhone';
 import {
-  Calendar, Clock, CheckCircle, XCircle, LogOut, Zap,
+  Calendar, Clock, CheckCircle, XCircle, LogOut,
   ChevronLeft, ChevronRight, ChevronDown, Phone, Mail,
   Link as LinkIcon, Settings, Lock, User, Ban, CalendarPlus, Trash2,
   Home, Plus, X,
@@ -514,9 +514,7 @@ export default function ContractorPortal() {
         {/* Logo */}
         <div className="px-5 pt-6 pb-5">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-brand-500 rounded-xl flex items-center justify-center shadow-sm">
-              <Zap className="w-4 h-4 text-white" />
-            </div>
+            <img src="/probook-icon-128.png" alt="ProBook" className="w-8 h-8 rounded-xl shadow-sm" />
             <span className="font-bold text-gray-900 text-base tracking-tight">ProBook</span>
           </div>
         </div>

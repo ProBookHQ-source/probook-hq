@@ -14,9 +14,7 @@ export default function LandingPage() {
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center">
-              <Zap className="w-4 h-4 text-white" />
-            </div>
+            <img src="/probook-icon-128.png" alt="ProBook" className="w-8 h-8 rounded-lg" />
             <span className="font-bold text-gray-900 text-lg">ProBook</span>
           </div>
           <div className="flex items-center gap-3">
