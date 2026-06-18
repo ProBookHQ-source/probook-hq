@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS contractors (
   company_name TEXT,
   niche_id TEXT NOT NULL,
   service_zip_codes TEXT NOT NULL,  -- JSON array of zip codes they serve
+  status TEXT NOT NULL DEFAULT 'pending', -- pending | approved | declined
   google_refresh_token TEXT,        -- for Google Calendar sync
   google_calendar_id TEXT,          -- their calendar ID
   is_active INTEGER DEFAULT 1,

@@ -170,13 +170,11 @@ router.post('/contractor/forgot-password', async (req, res) => {
   if (!email) return res.status(400).json({ error: 'Email is required' });
 
   const normalized = email.toLowerCase().trim();
-  console.log(`[FORGOT-PW] Request for: ${normalized}`);
 
-  const contractor = await db.prepare('SELECT id, email, status FROM contractors WHERE email = $1').get(normalized);
-  console.log(`[FORGOT-PW] Lookup result: ${contractor ? `found — status=${contractor.status}` : 'not found'}`);
+  const contractor = await db.prepare('SELECT id, email, name, is_active FROM contractors WHERE email = $1').get(normalized);
 
   // Always respond 200 — don't reveal whether email exists
-  if (!contractor || contractor.status !== 'approved') {
+  if (!contractor || !contractor.is_active) {
     return res.json({ message: 'If that email is in our system, a reset link has been sent.' });
   }
 

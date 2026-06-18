@@ -165,6 +165,9 @@ db._ready.then(async () => {
   // Run any pending column migrations
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS reset_token TEXT`);
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ`);
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'`);
+  // Mark all active contractors as approved so status stays consistent with is_active
+  await db.query(`UPDATE contractors SET status = 'approved' WHERE is_active = 1 AND status IS NULL`);
 
   // Start scheduled jobs (appointment reminders, etc.)
   require('./services/cron');
