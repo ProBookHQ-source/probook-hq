@@ -165,6 +165,12 @@ export default function AdminDashboard() {
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to complete'),
   });
 
+  const deleteAppt = useMutation({
+    mutationFn: (id) => api.delete(`/bookings/${id}`),
+    onSuccess: () => { toast.success('Appointment deleted'); qc.invalidateQueries(['admin-appointments']); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to delete'),
+  });
+
   const deleteLead = useMutation({
     mutationFn: (id) => api.delete(`/leads/${id}`),
     onSuccess: () => {
@@ -897,26 +903,37 @@ export default function AdminDashboard() {
                         <span className={`badge ${STATUS_BADGE[appt.status] || 'bg-gray-100 text-gray-600'}`}>{appt.status}</span>
                       </td>
                       <td className="px-4 py-3">
-                        {appt.status === 'confirmed' && (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => adminCompleteAppt.mutate(appt.id)}
-                              className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium"
-                            >
-                              <CheckCircle className="w-3 h-3" /> Complete
-                            </button>
-                            {confirmCancelAppt === appt.id ? (
-                              <div className="flex items-center gap-1">
-                                <button onClick={() => { adminCancelAppt.mutate(appt.id); setConfirmCancelAppt(null); }} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium">Confirm</button>
-                                <button onClick={() => setConfirmCancelAppt(null)} className="text-xs text-gray-500 font-medium">Cancel</button>
-                              </div>
-                            ) : (
-                              <button onClick={() => setConfirmCancelAppt(appt.id)} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium">
-                                <XCircle className="w-3 h-3" /> Cancel
+                        <div className="flex items-center gap-2">
+                          {appt.status === 'confirmed' && (
+                            <>
+                              <button
+                                onClick={() => adminCompleteAppt.mutate(appt.id)}
+                                className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium"
+                              >
+                                <CheckCircle className="w-3 h-3" /> Complete
                               </button>
-                            )}
-                          </div>
-                        )}
+                              {confirmCancelAppt === appt.id ? (
+                                <div className="flex items-center gap-1">
+                                  <button onClick={() => { adminCancelAppt.mutate(appt.id); setConfirmCancelAppt(null); }} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium">Confirm</button>
+                                  <button onClick={() => setConfirmCancelAppt(null)} className="text-xs text-gray-500 font-medium">No</button>
+                                </div>
+                              ) : (
+                                <button onClick={() => setConfirmCancelAppt(appt.id)} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium">
+                                  <XCircle className="w-3 h-3" /> Cancel
+                                </button>
+                              )}
+                            </>
+                          )}
+                          {(appt.status === 'cancelled' || appt.status === 'completed') && (
+                            <button
+                              onClick={() => deleteAppt.mutate(appt.id)}
+                              disabled={deleteAppt.isPending}
+                              className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 font-medium transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" /> Delete
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

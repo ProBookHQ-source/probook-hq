@@ -710,4 +710,27 @@ async function sendContractorApproved(contractor) {
   return sendEmail(contractor.email, `You're approved — welcome to ${BRAND}!`, html);
 }
 
-module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined };
+// ── Password reset ────────────────────────────────────────────────────────────
+async function sendPasswordReset(contractor, resetUrl) {
+  const html = emailBase({
+    accentColor: '#6366f1',
+    label: 'Password Reset',
+    headline: 'Reset your password',
+    sub: `Hi ${esc(contractor.name)} — here's your password reset link.`,
+    bodyContent: `
+      <tr><td style="padding-bottom:16px;">
+        <p style="margin:0;font-size:15px;color:#374151;line-height:1.6;">
+          Click the button below to set a new password. This link expires in <strong>1 hour</strong>.
+        </p>
+      </td></tr>
+      <tr><td style="padding-bottom:16px;">
+        <p style="margin:0;font-size:13px;color:#9ca3af;">
+          If you didn't request a password reset, you can safely ignore this email.
+        </p>
+      </td></tr>
+      ${ctaBtn(resetUrl, 'Reset My Password')}`,
+  });
+  return sendEmail(contractor.email, `Reset your ${BRAND} password`, html);
+}
+
+module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset };

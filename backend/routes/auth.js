@@ -1,8 +1,10 @@
 const express = require('express');
 const bcrypt  = require('bcryptjs');
+const crypto  = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database/db');
 const { signToken, requireAdmin, requireContractor } = require('../middleware/auth');
+const notifications = require('../services/notifications');
 
 const router = express.Router();
 
@@ -160,6 +162,53 @@ router.put('/contractor/:id/approve', requireAdmin, async (req, res) => {
 // ── Get current user profile ──────────────────────────────────────────────────
 router.get('/me', requireContractor, (req, res) => {
   res.json({ user: req.user });
+});
+
+// ── Forgot password ───────────────────────────────────────────────────────────
+router.post('/contractor/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+
+  const contractor = await db.prepare('SELECT * FROM contractors WHERE email = $1').get(email.toLowerCase().trim());
+
+  // Always respond 200 — don't reveal whether email exists
+  if (!contractor || contractor.status !== 'approved') {
+    return res.json({ message: 'If that email is in our system, a reset link has been sent.' });
+  }
+
+  // Run migration if columns don't exist yet
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS reset_token TEXT`);
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ`);
+
+  const token   = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await db.prepare('UPDATE contractors SET reset_token = $1, reset_token_expires = $2 WHERE id = $3')
+    .run(token, expires.toISOString(), contractor.id);
+
+  const resetUrl = `${process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app'}/reset-password?token=${token}`;
+  notifications.sendPasswordReset(contractor, resetUrl).catch(console.error);
+
+  res.json({ message: 'If that email is in our system, a reset link has been sent.' });
+});
+
+// ── Reset password ────────────────────────────────────────────────────────────
+router.post('/contractor/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) return res.status(400).json({ error: 'Token and password are required' });
+  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+  const contractor = await db.prepare(
+    'SELECT * FROM contractors WHERE reset_token = $1 AND reset_token_expires > NOW()'
+  ).get(token);
+
+  if (!contractor) return res.status(400).json({ error: 'Reset link is invalid or has expired.' });
+
+  const hash = bcrypt.hashSync(password, 10);
+  await db.prepare('UPDATE contractors SET password_hash = $1, reset_token = NULL, reset_token_expires = NULL WHERE id = $2')
+    .run(hash, contractor.id);
+
+  res.json({ message: 'Password updated. You can now log in.' });
 });
 
 module.exports = router;

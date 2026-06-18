@@ -406,6 +406,14 @@ router.put('/:id/admin-cancel', requireAdmin, async (req, res) => {
   res.json({ message: 'Appointment cancelled' });
 });
 
+// ── Admin delete appointment ─────────────────────────────────────────────────
+router.delete('/:id', requireAdmin, async (req, res) => {
+  const appt = await db.prepare('SELECT * FROM appointments WHERE id = $1').get(req.params.id);
+  if (!appt) return res.status(404).json({ error: 'Appointment not found' });
+  await db.prepare('DELETE FROM appointments WHERE id = $1').run(req.params.id);
+  res.json({ message: 'Appointment deleted' });
+});
+
 // ── Admin complete ────────────────────────────────────────────────────────────
 router.put('/:id/admin-complete', requireAdmin, async (req, res) => {
   const appt = await db.prepare('SELECT * FROM appointments WHERE id = $1').get(req.params.id);

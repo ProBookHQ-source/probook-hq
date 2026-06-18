@@ -92,6 +92,14 @@ export default function LoginPage() {
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
+
+          {role === 'contractor' && (
+            <p className="text-center text-sm mt-4">
+              <Link to="/forgot-password" className="text-gray-400 hover:text-brand-500 text-xs transition-colors">
+                Forgot your password?
+              </Link>
+            </p>
+          )}
         </div>
 
         {role === 'contractor' && (

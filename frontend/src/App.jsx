@@ -7,6 +7,8 @@ import CancelPage from './pages/CancelPage';
 import ContractorApply from './pages/ContractorApply';
 import LeadIntakeWidget from './pages/LeadIntakeWidget';
 import LandingPage from './pages/LandingPage';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 function ProtectedRoute({ children, role }) {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -42,6 +44,8 @@ export default function App() {
       <Route path="/reschedule/:token" element={<CancelPage mode="reschedule" />} />
       <Route path="/get-quote" element={<LeadIntakeWidget />} />
       <Route path="/apply" element={<ContractorApply />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       <Route path="/admin/*" element={
         <ProtectedRoute role="admin">
