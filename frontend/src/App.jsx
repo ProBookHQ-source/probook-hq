@@ -7,7 +7,6 @@ import CancelPage from './pages/CancelPage';
 import ContractorApply from './pages/ContractorApply';
 import LeadIntakeWidget from './pages/LeadIntakeWidget';
 import LandingPage from './pages/LandingPage';
-import { Zap } from 'lucide-react';
 
 function ProtectedRoute({ children, role }) {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -21,8 +20,8 @@ function NotFound() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-50 to-purple-50 flex items-center justify-center p-4">
       <div className="text-center">
-        <div className="w-16 h-16 bg-brand-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <Zap className="w-8 h-8 text-brand-500" />
+        <div className="mx-auto mb-4">
+          <img src="/probook-icon-128.png" alt="ProBook" className="w-16 h-16 rounded-2xl" />
         </div>
         <h1 className="text-5xl font-black text-gray-900 mb-2">404</h1>
         <p className="text-gray-500 mb-6">This page doesn't exist.</p>

@@ -229,9 +229,7 @@ export default function LandingPage() {
       <footer className="bg-gray-900 py-10">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-brand-500 rounded-lg flex items-center justify-center">
-              <Zap className="w-3.5 h-3.5 text-white" />
-            </div>
+            <img src="/probook-icon-128.png" alt="ProBook" className="w-7 h-7 rounded-lg" />
             <span className="font-bold text-white">ProBook</span>
           </div>
           <p className="text-gray-500 text-sm">© {new Date().getFullYear()} ProBook. All rights reserved.</p>
