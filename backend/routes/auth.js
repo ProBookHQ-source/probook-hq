@@ -107,7 +107,7 @@ router.post('/contractor/apply', async (req, res) => {
     await db.prepare(
       `INSERT INTO contractors (id, email, password_hash, name, phone, company_name, niche_id, service_zip_codes, service_radius_miles, is_active, applied_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0, NOW())`
-    ).run(id, normalizedEmail, hash, name.trim(), phone || null, company_name?.trim() || null, niche_id, service_zip_codes.trim(), radius);
+    ).run(id, normalizedEmail, hash, name.trim(), phone || null, company_name?.trim() || null, niche_id, JSON.stringify(service_zip_codes.trim().split(',').map(z => z.trim()).filter(Boolean)), radius);
 
     const notifications = require('../services/notifications');
     const contractor = { id, name: name.trim(), email: normalizedEmail, phone, company_name: company_name?.trim(), niche_name: niche.name, service_zip_codes };

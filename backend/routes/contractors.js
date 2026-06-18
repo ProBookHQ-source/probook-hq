@@ -158,6 +158,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   await db.prepare('UPDATE leads SET assigned_contractor_id = NULL WHERE assigned_contractor_id = $1').run(req.params.id);
   await db.prepare('UPDATE round_robin_state SET last_contractor_id = NULL WHERE last_contractor_id = $1').run(req.params.id);
   await db.prepare('DELETE FROM appointments WHERE contractor_id = $1').run(req.params.id);
+  await db.prepare('DELETE FROM availability_overrides WHERE contractor_id = $1').run(req.params.id);
   await db.prepare('DELETE FROM availability_slots WHERE contractor_id = $1').run(req.params.id);
   await db.prepare('DELETE FROM contractors WHERE id = $1').run(req.params.id);
 

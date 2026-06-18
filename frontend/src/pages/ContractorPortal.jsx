@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   format, addDays, startOfWeek, parseISO,
@@ -245,6 +245,8 @@ export default function ContractorPortal() {
     service_radius_miles: '',
     max_appointments_per_day: '',
   });
+  const [zipInput, setZipInput] = useState('');
+  const isLoadingFromSlots = useRef(false);
 
   const from     = format(weekStart, 'yyyy-MM-dd');
   const to       = format(addDays(weekStart, 6), 'yyyy-MM-dd');
@@ -272,6 +274,10 @@ export default function ContractorPortal() {
         service_radius_miles: data.service_radius_miles ?? '',
         max_appointments_per_day: data.max_appointments_per_day ?? '',
       });
+      try {
+        const zips = JSON.parse(data.service_zip_codes || '[]');
+        setZipInput(Array.isArray(zips) ? zips.join(', ') : (data.service_zip_codes || ''));
+      } catch { setZipInput(data.service_zip_codes || ''); }
     },
   });
 
@@ -304,8 +310,16 @@ export default function ContractorPortal() {
   useEffect(() => {
     const map = {};
     slots.forEach(s => { map[s.day_of_week] = { start: s.start_time, end: s.end_time }; });
+    isLoadingFromSlots.current = true;
     setAvailability(map);
   }, [slots]);
+
+  // Auto-save schedule after user changes (skip the initial load from DB)
+  useEffect(() => {
+    if (isLoadingFromSlots.current) { isLoadingFromSlots.current = false; return; }
+    const timer = setTimeout(() => { saveAvailability.mutate(); }, 1000);
+    return () => clearTimeout(timer);
+  }, [availability]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const overridesFrom = format(new Date(), 'yyyy-MM-dd');
   const overridesTo   = format(addDays(new Date(), 365), 'yyyy-MM-dd');
@@ -497,6 +511,19 @@ export default function ContractorPortal() {
     .filter(a => a.status === 'cancelled')
     .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
     .slice(0, 5);
+
+  // ── Dynamic calendar hours based on contractor's schedule ─────────────────
+  const calendarHours = useMemo(() => {
+    if (!slots.length) {
+      return Array.from({ length: 11 }, (_, i) => `${String(i + 8).padStart(2, '0')}:00`);
+    }
+    const starts = slots.map(s => parseInt(s.start_time.split(':')[0]));
+    const ends   = slots.map(s => parseInt(s.end_time.split(':')[0]));
+    // Add 1 to max end so the last hour row is visible
+    const minH = Math.min(...starts);
+    const maxH = Math.max(...ends) + 1;
+    return Array.from({ length: maxH - minH }, (_, i) => `${String(i + minH).padStart(2, '0')}:00`);
+  }, [slots]);
 
   // ── Sidebar nav items ──────────────────────────────────────────────────────
   const NAV = [
@@ -900,7 +927,7 @@ export default function ContractorPortal() {
 
                 {/* Time labels */}
                 <div>
-                  {HOURS.map(hour => {
+                  {calendarHours.map(hour => {
                     const [h] = hour.split(':').map(Number);
                     const label = h === 12 ? '12 PM' : h > 12 ? `${h - 12} PM` : `${h} AM`;
                     return (
@@ -938,7 +965,7 @@ export default function ContractorPortal() {
                           }}
                         />
                       )}
-                      {HOURS.map(hour => {
+                      {calendarHours.map(hour => {
                         const appt = dayAppts.find(a => a.scheduled_time === hour);
                         const blockKey = `${dateStr}|${hour}`;
                         const isRemoving = removingBlock === blockKey;
@@ -1072,6 +1099,17 @@ export default function ContractorPortal() {
                               value={val.end}
                               onChange={v => setAvailability(p => ({ ...p, [idx]: { ...val, end: v } }))}
                             />
+                            <button
+                              type="button"
+                              onClick={() => setAvailability(p => {
+                                const updated = { ...p };
+                                Object.keys(updated).forEach(k => { updated[k] = { start: val.start, end: val.end }; });
+                                return updated;
+                              })}
+                              className="text-xs text-brand-500 hover:text-brand-700 font-medium whitespace-nowrap ml-2"
+                            >
+                              Apply to all
+                            </button>
                           </div>
                         ) : (
                           <span className="text-sm text-gray-300">Not available</span>
@@ -1105,24 +1143,31 @@ export default function ContractorPortal() {
                         className="input"
                       >
                         <option value="">Month</option>
-                        {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
-                          <option key={m} value={i + 1}>{m}</option>
-                        ))}
+                        {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => {
+                          const monthNum = i + 1;
+                          if (monthNum < new Date().getMonth() + 1) return null;
+                          return <option key={m} value={monthNum}>{m}</option>;
+                        })}
                       </select>
                     </div>
                     <div>
                       <label className="label">Day</label>
-                      <select
+                      <input
+                        type="number"
+                        min="1"
+                        max={daysInSelectedMonth}
                         value={newOverride.day}
-                        onChange={e => setNewOverride(p => ({ ...p, day: e.target.value }))}
-                        className="input"
+                        onChange={e => {
+                          const v = e.target.value;
+                          const n = parseInt(v);
+                          if (v === '' || (n >= 1 && n <= daysInSelectedMonth)) {
+                            setNewOverride(p => ({ ...p, day: v }));
+                          }
+                        }}
+                        placeholder="Day"
                         disabled={!newOverride.month}
-                      >
-                        <option value="">Day</option>
-                        {Array.from({ length: daysInSelectedMonth }, (_, i) => (
-                          <option key={i + 1} value={i + 1}>{i + 1}</option>
-                        ))}
-                      </select>
+                        className="input w-24"
+                      />
                     </div>
                     {/* Year pill selector — shows once month + day are picked */}
                     {overrideYearOptions.length > 0 && (
@@ -1297,6 +1342,18 @@ export default function ContractorPortal() {
                   </div>
                   <div className="px-6 py-5 space-y-4">
                     <div>
+                      <label className="label">Service ZIP Codes</label>
+                      <input
+                        className="input"
+                        value={zipInput}
+                        onChange={e => setZipInput(e.target.value)}
+                        placeholder="e.g. 98101, 98109, 98103"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">
+                        Comma-separated list of ZIP codes you serve. Use * to serve all ZIP codes.
+                      </p>
+                    </div>
+                    <div>
                       <label className="label">Service Radius (miles)</label>
                       <input
                         type="number"
@@ -1327,7 +1384,10 @@ export default function ContractorPortal() {
                       </p>
                     </div>
                     <button
-                      onClick={() => updateProfile.mutate(prefForm)}
+                      onClick={() => updateProfile.mutate({
+                        ...prefForm,
+                        service_zip_codes: zipInput.split(',').map(z => z.trim()).filter(Boolean),
+                      })}
                       disabled={updateProfile.isPending}
                       className="btn-primary"
                     >

@@ -19,7 +19,8 @@ function haversine(lat1, lon1, lat2, lon2) {
 // Logic: exact zip match (fast) OR radius match if contractor has service_radius_miles set.
 function contractorServesZip(contractor, leadZip) {
   try {
-    const zips = JSON.parse(contractor.service_zip_codes);
+    let zips = JSON.parse(contractor.service_zip_codes);
+    if (!Array.isArray(zips)) zips = [String(zips)];
     if (zips.includes(leadZip) || zips.includes('*')) return true;
 
     // Radius fallback — only if contractor opted in with a radius
