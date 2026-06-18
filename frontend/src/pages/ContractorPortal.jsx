@@ -12,7 +12,7 @@ import {
   Calendar, Clock, CheckCircle, XCircle, LogOut,
   ChevronLeft, ChevronRight, ChevronDown, Phone, Mail,
   Link as LinkIcon, Settings, Lock, User, Ban, CalendarPlus, Trash2,
-  Home, Plus, X,
+  Home, Plus, X, Eye, EyeOff,
 } from 'lucide-react';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -235,6 +235,7 @@ export default function ContractorPortal() {
   const [removingBlock, setRemovingBlock] = useState(null); // "date|time"
   const [confirmDeleteOverrideId, setConfirmDeleteOverrideId] = useState(null);
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
+  const [showPwField, setShowPwField] = useState({ current: false, next: false, confirm: false });
   const [profileForm, setProfileForm] = useState({
     name: user.name || '',
     phone: user.phone || '',
@@ -1342,18 +1343,30 @@ export default function ContractorPortal() {
                     <h3 className="font-semibold text-gray-900">Change Password</h3>
                   </div>
                   <div className="px-6 py-5 space-y-4">
-                    <div>
-                      <label className="label">Current Password</label>
-                      <input type="password" className="input" value={pwForm.current} onChange={e => setPwForm(p => ({ ...p, current: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label className="label">New Password</label>
-                      <input type="password" className="input" value={pwForm.next} onChange={e => setPwForm(p => ({ ...p, next: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label className="label">Confirm New Password</label>
-                      <input type="password" className="input" value={pwForm.confirm} onChange={e => setPwForm(p => ({ ...p, confirm: e.target.value }))} />
-                    </div>
+                    {[
+                      { label: 'Current Password', key: 'current' },
+                      { label: 'New Password',     key: 'next'    },
+                      { label: 'Confirm New Password', key: 'confirm' },
+                    ].map(({ label, key }) => (
+                      <div key={key}>
+                        <label className="label">{label}</label>
+                        <div className="relative">
+                          <input
+                            type={showPwField[key] ? 'text' : 'password'}
+                            className="input pr-10"
+                            value={pwForm[key]}
+                            onChange={e => setPwForm(p => ({ ...p, [key]: e.target.value }))}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPwField(s => ({ ...s, [key]: !s[key] }))}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          >
+                            {showPwField[key] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                     <button onClick={handleChangePassword} disabled={changePassword.isPending} className="btn-primary">
                       {changePassword.isPending ? 'Updating…' : 'Update Password'}
                     </button>

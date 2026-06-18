@@ -41,6 +41,7 @@ export default function AdminDashboard() {
   const [setPasswordFor, setSetPasswordFor] = useState(null);
   const [newPwValue, setNewPwValue] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [showTempPw, setShowTempPw] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeySlug, setNewKeySlug] = useState('');
   const [createdKey, setCreatedKey] = useState(null); // shown once after creation
@@ -624,7 +625,12 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <label className="label">Temporary Password *</label>
-                    <input {...contractorForm.register('password', { required: true })} type="password" className="input" placeholder="They can change this later" />
+                    <div className="relative">
+                      <input {...contractorForm.register('password', { required: true })} type={showTempPw ? 'text' : 'password'} className="input pr-10" placeholder="They can change this later" />
+                      <button type="button" onClick={() => setShowTempPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showTempPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="flex items-end gap-2">
                     <button type="submit" disabled={addContractor.isPending} className="btn-primary">

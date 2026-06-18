@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { CheckCircle, ChevronDown } from 'lucide-react';
+import { CheckCircle, ChevronDown, Eye, EyeOff } from 'lucide-react';
 import api from '../api/client';
 import { formatPhone } from '../utils/formatPhone';
 
@@ -10,6 +10,8 @@ export default function ContractorApply() {
   const [loading, setLoading] = useState(false);
   const [done,    setDone]    = useState(false);
   const [errors,  setErrors]  = useState({});
+  const [showPw, setShowPw]   = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [form,    setForm]    = useState({
     name: '', email: '', password: '', confirm: '',
     phone: '', company_name: '', niche_id: '',
@@ -86,6 +88,9 @@ export default function ContractorApply() {
     );
   }
 
+  const inputCls = (key) => `w-full px-3.5 py-2.5 rounded-xl border text-sm transition-all outline-none
+    ${errors[key] ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-white focus:border-brand-400 focus:ring-2 focus:ring-brand-100'}`;
+
   const field = (label, key, type = 'text', placeholder = '', hint = '') => (
     <div>
       <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
@@ -94,9 +99,28 @@ export default function ContractorApply() {
         value={form[key]}
         onChange={e => set(key, e.target.value)}
         placeholder={placeholder}
-        className={`w-full px-3.5 py-2.5 rounded-xl border text-sm transition-all outline-none
-          ${errors[key] ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-white focus:border-brand-400 focus:ring-2 focus:ring-brand-100'}`}
+        className={inputCls(key)}
       />
+      {hint && !errors[key] && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
+      {errors[key] && <p className="text-xs text-red-500 mt-1">{errors[key]}</p>}
+    </div>
+  );
+
+  const pwField = (label, key, show, setShow, hint = '') => (
+    <div>
+      <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
+      <div className="relative">
+        <input
+          type={show ? 'text' : 'password'}
+          value={form[key]}
+          onChange={e => set(key, e.target.value)}
+          placeholder="••••••••"
+          className={inputCls(key) + ' pr-10'}
+        />
+        <button type="button" onClick={() => setShow(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+          {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+        </button>
+      </div>
       {hint && !errors[key] && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
       {errors[key] && <p className="text-xs text-red-500 mt-1">{errors[key]}</p>}
     </div>
@@ -121,8 +145,8 @@ export default function ContractorApply() {
               <div className="space-y-4">
                 {field('Full Name', 'name', 'text', 'Jane Smith')}
                 {field('Email Address', 'email', 'email', 'jane@smithroofing.com')}
-                {field('Password', 'password', 'password', '••••••••', 'Set a password — you\'ll use this to log in if your application is approved. At least 8 characters.')}
-                {field('Confirm Password', 'confirm', 'password', '••••••••')}
+                {pwField('Password', 'password', showPw, setShowPw, 'Set a password — you\'ll use this to log in if your application is approved. At least 8 characters.')}
+                {pwField('Confirm Password', 'confirm', showConfirm, setShowConfirm)}
               </div>
             </div>
 
