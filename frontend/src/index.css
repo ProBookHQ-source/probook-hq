@@ -25,9 +25,10 @@ body {
 }
 
 /* Prevent iOS Safari from auto-zooming when tapping any input field.
-   Safari zooms in when font-size < 16px — this ensures it never does. */
+   Safari zooms in when font-size < 16px — this ensures it never does.
+   !important overrides any Tailwind class (text-sm, text-xs, etc.) */
 input, select, textarea {
-  font-size: 16px;
+  font-size: 16px !important;
 }
 
 @layer base {
@@ -51,7 +52,7 @@ input, select, textarea {
     @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-6;
   }
   .input {
-    @apply w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none
+    @apply w-full px-4 py-2.5 border border-gray-200 rounded-xl text-base focus:outline-none
            focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all;
   }
   .label {
