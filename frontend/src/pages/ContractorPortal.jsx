@@ -1570,6 +1570,13 @@ export default function ContractorPortal() {
             {label}
           </button>
         ))}
+        <button
+          onClick={() => { localStorage.clear(); window.location.href = '/login'; }}
+          className="flex-1 flex flex-col items-center gap-0.5 py-3 text-[11px] font-medium text-gray-400 transition-all"
+        >
+          <LogOut className="w-5 h-5" />
+          Sign Out
+        </button>
       </nav>
     </div>
   );
