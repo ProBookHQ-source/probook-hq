@@ -44,7 +44,7 @@ export default function AdminDashboard() {
   const [showTempPw, setShowTempPw] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeySlug, setNewKeySlug] = useState('');
-  const [createdKey, setCreatedKey] = useState(null); // shown once after creation
+  const [createdKey, setCreatedKey] = useState(null);
   const [confirmDeleteKey, setConfirmDeleteKey] = useState(null);
   const qc = useQueryClient();
 
@@ -84,7 +84,7 @@ export default function AdminDashboard() {
 
   const [newNicheName, setNewNicheName] = useState('');
   const [newNicheDesc, setNewNicheDesc] = useState('');
-  const [editingNiche, setEditingNiche] = useState(null); // { id, name, description }
+  const [editingNiche, setEditingNiche] = useState(null);
   const [confirmDeleteNiche, setConfirmDeleteNiche] = useState(null);
 
   const createNiche = useMutation({
@@ -107,12 +107,7 @@ export default function AdminDashboard() {
 
   const createApiKey = useMutation({
     mutationFn: (data) => api.post('/apikeys', data),
-    onSuccess: (res) => {
-      setCreatedKey(res.data); // show the key once
-      setNewKeyName('');
-      setNewKeySlug('');
-      qc.invalidateQueries(['apikeys']);
-    },
+    onSuccess: (res) => { setCreatedKey(res.data); setNewKeyName(''); setNewKeySlug(''); qc.invalidateQueries(['apikeys']); },
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to create key'),
   });
 
@@ -136,10 +131,7 @@ export default function AdminDashboard() {
 
   const matchLead = useMutation({
     mutationFn: (id) => api.post(`/leads/${id}/match`),
-    onSuccess: (res) => {
-      toast.success(res.data.message);
-      qc.invalidateQueries(['admin-leads']);
-    },
+    onSuccess: (res) => { toast.success(res.data.message); qc.invalidateQueries(['admin-leads']); },
     onError: (err) => toast.error(err.response?.data?.error || 'Match failed'),
   });
 
@@ -175,10 +167,7 @@ export default function AdminDashboard() {
 
   const deleteLead = useMutation({
     mutationFn: (id) => api.delete(`/leads/${id}`),
-    onSuccess: () => {
-      toast.success('Lead deleted');
-      qc.invalidateQueries(['admin-leads']);
-    },
+    onSuccess: () => { toast.success('Lead deleted'); qc.invalidateQueries(['admin-leads']); },
     onError: (err) => toast.error(err.response?.data?.error || 'Delete failed'),
   });
 
@@ -190,22 +179,13 @@ export default function AdminDashboard() {
 
   const deleteContractor = useMutation({
     mutationFn: (id) => api.delete(`/contractors/${id}`),
-    onSuccess: () => {
-      toast.success('Contractor deleted');
-      qc.invalidateQueries(['admin-contractors']);
-      qc.invalidateQueries(['admin-leads']);
-    },
+    onSuccess: () => { toast.success('Contractor deleted'); qc.invalidateQueries(['admin-contractors']); qc.invalidateQueries(['admin-leads']); },
     onError: (err) => toast.error(err.response?.data?.error || 'Delete failed'),
   });
 
   const addContractor = useMutation({
     mutationFn: (data) => api.post('/contractors', data),
-    onSuccess: () => {
-      toast.success('Contractor added!');
-      qc.invalidateQueries(['admin-contractors']);
-      setShowAddContractor(false);
-      contractorForm.reset();
-    },
+    onSuccess: () => { toast.success('Contractor added!'); qc.invalidateQueries(['admin-contractors']); setShowAddContractor(false); contractorForm.reset(); },
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to add contractor'),
   });
 
@@ -235,12 +215,11 @@ export default function AdminDashboard() {
 
   const logout = () => { localStorage.clear(); window.location.href = '/login'; };
 
-  // Stats
   const stats = [
-    { label: 'Total Leads',      value: leads.length,                                  icon: FileText,  color: 'text-blue-600',   bg: 'bg-blue-50' },
-    { label: 'Active Bookings',  value: appointments.filter(a => a.status === 'confirmed').length, icon: Calendar,  color: 'text-purple-600', bg: 'bg-purple-50' },
-    { label: 'Contractors',      value: contractors.filter(c => c.is_active).length,   icon: Users,     color: 'text-green-600',  bg: 'bg-green-50' },
-    { label: 'Completed',        value: leads.filter(l => l.status === 'completed').length, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'Total Leads',     value: leads.length,                                                  icon: FileText,    color: 'text-blue-600',   bg: 'bg-blue-50' },
+    { label: 'Active Bookings', value: appointments.filter(a => a.status === 'confirmed').length,      icon: Calendar,    color: 'text-purple-600', bg: 'bg-purple-50' },
+    { label: 'Contractors',     value: contractors.filter(c => c.is_active).length,                   icon: Users,       color: 'text-green-600',  bg: 'bg-green-50' },
+    { label: 'Completed',       value: leads.filter(l => l.status === 'completed').length,             icon: CheckCircle, color: 'text-emerald-600',bg: 'bg-emerald-50' },
   ];
 
   const filteredLeads = leads.filter(l =>
@@ -249,10 +228,21 @@ export default function AdminDashboard() {
     l.zip_code?.includes(leadFilter) || l.niche_name?.toLowerCase().includes(leadFilter.toLowerCase())
   );
 
+  const TABS = [
+    { id: 'overview',      label: 'Overview',      icon: LayoutDashboard },
+    { id: 'leads',         label: 'Leads',         icon: FileText,    badge: leads.filter(l => l.status === 'new').length },
+    { id: 'contractors',   label: 'Contractors',   icon: Users,       badge: pendingContractors.length },
+    { id: 'appointments',  label: 'Appointments',  icon: Calendar },
+    { id: 'apikeys',       label: 'API Keys',      icon: ShieldCheck },
+    { id: 'performance',   label: 'Performance',   icon: BarChart2 },
+    { id: 'niches',        label: 'Niches',        icon: Zap },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 w-56 bg-white border-r border-gray-100 flex flex-col z-10">
+
+      {/* ── Sidebar (desktop only) ──────────────────────────────────────────── */}
+      <div className="hidden md:flex fixed inset-y-0 left-0 w-56 bg-white border-r border-gray-100 flex-col z-10">
         <div className="p-5 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
             <img src="/probook-icon-128.png" alt="ProBook" className="w-8 h-8 rounded-lg" />
@@ -264,15 +254,7 @@ export default function AdminDashboard() {
         </div>
 
         <nav className="flex-1 p-3 space-y-1">
-          {[
-            { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-            { id: 'leads', label: 'Leads', icon: FileText, badge: leads.filter(l => l.status === 'new').length },
-            { id: 'contractors', label: 'Contractors', icon: Users, badge: pendingContractors.length },
-            { id: 'appointments', label: 'Appointments', icon: Calendar },
-            { id: 'apikeys', label: 'API Keys', icon: ShieldCheck },
-            { id: 'performance', label: 'Performance', icon: BarChart2 },
-            { id: 'niches', label: 'Niches', icon: Zap },
-          ].map(({ id, label, icon: Icon, badge }) => (
+          {TABS.map(({ id, label, icon: Icon, badge }) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -301,26 +283,39 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="ml-56 p-6">
+      {/* ── Mobile header ───────────────────────────────────────────────────── */}
+      <div className="md:hidden sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
+        <img src="/probook-icon-128.png" alt="ProBook" className="w-7 h-7 rounded-lg" />
+        <div className="flex-1">
+          <p className="font-bold text-gray-900 text-sm leading-none">ProBook</p>
+          <p className="text-[11px] text-gray-400">Admin</p>
+        </div>
+        <button onClick={logout} className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-all">
+          <LogOut className="w-3.5 h-3.5" />
+          Logout
+        </button>
+      </div>
+
+      {/* ── Main content ─────────────────────────────────────────────────────── */}
+      <div className="md:ml-56 p-4 md:p-6 pb-24 md:pb-6">
 
         {/* ── OVERVIEW ── */}
         {tab === 'overview' && (
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h1>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-5">Dashboard</h1>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
               {stats.map(({ label, value, icon: Icon, color, bg }) => (
                 <div key={label} className="card">
-                  <div className={`inline-flex items-center justify-center w-10 h-10 ${bg} rounded-xl mb-3`}>
-                    <Icon className={`w-5 h-5 ${color}`} />
+                  <div className={`inline-flex items-center justify-center w-9 h-9 md:w-10 md:h-10 ${bg} rounded-xl mb-3`}>
+                    <Icon className={`w-4 h-4 md:w-5 md:h-5 ${color}`} />
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{value}</p>
-                  <p className="text-sm text-gray-500">{label}</p>
+                  <p className="text-xl md:text-2xl font-bold text-gray-900">{value}</p>
+                  <p className="text-xs md:text-sm text-gray-500">{label}</p>
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="card">
                 <h3 className="font-semibold mb-4">Recent Leads</h3>
                 <div className="space-y-3">
@@ -360,19 +355,82 @@ export default function AdminDashboard() {
         {/* ── LEADS ── */}
         {tab === 'leads' && (
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">Leads</h1>
+            <div className="flex items-center justify-between mb-5">
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Leads</h1>
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   value={leadFilter}
                   onChange={e => setLeadFilter(e.target.value)}
-                  placeholder="Search leads..."
-                  className="input pl-9 w-56"
+                  placeholder="Search..."
+                  className="input pl-9 w-40 md:w-56"
                 />
               </div>
             </div>
-            <div className="card p-0 overflow-hidden">
+
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+              {filteredLeads.map(lead => (
+                <div key={lead.id} className="card p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{lead.name}</p>
+                      <p className="text-xs text-gray-400">{lead.email}</p>
+                      {lead.phone && <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" />{lead.phone}</p>}
+                    </div>
+                    <span className={`badge ml-2 shrink-0 ${STATUS_BADGE[lead.status]}`}>{lead.status}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mb-3">
+                    <span>{lead.niche_name}</span>
+                    <span>ZIP {lead.zip_code}</span>
+                    {lead.contractor_name && <span>→ {lead.contractor_name}</span>}
+                    <span>{format(parseISO(lead.created_at), 'MMM d')}</span>
+                  </div>
+                  {lead.description && (
+                    <button
+                      onClick={() => setExpandedLead(expandedLead === lead.id ? null : lead.id)}
+                      className="text-xs text-brand-500 mb-2"
+                    >
+                      {expandedLead === lead.id ? 'Hide notes ▲' : 'Show notes ▼'}
+                    </button>
+                  )}
+                  {expandedLead === lead.id && lead.description && (
+                    <p className="text-xs text-gray-600 bg-brand-50 rounded-lg px-3 py-2 mb-2">{lead.description}</p>
+                  )}
+                  <div className="flex flex-wrap gap-3">
+                    {lead.status === 'new' && (
+                      <button onClick={() => matchLead.mutate(lead.id)} disabled={matchLead.isPending} className="flex items-center gap-1 text-xs text-brand-600 font-medium">
+                        <RefreshCw className="w-3 h-3" /> Match
+                      </button>
+                    )}
+                    {lead.status === 'matched' && (
+                      <button onClick={() => resendLink.mutate(lead.id)} disabled={resendLink.isPending} className="flex items-center gap-1 text-xs text-brand-600 font-medium">
+                        <Send className="w-3 h-3" /> Resend Link
+                      </button>
+                    )}
+                    {['matched', 'booked'].includes(lead.status) && lead.assigned_contractor_id && (
+                      <button onClick={() => reassignLead.mutate(lead.id)} disabled={reassignLead.isPending} className="flex items-center gap-1 text-xs text-orange-500 font-medium">
+                        <Shuffle className="w-3 h-3" /> Reassign
+                      </button>
+                    )}
+                    {confirmDeleteLead === lead.id ? (
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => { deleteLead.mutate(lead.id); setConfirmDeleteLead(null); }} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium">Confirm</button>
+                        <button onClick={() => setConfirmDeleteLead(null)} className="text-xs text-gray-500 font-medium">Cancel</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setConfirmDeleteLead(lead.id)} className="flex items-center gap-1 text-xs text-red-400 font-medium">
+                        <Trash2 className="w-3 h-3" /> Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {filteredLeads.length === 0 && <p className="text-center py-10 text-gray-400 text-sm">No leads found</p>}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block card p-0 overflow-hidden">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
@@ -392,42 +450,24 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{lead.niche_name}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{lead.zip_code}</td>
-                      <td className="px-4 py-3">
-                        <span className={`badge ${STATUS_BADGE[lead.status]}`}>{lead.status}</span>
-                      </td>
+                      <td className="px-4 py-3"><span className={`badge ${STATUS_BADGE[lead.status]}`}>{lead.status}</span></td>
                       <td className="px-4 py-3 text-sm text-gray-600">{lead.contractor_name || '—'}</td>
                       <td className="px-4 py-3 text-xs text-gray-400">{format(parseISO(lead.created_at), 'MMM d')}</td>
                       <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-3 flex-wrap">
                           {lead.status === 'new' && (
-                            <button
-                              onClick={() => matchLead.mutate(lead.id)}
-                              disabled={matchLead.isPending}
-                              className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
-                            >
-                              <RefreshCw className="w-3 h-3" />
-                              Match
+                            <button onClick={() => matchLead.mutate(lead.id)} disabled={matchLead.isPending} className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium">
+                              <RefreshCw className="w-3 h-3" /> Match
                             </button>
                           )}
                           {lead.status === 'matched' && (
-                            <button
-                              onClick={() => resendLink.mutate(lead.id)}
-                              disabled={resendLink.isPending}
-                              className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
-                            >
-                              <Send className="w-3 h-3" />
-                              Resend Link
+                            <button onClick={() => resendLink.mutate(lead.id)} disabled={resendLink.isPending} className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium">
+                              <Send className="w-3 h-3" /> Resend Link
                             </button>
                           )}
                           {['matched', 'booked'].includes(lead.status) && lead.assigned_contractor_id && (
-                            <button
-                              onClick={() => reassignLead.mutate(lead.id)}
-                              disabled={reassignLead.isPending}
-                              className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-700 font-medium"
-                              title="Skip current contractor and assign to next available"
-                            >
-                              <Shuffle className="w-3 h-3" />
-                              Reassign
+                            <button onClick={() => reassignLead.mutate(lead.id)} disabled={reassignLead.isPending} className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-700 font-medium" title="Skip current contractor and assign to next available">
+                              <Shuffle className="w-3 h-3" /> Reassign
                             </button>
                           )}
                           {confirmDeleteLead === lead.id ? (
@@ -437,8 +477,7 @@ export default function AdminDashboard() {
                             </div>
                           ) : (
                             <button onClick={() => setConfirmDeleteLead(lead.id)} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium">
-                              <Trash2 className="w-3 h-3" />
-                              Delete
+                              <Trash2 className="w-3 h-3" /> Delete
                             </button>
                           )}
                         </div>
@@ -468,10 +507,10 @@ export default function AdminDashboard() {
         {/* ── CONTRACTORS ── */}
         {tab === 'contractors' && (
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">Contractors</h1>
-              <button onClick={() => setShowAddContractor(true)} className="btn-primary">
-                <Plus className="w-4 h-4" /> Add Contractor
+            <div className="flex items-center justify-between mb-5">
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Contractors</h1>
+              <button onClick={() => setShowAddContractor(true)} className="btn-primary text-sm">
+                <Plus className="w-4 h-4" /> Add
               </button>
             </div>
 
@@ -484,7 +523,7 @@ export default function AdminDashboard() {
                 </h3>
                 <div className="space-y-3">
                   {pendingContractors.map(c => (
-                    <div key={c.id} className="flex items-center justify-between py-2 border-b border-amber-100 last:border-0">
+                    <div key={c.id} className="flex flex-col sm:flex-row sm:items-center gap-3 py-2 border-b border-amber-100 last:border-0">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 flex-wrap">
                           <div>
@@ -499,29 +538,15 @@ export default function AdminDashboard() {
                           <p className="text-xs text-gray-400">
                             {(() => { try { const z = JSON.parse(c.service_zip_codes); return z.join(', '); } catch { return c.service_zip_codes; } })()}
                           </p>
-                          {c.applied_at && (
-                            <p className="text-xs text-gray-400">
-                              Applied {format(parseISO(c.applied_at), 'MMM d, yyyy')}
-                            </p>
-                          )}
+                          {c.applied_at && <p className="text-xs text-gray-400">Applied {format(parseISO(c.applied_at), 'MMM d, yyyy')}</p>}
                         </div>
                       </div>
-                      <div className="ml-4 flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => approveContractor.mutate(c.id)}
-                          disabled={approveContractor.isPending}
-                          className="flex items-center gap-1.5 text-sm font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                          Approve
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button onClick={() => approveContractor.mutate(c.id)} disabled={approveContractor.isPending} className="flex items-center gap-1.5 text-sm font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all">
+                          <CheckCircle className="w-4 h-4" /> Approve
                         </button>
-                        <button
-                          onClick={() => declineContractor.mutate(c.id)}
-                          disabled={declineContractor.isPending}
-                          className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all"
-                        >
-                          <XCircle className="w-4 h-4" />
-                          Decline
+                        <button onClick={() => declineContractor.mutate(c.id)} disabled={declineContractor.isPending} className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all">
+                          <XCircle className="w-4 h-4" /> Decline
                         </button>
                       </div>
                     </div>
@@ -533,17 +558,14 @@ export default function AdminDashboard() {
             {/* Declined Applications */}
             {declinedContractors.length > 0 && (
               <div className="card mb-6 border-gray-200 border">
-                <button
-                  onClick={() => setShowDeclined(v => !v)}
-                  className="w-full flex items-center justify-between text-sm font-semibold text-gray-500 hover:text-gray-700"
-                >
+                <button onClick={() => setShowDeclined(v => !v)} className="w-full flex items-center justify-between text-sm font-semibold text-gray-500 hover:text-gray-700">
                   <span>Declined Applications ({declinedContractors.length})</span>
                   <span className="text-xs">{showDeclined ? '▲ Hide' : '▼ Show'}</span>
                 </button>
                 {showDeclined && (
                   <div className="space-y-3 mt-4 pt-4 border-t border-gray-100">
                     {declinedContractors.map(c => (
-                      <div key={c.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0 opacity-60">
+                      <div key={c.id} className="flex flex-col sm:flex-row sm:items-center gap-3 py-2 border-b border-gray-100 last:border-0 opacity-60">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3 flex-wrap">
                             <div>
@@ -560,22 +582,12 @@ export default function AdminDashboard() {
                             {c.declined_at && <p className="text-xs text-red-400">Declined {format(parseISO(c.declined_at), 'MMM d, yyyy')}</p>}
                           </div>
                         </div>
-                        <div className="ml-4 flex items-center gap-2 shrink-0">
-                          <button
-                            onClick={() => approveContractor.mutate(c.id)}
-                            disabled={approveContractor.isPending}
-                            className="flex items-center gap-1.5 text-sm font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                            Approve
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button onClick={() => approveContractor.mutate(c.id)} disabled={approveContractor.isPending} className="flex items-center gap-1.5 text-sm font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all">
+                            <CheckCircle className="w-4 h-4" /> Approve
                           </button>
-                          <button
-                            onClick={() => deleteApplication.mutate(c.id)}
-                            disabled={deleteApplication.isPending}
-                            className="flex items-center gap-1.5 text-sm font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Delete
+                          <button onClick={() => deleteApplication.mutate(c.id)} disabled={deleteApplication.isPending} className="flex items-center gap-1.5 text-sm font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all">
+                            <Trash2 className="w-4 h-4" /> Delete
                           </button>
                         </div>
                       </div>
@@ -588,7 +600,7 @@ export default function AdminDashboard() {
             {showAddContractor && (
               <div className="card mb-6 border-brand-100 border-2">
                 <h3 className="font-semibold mb-4">Add New Contractor</h3>
-                <form onSubmit={contractorForm.handleSubmit(onAddContractor)} className="grid grid-cols-2 gap-4">
+                <form onSubmit={contractorForm.handleSubmit(onAddContractor)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="label">Full Name *</label>
                     <input {...contractorForm.register('name', { required: true })} className="input" placeholder="John Smith" />
@@ -620,8 +632,8 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <label className="label">Service Zip Codes *</label>
-                    <input {...contractorForm.register('service_zip_codes', { required: true })} className="input" placeholder="10001, 10002, 10003 (or * for all)" />
-                    <p className="text-xs text-gray-400 mt-1">Comma-separated. Use * to serve all zips.</p>
+                    <input {...contractorForm.register('service_zip_codes', { required: true })} className="input" placeholder="10001, 10002 (or * for all)" />
+                    <p className="text-xs text-gray-400 mt-1">Comma-separated. Use * for all zips.</p>
                   </div>
                   <div>
                     <label className="label">Temporary Password *</label>
@@ -666,7 +678,6 @@ export default function AdminDashboard() {
                     <p className="text-xs text-green-600 mt-2 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Google Calendar linked</p>
                   )}
                   <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
-                    {/* Set Password */}
                     {setPasswordFor === c.id ? (
                       <div className="flex items-center gap-2">
                         <div className="relative flex-1">
@@ -678,58 +689,27 @@ export default function AdminDashboard() {
                             className="input text-xs py-1 px-2 h-7 w-full pr-7"
                             autoFocus
                           />
-                          <button
-                            type="button"
-                            onClick={() => setShowPw(v => !v)}
-                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          >
+                          <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                             {showPw ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                           </button>
                         </div>
-                        <button
-                          onClick={() => newPwValue && setContractorPassword.mutate({ id: c.id, password: newPwValue })}
-                          disabled={!newPwValue || setContractorPassword.isPending}
-                          className="text-xs bg-brand-500 text-white px-2 py-0.5 rounded font-medium hover:bg-brand-600 disabled:opacity-40"
-                        >
-                          Save
-                        </button>
-                        <button onClick={() => { setSetPasswordFor(null); setNewPwValue(''); setShowPw(false); }} className="text-xs text-gray-500 hover:text-gray-700 font-medium">
-                          Cancel
-                        </button>
+                        <button onClick={() => newPwValue && setContractorPassword.mutate({ id: c.id, password: newPwValue })} disabled={!newPwValue || setContractorPassword.isPending} className="text-xs bg-brand-500 text-white px-2 py-0.5 rounded font-medium hover:bg-brand-600 disabled:opacity-40">Save</button>
+                        <button onClick={() => { setSetPasswordFor(null); setNewPwValue(''); setShowPw(false); }} className="text-xs text-gray-500 hover:text-gray-700 font-medium">Cancel</button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => { setSetPasswordFor(c.id); setConfirmDeleteContractor(null); }}
-                        className="flex items-center gap-1 text-xs text-brand-500 hover:text-brand-700 font-medium"
-                      >
-                        <KeyRound className="w-3 h-3" />
-                        Set Password
+                      <button onClick={() => { setSetPasswordFor(c.id); setConfirmDeleteContractor(null); }} className="flex items-center gap-1 text-xs text-brand-500 hover:text-brand-700 font-medium">
+                        <KeyRound className="w-3 h-3" /> Set Password
                       </button>
                     )}
-                    {/* Delete */}
                     {confirmDeleteContractor === c.id ? (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-red-600 font-medium">Are you sure?</span>
-                        <button
-                          onClick={() => { deleteContractor.mutate(c.id); setConfirmDeleteContractor(null); }}
-                          className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium hover:bg-red-600"
-                        >
-                          Confirm
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteContractor(null)}
-                          className="text-xs text-gray-500 hover:text-gray-700 font-medium"
-                        >
-                          Cancel
-                        </button>
+                        <button onClick={() => { deleteContractor.mutate(c.id); setConfirmDeleteContractor(null); }} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium hover:bg-red-600">Confirm</button>
+                        <button onClick={() => setConfirmDeleteContractor(null)} className="text-xs text-gray-500 hover:text-gray-700 font-medium">Cancel</button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => { setConfirmDeleteContractor(c.id); setSetPasswordFor(null); }}
-                        className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                        Delete Contractor
+                      <button onClick={() => { setConfirmDeleteContractor(c.id); setSetPasswordFor(null); }} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium">
+                        <Trash2 className="w-3 h-3" /> Delete Contractor
                       </button>
                     )}
                   </div>
@@ -742,76 +722,85 @@ export default function AdminDashboard() {
         {/* ── API KEYS ── */}
         {tab === 'apikeys' && (
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">API Keys</h1>
-                <p className="text-sm text-gray-500 mt-1">One key per website. Each site uses its key to send leads to ProBook.</p>
-              </div>
+            <div className="mb-5">
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">API Keys</h1>
+              <p className="text-sm text-gray-500 mt-1">One key per website. Each site uses its key to send leads to ProBook.</p>
             </div>
 
-            {/* Create new key form */}
             <div className="card mb-6">
-              <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <Plus className="w-4 h-4" /> Create New Key
-              </h3>
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              <h3 className="font-semibold mb-4 flex items-center gap-2"><Plus className="w-4 h-4" /> Create New Key</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="label">Key Name *</label>
-                  <input
-                    value={newKeyName}
-                    onChange={e => setNewKeyName(e.target.value)}
-                    className="input"
-                    placeholder="e.g. OilToHeatRebate.com"
-                  />
+                  <input value={newKeyName} onChange={e => setNewKeyName(e.target.value)} className="input" placeholder="e.g. OilToHeatRebate.com" />
                 </div>
                 <div>
                   <label className="label">Site Slug *</label>
-                  <input
-                    value={newKeySlug}
-                    onChange={e => setNewKeySlug(e.target.value)}
-                    className="input"
-                    placeholder="e.g. oil-to-heat-rebate"
-                  />
+                  <input value={newKeySlug} onChange={e => setNewKeySlug(e.target.value)} className="input" placeholder="e.g. oil-to-heat-rebate" />
                   <p className="text-xs text-gray-400 mt-1">Short identifier, lowercase, no spaces</p>
                 </div>
               </div>
-              <button
-                disabled={!newKeyName || !newKeySlug || createApiKey.isPending}
-                onClick={() => createApiKey.mutate({ name: newKeyName, source_slug: newKeySlug })}
-                className="btn-primary disabled:opacity-40"
-              >
+              <button disabled={!newKeyName || !newKeySlug || createApiKey.isPending} onClick={() => createApiKey.mutate({ name: newKeyName, source_slug: newKeySlug })} className="btn-primary disabled:opacity-40">
                 {createApiKey.isPending ? 'Creating...' : 'Generate Key'}
               </button>
             </div>
 
-            {/* Newly created key — shown once */}
             {createdKey && (
               <div className="card mb-6 border-2 border-green-200 bg-green-50">
                 <div className="flex items-start justify-between">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="font-semibold text-green-800 mb-1">Key created for {createdKey.name}</p>
                     <p className="text-xs text-green-600 mb-3">Copy this now — it won't be shown again.</p>
                     <div className="flex items-center gap-2">
-                      <code className="text-sm font-mono bg-white border border-green-200 px-3 py-1.5 rounded-lg text-gray-800 select-all">
+                      <code className="text-xs md:text-sm font-mono bg-white border border-green-200 px-3 py-1.5 rounded-lg text-gray-800 select-all break-all">
                         {createdKey.key}
                       </code>
-                      <button
-                        onClick={() => { navigator.clipboard.writeText(createdKey.key); toast.success('Copied!'); }}
-                        className="p-1.5 text-green-700 hover:bg-green-100 rounded-lg"
-                      >
+                      <button onClick={() => { navigator.clipboard.writeText(createdKey.key); toast.success('Copied!'); }} className="p-1.5 text-green-700 hover:bg-green-100 rounded-lg shrink-0">
                         <Copy className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
-                  <button onClick={() => setCreatedKey(null)} className="text-xs text-green-600 hover:text-green-800 font-medium mt-1">
-                    Dismiss
-                  </button>
+                  <button onClick={() => setCreatedKey(null)} className="text-xs text-green-600 hover:text-green-800 font-medium mt-1 ml-3 shrink-0">Dismiss</button>
                 </div>
               </div>
             )}
 
-            {/* Keys list */}
-            <div className="card p-0 overflow-hidden">
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+              {apiKeys.map(k => (
+                <div key={k.id} className="card p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{k.name}</p>
+                      <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{k.source_slug}</code>
+                    </div>
+                    <span className={`badge ml-2 shrink-0 ${k.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {k.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-3">Last used: {k.last_used_at ? format(parseISO(k.last_used_at), 'MMM d, yyyy') : 'Never'}</p>
+                  <div className="flex items-center gap-3">
+                    {k.is_active ? (
+                      <button onClick={() => deactivateKey.mutate(k.id)} className="text-xs text-yellow-600 font-medium flex items-center gap-1"><EyeOff className="w-3 h-3" /> Deactivate</button>
+                    ) : (
+                      <button onClick={() => activateKey.mutate(k.id)} className="text-xs text-green-600 font-medium flex items-center gap-1"><Eye className="w-3 h-3" /> Activate</button>
+                    )}
+                    {confirmDeleteKey === k.id ? (
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => deleteKey.mutate(k.id)} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium">Confirm</button>
+                        <button onClick={() => setConfirmDeleteKey(null)} className="text-xs text-gray-500 font-medium">Cancel</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setConfirmDeleteKey(k.id)} className="flex items-center gap-1 text-xs text-red-400 font-medium"><Trash2 className="w-3 h-3" /> Delete</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {apiKeys.length === 0 && <p className="text-center py-10 text-gray-400 text-sm">No API keys yet — create one above</p>}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block card p-0 overflow-hidden">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
@@ -823,36 +812,18 @@ export default function AdminDashboard() {
                 <tbody className="divide-y divide-gray-50">
                   {apiKeys.map(k => (
                     <tr key={k.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3"><p className="text-sm font-medium text-gray-900">{k.name}</p></td>
+                      <td className="px-4 py-3"><code className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600">{k.source_slug}</code></td>
                       <td className="px-4 py-3">
-                        <p className="text-sm font-medium text-gray-900">{k.name}</p>
+                        <span className={`badge ${k.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{k.is_active ? 'Active' : 'Inactive'}</span>
                       </td>
-                      <td className="px-4 py-3">
-                        <code className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600">{k.source_slug}</code>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`badge ${k.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {k.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-400">
-                        {k.last_used_at ? format(parseISO(k.last_used_at), 'MMM d, yyyy h:mm a') : 'Never'}
-                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-400">{k.last_used_at ? format(parseISO(k.last_used_at), 'MMM d, yyyy h:mm a') : 'Never'}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           {k.is_active ? (
-                            <button
-                              onClick={() => deactivateKey.mutate(k.id)}
-                              className="text-xs text-yellow-600 hover:text-yellow-700 font-medium flex items-center gap-1"
-                            >
-                              <EyeOff className="w-3 h-3" /> Deactivate
-                            </button>
+                            <button onClick={() => deactivateKey.mutate(k.id)} className="text-xs text-yellow-600 hover:text-yellow-700 font-medium flex items-center gap-1"><EyeOff className="w-3 h-3" /> Deactivate</button>
                           ) : (
-                            <button
-                              onClick={() => activateKey.mutate(k.id)}
-                              className="text-xs text-green-600 hover:text-green-700 font-medium flex items-center gap-1"
-                            >
-                              <Eye className="w-3 h-3" /> Activate
-                            </button>
+                            <button onClick={() => activateKey.mutate(k.id)} className="text-xs text-green-600 hover:text-green-700 font-medium flex items-center gap-1"><Eye className="w-3 h-3" /> Activate</button>
                           )}
                           {confirmDeleteKey === k.id ? (
                             <div className="flex items-center gap-1">
@@ -860,9 +831,7 @@ export default function AdminDashboard() {
                               <button onClick={() => setConfirmDeleteKey(null)} className="text-xs text-gray-500 font-medium">Cancel</button>
                             </div>
                           ) : (
-                            <button onClick={() => setConfirmDeleteKey(k.id)} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium">
-                              <Trash2 className="w-3 h-3" /> Delete
-                            </button>
+                            <button onClick={() => setConfirmDeleteKey(k.id)} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium"><Trash2 className="w-3 h-3" /> Delete</button>
                           )}
                         </div>
                       </td>
@@ -880,8 +849,61 @@ export default function AdminDashboard() {
         {/* ── APPOINTMENTS ── */}
         {tab === 'appointments' && (
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">Appointments</h1>
-            <div className="card p-0 overflow-hidden">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-5">Appointments</h1>
+
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+              {appointments.map(appt => (
+                <div key={appt.id} className="card p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900">{appt.lead_name}</p>
+                      <p className="text-xs text-gray-400">{appt.lead_email}</p>
+                    </div>
+                    <span className={`badge ml-2 shrink-0 ${STATUS_BADGE[appt.status] || 'bg-gray-100 text-gray-600'}`}>{appt.status}</span>
+                  </div>
+                  <p className="text-xs text-gray-600 mb-1">→ {appt.contractor_name}{appt.company_name ? ` · ${appt.company_name}` : ''}</p>
+                  <p className="text-xs text-gray-500 mb-3">
+                    {format(parseISO(appt.scheduled_date), 'EEE, MMM d')} at {fmtTime(appt.scheduled_time)} · {appt.niche_name}
+                  </p>
+                  <div className="flex items-center gap-3">
+                    {appt.status === 'confirmed' && (
+                      <>
+                        <button onClick={() => adminCompleteAppt.mutate(appt.id)} className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                          <CheckCircle className="w-3 h-3" /> Complete
+                        </button>
+                        {confirmCancelAppt === appt.id ? (
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => { adminCancelAppt.mutate(appt.id); setConfirmCancelAppt(null); }} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium">Confirm</button>
+                            <button onClick={() => setConfirmCancelAppt(null)} className="text-xs text-gray-500 font-medium">No</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => setConfirmCancelAppt(appt.id)} className="flex items-center gap-1 text-xs text-red-400 font-medium">
+                            <XCircle className="w-3 h-3" /> Cancel
+                          </button>
+                        )}
+                      </>
+                    )}
+                    {(appt.status === 'cancelled' || appt.status === 'completed') && (
+                      confirmDeleteAppt === appt.id ? (
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => { deleteAppt.mutate(appt.id); setConfirmDeleteAppt(null); }} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium">Delete</button>
+                          <button onClick={() => setConfirmDeleteAppt(null)} className="text-xs text-gray-500 font-medium">No</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setConfirmDeleteAppt(appt.id)} className="flex items-center gap-1 text-xs text-gray-400 font-medium">
+                          <Trash2 className="w-3 h-3" /> Delete
+                        </button>
+                      )
+                    )}
+                  </div>
+                </div>
+              ))}
+              {appointments.length === 0 && <p className="text-center py-10 text-gray-400 text-sm">No appointments yet</p>}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block card p-0 overflow-hidden">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
@@ -913,10 +935,7 @@ export default function AdminDashboard() {
                         <div className="flex items-center gap-2">
                           {appt.status === 'confirmed' && (
                             <>
-                              <button
-                                onClick={() => adminCompleteAppt.mutate(appt.id)}
-                                className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium"
-                              >
+                              <button onClick={() => adminCompleteAppt.mutate(appt.id)} className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium">
                                 <CheckCircle className="w-3 h-3" /> Complete
                               </button>
                               {confirmCancelAppt === appt.id ? (
@@ -938,10 +957,7 @@ export default function AdminDashboard() {
                                 <button onClick={() => setConfirmDeleteAppt(null)} className="text-xs text-gray-500 font-medium">No</button>
                               </div>
                             ) : (
-                              <button
-                                onClick={() => setConfirmDeleteAppt(appt.id)}
-                                className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 font-medium transition-colors"
-                              >
+                              <button onClick={() => setConfirmDeleteAppt(appt.id)} className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 font-medium transition-colors">
                                 <Trash2 className="w-3 h-3" /> Delete
                               </button>
                             )
@@ -958,18 +974,18 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+
         {/* ── NICHES ── */}
         {tab === 'niches' && (
           <div>
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">Niches</h1>
+            <div className="mb-5">
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Niches</h1>
               <p className="text-sm text-gray-500 mt-1">The service categories contractors specialize in. Leads are matched by niche.</p>
             </div>
 
-            {/* Create */}
             <div className="card mb-6">
               <h3 className="font-semibold mb-4 flex items-center gap-2"><Plus className="w-4 h-4" /> Add Niche</h3>
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="label">Name *</label>
                   <input value={newNicheName} onChange={e => setNewNicheName(e.target.value)} className="input" placeholder="e.g. Heat Pump Installation" />
@@ -979,17 +995,50 @@ export default function AdminDashboard() {
                   <input value={newNicheDesc} onChange={e => setNewNicheDesc(e.target.value)} className="input" placeholder="Short description (optional)" />
                 </div>
               </div>
-              <button
-                disabled={!newNicheName || createNiche.isPending}
-                onClick={() => createNiche.mutate({ name: newNicheName, description: newNicheDesc })}
-                className="btn-primary disabled:opacity-40"
-              >
+              <button disabled={!newNicheName || createNiche.isPending} onClick={() => createNiche.mutate({ name: newNicheName, description: newNicheDesc })} className="btn-primary disabled:opacity-40">
                 {createNiche.isPending ? 'Creating…' : 'Create Niche'}
               </button>
             </div>
 
-            {/* List */}
-            <div className="card p-0 overflow-hidden">
+            {/* Mobile list */}
+            <div className="md:hidden space-y-3">
+              {niches.map(n => (
+                <div key={n.id} className="card p-4">
+                  {editingNiche?.id === n.id ? (
+                    <div className="space-y-2">
+                      <input className="input text-sm" value={editingNiche.name} onChange={e => setEditingNiche(p => ({ ...p, name: e.target.value }))} />
+                      <input className="input text-sm" value={editingNiche.description || ''} onChange={e => setEditingNiche(p => ({ ...p, description: e.target.value }))} placeholder="Description" />
+                      <div className="flex gap-2">
+                        <button onClick={() => updateNiche.mutate(editingNiche)} className="text-xs text-green-600 font-medium">Save</button>
+                        <button onClick={() => setEditingNiche(null)} className="text-xs text-gray-500 font-medium">Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900">{n.name}</p>
+                        {n.description && <p className="text-xs text-gray-500 mt-0.5">{n.description}</p>}
+                      </div>
+                      <div className="flex items-center gap-3 ml-3 shrink-0">
+                        <button onClick={() => setEditingNiche({ id: n.id, name: n.name, description: n.description || '' })} className="text-xs text-brand-600 font-medium">Edit</button>
+                        {confirmDeleteNiche === n.id ? (
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => deleteNiche.mutate(n.id)} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium">Confirm</button>
+                            <button onClick={() => setConfirmDeleteNiche(null)} className="text-xs text-gray-500 font-medium">No</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => setConfirmDeleteNiche(n.id)} className="flex items-center gap-1 text-xs text-red-400 font-medium"><Trash2 className="w-3 h-3" /></button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {niches.length === 0 && <p className="text-center py-10 text-gray-400 text-sm">No niches yet</p>}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block card p-0 overflow-hidden">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
@@ -1003,22 +1052,14 @@ export default function AdminDashboard() {
                     <tr key={n.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         {editingNiche?.id === n.id ? (
-                          <input
-                            className="input text-sm py-1"
-                            value={editingNiche.name}
-                            onChange={e => setEditingNiche(p => ({ ...p, name: e.target.value }))}
-                          />
+                          <input className="input text-sm py-1" value={editingNiche.name} onChange={e => setEditingNiche(p => ({ ...p, name: e.target.value }))} />
                         ) : (
                           <p className="text-sm font-medium text-gray-900">{n.name}</p>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         {editingNiche?.id === n.id ? (
-                          <input
-                            className="input text-sm py-1"
-                            value={editingNiche.description || ''}
-                            onChange={e => setEditingNiche(p => ({ ...p, description: e.target.value }))}
-                          />
+                          <input className="input text-sm py-1" value={editingNiche.description || ''} onChange={e => setEditingNiche(p => ({ ...p, description: e.target.value }))} />
                         ) : (
                           <p className="text-sm text-gray-500">{n.description || '—'}</p>
                         )}
@@ -1059,12 +1100,52 @@ export default function AdminDashboard() {
         {/* ── PERFORMANCE ── */}
         {tab === 'performance' && (
           <div>
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">Performance</h1>
+            <div className="mb-5">
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Performance</h1>
               <p className="text-sm text-gray-500 mt-1">Conversion stats for each active contractor.</p>
             </div>
 
-            <div className="card p-0 overflow-hidden">
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+              {performance.map(p => (
+                <div key={p.id} className="card p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{p.name}</p>
+                      {p.company_name && <p className="text-xs text-gray-400">{p.company_name}</p>}
+                    </div>
+                    <span className={`text-sm font-bold ml-2 shrink-0 ${parseFloat(p.conversion_pct) >= 50 ? 'text-green-600' : parseFloat(p.conversion_pct) >= 25 ? 'text-yellow-600' : 'text-red-500'}`}>
+                      {p.conversion_pct}%
+                    </span>
+                  </div>
+                  <span className="badge bg-brand-100 text-brand-700 mb-3">{p.niche_name}</span>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="bg-gray-50 rounded-lg py-2">
+                      <p className="text-sm font-bold text-gray-900">{p.leads_matched}</p>
+                      <p className="text-[10px] text-gray-400">Matched</p>
+                    </div>
+                    <div className="bg-green-50 rounded-lg py-2">
+                      <p className="text-sm font-bold text-green-700">{p.appts_completed}</p>
+                      <p className="text-[10px] text-gray-400">Completed</p>
+                    </div>
+                    <div className="bg-red-50 rounded-lg py-2">
+                      <p className="text-sm font-bold text-red-500">{p.appts_cancelled}</p>
+                      <p className="text-[10px] text-gray-400">Cancelled</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+                      <div className="bg-brand-500 h-1.5 rounded-full" style={{ width: `${Math.min(parseFloat(p.conversion_pct), 100)}%` }} />
+                    </div>
+                    <span className="text-xs text-gray-500">conversion</span>
+                  </div>
+                </div>
+              ))}
+              {performance.length === 0 && <p className="text-center py-10 text-gray-400 text-sm">No data yet — stats appear once leads are matched</p>}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block card p-0 overflow-hidden">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
@@ -1083,19 +1164,12 @@ export default function AdminDashboard() {
                       <td className="px-4 py-3 text-sm text-gray-600">{p.niche_name}</td>
                       <td className="px-4 py-3 text-sm font-medium text-gray-800">{p.leads_matched}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{p.leads_booked}</td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm font-medium text-green-600">{p.appts_completed}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm text-red-500">{p.appts_cancelled}</span>
-                      </td>
+                      <td className="px-4 py-3"><span className="text-sm font-medium text-green-600">{p.appts_completed}</span></td>
+                      <td className="px-4 py-3"><span className="text-sm text-red-500">{p.appts_cancelled}</span></td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="w-20 bg-gray-100 rounded-full h-1.5">
-                            <div
-                              className="bg-brand-500 h-1.5 rounded-full"
-                              style={{ width: `${Math.min(parseFloat(p.conversion_pct), 100)}%` }}
-                            />
+                            <div className="bg-brand-500 h-1.5 rounded-full" style={{ width: `${Math.min(parseFloat(p.conversion_pct), 100)}%` }} />
                           </div>
                           <span className={`text-sm font-semibold ${parseFloat(p.conversion_pct) >= 50 ? 'text-green-600' : parseFloat(p.conversion_pct) >= 25 ? 'text-yellow-600' : 'text-red-500'}`}>
                             {p.conversion_pct}%
@@ -1114,6 +1188,30 @@ export default function AdminDashboard() {
         )}
 
       </div>
+
+      {/* ── Mobile bottom nav ───────────────────────────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50 shadow-lg">
+        <div className="flex overflow-x-auto">
+          {TABS.map(({ id, label, icon: Icon, badge }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`flex-shrink-0 flex flex-col items-center gap-0.5 px-3 py-2.5 text-[10px] font-medium transition-all ${
+                tab === id ? 'text-brand-500' : 'text-gray-400'
+              }`}
+            >
+              <div className="relative">
+                <Icon className="w-5 h-5" />
+                {badge > 0 && (
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-brand-500 rounded-full text-[8px] text-white flex items-center justify-center font-bold leading-none">{badge}</span>
+                )}
+              </div>
+              {label}
+            </button>
+          ))}
+        </div>
+      </nav>
+
     </div>
   );
 }
