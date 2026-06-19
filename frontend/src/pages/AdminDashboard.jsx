@@ -240,7 +240,7 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 w-full max-w-full" style={{overflowX:'hidden'}}>
+    <div className="min-h-screen bg-gray-50 w-full max-w-full" style={{overflowX:'clip'}}>
 
       {/* ── Sidebar (desktop only) ──────────────────────────────────────────── */}
       <div className="hidden md:flex fixed inset-y-0 left-0 w-56 bg-white border-r border-gray-100 flex-col z-10">
@@ -298,7 +298,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── Main content ─────────────────────────────────────────────────────── */}
-      <div className="md:ml-56 p-4 md:p-6 pb-24 md:pb-6 w-full max-w-full overflow-x-hidden">
+      <div className="md:ml-56 p-4 md:p-6 pb-24 md:pb-6 w-full max-w-full" style={{overflowX:'clip'}}>
 
         {/* ── OVERVIEW ── */}
         {tab === 'overview' && (
