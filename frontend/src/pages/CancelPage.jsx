@@ -72,7 +72,7 @@ export default function CancelPage({ mode = 'cancel' }) {
     }
   }
 
-  const bgGradient = 'min-h-screen bg-gradient-to-br from-brand-50 to-purple-50 flex items-center justify-center p-4';
+  const bgGradient = 'min-h-screen bg-gradient-to-br from-brand-50 to-purple-50 flex items-center justify-center p-4 w-full max-w-full overflow-x-hidden';
 
   // ── Loading ──────────────────────────────────────────────────────────────────
   if (status === 'loading') {

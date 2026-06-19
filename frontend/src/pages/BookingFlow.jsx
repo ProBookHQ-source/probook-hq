@@ -55,7 +55,7 @@ export default function BookingFlow() {
 
   if (tokenLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-brand-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-brand-50 to-purple-50 flex items-center justify-center w-full max-w-full overflow-x-hidden">
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-500">Loading your booking page...</p>
@@ -66,7 +66,7 @@ export default function BookingFlow() {
 
   if (tokenError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-brand-50 to-purple-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-brand-50 to-purple-50 flex items-center justify-center p-4 w-full max-w-full overflow-x-hidden">
         <div className="card max-w-md w-full text-center">
           <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">⚠️</span>
@@ -80,7 +80,7 @@ export default function BookingFlow() {
 
   if (confirmed) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center p-4 w-full max-w-full overflow-x-hidden">
         <div className="card max-w-md w-full text-center shadow-xl">
           <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-green-600" />
@@ -107,7 +107,7 @@ export default function BookingFlow() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-purple-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-purple-50 py-8 px-4 w-full max-w-full overflow-x-hidden">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">

@@ -23,7 +23,7 @@ export default function ForgotPassword() {
     }
   }
 
-  const bg = 'min-h-screen bg-gradient-to-br from-brand-50 via-white to-purple-50 flex items-center justify-center p-4';
+  const bg = 'min-h-screen bg-gradient-to-br from-brand-50 via-white to-purple-50 flex items-center justify-center p-4 w-full max-w-full overflow-x-hidden';
 
   if (sent) {
     return (

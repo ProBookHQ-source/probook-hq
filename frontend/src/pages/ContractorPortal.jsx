@@ -536,7 +536,7 @@ export default function ContractorPortal() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
+    <div className="flex h-screen bg-gray-50 overflow-hidden font-sans w-full max-w-full">
 
       {/* ── Sidebar (desktop only) ─────────────────────────────────────────── */}
       <aside className="hidden md:flex w-56 bg-white border-r border-gray-100 flex-col shrink-0 shadow-sm">

@@ -240,7 +240,7 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 w-full max-w-full" style={{overflowX:'hidden'}}>
 
       {/* ── Sidebar (desktop only) ──────────────────────────────────────────── */}
       <div className="hidden md:flex fixed inset-y-0 left-0 w-56 bg-white border-r border-gray-100 flex-col z-10">
@@ -285,7 +285,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── Mobile header ───────────────────────────────────────────────────── */}
-      <div className="md:hidden sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
+      <div className="md:hidden sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 w-full max-w-full">
         <img src="/probook-icon-128.png" alt="ProBook" className="w-7 h-7 rounded-lg" />
         <div className="flex-1">
           <p className="font-bold text-gray-900 text-sm leading-none">ProBook</p>
@@ -298,7 +298,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── Main content ─────────────────────────────────────────────────────── */}
-      <div className="md:ml-56 p-4 md:p-6 pb-24 md:pb-6">
+      <div className="md:ml-56 p-4 md:p-6 pb-24 md:pb-6 w-full max-w-full overflow-x-hidden">
 
         {/* ── OVERVIEW ── */}
         {tab === 'overview' && (

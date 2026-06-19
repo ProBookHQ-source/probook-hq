@@ -61,7 +61,7 @@ export default function ContractorApply() {
     }
   }
 
-  const bg = 'min-h-screen bg-gradient-to-br from-brand-50 via-white to-purple-50 flex items-center justify-center p-4';
+  const bg = 'min-h-screen bg-gradient-to-br from-brand-50 via-white to-purple-50 flex items-center justify-center p-4 w-full max-w-full overflow-x-hidden';
 
   if (done) {
     return (
@@ -136,7 +136,7 @@ export default function ContractorApply() {
           <p className="text-gray-500 text-sm mt-1">Apply to join the contractor network</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg p-8">
+        <div className="bg-white rounded-2xl shadow-lg p-5 sm:p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
 
             {/* Account info */}

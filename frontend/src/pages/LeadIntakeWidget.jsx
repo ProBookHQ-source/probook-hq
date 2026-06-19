@@ -50,7 +50,7 @@ export default function LeadIntakeWidget() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-brand-50 to-purple-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-brand-50 to-purple-50 flex items-center justify-center p-4 w-full max-w-full overflow-x-hidden">
         <div className="card max-w-md w-full text-center shadow-xl">
           <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-green-600" />
@@ -79,7 +79,7 @@ export default function LeadIntakeWidget() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-purple-50 flex items-center justify-center p-4 w-full max-w-full overflow-x-hidden">
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="text-center mb-8">
@@ -90,17 +90,19 @@ export default function LeadIntakeWidget() {
 
         <div className="card shadow-xl">
           <form onSubmit={handleSubmit(d => submitLead.mutate(d))} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="label">Your Name *</label>
-                <input
-                  {...register('name', { required: 'Name is required' })}
-                  className="input"
-                  placeholder="Jane Smith"
-                />
-                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
-              </div>
+            {/* Name */}
+            <div>
+              <label className="label">Your Name *</label>
+              <input
+                {...register('name', { required: 'Name is required' })}
+                className="input"
+                placeholder="Jane Smith"
+              />
+              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
+            </div>
 
+            {/* Email + Phone */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Email *</label>
                 <input
@@ -114,7 +116,6 @@ export default function LeadIntakeWidget() {
                 />
                 {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
               </div>
-
               <div>
                 <label className="label">Phone</label>
                 <input
@@ -130,7 +131,10 @@ export default function LeadIntakeWidget() {
                 />
                 {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
               </div>
+            </div>
 
+            {/* Service Type + Zip */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Service Type *</label>
                 <select
@@ -143,7 +147,6 @@ export default function LeadIntakeWidget() {
                 </select>
                 {errors.niche_id && <p className="text-red-500 text-xs mt-1">{errors.niche_id.message}</p>}
               </div>
-
               <div>
                 <label className="label">Zip Code *</label>
                 <input
@@ -157,16 +160,17 @@ export default function LeadIntakeWidget() {
                 />
                 {errors.zip_code && <p className="text-red-500 text-xs mt-1">{errors.zip_code.message}</p>}
               </div>
+            </div>
 
-              <div className="col-span-2">
-                <label className="label">Describe Your Project</label>
-                <textarea
-                  {...register('description')}
-                  className="input resize-none"
-                  rows={3}
-                  placeholder="Tell us what needs to be done..."
-                />
-              </div>
+            {/* Description */}
+            <div>
+              <label className="label">Describe Your Project</label>
+              <textarea
+                {...register('description')}
+                className="input resize-none"
+                rows={3}
+                placeholder="Tell us what needs to be done..."
+              />
             </div>
 
             <button
