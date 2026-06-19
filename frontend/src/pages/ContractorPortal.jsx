@@ -90,7 +90,7 @@ function TimeSelect({ value, onChange }) {
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:border-brand-300 hover:bg-gray-50 transition-all focus:outline-none focus:ring-2 focus:ring-brand-300 w-[110px]"
+        className="flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:border-brand-300 hover:bg-gray-50 transition-all focus:outline-none focus:ring-2 focus:ring-brand-300 w-[96px]"
       >
         <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
         <span className="flex-1 text-left">{fmtTime(value)}</span>
@@ -597,7 +597,7 @@ export default function ContractorPortal() {
 
         {/* ════════════════ HOME ════════════════ */}
         {tab === 'home' && (
-          <div className="flex-1 overflow-y-auto pb-16 md:pb-0">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden pb-16 md:pb-0">
             <div className="max-w-3xl mx-auto px-4 md:px-8 py-6 md:py-8">
 
               {/* Greeting */}
@@ -764,11 +764,11 @@ export default function ContractorPortal() {
 
             {/* Block Time form */}
             {showBlockForm && (
-              <div className="border-b border-gray-100 bg-gray-50 px-6 py-5">
-                <div className="flex items-start gap-6">
+              <div className="border-b border-gray-100 bg-gray-50 px-4 md:px-6 py-5 overflow-x-hidden">
+                <div className="flex flex-col md:flex-row items-start gap-4 md:gap-6">
 
                   {/* Mini month calendar */}
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 shrink-0 w-64">
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 w-full md:w-64 md:shrink-0">
                     {/* Month nav */}
                     <div className="flex items-center justify-between mb-3">
                       <button
@@ -893,7 +893,7 @@ export default function ContractorPortal() {
             )}
 
             {/* ── Mobile: appointment list view ─────────────────────────────── */}
-            <div className="md:hidden flex-1 overflow-y-auto pb-16">
+            <div className="md:hidden flex-1 overflow-y-auto overflow-x-hidden pb-16">
               <div className="p-4 space-y-5">
                 {Array.from({ length: 7 }, (_, i) => {
                   const day     = addDays(weekStart, i);
@@ -981,7 +981,7 @@ export default function ContractorPortal() {
             </div>
 
             {/* Time grid (desktop only) */}
-            <div className="hidden md:block flex-1 overflow-y-auto">
+            <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden">
               <div style={{ display: 'grid', gridTemplateColumns: '64px repeat(7, 1fr)' }}>
 
                 {/* Time labels */}
@@ -1102,7 +1102,7 @@ export default function ContractorPortal() {
 
         {/* ════════════════ AVAILABILITY ════════════════ */}
         {tab === 'availability' && (
-          <div className="flex-1 overflow-y-auto pb-16 md:pb-0">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden pb-16 md:pb-0">
             <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 md:py-8 space-y-10">
 
               {/* Weekly schedule */}
@@ -1167,7 +1167,7 @@ export default function ContractorPortal() {
 
                         {/* Time pickers */}
                         {active ? (
-                          <div className="flex items-center gap-3 flex-1 pl-[52px] md:pl-0">
+                          <div className="flex items-center gap-2 flex-1 pl-10 md:pl-0">
                             <TimeSelect
                               value={val.start}
                               onChange={v => setAvailability(p => ({ ...p, [idx]: { ...val, start: v } }))}
@@ -1190,7 +1190,7 @@ export default function ContractorPortal() {
                             </button>
                           </div>
                         ) : (
-                          <span className="text-sm text-gray-300 pl-[52px] md:pl-0">Not available</span>
+                          <span className="text-sm text-gray-300 pl-10 md:pl-0">Not available</span>
                         )}
                       </div>
                     );
@@ -1376,7 +1376,7 @@ export default function ContractorPortal() {
 
         {/* ════════════════ SETTINGS ════════════════ */}
         {tab === 'settings' && (
-          <div className="flex-1 overflow-y-auto pb-16 md:pb-0">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden pb-16 md:pb-0">
             <div className="max-w-xl mx-auto px-4 md:px-8 py-6 md:py-8">
               <h1 className="text-xl font-bold text-gray-900 mb-8">Settings</h1>
 
