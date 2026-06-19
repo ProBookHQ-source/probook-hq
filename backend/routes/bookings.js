@@ -131,9 +131,10 @@ router.post('/book', async (req, res) => {
     if (!override.is_available) {
       return res.status(409).json({ error: 'The contractor is not available on that date. Please pick another time.' });
     }
-    // Override with custom hours
+    // Override with custom hours — normalize to HH:MM (PG may return HH:MM:SS)
     if (override.start_time && override.end_time) {
-      slotValid = time >= override.start_time && time < override.end_time;
+      const t = time.slice(0, 5);
+      slotValid = t >= override.start_time.slice(0, 5) && t < override.end_time.slice(0, 5);
     }
   }
 
@@ -141,7 +142,8 @@ router.post('/book', async (req, res) => {
     const weeklySlots = await db.prepare(
       'SELECT * FROM availability_slots WHERE contractor_id = $1 AND day_of_week = $2 AND is_active = 1'
     ).all(lead.assigned_contractor_id, dayOfWeek);
-    slotValid = weeklySlots.some(s => time >= s.start_time && time < s.end_time);
+    const t = time.slice(0, 5);
+    slotValid = weeklySlots.some(s => t >= s.start_time.slice(0, 5) && t < s.end_time.slice(0, 5));
   }
 
   if (!slotValid) {

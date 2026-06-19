@@ -246,6 +246,7 @@ export default function ContractorPortal() {
     max_appointments_per_day: '',
   });
   const [zipInput, setZipInput] = useState('');
+  const [isDirty, setIsDirty] = useState(false);
   const isLoadingFromSlots = useRef(false);
 
   const from     = format(weekStart, 'yyyy-MM-dd');
@@ -312,13 +313,13 @@ export default function ContractorPortal() {
     slots.forEach(s => { map[s.day_of_week] = { start: s.start_time, end: s.end_time }; });
     isLoadingFromSlots.current = true;
     setAvailability(map);
+    setIsDirty(false);
   }, [slots]);
 
-  // Auto-save schedule after user changes (skip the initial load from DB)
+  // Mark schedule as dirty when user makes changes (skip initial DB load)
   useEffect(() => {
     if (isLoadingFromSlots.current) { isLoadingFromSlots.current = false; return; }
-    const timer = setTimeout(() => { saveAvailability.mutate(); }, 1000);
-    return () => clearTimeout(timer);
+    setIsDirty(true);
   }, [availability]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const overridesFrom = format(new Date(), 'yyyy-MM-dd');
@@ -385,7 +386,7 @@ export default function ContractorPortal() {
       }));
       return api.put(`/availability/${user.id}/slots`, payload);
     },
-    onSuccess: () => { toast.success('Schedule saved!'); qc.invalidateQueries(['slots']); },
+    onSuccess: () => { toast.success('Schedule saved!'); qc.invalidateQueries(['slots']); setIsDirty(false); },
     onError: (err) => toast.error(err.message || 'Failed to save'),
   });
 
@@ -537,8 +538,8 @@ export default function ContractorPortal() {
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
 
-      {/* ── Sidebar ────────────────────────────────────────────────────────── */}
-      <aside className="w-56 bg-white border-r border-gray-100 flex flex-col shrink-0 shadow-sm">
+      {/* ── Sidebar (desktop only) ─────────────────────────────────────────── */}
+      <aside className="hidden md:flex w-56 bg-white border-r border-gray-100 flex-col shrink-0 shadow-sm">
         {/* Logo */}
         <div className="px-5 pt-6 pb-5">
           <div className="flex items-center gap-2.5">
@@ -552,7 +553,12 @@ export default function ContractorPortal() {
           {NAV.map(({ id, label, icon: Icon, badge }) => (
             <button
               key={id}
-              onClick={() => setTab(id)}
+              onClick={() => {
+                if (isDirty && tab === 'availability' && id !== 'availability') {
+                  toast('Don\'t forget to save your schedule!', { icon: '⚠️' });
+                }
+                setTab(id);
+              }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left ${
                 tab === id
                   ? 'bg-brand-500 text-white shadow-sm'
@@ -591,8 +597,8 @@ export default function ContractorPortal() {
 
         {/* ════════════════ HOME ════════════════ */}
         {tab === 'home' && (
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-3xl mx-auto px-8 py-8">
+          <div className="flex-1 overflow-y-auto pb-16 md:pb-0">
+            <div className="max-w-3xl mx-auto px-4 md:px-8 py-6 md:py-8">
 
               {/* Greeting */}
               <div className="mb-8">
@@ -725,8 +731,8 @@ export default function ContractorPortal() {
         {tab === 'calendar' && (
           <div className="flex-1 flex flex-col overflow-hidden bg-white">
 
-            {/* Calendar toolbar */}
-            <div className="border-b border-gray-100 px-6 py-3 flex items-center gap-4 bg-white">
+            {/* ── Shared toolbar ──────────────────────────────────────────────── */}
+            <div className="border-b border-gray-100 px-4 md:px-6 py-3 flex items-center gap-3 md:gap-4 bg-white">
               <button
                 onClick={() => setWeekStart(startOfWeek(new Date()))}
                 className="text-sm font-semibold text-white bg-brand-500 rounded-lg px-4 py-1.5 hover:bg-brand-600 transition-all shadow-sm"
@@ -886,8 +892,61 @@ export default function ContractorPortal() {
               </div>
             )}
 
+            {/* ── Mobile: appointment list view ─────────────────────────────── */}
+            <div className="md:hidden flex-1 overflow-y-auto pb-16">
+              <div className="p-4 space-y-5">
+                {Array.from({ length: 7 }, (_, i) => {
+                  const day     = addDays(weekStart, i);
+                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const dayAppts = appointments.filter(a => a.scheduled_date === dateStr && a.status !== 'external' && a.status !== 'cancelled');
+                  const blocked  = appointments.filter(a => a.scheduled_date === dateStr && a.status === 'external');
+                  const isDayOff = overrides.some(o => o.date === dateStr && !o.is_available);
+                  const isToday  = dateStr === todayStr;
+                  const isPast   = isBefore(startOfDay(day), startOfDay(new Date()));
+                  return (
+                    <div key={dateStr}>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
+                          isDayOff ? 'bg-red-100 text-red-400' :
+                          isToday  ? 'bg-brand-500 text-white' :
+                          isPast   ? 'bg-gray-100 text-gray-300' : 'bg-gray-100 text-gray-700'
+                        }`}>{format(day, 'd')}</div>
+                        <div className="flex-1">
+                          <p className={`text-sm font-bold ${isToday ? 'text-brand-600' : isPast ? 'text-gray-300' : 'text-gray-900'}`}>{format(day, 'EEEE')}</p>
+                          <p className="text-xs text-gray-400">{format(day, 'MMMM d')}</p>
+                        </div>
+                        {isDayOff && <span className="text-xs font-bold text-red-400 bg-red-50 px-2 py-1 rounded-full">Day Off</span>}
+                      </div>
+                      {dayAppts.length === 0 && blocked.length === 0 && !isDayOff && (
+                        <p className="text-xs text-gray-300 ml-13 pl-1">No appointments</p>
+                      )}
+                      {dayAppts.map(appt => (
+                        <div key={appt.id} className={`ml-13 mb-2 rounded-xl px-4 py-3 ${(APPT_COLORS[appt.status] || APPT_COLORS.confirmed).block}`}>
+                          <p className="text-xs font-semibold opacity-80">{fmtTime(appt.scheduled_time)}</p>
+                          <p className="text-sm font-bold leading-tight">{appt.lead_name}</p>
+                          <p className="text-xs opacity-75">{appt.niche_name}</p>
+                          {appt.lead_phone && (
+                            <a href={`tel:${appt.lead_phone}`} className="inline-flex items-center gap-1.5 mt-2 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all">
+                              <Phone className="w-3 h-3" /> Call
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                      {blocked.length > 0 && (
+                        <div className="ml-13 mb-2 rounded-xl px-4 py-3 bg-gray-100 border border-dashed border-gray-300">
+                          <p className="text-xs font-semibold text-gray-500">{blocked.length} blocked slot{blocked.length > 1 ? 's' : ''}</p>
+                          {blocked.map(b => <p key={b.id} className="text-xs text-gray-400">{fmtTime(b.scheduled_time)}</p>)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ── Desktop: weekly grid ───────────────────────────────────────── */}
             {/* Day headers */}
-            <div className="border-b border-gray-200 grid bg-white" style={{ gridTemplateColumns: '64px repeat(7, 1fr)' }}>
+            <div className="hidden md:grid border-b border-gray-200 bg-white" style={{ gridTemplateColumns: '64px repeat(7, 1fr)' }}>
               <div /> {/* time spacer */}
               {Array.from({ length: 7 }, (_, i) => {
                 const day       = addDays(weekStart, i);
@@ -921,8 +980,8 @@ export default function ContractorPortal() {
               })}
             </div>
 
-            {/* Time grid */}
-            <div className="flex-1 overflow-y-auto">
+            {/* Time grid (desktop only) */}
+            <div className="hidden md:block flex-1 overflow-y-auto">
               <div style={{ display: 'grid', gridTemplateColumns: '64px repeat(7, 1fr)' }}>
 
                 {/* Time labels */}
@@ -1043,8 +1102,8 @@ export default function ContractorPortal() {
 
         {/* ════════════════ AVAILABILITY ════════════════ */}
         {tab === 'availability' && (
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-2xl mx-auto px-8 py-8 space-y-10">
+          <div className="flex-1 overflow-y-auto pb-16 md:pb-0">
+            <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 md:py-8 space-y-10">
 
               {/* Weekly schedule */}
               <div>
@@ -1056,9 +1115,14 @@ export default function ContractorPortal() {
                   <button
                     onClick={() => saveAvailability.mutate()}
                     disabled={saveAvailability.isPending}
-                    className="btn-primary shrink-0"
+                    className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-all shadow-sm ${
+                      isDirty
+                        ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                        : 'bg-brand-500 hover:bg-brand-600 text-white opacity-60 cursor-default'
+                    }`}
                   >
-                    {saveAvailability.isPending ? 'Saving…' : 'Save Schedule'}
+                    {isDirty && <span className="w-2 h-2 rounded-full bg-white shrink-0" />}
+                    {saveAvailability.isPending ? 'Saving…' : isDirty ? 'Save Changes' : 'Saved ✓'}
                   </button>
                 </div>
 
@@ -1069,27 +1133,41 @@ export default function ContractorPortal() {
                     return (
                       <div
                         key={idx}
-                        className={`flex items-center gap-4 px-5 py-4 border-b border-gray-50 last:border-b-0 transition-colors ${
+                        className={`flex flex-col md:flex-row md:items-center gap-2 md:gap-4 px-4 md:px-5 py-3 md:py-4 border-b border-gray-50 last:border-b-0 transition-colors ${
                           active ? 'bg-brand-50/50' : ''
                         }`}
                       >
-                        {/* Toggle */}
-                        <Toggle
-                          checked={active}
-                          onChange={(checked) => {
-                            if (checked) setAvailability(p => ({ ...p, [idx]: { start: '09:00', end: '17:00' } }));
-                            else setAvailability(p => { const n = { ...p }; delete n[idx]; return n; });
-                          }}
-                        />
-
-                        {/* Day name */}
-                        <span className={`text-sm font-semibold w-24 ${active ? 'text-gray-900' : 'text-gray-300'}`}>
-                          {day}
-                        </span>
+                        {/* Toggle + Day name row */}
+                        <div className="flex items-center gap-3">
+                          <Toggle
+                            checked={active}
+                            onChange={(checked) => {
+                              if (checked) setAvailability(p => ({ ...p, [idx]: { start: '09:00', end: '17:00' } }));
+                              else setAvailability(p => { const n = { ...p }; delete n[idx]; return n; });
+                            }}
+                          />
+                          <span className={`text-sm font-semibold md:w-24 flex-1 ${active ? 'text-gray-900' : 'text-gray-300'}`}>
+                            {day}
+                          </span>
+                          {/* Apply to all — mobile only (shown inline with toggle row) */}
+                          {active && (
+                            <button
+                              type="button"
+                              onClick={() => setAvailability(p => {
+                                const updated = { ...p };
+                                Object.keys(updated).forEach(k => { updated[k] = { start: availability[idx].start, end: availability[idx].end }; });
+                                return updated;
+                              })}
+                              className="md:hidden text-xs text-brand-500 hover:text-brand-700 font-medium"
+                            >
+                              Apply to all
+                            </button>
+                          )}
+                        </div>
 
                         {/* Time pickers */}
                         {active ? (
-                          <div className="flex items-center gap-3 flex-1">
+                          <div className="flex items-center gap-3 flex-1 pl-[52px] md:pl-0">
                             <TimeSelect
                               value={val.start}
                               onChange={v => setAvailability(p => ({ ...p, [idx]: { ...val, start: v } }))}
@@ -1106,13 +1184,13 @@ export default function ContractorPortal() {
                                 Object.keys(updated).forEach(k => { updated[k] = { start: val.start, end: val.end }; });
                                 return updated;
                               })}
-                              className="text-xs text-brand-500 hover:text-brand-700 font-medium whitespace-nowrap ml-2"
+                              className="hidden md:block text-xs text-brand-500 hover:text-brand-700 font-medium whitespace-nowrap ml-2"
                             >
                               Apply to all
                             </button>
                           </div>
                         ) : (
-                          <span className="text-sm text-gray-300">Not available</span>
+                          <span className="text-sm text-gray-300 pl-[52px] md:pl-0">Not available</span>
                         )}
                       </div>
                     );
@@ -1298,8 +1376,8 @@ export default function ContractorPortal() {
 
         {/* ════════════════ SETTINGS ════════════════ */}
         {tab === 'settings' && (
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-xl mx-auto px-8 py-8">
+          <div className="flex-1 overflow-y-auto pb-16 md:pb-0">
+            <div className="max-w-xl mx-auto px-4 md:px-8 py-6 md:py-8">
               <h1 className="text-xl font-bold text-gray-900 mb-8">Settings</h1>
 
               <div className="space-y-6">
@@ -1433,8 +1511,8 @@ export default function ContractorPortal() {
                   </div>
                 </div>
 
-                {/* Google Calendar */}
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                {/* Google Calendar — hidden until GOOGLE_CLIENT_ID/SECRET are set in Railway */}
+                {false && <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <LinkIcon className="w-4 h-4 text-brand-500" />
@@ -1457,7 +1535,7 @@ export default function ContractorPortal() {
                       </p>
                     )}
                   </div>
-                </div>
+                </div>}
 
               </div>
             </div>
@@ -1465,6 +1543,34 @@ export default function ContractorPortal() {
         )}
 
       </div>
+
+      {/* ── Mobile bottom nav ──────────────────────────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex z-50 shadow-lg">
+        {NAV.map(({ id, label, icon: Icon, badge }) => (
+          <button
+            key={id}
+            onClick={() => {
+              if (isDirty && tab === 'availability' && id !== 'availability') {
+                toast('Don\'t forget to save your schedule!', { icon: '⚠️' });
+              }
+              setTab(id);
+            }}
+            className={`flex-1 flex flex-col items-center gap-0.5 py-3 text-[11px] font-medium transition-all ${
+              tab === id ? 'text-brand-500' : 'text-gray-400'
+            }`}
+          >
+            <div className="relative">
+              <Icon className="w-5 h-5" />
+              {badge ? (
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-brand-500 rounded-full text-[8px] text-white flex items-center justify-center font-bold leading-none">
+                  {badge}
+                </span>
+              ) : null}
+            </div>
+            {label}
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
