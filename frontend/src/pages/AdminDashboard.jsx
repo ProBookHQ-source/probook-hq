@@ -240,7 +240,7 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 w-full max-w-full" style={{overflowX:'clip'}}>
+    <div className="min-h-screen bg-gray-50 w-full max-w-full">
 
       {/* ── Sidebar (desktop only) ──────────────────────────────────────────── */}
       <div className="hidden md:flex fixed inset-y-0 left-0 w-56 bg-white border-r border-gray-100 flex-col z-10">
@@ -298,7 +298,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── Main content ─────────────────────────────────────────────────────── */}
-      <div className="md:ml-56 p-4 md:p-6 pb-24 md:pb-6 w-full max-w-full" style={{overflowX:'clip'}}>
+      <div className="md:ml-56 p-4 md:p-6 pb-24 md:pb-6 w-full max-w-full">
 
         {/* ── OVERVIEW ── */}
         {tab === 'overview' && (
@@ -321,12 +321,12 @@ export default function AdminDashboard() {
                 <h3 className="font-semibold mb-4">Recent Leads</h3>
                 <div className="space-y-3">
                   {leads.slice(0, 5).map(lead => (
-                    <div key={lead.id} className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{lead.name}</p>
-                        <p className="text-xs text-gray-400">{lead.niche_name} · {lead.zip_code}</p>
+                    <div key={lead.id} className="flex items-center justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{lead.name}</p>
+                        <p className="text-xs text-gray-400 truncate">{lead.niche_name} · {lead.zip_code}</p>
                       </div>
-                      <span className={`badge ${STATUS_BADGE[lead.status]}`}>{lead.status}</span>
+                      <span className={`badge shrink-0 ${STATUS_BADGE[lead.status]}`}>{lead.status}</span>
                     </div>
                   ))}
                   {leads.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No leads yet</p>}
@@ -337,11 +337,9 @@ export default function AdminDashboard() {
                 <h3 className="font-semibold mb-4">Upcoming Appointments</h3>
                 <div className="space-y-3">
                   {appointments.filter(a => a.status === 'confirmed').slice(0, 5).map(appt => (
-                    <div key={appt.id} className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{appt.lead_name}</p>
-                        <p className="text-xs text-gray-400">{format(parseISO(appt.scheduled_date), 'MMM d')} at {fmtTime(appt.scheduled_time)} · {appt.contractor_name}</p>
-                      </div>
+                    <div key={appt.id} className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{appt.lead_name}</p>
+                      <p className="text-xs text-gray-400 truncate">{format(parseISO(appt.scheduled_date), 'MMM d')} at {fmtTime(appt.scheduled_time)} · {appt.contractor_name}</p>
                     </div>
                   ))}
                   {appointments.filter(a => a.status === 'confirmed').length === 0 && (
@@ -376,7 +374,7 @@ export default function AdminDashboard() {
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{lead.name}</p>
-                      <p className="text-xs text-gray-400">{lead.email}</p>
+                      <p className="text-xs text-gray-400 truncate">{lead.email}</p>
                       {lead.phone && <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" />{lead.phone}</p>}
                     </div>
                     <span className={`badge ml-2 shrink-0 ${STATUS_BADGE[lead.status]}`}>{lead.status}</span>
@@ -534,7 +532,7 @@ export default function AdminDashboard() {
                           <span className="badge bg-brand-100 text-brand-700">{c.niche_name}</span>
                         </div>
                         <div className="flex items-center gap-3 mt-1 flex-wrap">
-                          <p className="text-xs text-gray-500">{c.email}</p>
+                          <p className="text-xs text-gray-500 truncate max-w-[200px]">{c.email}</p>
                           {c.phone && <p className="text-xs text-gray-500">{c.phone}</p>}
                           <p className="text-xs text-gray-400">
                             {(() => { try { const z = JSON.parse(c.service_zip_codes); return z.join(', '); } catch { return c.service_zip_codes; } })()}
@@ -658,17 +656,17 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {contractors.filter(c => !(c.applied_at && !c.is_active)).map(c => (
                 <div key={c.id} className={`card ${!c.is_active ? 'opacity-60' : ''}`}>
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="font-semibold text-gray-900">{c.name}</p>
-                      {c.company_name && <p className="text-sm text-gray-500">{c.company_name}</p>}
+                  <div className="flex items-start justify-between mb-3 gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 truncate">{c.name}</p>
+                      {c.company_name && <p className="text-sm text-gray-500 truncate">{c.company_name}</p>}
                     </div>
                     <span className={`badge ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                       {c.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 mb-1">{c.email}</p>
-                  <p className="text-xs text-gray-500 mb-2">{c.phone}</p>
+                  <p className="text-xs text-gray-500 mb-1 truncate">{c.email}</p>
+                  <p className="text-xs text-gray-500 mb-2 truncate">{c.phone}</p>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="badge bg-brand-100 text-brand-700">{c.niche_name}</span>
                     <span className="text-xs text-gray-400">
@@ -858,12 +856,12 @@ export default function AdminDashboard() {
                 <div key={appt.id} className="card p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900">{appt.lead_name}</p>
-                      <p className="text-xs text-gray-400">{appt.lead_email}</p>
+                      <p className="text-sm font-semibold text-gray-900 truncate">{appt.lead_name}</p>
+                      <p className="text-xs text-gray-400 truncate">{appt.lead_email}</p>
                     </div>
                     <span className={`badge ml-2 shrink-0 ${STATUS_BADGE[appt.status] || 'bg-gray-100 text-gray-600'}`}>{appt.status}</span>
                   </div>
-                  <p className="text-xs text-gray-600 mb-1">→ {appt.contractor_name}{appt.company_name ? ` · ${appt.company_name}` : ''}</p>
+                  <p className="text-xs text-gray-600 mb-1 truncate">→ {appt.contractor_name}{appt.company_name ? ` · ${appt.company_name}` : ''}</p>
                   <p className="text-xs text-gray-500 mb-3">
                     {format(parseISO(appt.scheduled_date), 'EEE, MMM d')} at {fmtTime(appt.scheduled_time)} · {appt.niche_name}
                   </p>

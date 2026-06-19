@@ -150,8 +150,8 @@ function AppointmentCard({ appt, confirmCancelId, setConfirmCancelId, cancelAppt
               {STATUS_LABEL[appt.status] || appt.status}
             </span>
           </div>
-          <p className="font-bold text-gray-900 text-lg leading-snug">{appt.lead_name}</p>
-          <p className="text-sm text-gray-400 mb-3">{appt.niche_name}</p>
+          <p className="font-bold text-gray-900 text-lg leading-snug truncate">{appt.lead_name}</p>
+          <p className="text-sm text-gray-400 mb-3 truncate">{appt.niche_name}</p>
           {appt.lead_description && (
             <p className="text-xs text-gray-400 mb-3 leading-relaxed line-clamp-2 italic">
               "{appt.lead_description}"
@@ -638,8 +638,8 @@ export default function ContractorPortal() {
                     <p className="text-brand-200 text-xs font-semibold uppercase tracking-widest mb-1">
                       {isToday ? '📅 Your Next Job — Today' : `📅 Your Next Job — ${format(parseISO(nextJob.scheduled_date), 'EEEE, MMM d')}`}
                     </p>
-                    <p className="text-2xl font-bold mb-0.5">{nextJob.lead_name}</p>
-                    <p className="text-brand-200 text-sm mb-4">{fmtTime(nextJob.scheduled_time)} · {nextJob.niche_name}</p>
+                    <p className="text-2xl font-bold mb-0.5 truncate">{nextJob.lead_name}</p>
+                    <p className="text-brand-200 text-sm mb-4 truncate">{fmtTime(nextJob.scheduled_time)} · {nextJob.niche_name}</p>
                     {nextJob.lead_phone && (
                       <a
                         href={`tel:${nextJob.lead_phone}`}
