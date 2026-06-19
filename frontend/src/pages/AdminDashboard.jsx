@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatPhone } from '../utils/formatPhone';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 function fmtTime(t) {
   if (!t) return '';
@@ -8,7 +9,6 @@ function fmtTime(t) {
   const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
@@ -46,6 +46,7 @@ export default function AdminDashboard() {
   const [newKeySlug, setNewKeySlug] = useState('');
   const [createdKey, setCreatedKey] = useState(null);
   const [confirmDeleteKey, setConfirmDeleteKey] = useState(null);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const qc = useQueryClient();
 
   const { data: leads = [] } = useQuery({
@@ -305,12 +306,12 @@ export default function AdminDashboard() {
             <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-5">Dashboard</h1>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
               {stats.map(({ label, value, icon: Icon, color, bg }) => (
-                <div key={label} className="card">
-                  <div className={`inline-flex items-center justify-center w-9 h-9 md:w-10 md:h-10 ${bg} rounded-xl mb-3`}>
-                    <Icon className={`w-4 h-4 md:w-5 md:h-5 ${color}`} />
+                <div key={label} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+                  <div className={`inline-flex items-center justify-center w-8 h-8 md:w-10 md:h-10 ${bg} rounded-xl mb-2`}>
+                    <Icon className={`w-4 h-4 ${color}`} />
                   </div>
                   <p className="text-xl md:text-2xl font-bold text-gray-900">{value}</p>
-                  <p className="text-xs md:text-sm text-gray-500">{label}</p>
+                  <p className="text-xs text-gray-500 leading-tight">{label}</p>
                 </div>
               ))}
             </div>
@@ -1190,13 +1191,59 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── Mobile bottom nav ───────────────────────────────────────────────── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50 shadow-lg">
-        <div className="flex overflow-x-auto">
-          {TABS.map(({ id, label, icon: Icon, badge }) => (
+      {/* "More" backdrop */}
+      {showMoreMenu && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/30"
+          onClick={() => setShowMoreMenu(false)}
+        />
+      )}
+
+      {/* "More" sheet */}
+      {showMoreMenu && (
+        <div className="md:hidden fixed bottom-16 left-0 right-0 z-50 bg-white border-t border-gray-100 shadow-2xl rounded-t-2xl px-4 py-3">
+          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+          {[
+            { id: 'apikeys',     label: 'API Keys',   icon: ShieldCheck },
+            { id: 'performance', label: 'Performance', icon: BarChart2 },
+            { id: 'niches',      label: 'Niches',      icon: Zap },
+          ].map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => setTab(id)}
-              className={`flex-shrink-0 flex flex-col items-center gap-0.5 px-3 py-2.5 text-[10px] font-medium transition-all ${
+              onClick={() => { setTab(id); setShowMoreMenu(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all mb-1 ${
+                tab === id ? 'bg-brand-50 text-brand-600' : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              {label}
+            </button>
+          ))}
+          <div className="border-t border-gray-100 mt-2 pt-2">
+            <button
+              onClick={logout}
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-all"
+            >
+              <LogOut className="w-5 h-5" />
+              Logout
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom tab bar — 4 primary tabs + More */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50 shadow-lg">
+        <div className="flex">
+          {[
+            { id: 'overview',     label: 'Overview',     icon: LayoutDashboard },
+            { id: 'leads',        label: 'Leads',         icon: FileText,   badge: leads.filter(l => l.status === 'new').length },
+            { id: 'contractors',  label: 'Contractors',   icon: Users,      badge: pendingContractors.length },
+            { id: 'appointments', label: 'Appointments',  icon: Calendar },
+          ].map(({ id, label, icon: Icon, badge }) => (
+            <button
+              key={id}
+              onClick={() => { setTab(id); setShowMoreMenu(false); }}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-all ${
                 tab === id ? 'text-brand-500' : 'text-gray-400'
               }`}
             >
@@ -1209,6 +1256,24 @@ export default function AdminDashboard() {
               {label}
             </button>
           ))}
+          <button
+            onClick={() => setShowMoreMenu(v => !v)}
+            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-all ${
+              ['apikeys','performance','niches'].includes(tab) ? 'text-brand-500' : 'text-gray-400'
+            }`}
+          >
+            <div className="relative">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <circle cx="5" cy="12" r="1.5" fill="currentColor" />
+                <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+                <circle cx="19" cy="12" r="1.5" fill="currentColor" />
+              </svg>
+              {['apikeys','performance','niches'].includes(tab) && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-brand-500 rounded-full" />
+              )}
+            </div>
+            More
+          </button>
         </div>
       </nav>
 

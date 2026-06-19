@@ -2,10 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-* { font-family: 'Inter', sans-serif; }
+* { font-family: 'Inter', sans-serif; box-sizing: border-box; }
 
 @layer base {
-  body { @apply bg-gray-50 text-gray-900 antialiased; }
+  html { overflow-x: hidden; }
+  body { @apply bg-gray-50 text-gray-900 antialiased; overflow-x: hidden; }
+  #root { overflow-x: hidden; }
 }
 
 @layer components {
