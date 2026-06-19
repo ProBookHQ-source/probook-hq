@@ -24,6 +24,12 @@ body {
   width: 100%;
 }
 
+/* Prevent iOS Safari from auto-zooming when tapping any input field.
+   Safari zooms in when font-size < 16px — this ensures it never does. */
+input, select, textarea {
+  font-size: 16px;
+}
+
 @layer base {
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
