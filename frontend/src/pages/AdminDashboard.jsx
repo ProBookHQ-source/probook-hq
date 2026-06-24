@@ -729,7 +729,7 @@ export default function AdminDashboard() {
 
             <div className="card mb-6">
               <h3 className="font-semibold mb-4 flex items-center gap-2"><Plus className="w-4 h-4" /> Create New Key</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="label">Key Name *</label>
                   <input value={newKeyName} onChange={e => setNewKeyName(e.target.value)} className="input" placeholder="e.g. OilToHeatRebate.com" />
@@ -739,16 +739,16 @@ export default function AdminDashboard() {
                   <input value={newKeySlug} onChange={e => setNewKeySlug(e.target.value)} className="input" placeholder="e.g. oil-to-heat-rebate" />
                   <p className="text-xs text-gray-400 mt-1">Short identifier, lowercase, no spaces</p>
                 </div>
-                <div>
-                  <label className="label">Dedicated Contractor <span className="text-gray-400 font-normal">(optional)</span></label>
-                  <select value={newKeyContractor} onChange={e => setNewKeyContractor(e.target.value)} className="input">
-                    <option value="">Shared marketplace (round-robin)</option>
-                    {contractors.filter(c => c.is_active).map(c => (
-                      <option key={c.id} value={c.id}>{c.name} — {c.company_name}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-400 mt-1">Link to one contractor to route all leads from this site directly to them</p>
-                </div>
+              </div>
+              <div className="mb-4">
+                <label className="label">Dedicated Contractor <span className="text-gray-400 font-normal">(optional)</span></label>
+                <select value={newKeyContractor} onChange={e => setNewKeyContractor(e.target.value)} className="input max-w-md">
+                  <option value="">Shared marketplace (round-robin)</option>
+                  {contractors.filter(c => c.is_active).map(c => (
+                    <option key={c.id} value={c.id}>{c.name} — {c.company_name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Link to one contractor to route all leads from this site directly to them</p>
               </div>
               <button disabled={!newKeyName || !newKeySlug || createApiKey.isPending} onClick={() => createApiKey.mutate({ name: newKeyName, source_slug: newKeySlug, contractor_id: newKeyContractor || undefined })} className="btn-primary disabled:opacity-40">
                 {createApiKey.isPending ? 'Creating...' : 'Generate Key'}
