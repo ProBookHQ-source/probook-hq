@@ -1,5 +1,5 @@
 # ProBook — Master Context Document
-*Paste this entire document at the start of any new chat. Last updated: June 17, 2026.*
+*Paste this entire document at the start of any new chat. Last updated: June 19, 2026.*
 
 ---
 
@@ -55,8 +55,6 @@ curl -X POST https://probookhq.com/api/auth/admin/register \
 ```
 *(Register endpoint auto-disables after first admin is created)*
 
-⚠️ **SETUP_KEY warning:** The default is `setup-1234` — change it in Railway env vars before launch.
-
 ---
 
 ## Tech Stack
@@ -79,7 +77,7 @@ curl -X POST https://probookhq.com/api/auth/admin/register \
 ```
 DATABASE_URL         → auto-set by Railway PostgreSQL plugin
 JWT_SECRET           → strong random hex string (set)
-SETUP_KEY            → setup-1234  ← CHANGE THIS before launch
+SETUP_KEY            → CHANGED from default (set to strong value) ✅
 RESEND_API_KEY       → set (Resend account key)
 FROM_EMAIL           → bookings@probookhq.com
 BRAND_NAME           → ProBook
@@ -140,8 +138,10 @@ lead-booking-app/
 │       └── apikeys.test.js
 │
 └── frontend/
+    ├── index.html             ← viewport: width=device-width, initial-scale=1.0, shrink-to-fit=no
     └── src/
         ├── App.jsx                    ← All routes defined here
+        ├── index.css                  ← Global CSS: overflow-x hidden on html/body/#root, 16px input font-size
         ├── api/client.js              ← Axios instance pointed at /api
         ├── pages/
         │   ├── LandingPage.jsx        ← Public marketing page (probookhq.com)
@@ -376,6 +376,26 @@ Tabs: Leads | Contractors | Appointments | Performance | API Keys | Niches
 - Settings: service radius, max appointments per day
 - Change Password section (current + new + confirm, all with eye toggle)
 - Availability fetch range: 365 days
+- Logout button in mobile bottom nav
+
+---
+
+## Mobile Responsiveness (fully complete as of June 19, 2026)
+All pages are fully responsive. Key fixes applied:
+
+**`frontend/index.html`** — `shrink-to-fit=no` in viewport meta prevents Safari from auto-scaling the page when content is slightly wider than the viewport.
+
+**`frontend/src/index.css`** — overflow rules are placed OUTSIDE `@layer` (highest cascade priority, cannot be overridden by Tailwind). `overflow-x: hidden` on `html`, `body`, and `#root`. All `input`, `select`, `textarea` forced to `font-size: 16px !important` to prevent iOS Safari auto-zoom on focus. The `.input` component class uses `text-base` (16px).
+
+**`AdminDashboard.jsx`** — all mobile card views use `truncate` + `min-w-0` on long text (emails, names, company info). Root and main content divs use `w-full max-w-full`.
+
+**`ContractorPortal.jsx`** — Block Time form stacks vertically on mobile. TimeSelect widths reduced. All tab content containers have `overflow-y-auto overflow-x-hidden` (prevents implicit horizontal scroll). AppointmentCard text truncated.
+
+**Key CSS gotchas for future work:**
+- `overflow-x: clip` is NOT supported on iOS < 15.4 — always use `overflow-x: hidden` on root elements
+- Setting `overflow-y: auto` implicitly sets `overflow-x: auto` per CSS spec — always pair with explicit `overflow-x: hidden`
+- `@layer base` rules have lower cascade priority than non-layered CSS — put critical rules outside any `@layer`
+- Long text without `truncate` + `min-w-0` in flex containers genuinely widens layout past the viewport, bypassing any CSS overflow setting
 
 ---
 
@@ -410,12 +430,18 @@ No code changes needed — everything is already built and waiting.
 cd ~/Desktop/lead-booking-app
 rm -f .git/index.lock .git/HEAD.lock   # clear lock files if needed
 git add -A
-git commit -m "Your message"
+git commit -m 'Your message'           # use single quotes — zsh expands ! in double quotes
 git push origin main
 ```
 Railway auto-deploys within ~2 minutes of the push.
 
 **Note:** The sandbox (Claude's shell) cannot push to GitHub via HTTPS. Always push from Jose's terminal.
+
+**If Railway does not auto-deploy after a successful push:**
+```bash
+git commit --allow-empty -m 'Trigger Railway redeploy'
+git push origin main
+```
 
 ---
 
@@ -466,32 +492,43 @@ await db.query(`UPDATE contractors SET status = 'approved' WHERE is_active = 1 A
 **Git lock files blocking push**
 → `rm -f .git/index.lock .git/HEAD.lock` then retry
 
+**zsh "event not found" on git commit**
+→ zsh expands `!` in double-quoted strings. Use single quotes: `git commit -m 'Your message'`
+
 **"Cannot GET /" on Railway**
-→ Check `nixpacks.toml` exists in repo root. Frontend must be built (`cd frontend && npm run build`). The Express catch-all serves `frontend/dist/index.html`.
+→ Check `nixpacks.toml` exists in repo root. Frontend must be built. Express catch-all serves `frontend/dist/index.html`.
 
 **"No contractors available" when submitting lead**
-→ No active contractors added. Go to /admin → Contractors and add one with matching niche and zip codes.
+→ No active contractors. Go to /admin → Contractors and add one with matching niche and zip codes.
 
 **Booking email not arriving**
-→ Check Resend dashboard for delivery logs. Verify `RESEND_API_KEY` and `FROM_EMAIL` are set in Railway.
+→ Check Resend dashboard. Verify `RESEND_API_KEY` and `FROM_EMAIL` are set in Railway.
 
 **Admin locked out**
-→ Use the curl register command above (only works if no admin exists in DB)
+→ Use the curl register command above (only works if no admin exists in DB).
 
 **Forgot password email not arriving**
 → Contractor must have `is_active = 1` in DB. Check Railway logs for `[FORGOT-PW]` entries.
 
 **column "status" does not exist error**
-→ Startup migration adds this. Should never happen on a live deploy since migrations run on boot.
+→ Startup migration adds this. Should never happen on a live deploy.
+
+**iOS Safari auto-zooms on input focus**
+→ Safari zooms when input `font-size < 16px`. Fixed globally in `index.css`. If it recurs, verify the `font-size: 16px !important` rule is present outside any `@layer`.
+
+**Mobile horizontal scroll**
+→ Two root causes: (1) overflow rules in `@layer` can be overridden — rules must be outside any layer. (2) Long text without `truncate` + `min-w-0` genuinely widens layout. Both must be fixed together.
 
 ---
 
-## Pre-Launch Checklist (target: June 21, 2026)
-- [ ] Change `SETUP_KEY` from `setup-1234` to something strong in Railway
-- [ ] Test full end-to-end booking flow with real contractor
-- [ ] Verify Google Calendar integration (or confirm it's deferred)
-- [ ] Add credit card to Railway (app goes offline after free trial)
-- [ ] Flip bridge ON once first contractor is onboarded and availability is set
+## Launch Status (as of June 19, 2026)
+The app is fully built and deployed. All features complete. Fully mobile-responsive. Launched 2 days ahead of the June 21 deadline.
+
+**Remaining operational items (not code):**
+- [ ] Add credit card to Railway — trial has limited credit remaining. Go to railway.app → Account → Billing. **Do this soon or the app goes offline.**
+- [ ] Run full end-to-end test with a real contractor before onboarding clients
+- [ ] Flip bridge ON once first contractor is onboarded (see Bridge section — no code changes needed)
+- [ ] Google Calendar credentials (deferred — add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` to Railway when ready)
 
 ## Full End-to-End Test Steps
 1. Go to /apply → submit contractor application → check approval email arrives

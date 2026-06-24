@@ -67,6 +67,7 @@ router.post('/inbound', async (req, res) => {
   }
 
   let keyAuthorized = false;
+  let dedicatedContractorId = null; // set when an API key is linked to a specific contractor
 
   // Check global fallback key first (fast, no DB hit)
   if (process.env.INBOUND_API_KEY && apiKey === process.env.INBOUND_API_KEY) {
@@ -76,10 +77,11 @@ router.post('/inbound', async (req, res) => {
   // Check per-site keys table
   if (!keyAuthorized) {
     const siteKey = await db.prepare(
-      `SELECT id FROM inbound_api_keys WHERE key = $1 AND is_active = 1 LIMIT 1`
+      `SELECT id, contractor_id FROM inbound_api_keys WHERE key = $1 AND is_active = 1 LIMIT 1`
     ).get(apiKey);
     if (siteKey) {
       keyAuthorized = true;
+      dedicatedContractorId = siteKey.contractor_id || null;
       // Stamp last_used_at asynchronously (don't block response)
       db.prepare('UPDATE inbound_api_keys SET last_used_at = NOW() WHERE id = $1')
         .run(siteKey.id).catch(() => {});
@@ -192,24 +194,41 @@ router.post('/inbound', async (req, res) => {
 
   console.log(`🌐 Inbound lead from ${source_site || 'unknown'} — ${name} (${niche.name}, ${zip_code})`);
 
-  // Respond immediately, run matching async
+  // Respond immediately, run matching/assignment async
   res.status(201).json({ success: true, lead_id: id });
 
-  let matched = false;
-  try { matched = await matchingEngine.matchOnly(id); }
-  catch (err) { console.error('Matching error:', err); }
-
-  if (matched) {
-    matchingEngine.sendMatchNotifications(id).catch(err =>
-      console.error('Notification error:', err)
-    );
-  } else {
-    logEvent(id, 'no_match', 'system', 'No eligible contractor found after inbound submission');
-    const leadForNotif = await db.prepare('SELECT * FROM leads WHERE id = $1').get(id);
-    if (leadForNotif) {
-      sendAdminNoMatch(leadForNotif).catch(err =>
-        console.error('Admin no-match notification error:', err)
+  if (dedicatedContractorId) {
+    // Direct assignment — API key is tied to one contractor, skip the matching engine entirely
+    try {
+      await db.prepare(
+        `UPDATE leads SET assigned_contractor_id = $1, status = 'matched' WHERE id = $2`
+      ).run(dedicatedContractorId, id);
+      logEvent(id, 'direct_assigned', 'system', `Directly assigned to contractor ${dedicatedContractorId} via dedicated API key`);
+      console.log(`🎯 Inbound lead directly assigned to contractor ${dedicatedContractorId} (dedicated key)`);
+      matchingEngine.sendMatchNotifications(id).catch(err =>
+        console.error('Notification error (direct assign):', err)
       );
+    } catch (err) {
+      console.error('Direct assignment error:', err);
+    }
+  } else {
+    // Shared marketplace — run round-robin matching engine
+    let matched = false;
+    try { matched = await matchingEngine.matchOnly(id); }
+    catch (err) { console.error('Matching error:', err); }
+
+    if (matched) {
+      matchingEngine.sendMatchNotifications(id).catch(err =>
+        console.error('Notification error:', err)
+      );
+    } else {
+      logEvent(id, 'no_match', 'system', 'No eligible contractor found after inbound submission');
+      const leadForNotif = await db.prepare('SELECT * FROM leads WHERE id = $1').get(id);
+      if (leadForNotif) {
+        sendAdminNoMatch(leadForNotif).catch(err =>
+          console.error('Admin no-match notification error:', err)
+        );
+      }
     }
   }
 });

@@ -44,6 +44,7 @@ export default function AdminDashboard() {
   const [showTempPw, setShowTempPw] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeySlug, setNewKeySlug] = useState('');
+  const [newKeyContractor, setNewKeyContractor] = useState('');
   const [createdKey, setCreatedKey] = useState(null);
   const [confirmDeleteKey, setConfirmDeleteKey] = useState(null);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -108,7 +109,7 @@ export default function AdminDashboard() {
 
   const createApiKey = useMutation({
     mutationFn: (data) => api.post('/apikeys', data),
-    onSuccess: (res) => { setCreatedKey(res.data); setNewKeyName(''); setNewKeySlug(''); qc.invalidateQueries(['apikeys']); },
+    onSuccess: (res) => { setCreatedKey(res.data); setNewKeyName(''); setNewKeySlug(''); setNewKeyContractor(''); qc.invalidateQueries(['apikeys']); },
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to create key'),
   });
 
@@ -728,7 +729,7 @@ export default function AdminDashboard() {
 
             <div className="card mb-6">
               <h3 className="font-semibold mb-4 flex items-center gap-2"><Plus className="w-4 h-4" /> Create New Key</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                   <label className="label">Key Name *</label>
                   <input value={newKeyName} onChange={e => setNewKeyName(e.target.value)} className="input" placeholder="e.g. OilToHeatRebate.com" />
@@ -738,8 +739,18 @@ export default function AdminDashboard() {
                   <input value={newKeySlug} onChange={e => setNewKeySlug(e.target.value)} className="input" placeholder="e.g. oil-to-heat-rebate" />
                   <p className="text-xs text-gray-400 mt-1">Short identifier, lowercase, no spaces</p>
                 </div>
+                <div>
+                  <label className="label">Dedicated Contractor <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <select value={newKeyContractor} onChange={e => setNewKeyContractor(e.target.value)} className="input">
+                    <option value="">Shared marketplace (round-robin)</option>
+                    {contractors.filter(c => c.is_active).map(c => (
+                      <option key={c.id} value={c.id}>{c.name} — {c.company_name}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">Link to one contractor to route all leads from this site directly to them</p>
+                </div>
               </div>
-              <button disabled={!newKeyName || !newKeySlug || createApiKey.isPending} onClick={() => createApiKey.mutate({ name: newKeyName, source_slug: newKeySlug })} className="btn-primary disabled:opacity-40">
+              <button disabled={!newKeyName || !newKeySlug || createApiKey.isPending} onClick={() => createApiKey.mutate({ name: newKeyName, source_slug: newKeySlug, contractor_id: newKeyContractor || undefined })} className="btn-primary disabled:opacity-40">
                 {createApiKey.isPending ? 'Creating...' : 'Generate Key'}
               </button>
             </div>
@@ -777,6 +788,9 @@ export default function AdminDashboard() {
                       {k.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </div>
+                  {k.contractor_name && (
+                    <p className="text-xs text-indigo-600 font-medium mb-1">→ {k.contractor_name} ({k.contractor_company})</p>
+                  )}
                   <p className="text-xs text-gray-400 mb-3">Last used: {k.last_used_at ? format(parseISO(k.last_used_at), 'MMM d, yyyy') : 'Never'}</p>
                   <div className="flex items-center gap-3">
                     {k.is_active ? (
@@ -803,7 +817,7 @@ export default function AdminDashboard() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Name', 'Slug', 'Status', 'Last Used', 'Actions'].map(h => (
+                    {['Name', 'Slug', 'Dedicated Contractor', 'Status', 'Last Used', 'Actions'].map(h => (
                       <th key={h} className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">{h}</th>
                     ))}
                   </tr>
@@ -813,6 +827,12 @@ export default function AdminDashboard() {
                     <tr key={k.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3"><p className="text-sm font-medium text-gray-900">{k.name}</p></td>
                       <td className="px-4 py-3"><code className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600">{k.source_slug}</code></td>
+                      <td className="px-4 py-3">
+                        {k.contractor_name
+                          ? <span className="text-xs text-indigo-600 font-medium">{k.contractor_name}</span>
+                          : <span className="text-xs text-gray-400">Shared marketplace</span>
+                        }
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`badge ${k.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{k.is_active ? 'Active' : 'Inactive'}</span>
                       </td>
@@ -837,7 +857,7 @@ export default function AdminDashboard() {
                     </tr>
                   ))}
                   {apiKeys.length === 0 && (
-                    <tr><td colSpan={5} className="text-center py-10 text-gray-400 text-sm">No API keys yet — create one above</td></tr>
+                    <tr><td colSpan={6} className="text-center py-10 text-gray-400 text-sm">No API keys yet — create one above</td></tr>
                   )}
                 </tbody>
               </table>
