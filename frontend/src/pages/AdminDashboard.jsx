@@ -299,7 +299,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── Main content ─────────────────────────────────────────────────────── */}
-      <div className="md:ml-56 p-4 md:p-6 pb-24 md:pb-6 w-full max-w-full">
+      <div className="md:ml-56 p-4 md:p-6 pb-24 md:pb-6 min-w-0 overflow-x-hidden">
 
         {/* ── OVERVIEW ── */}
         {tab === 'overview' && (
@@ -430,7 +430,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Desktop table */}
-            <div className="hidden md:block card p-0 overflow-hidden">
+            <div className="hidden md:block card p-0 overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
@@ -813,7 +813,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Desktop table */}
-            <div className="hidden md:block card p-0 overflow-hidden">
+            <div className="hidden md:block card p-0 overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
@@ -922,7 +922,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Desktop table */}
-            <div className="hidden md:block card p-0 overflow-hidden">
+            <div className="hidden md:block card p-0 overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
@@ -1057,7 +1057,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Desktop table */}
-            <div className="hidden md:block card p-0 overflow-hidden">
+            <div className="hidden md:block card p-0 overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
@@ -1164,7 +1164,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Desktop table */}
-            <div className="hidden md:block card p-0 overflow-hidden">
+            <div className="hidden md:block card p-0 overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
