@@ -169,7 +169,7 @@ db._ready.then(async () => {
   // Mark all active contractors as approved so status stays consistent with is_active
   await db.query(`UPDATE contractors SET status = 'approved' WHERE is_active = 1 AND status IS NULL`);
   // Per-contractor API key routing: allows each HVAC client's site to route leads directly to their contractor
-  await db.query(`ALTER TABLE inbound_api_keys ADD COLUMN IF NOT EXISTS contractor_id INTEGER REFERENCES contractors(id) ON DELETE SET NULL`);
+  await db.query(`ALTER TABLE inbound_api_keys ADD COLUMN IF NOT EXISTS contractor_id TEXT REFERENCES contractors(id) ON DELETE SET NULL`);
 
   // Start scheduled jobs (appointment reminders, etc.)
   require('./services/cron');
