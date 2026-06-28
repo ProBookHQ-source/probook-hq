@@ -1,5 +1,5 @@
 # ProBook — Master Context Document
-*Paste this entire document at the start of any new chat. Last updated: June 19, 2026.*
+*Paste this entire document at the start of any new chat. Last updated: June 23, 2026.*
 
 ---
 
@@ -212,7 +212,8 @@ Partial unique index prevents double-booking (excludes cancelled rows).
 
 **`lead_events`** — full audit trail. Every status change, email send, match attempt, etc. (lead_id, event_type, payload JSONB, created_at)
 
-**`api_keys`** — per-site API keys for inbound lead submissions (id, name, key_hash, slug, is_active, created_at)
+**`inbound_api_keys`** — per-site API keys for inbound lead submissions (id, name, key TEXT plaintext, source_slug, is_active, created_at, last_used_at, contractor_id TEXT → contractors.id)
+- `contractor_id` is optional. When set, inbound leads from that key skip the matching engine entirely and are assigned directly to that contractor (status set to `matched` immediately). When null, normal round-robin matching runs.
 
 ---
 
@@ -251,7 +252,7 @@ Partial unique index prevents double-booking (excludes cancelled rows).
 | GET/PUT/DELETE | /api/bookings | Appointment management |
 | DELETE | /api/bookings/:id | Delete cancelled/completed appointment |
 | GET/POST/DELETE | /api/niches | Niche management |
-| GET/POST/PUT/DELETE | /api/apikeys | Per-site API key management |
+| GET/POST/PUT/DELETE | /api/apikeys | Per-site API key management (create accepts optional contractor_id; PUT /:id/contractor updates contractor assignment) |
 
 ### Contractor (JWT required)
 | Method | Path | Description |
@@ -358,7 +359,7 @@ Tabs: Leads | Contractors | Appointments | Performance | API Keys | Niches
 
 **Performance tab:** Lead conversion rates, contractor stats, booking funnel metrics
 
-**API Keys tab:** Create/manage per-site API keys for external lead sources
+**API Keys tab:** Create/manage per-site API keys for external lead sources. Each key can optionally be linked to a specific contractor — when linked, all leads from that site route directly to that contractor, bypassing the shared matching engine. Used for the HVAC website bundle business model.
 
 **Niches tab:** Add/edit/delete service niches
 
@@ -387,7 +388,7 @@ All pages are fully responsive. Key fixes applied:
 
 **`frontend/src/index.css`** — overflow rules are placed OUTSIDE `@layer` (highest cascade priority, cannot be overridden by Tailwind). `overflow-x: hidden` on `html`, `body`, and `#root`. All `input`, `select`, `textarea` forced to `font-size: 16px !important` to prevent iOS Safari auto-zoom on focus. The `.input` component class uses `text-base` (16px).
 
-**`AdminDashboard.jsx`** — all mobile card views use `truncate` + `min-w-0` on long text (emails, names, company info). Root and main content divs use `w-full max-w-full`.
+**`AdminDashboard.jsx`** — all mobile card views use `truncate` + `min-w-0` on long text (emails, names, company info). Main content div uses `md:ml-56 min-w-0 overflow-x-hidden` (NOT `w-full` — adding `w-full` with `ml-56` causes the div to extend past the viewport). All desktop table wrappers use `overflow-x-auto` (not `overflow-hidden`) so wide tables scroll rather than clip.
 
 **`ContractorPortal.jsx`** — Block Time form stacks vertically on mobile. TimeSelect widths reduced. All tab content containers have `overflow-y-auto overflow-x-hidden` (prevents implicit horizontal scroll). AppointmentCard text truncated.
 
@@ -483,7 +484,9 @@ await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS reset_token TEX
 await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ`);
 await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'`);
 await db.query(`UPDATE contractors SET status = 'approved' WHERE is_active = 1 AND status IS NULL`);
+await db.query(`ALTER TABLE inbound_api_keys ADD COLUMN IF NOT EXISTS contractor_id TEXT REFERENCES contractors(id) ON DELETE SET NULL`);
 ```
+Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a UUID stored as TEXT.
 
 ---
 
@@ -521,14 +524,19 @@ await db.query(`UPDATE contractors SET status = 'approved' WHERE is_active = 1 A
 
 ---
 
-## Launch Status (as of June 19, 2026)
-The app is fully built and deployed. All features complete. Fully mobile-responsive. Launched 2 days ahead of the June 21 deadline.
+## Launch Status (as of June 23, 2026)
+The app is fully built, deployed, and tested. All features complete including dedicated contractor routing. Fully mobile-responsive.
+
+**Completed since launch:**
+- ✅ Railway credit card added
+- ✅ Dedicated contractor routing via API keys (June 23) — each HVAC client's website routes leads exclusively to their contractor, bypassing the shared matching engine
+- ✅ Admin dashboard overflow fix — desktop tables scroll correctly on all tabs
 
 **Remaining operational items (not code):**
-- [ ] Add credit card to Railway — trial has limited credit remaining. Go to railway.app → Account → Billing. **Do this soon or the app goes offline.**
 - [ ] Run full end-to-end test with a real contractor before onboarding clients
 - [ ] Flip bridge ON once first contractor is onboarded (see Bridge section — no code changes needed)
 - [ ] Google Calendar credentials (deferred — add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` to Railway when ready)
+- [ ] Build demo HVAC website template (separate repo/folder — not inside lead-booking-app)
 
 ## Full End-to-End Test Steps
 1. Go to /apply → submit contractor application → check approval email arrives

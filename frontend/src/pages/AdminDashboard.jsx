@@ -45,6 +45,7 @@ export default function AdminDashboard() {
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeySlug, setNewKeySlug] = useState('');
   const [newKeyContractor, setNewKeyContractor] = useState('');
+  const [newKeyOrigins, setNewKeyOrigins] = useState('');
   const [createdKey, setCreatedKey] = useState(null);
   const [confirmDeleteKey, setConfirmDeleteKey] = useState(null);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -109,7 +110,7 @@ export default function AdminDashboard() {
 
   const createApiKey = useMutation({
     mutationFn: (data) => api.post('/apikeys', data),
-    onSuccess: (res) => { setCreatedKey(res.data); setNewKeyName(''); setNewKeySlug(''); setNewKeyContractor(''); qc.invalidateQueries(['apikeys']); },
+    onSuccess: (res) => { setCreatedKey(res.data); setNewKeyName(''); setNewKeySlug(''); setNewKeyContractor(''); setNewKeyOrigins(''); qc.invalidateQueries(['apikeys']); },
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to create key'),
   });
 
@@ -750,7 +751,12 @@ export default function AdminDashboard() {
                 </select>
                 <p className="text-xs text-gray-400 mt-1">Link to one contractor to route all leads from this site directly to them</p>
               </div>
-              <button disabled={!newKeyName || !newKeySlug || createApiKey.isPending} onClick={() => createApiKey.mutate({ name: newKeyName, source_slug: newKeySlug, contractor_id: newKeyContractor || undefined })} className="btn-primary disabled:opacity-40">
+              <div className="mb-4">
+                <label className="label">Allowed Domains <span className="text-gray-400 font-normal">(optional — recommended)</span></label>
+                <input value={newKeyOrigins} onChange={e => setNewKeyOrigins(e.target.value)} className="input max-w-md" placeholder="https://clientsite.com, https://www.clientsite.com" />
+                <p className="text-xs text-gray-400 mt-1">Comma-separated. If set, this key only accepts requests from these domains — prevents key theft.</p>
+              </div>
+              <button disabled={!newKeyName || !newKeySlug || createApiKey.isPending} onClick={() => createApiKey.mutate({ name: newKeyName, source_slug: newKeySlug, contractor_id: newKeyContractor || undefined, allowed_origins: newKeyOrigins || undefined })} className="btn-primary disabled:opacity-40">
                 {createApiKey.isPending ? 'Creating...' : 'Generate Key'}
               </button>
             </div>

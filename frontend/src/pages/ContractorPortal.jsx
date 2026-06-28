@@ -773,7 +773,7 @@ export default function ContractorPortal() {
                     <div className="flex items-center justify-between mb-3">
                       <button
                         onClick={() => setBlockMonth(m => addMonths(m, -1))}
-                        disabled={isBefore(addMonths(blockMonth, 1), startOfMonth(new Date()))}
+                        disabled={isBefore(startOfMonth(blockMonth), startOfMonth(new Date()))}
                         className="p-1 rounded-lg hover:bg-gray-100 text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                       >
                         <ChevronLeft className="w-4 h-4" />
@@ -807,8 +807,9 @@ export default function ContractorPortal() {
                       {/* Day numbers */}
                       {Array.from({ length: getDaysInMonth(blockMonth) }, (_, i) => {
                         const dayNum = i + 1;
-                        const ds = format(new Date(blockMonth.getFullYear(), blockMonth.getMonth(), dayNum), 'yyyy-MM-dd');
-                        const isPast   = isBefore(startOfDay(new Date(ds)), startOfDay(new Date()));
+                        const dayDate = new Date(blockMonth.getFullYear(), blockMonth.getMonth(), dayNum);
+                        const ds = format(dayDate, 'yyyy-MM-dd');
+                        const isPast   = isBefore(startOfDay(dayDate), startOfDay(new Date()));
                         const isToday  = ds === todayStr;
                         const selected = blockForm.date === ds;
                         return (

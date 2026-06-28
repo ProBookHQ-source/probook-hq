@@ -77,9 +77,18 @@ router.post('/inbound', async (req, res) => {
   // Check per-site keys table
   if (!keyAuthorized) {
     const siteKey = await db.prepare(
-      `SELECT id, contractor_id FROM inbound_api_keys WHERE key = $1 AND is_active = 1 LIMIT 1`
+      `SELECT id, contractor_id, allowed_origins FROM inbound_api_keys WHERE key = $1 AND is_active = 1 LIMIT 1`
     ).get(apiKey);
     if (siteKey) {
+      // If allowed_origins is set, verify the request origin matches
+      if (siteKey.allowed_origins) {
+        const requestOrigin = (req.headers.origin || req.headers.referer || '').replace(/\/$/, '');
+        const allowed = siteKey.allowed_origins.split(',').map(o => o.trim().replace(/\/$/, ''));
+        if (!allowed.some(o => requestOrigin.startsWith(o))) {
+          console.warn(`🚫 Origin rejected for API key ${siteKey.id}: ${requestOrigin}`);
+          return res.status(403).json({ error: 'Origin not allowed for this API key' });
+        }
+      }
       keyAuthorized = true;
       dedicatedContractorId = siteKey.contractor_id || null;
       // Stamp last_used_at asynchronously (don't block response)
