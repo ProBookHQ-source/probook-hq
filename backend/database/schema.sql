@@ -114,6 +114,19 @@ CREATE TABLE IF NOT EXISTS round_robin_state (
   UNIQUE(niche_id, zip_code)
 );
 
+-- Client intake form step tracking (for dropoff analysis)
+CREATE TABLE IF NOT EXISTS intake_events (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL DEFAULT 'intake_step',
+  step INTEGER NOT NULL,
+  step_name TEXT NOT NULL,
+  direction TEXT NOT NULL,     -- start | forward | back
+  client_id TEXT NOT NULL,     -- browser session ID from intake form
+  business_name TEXT,
+  ts TIMESTAMPTZ NOT NULL,     -- client-supplied timestamp
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_contractors_niche ON contractors(niche_id);
 CREATE INDEX IF NOT EXISTS idx_leads_niche_zip ON leads(niche_id, zip_code);

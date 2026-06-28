@@ -94,6 +94,14 @@ const inboundLimiter = rateLimit({
 });
 app.use('/api/leads/inbound', inboundLimiter);
 
+// Rate limiting — intake tracking (120 per 15 min — allows rapid step clicks without abuse)
+const intakeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  message: { error: 'Too many tracking events. Please slow down.' },
+});
+app.use('/api/intake', intakeLimiter);
+
 // Rate limiting — homeowner self-service cancel/reschedule (10 per 15 min per IP)
 const selfServiceLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -111,6 +119,7 @@ app.use('/api/bookings',     require('./routes/bookings'));
 app.use('/api/availability', require('./routes/availability'));
 app.use('/api/niches',       require('./routes/niches'));
 app.use('/api/apikeys',      require('./routes/apikeys'));
+app.use('/api/intake',       require('./routes/intake'));
 
 // ── Google Calendar OAuth ─────────────────────────────────────────────────────
 const googleCalendar = require('./services/googleCalendar');
@@ -172,6 +181,20 @@ db._ready.then(async () => {
   await db.query(`ALTER TABLE inbound_api_keys ADD COLUMN IF NOT EXISTS contractor_id TEXT REFERENCES contractors(id) ON DELETE SET NULL`);
   // Domain restriction: only accept inbound leads from whitelisted origins (prevents API key theft/abuse)
   await db.query(`ALTER TABLE inbound_api_keys ADD COLUMN IF NOT EXISTS allowed_origins TEXT`);
+  // Intake form step tracking — powers dropoff funnel in admin dashboard
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS intake_events (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL DEFAULT 'intake_step',
+      step INTEGER NOT NULL,
+      step_name TEXT NOT NULL,
+      direction TEXT NOT NULL,
+      client_id TEXT NOT NULL,
+      business_name TEXT,
+      ts TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
 
   // Start scheduled jobs (appointment reminders, etc.)
   require('./services/cron');
