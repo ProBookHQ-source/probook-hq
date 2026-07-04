@@ -114,7 +114,7 @@ export default function CancelPage({ mode = 'cancel' }) {
         <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-8 text-center">
           {/* Logo */}
           <div className="flex items-center justify-center gap-2 mb-8">
-            <img src="/probook-icon-128.png" alt="ProBook" className="w-9 h-9 rounded-xl" />
+            <img src="/probook-icon-128.png" alt="ProAppt" className="w-9 h-9 rounded-xl" />
             <span className="text-xl font-black text-brand-500">Pro</span>
             <span className="text-xl font-light text-gray-800">Book</span>
           </div>
@@ -152,7 +152,7 @@ export default function CancelPage({ mode = 'cancel' }) {
       <div className={bgGradient}>
         <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-8 text-center">
           <div className="flex items-center justify-center gap-2 mb-8">
-            <img src="/probook-icon-128.png" alt="ProBook" className="w-9 h-9 rounded-xl" />
+            <img src="/probook-icon-128.png" alt="ProAppt" className="w-9 h-9 rounded-xl" />
             <span className="text-xl font-black text-brand-500">Pro</span>
             <span className="text-xl font-light text-gray-800">Book</span>
           </div>
@@ -194,7 +194,7 @@ export default function CancelPage({ mode = 'cancel' }) {
         {/* Header */}
         <div className="px-8 pt-8 pb-6 text-center border-b border-gray-100">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <img src="/probook-icon-128.png" alt="ProBook" className="w-9 h-9 rounded-xl" />
+            <img src="/probook-icon-128.png" alt="ProAppt" className="w-9 h-9 rounded-xl" />
             <span className="text-xl font-black text-brand-500">Pro</span>
             <span className="text-xl font-light text-gray-800">Book</span>
           </div>

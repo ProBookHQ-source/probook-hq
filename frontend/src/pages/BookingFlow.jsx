@@ -111,7 +111,7 @@ export default function BookingFlow() {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <img src="/probook-icon-128.png" alt="ProBook" className="w-12 h-12 rounded-2xl shadow-lg mb-3 mx-auto" />
+          <img src="/probook-icon-128.png" alt="ProAppt" className="w-12 h-12 rounded-2xl shadow-lg mb-3 mx-auto" />
           <h1 className="text-2xl font-bold text-gray-900">Book Your Appointment</h1>
           {tokenData?.lead_name && (
             <p className="text-gray-500 text-sm mt-1">Hi {tokenData.lead_name}! Pick a time that works for you.</p>

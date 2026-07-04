@@ -6,12 +6,12 @@ var DUPLICATE_WINDOW_HOURS = 24;
 
 // ─── PROBOOK BRIDGE CONFIG ────────────────────────────────────────────────────
 // Set these in Apps Script → Project Settings → Script Properties:
-//   PROBOOK_API_URL  = https://probook-hq-production.up.railway.app
-//   PROBOOK_API_KEY  = (the INBOUND_API_KEY value from Railway env vars)
-var PROBOOK_API_URL  = PropertiesService.getScriptProperties().getProperty('PROBOOK_API_URL')  || '';
-var PROBOOK_API_KEY  = PropertiesService.getScriptProperties().getProperty('PROBOOK_API_KEY')  || '';
-var PROBOOK_NICHE    = 'hvac';       // niche slug — change per site
-var PROBOOK_SOURCE   = 'oiltoheatrebate.com'; // identifies which site this lead came from
+//   PROAPPT_API_URL  = https://probook-hq-production.up.railway.app
+//   PROAPPT_API_KEY  = (the INBOUND_API_KEY value from Railway env vars)
+var PROAPPT_API_URL  = PropertiesService.getScriptProperties().getProperty('PROAPPT_API_URL')  || '';
+var PROAPPT_API_KEY  = PropertiesService.getScriptProperties().getProperty('PROAPPT_API_KEY')  || '';
+var PROAPPT_NICHE    = 'hvac';       // niche slug — change per site
+var PROAPPT_SOURCE   = 'oiltoheatrebate.com'; // identifies which site this lead came from
 
 // ─── ENTRY POINTS ────────────────────────────────────────────────────────────
 
@@ -94,11 +94,11 @@ function processLead(data) {
     data.lead_tier = 'FLAGGED';
   }
 
-  // All checks passed — save to sheet, notify owner, reply to lead, bridge to ProBook
+  // All checks passed — save to sheet, notify owner, reply to lead, bridge to ProAppt
   saveToSheet(data);
   notifyOwner(data);
   replyToLead(data);
-  sendToProBook(data); // 🌉 Bridge — non-blocking, errors logged but don't break the pipeline
+  sendToProAppt(data); // 🌉 Bridge — non-blocking, errors logged but don't break the pipeline
 
   return ContentService
     .createTextOutput(JSON.stringify({ success: true }))
@@ -106,13 +106,13 @@ function processLead(data) {
 }
 
 // ─── PROBOOK BRIDGE ──────────────────────────────────────────────────────────
-// Posts the lead to ProBook's inbound API endpoint.
-// Future-proof: works for any niche site — just update PROBOOK_NICHE and
-// PROBOOK_SOURCE above when deploying a new script for a different site.
+// Posts the lead to ProAppt's inbound API endpoint.
+// Future-proof: works for any niche site — just update PROAPPT_NICHE and
+// PROAPPT_SOURCE above when deploying a new script for a different site.
 
-function sendToProBook(data) {
-  if (!PROBOOK_API_URL || !PROBOOK_API_KEY) {
-    Logger.log('ProBook bridge skipped — PROBOOK_API_URL or PROBOOK_API_KEY not set in Script Properties.');
+function sendToProAppt(data) {
+  if (!PROAPPT_API_URL || !PROAPPT_API_KEY) {
+    Logger.log('ProAppt bridge skipped — PROAPPT_API_URL or PROAPPT_API_KEY not set in Script Properties.');
     return;
   }
 
@@ -122,14 +122,14 @@ function sendToProBook(data) {
     email:       data.email       || '',
     phone:       data.phone       || '',
     zip_code:    data.zip_code    || '',
-    niche_slug:  PROBOOK_NICHE,
-    source_site: PROBOOK_SOURCE,
+    niche_slug:  PROAPPT_NICHE,
+    source_site: PROAPPT_SOURCE,
 
     // ── External scoring (from this site's server-side scoring) ───────────────
     lead_tier:   data.lead_tier   || '',
     lead_score:  data.lead_score  || 0,
 
-    // ── Qualifying fields (stored as metadata in ProBook) ─────────────────────
+    // ── Qualifying fields (stored as metadata in ProAppt) ─────────────────────
     address:          data.address          || '',
     heating:          data.heating          || '',
     oil_tank:         data.oil_tank         || '',
@@ -145,11 +145,11 @@ function sendToProBook(data) {
   };
 
   try {
-    var response = UrlFetchApp.fetch(PROBOOK_API_URL + '/api/leads/inbound', {
+    var response = UrlFetchApp.fetch(PROAPPT_API_URL + '/api/leads/inbound', {
       method:             'post',
       contentType:        'application/json',
       payload:            JSON.stringify(payload),
-      headers:            { 'Authorization': 'Bearer ' + PROBOOK_API_KEY },
+      headers:            { 'Authorization': 'Bearer ' + PROAPPT_API_KEY },
       muteHttpExceptions: true, // don't throw on 4xx/5xx — we log instead
     });
 
@@ -157,13 +157,13 @@ function sendToProBook(data) {
     var body = response.getContentText();
 
     if (code === 200 || code === 201) {
-      Logger.log('✅ ProBook bridge success: ' + body);
+      Logger.log('✅ ProAppt bridge success: ' + body);
     } else {
-      Logger.log('⚠️ ProBook bridge HTTP ' + code + ': ' + body);
+      Logger.log('⚠️ ProAppt bridge HTTP ' + code + ': ' + body);
     }
   } catch(err) {
     // Never let bridge errors break the main pipeline
-    Logger.log('❌ ProBook bridge error: ' + err.message);
+    Logger.log('❌ ProAppt bridge error: ' + err.message);
   }
 }
 

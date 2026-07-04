@@ -248,9 +248,9 @@ export default function AdminDashboard() {
       <div className="hidden md:flex fixed inset-y-0 left-0 w-56 bg-white border-r border-gray-100 flex-col z-10">
         <div className="p-5 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
-            <img src="/probook-icon-128.png" alt="ProBook" className="w-8 h-8 rounded-lg" />
+            <img src="/probook-icon-128.png" alt="ProAppt" className="w-8 h-8 rounded-lg" />
             <div>
-              <p className="font-bold text-gray-900 text-sm">ProBook</p>
+              <p className="font-bold text-gray-900 text-sm">ProAppt</p>
               <p className="text-xs text-gray-400">Admin</p>
             </div>
           </div>
@@ -288,9 +288,9 @@ export default function AdminDashboard() {
 
       {/* ── Mobile header ───────────────────────────────────────────────────── */}
       <div className="md:hidden sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 w-full max-w-full">
-        <img src="/probook-icon-128.png" alt="ProBook" className="w-7 h-7 rounded-lg" />
+        <img src="/probook-icon-128.png" alt="ProAppt" className="w-7 h-7 rounded-lg" />
         <div className="flex-1">
-          <p className="font-bold text-gray-900 text-sm leading-none">ProBook</p>
+          <p className="font-bold text-gray-900 text-sm leading-none">ProAppt</p>
           <p className="text-[11px] text-gray-400">Admin</p>
         </div>
         <button onClick={logout} className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-all">
@@ -725,7 +725,7 @@ export default function AdminDashboard() {
           <div>
             <div className="mb-5">
               <h1 className="text-xl md:text-2xl font-bold text-gray-900">API Keys</h1>
-              <p className="text-sm text-gray-500 mt-1">One key per website. Each site uses its key to send leads to ProBook.</p>
+              <p className="text-sm text-gray-500 mt-1">One key per website. Each site uses its key to send leads to ProAppt.</p>
             </div>
 
             <div className="card mb-6">

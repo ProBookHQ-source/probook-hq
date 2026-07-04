@@ -68,8 +68,8 @@ export default function ContractorApply() {
       <div className={bg}>
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <img src="/probook-icon-128.png" alt="ProBook" className="w-14 h-14 rounded-2xl shadow-lg mb-4 mx-auto" />
-            <h1 className="text-2xl font-bold text-gray-900">ProBook</h1>
+            <img src="/probook-icon-128.png" alt="ProAppt" className="w-14 h-14 rounded-2xl shadow-lg mb-4 mx-auto" />
+            <h1 className="text-2xl font-bold text-gray-900">ProAppt</h1>
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -131,8 +131,8 @@ export default function ContractorApply() {
       <div className="w-full max-w-lg">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/probook-icon-128.png" alt="ProBook" className="w-14 h-14 rounded-2xl shadow-lg mb-4 mx-auto" />
-          <h1 className="text-2xl font-bold text-gray-900">ProBook</h1>
+          <img src="/probook-icon-128.png" alt="ProAppt" className="w-14 h-14 rounded-2xl shadow-lg mb-4 mx-auto" />
+          <h1 className="text-2xl font-bold text-gray-900">ProAppt</h1>
           <p className="text-gray-500 text-sm mt-1">Apply to join the contractor network</p>
         </div>
 
@@ -233,7 +233,7 @@ export default function ContractorApply() {
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          Powered by ProBook — Lead Generation & Scheduling
+          Powered by ProAppt — Lead Generation & Scheduling
         </p>
       </div>
     </div>

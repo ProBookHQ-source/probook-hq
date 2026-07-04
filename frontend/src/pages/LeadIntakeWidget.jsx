@@ -83,7 +83,7 @@ export default function LeadIntakeWidget() {
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="text-center mb-8">
-          <img src="/probook-icon-128.png" alt="ProBook" className="w-12 h-12 rounded-2xl shadow-lg mb-3 mx-auto" />
+          <img src="/probook-icon-128.png" alt="ProAppt" className="w-12 h-12 rounded-2xl shadow-lg mb-3 mx-auto" />
           <h1 className="text-3xl font-bold text-gray-900">Get a Free Quote</h1>
           <p className="text-gray-500 mt-2">We'll match you with the right contractor and schedule your appointment automatically.</p>
         </div>

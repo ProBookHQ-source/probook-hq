@@ -1,5 +1,5 @@
-# ProBook — Master Context Document
-*Paste this entire document at the start of any new chat. Last updated: June 23, 2026.*
+# ProAppt — Master Context Document
+*Paste this entire document at the start of any new chat. Last updated: June 28, 2026.*
 
 ---
 
@@ -12,19 +12,19 @@
 
 ---
 
-## What ProBook Is
-A full-stack auto-booking platform for Jose's lead generation business. The model: Jose runs niche lead gen sites (starting with OilToHeatRebate.com for Seattle oil-to-heat-pump conversions), sells those leads to HVAC contractors, and uses ProBook to automatically match leads to contractors and handle appointment booking — no manual scheduling needed.
+## What ProAppt Is
+A full-stack auto-booking platform for Jose's lead generation business. The model: Jose runs niche lead gen sites (starting with OilToHeatRebate.com for Seattle oil-to-heat-pump conversions), sells those leads to HVAC contractors, and uses ProAppt to automatically match leads to contractors and handle appointment booking — no manual scheduling needed.
 
 **The full lead flow:**
 1. Homeowner fills out quiz on OilToHeatRebate.com (or future niche sites)
 2. Google Apps Script saves lead to Google Sheet + sends owner email + sends homeowner confirmation
-3. Apps Script bridge POSTs lead to ProBook's `/api/leads/inbound` endpoint *(currently dormant — see Bridge section)*
-4. ProBook auto-matches lead to the right contractor by niche + zip code (round-robin rotation)
+3. Apps Script bridge POSTs lead to ProAppt's `/api/leads/inbound` endpoint *(currently dormant — see Bridge section)*
+4. ProAppt auto-matches lead to the right contractor by niche + zip code (round-robin rotation)
 5. Homeowner gets email with personalized booking link (48hr expiry)
 6. Homeowner picks time from contractor's live availability calendar
 7. Appointment confirmed — both parties notified, synced to Google Calendar
 
-**Business model:** Sell raw leads first (no ProBook needed), then upgrade contractors to booked leads via ProBook (much higher value product).
+**Business model:** Sell raw leads first (no ProAppt needed), then upgrade contractors to booked leads via ProAppt (much higher value product).
 
 ---
 
@@ -45,7 +45,7 @@ A full-stack auto-booking platform for Jose's lead generation business. The mode
 
 ## Admin Login Credentials
 - **Email:** oiltoheatrebate@gmail.com
-- **Password hint:** the word ProBook followed by the year 2024 and an exclamation mark
+- **Password hint:** the word ProAppt followed by the year 2024 and an exclamation mark
 
 **To create a new admin account if locked out:**
 ```bash
@@ -80,7 +80,7 @@ JWT_SECRET           → strong random hex string (set)
 SETUP_KEY            → CHANGED from default (set to strong value) ✅
 RESEND_API_KEY       → set (Resend account key)
 FROM_EMAIL           → bookings@probookhq.com
-BRAND_NAME           → ProBook
+BRAND_NAME           → ProAppt
 FRONTEND_URL         → https://probookhq.com
 INBOUND_API_KEY      → set (Fort Knox key from randomkeygen.com) ← bridge auth key
 GOOGLE_CLIENT_ID     → not set yet
@@ -212,8 +212,15 @@ Partial unique index prevents double-booking (excludes cancelled rows).
 
 **`lead_events`** — full audit trail. Every status change, email send, match attempt, etc. (lead_id, event_type, payload JSONB, created_at)
 
-**`inbound_api_keys`** — per-site API keys for inbound lead submissions (id, name, key TEXT plaintext, source_slug, is_active, created_at, last_used_at, contractor_id TEXT → contractors.id)
+**`inbound_api_keys`** — per-site API keys for inbound lead submissions (id, name, key TEXT plaintext, source_slug, is_active, created_at, last_used_at, contractor_id TEXT → contractors.id, allowed_origins TEXT)
 - `contractor_id` is optional. When set, inbound leads from that key skip the matching engine entirely and are assigned directly to that contractor (status set to `matched` immediately). When null, normal round-robin matching runs.
+- `allowed_origins` is optional. Comma-separated list of allowed domains (e.g. `https://clientsite.com, https://www.clientsite.com`). When set, the inbound endpoint rejects requests whose `Origin` header doesn't match — prevents API key theft. Leave blank to allow any origin (backward compatible).
+
+**`intake_events`** — client onboarding intake form step tracking (id, type, step INTEGER, step_name TEXT, direction TEXT, client_id TEXT, business_name TEXT, ts TIMESTAMPTZ, created_at)
+- Fired from the client intake form HTML on every Next/Back click
+- `direction`: `start` (form opened) | `forward` (Next clicked) | `back` (Back clicked)
+- `client_id`: browser session ID generated once on form load
+- Powers the intake funnel stats endpoint for dropoff analysis
 
 ---
 
@@ -237,6 +244,7 @@ Partial unique index prevents double-booking (excludes cancelled rows).
 | POST | /api/auth/contractor/reset-password | Reset password via token |
 | POST | /api/auth/admin/login | Admin login → JWT |
 | POST | /api/auth/admin/register | Create first admin (disabled after one exists) |
+| POST | /api/intake/track | Track intake form step event (called from client intake form HTML) |
 
 ### Admin (JWT required)
 | Method | Path | Description |
@@ -252,7 +260,8 @@ Partial unique index prevents double-booking (excludes cancelled rows).
 | GET/PUT/DELETE | /api/bookings | Appointment management |
 | DELETE | /api/bookings/:id | Delete cancelled/completed appointment |
 | GET/POST/DELETE | /api/niches | Niche management |
-| GET/POST/PUT/DELETE | /api/apikeys | Per-site API key management (create accepts optional contractor_id; PUT /:id/contractor updates contractor assignment) |
+| GET/POST/PUT/DELETE | /api/apikeys | Per-site API key management (create accepts optional contractor_id and allowed_origins; PUT /:id/contractor updates contractor assignment; PUT /:id/origins updates allowed domains) |
+| GET | /api/intake/stats | Intake funnel dropoff stats (admin only) |
 
 ### Contractor (JWT required)
 | Method | Path | Description |
@@ -268,7 +277,7 @@ Partial unique index prevents double-booking (excludes cancelled rows).
 ---
 
 ## Email Templates (notifications.js)
-All emails use a shared branded HTML base with ProBook logo, indigo accent (#6366f1). Uses Resend HTTP API.
+All emails use a shared branded HTML base with ProAppt logo, indigo accent (#6366f1). Uses Resend HTTP API.
 
 | Function | Trigger | Recipients |
 |----------|---------|-----------|
@@ -359,7 +368,7 @@ Tabs: Leads | Contractors | Appointments | Performance | API Keys | Niches
 
 **Performance tab:** Lead conversion rates, contractor stats, booking funnel metrics
 
-**API Keys tab:** Create/manage per-site API keys for external lead sources. Each key can optionally be linked to a specific contractor — when linked, all leads from that site route directly to that contractor, bypassing the shared matching engine. Used for the HVAC website bundle business model.
+**API Keys tab:** Create/manage per-site API keys for external lead sources. Each key can optionally be linked to a specific contractor — when linked, all leads from that site route directly to that contractor, bypassing the shared matching engine. Each key also supports an optional allowed_origins field (comma-separated domains) to restrict which websites can use the key. Used for the HVAC website bundle business model.
 
 **Niches tab:** Add/edit/delete service niches
 
@@ -400,8 +409,8 @@ All pages are fully responsive. Key fixes applied:
 
 ---
 
-## The Bridge (OilToHeatRebate.com → ProBook)
-Automatically sends leads from the quiz site into ProBook's matching engine.
+## The Bridge (OilToHeatRebate.com → ProAppt)
+Automatically sends leads from the quiz site into ProAppt's matching engine.
 
 **Current status: DORMANT (intentionally)** — no contractors onboarded yet.
 
@@ -485,6 +494,8 @@ await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS reset_token_exp
 await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'`);
 await db.query(`UPDATE contractors SET status = 'approved' WHERE is_active = 1 AND status IS NULL`);
 await db.query(`ALTER TABLE inbound_api_keys ADD COLUMN IF NOT EXISTS contractor_id TEXT REFERENCES contractors(id) ON DELETE SET NULL`);
+await db.query(`ALTER TABLE inbound_api_keys ADD COLUMN IF NOT EXISTS allowed_origins TEXT`);
+await db.query(`CREATE TABLE IF NOT EXISTS intake_events (...)`);
 ```
 Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a UUID stored as TEXT.
 
@@ -522,21 +533,53 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 **Mobile horizontal scroll**
 → Two root causes: (1) overflow rules in `@layer` can be overridden — rules must be outside any layer. (2) Long text without `truncate` + `min-w-0` genuinely widens layout. Both must be fixed together.
 
+**Contractor can't block same-day time slots**
+→ Root cause: `new Date("YYYY-MM-DD")` parses the string as UTC midnight, making today look like yesterday in Pacific time. Fixed by constructing the date as `new Date(year, month, day)` (local time) and never re-parsing the formatted string.
+
+**API key rejected with 403 "Origin not allowed"**
+→ The key has `allowed_origins` set. Add your domain to the allowed list in Admin → API Keys, or clear the field to allow any origin.
+
 ---
 
-## Launch Status (as of June 23, 2026)
-The app is fully built, deployed, and tested. All features complete including dedicated contractor routing. Fully mobile-responsive.
+## Launch Status (as of June 28, 2026)
+The app is fully built, deployed, and tested. All features complete including dedicated contractor routing, domain-restricted API keys, and intake form tracking. Fully mobile-responsive.
 
 **Completed since launch:**
 - ✅ Railway credit card added
 - ✅ Dedicated contractor routing via API keys (June 23) — each HVAC client's website routes leads exclusively to their contractor, bypassing the shared matching engine
 - ✅ Admin dashboard overflow fix — desktop tables scroll correctly on all tabs
+- ✅ Domain-restricted API keys (June 28) — `allowed_origins` field on inbound_api_keys prevents API key theft by rejecting requests from non-whitelisted domains
+- ✅ Same-day time block fix (June 28) — contractors can now block time slots for the current day; was broken by a UTC timezone parsing bug in ContractorPortal.jsx
+- ✅ Intake form step tracking (June 28) — `/api/intake/track` endpoint + `intake_events` table lets the HVAC client intake form fire step events so Jose can see dropoff rates per form step
 
 **Remaining operational items (not code):**
 - [ ] Run full end-to-end test with a real contractor before onboarding clients
 - [ ] Flip bridge ON once first contractor is onboarded (see Bridge section — no code changes needed)
 - [ ] Google Calendar credentials (deferred — add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` to Railway when ready)
-- [ ] Build demo HVAC website template (separate repo/folder — not inside lead-booking-app)
+- [ ] Wire JS fetch snippet into intake form HTML on each step's Next/Back button click (intake form already fires to `/api/intake/track` — verify it's working)
+- [ ] Build intake funnel view in ProAppt admin dashboard (data is being collected, UI not yet built)
+
+## ⚠️ Client Go-Live Checklist (HVAC Website Bundle)
+**Run through this every single time you onboard a new HVAC client. Do not skip steps.**
+
+1. [ ] Create contractor account in ProAppt admin → Contractors → Add Contractor
+2. [ ] Create API key in ProAppt admin → API Keys → New Key
+   - Name: client's business name (e.g. "Premier Comfort HVAC")
+   - Source slug: their domain slug (e.g. "premiercomforthvac")
+   - Link to their contractor account
+   - **⚠️ ALWAYS set `Allowed Origins` to their deployed domain** (e.g. `https://premiercomforthvac.com, https://www.premiercomforthvac.com`)
+   - **If you forget `allowed_origins`, anyone who finds the API key can flood ProAppt with fake leads from any website**
+3. [ ] Copy the generated API key — it's only shown once
+4. [ ] Paste the CLIENT config (from intake form Worker submission) into the HVAC template `index.html`
+5. [ ] Replace `YOUR_PROBOOK_API_KEY` in the CLIENT config with the real key from step 3
+6. [ ] Update `CLIENT.sourceSite` and `CLIENT.siteUrl` to the client's actual domain
+7. [ ] Swap in client's logo, cover photo (from R2 bucket if uploaded via intake form)
+8. [ ] Deploy to Cloudflare Pages (or client's host)
+9. [ ] Verify the deployed domain matches what you set in `allowed_origins` — test a lead submission
+10. [ ] Have contractor log into ProAppt portal and set their weekly availability
+11. [ ] Send contractor their ProAppt portal login
+
+---
 
 ## Full End-to-End Test Steps
 1. Go to /apply → submit contractor application → check approval email arrives

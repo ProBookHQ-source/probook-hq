@@ -14,7 +14,7 @@ function fmtTime(t) {
   const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
-const BRAND     = process.env.BRAND_NAME  || 'ProBook';
+const BRAND     = process.env.BRAND_NAME  || 'ProAppt';
 const APP_URL   = process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.FROM_EMAIL || 'bookings@probookhq.com';
 
@@ -85,7 +85,7 @@ async function sendEmail(to, subject, html) {
 // Clean white master wrapper — indigo accents only, no dark backgrounds
 function emailBase({ accentColor = '#6366f1', label, headline, sub = '', bodyContent }) {
   // Hosted PNG — works in Gmail, iCloud, Outlook, everywhere (SVG is stripped by Gmail)
-  const iconImg = `<img src="${APP_URL}/probook-icon-128.png" width="36" height="36" alt="ProBook" style="display:block;border-radius:8px;" />`;
+  const iconImg = `<img src="${APP_URL}/probook-icon-128.png" width="36" height="36" alt="ProAppt" style="display:block;border-radius:8px;" />`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -134,10 +134,10 @@ function emailBase({ accentColor = '#6366f1', label, headline, sub = '', bodyCon
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #f0f0f5;padding-top:20px;margin-top:8px;">
       <tr>
         <td style="padding-right:12px;vertical-align:middle;width:44px;">
-          <img src="${APP_URL}/probook-icon-128.png" width="44" height="44" alt="ProBook" style="display:block;border-radius:10px;" />
+          <img src="${APP_URL}/probook-icon-128.png" width="44" height="44" alt="ProAppt" style="display:block;border-radius:10px;" />
         </td>
         <td style="vertical-align:middle;">
-          <p style="margin:0;font-size:14px;font-weight:700;color:#1a1a2e;">The <span style="color:${accentColor};">ProBook</span> Team</p>
+          <p style="margin:0;font-size:14px;font-weight:700;color:#1a1a2e;">The <span style="color:${accentColor};">ProAppt</span> Team</p>
           <p style="margin:2px 0 0;font-size:13px;color:#9ca3af;">bookings@probookhq.com &nbsp;·&nbsp; probookhq.com</p>
         </td>
       </tr>
@@ -146,7 +146,7 @@ function emailBase({ accentColor = '#6366f1', label, headline, sub = '', bodyCon
 
   <!-- Footer -->
   <tr><td style="background:#f9f9fc;border-top:1px solid #ebebf0;padding:16px 40px;border-radius:0 0 16px 16px;text-align:center;">
-    <p style="margin:0;font-size:12px;color:#b0b0c0;">You received this because you have an active request with ProBook. Questions? Reply to this email.</p>
+    <p style="margin:0;font-size:12px;color:#b0b0c0;">You received this because you have an active request with ProAppt. Questions? Reply to this email.</p>
   </td></tr>
 
 </table>
@@ -373,9 +373,9 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
       ${sectionLabel(isContractor && isReschedule ? "Updated Schedule" : "What Happens Next")}
       <tr><td style="padding:0 0 20px;">
         ${isContractor ? `
-        ${stepCard(1, isReschedule ? 'All updated' : 'Review the lead details', isReschedule ? 'Your ProBook schedule reflects the new time. If you have Google Calendar connected, it\'s already synced.' : 'Check the homeowner\'s project description before the visit.')}
+        ${stepCard(1, isReschedule ? 'All updated' : 'Review the lead details', isReschedule ? 'Your ProAppt schedule reflects the new time. If you have Google Calendar connected, it\'s already synced.' : 'Check the homeowner\'s project description before the visit.')}
         ${stepCard(2, 'Show up ready', `Arrive at the scheduled time prepared to assess and discuss the project with ${esc(otherPartyName)}.`)}
-        ${stepCard(3, 'Close the job', 'Provide your quote or service on-site. ProBook will keep sending you matched leads.')}
+        ${stepCard(3, 'Close the job', 'Provide your quote or service on-site. ProAppt will keep sending you matched leads.')}
         ` : `
         ${stepCard(1, 'You\'re all set', 'No additional steps needed — your contractor will handle the rest.')}
         ${stepCard(2, 'Be ready for your contractor', `${esc(otherPartyName)} will arrive at the scheduled time.`)}
@@ -570,7 +570,7 @@ async function sendHomeownerCancelledNotice(contractor, lead, appointment) {
       </td></tr>
       <tr><td style="padding:0 0 4px;">
         <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
-          <strong>${esc(lead.name)}</strong> has cancelled their appointment scheduled for ${dateStr}. We've sent them a new booking link so they can reschedule. No action needed on your end — ProBook will keep sending you matched leads.
+          <strong>${esc(lead.name)}</strong> has cancelled their appointment scheduled for ${dateStr}. We've sent them a new booking link so they can reschedule. No action needed on your end — ProAppt will keep sending you matched leads.
         </p>
       </td></tr>
 
@@ -697,8 +697,8 @@ async function sendContractorApproved(contractor) {
       ${sectionLabel('Get Started')}
       <tr><td style="padding:0 0 20px;">
         ${stepCard(1, 'Log in to your portal', `Visit ${APP_URL}/login and sign in with the email and password you set during your application.`)}
-        ${stepCard(2, 'Set your availability', 'Head to My Schedule in your portal and add the hours you\'re available each week. ProBook will only book appointments during these windows.')}
-        ${stepCard(3, 'Start receiving leads', 'Once your availability is set, ProBook will automatically match you with homeowners in your area and send you confirmed appointments.')}
+        ${stepCard(2, 'Set your availability', 'Head to My Schedule in your portal and add the hours you\'re available each week. ProAppt will only book appointments during these windows.')}
+        ${stepCard(3, 'Start receiving leads', 'Once your availability is set, ProAppt will automatically match you with homeowners in your area and send you confirmed appointments.')}
       </td></tr>
 
       ${ctaBtn(`${APP_URL}/login`, 'Log In to Your Portal')}

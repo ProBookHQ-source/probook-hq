@@ -202,7 +202,7 @@ db._ready.then(async () => {
   app.listen(PORT, () => {
     console.log(`
 ╔════════════════════════════════════════╗
-║       ProBook Backend Running          ║
+║       ProAppt Backend Running          ║
 ║  http://localhost:${PORT}                 ║
 ╚════════════════════════════════════════╝
     `);

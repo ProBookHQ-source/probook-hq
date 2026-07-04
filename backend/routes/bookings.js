@@ -387,7 +387,7 @@ router.put('/:id/admin-cancel', requireAdmin, async (req, res) => {
 
   await db.prepare("UPDATE appointments SET status = 'cancelled', updated_at = NOW() WHERE id = $1").run(req.params.id);
 
-  // Only send rebook flow for real ProBook appointments (not external blocks)
+  // Only send rebook flow for real ProAppt appointments (not external blocks)
   if (appt.lead_id) {
     await db.prepare("UPDATE leads SET status = 'matched' WHERE id = $1").run(appt.lead_id);
 

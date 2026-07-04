@@ -34,8 +34,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/probook-icon-128.png" alt="ProBook" className="w-14 h-14 rounded-2xl shadow-lg mb-4 mx-auto" />
-          <h1 className="text-2xl font-bold text-gray-900">ProBook</h1>
+          <img src="/probook-icon-128.png" alt="ProAppt" className="w-14 h-14 rounded-2xl shadow-lg mb-4 mx-auto" />
+          <h1 className="text-2xl font-bold text-gray-900">ProAppt</h1>
           <p className="text-gray-500 text-sm mt-1">Smart contractor scheduling</p>
         </div>
 
@@ -112,7 +112,7 @@ export default function LoginPage() {
         )}
 
         <p className="text-center text-xs text-gray-400 mt-4">
-          Powered by ProBook — Lead Generation & Scheduling
+          Powered by ProAppt — Lead Generation & Scheduling
         </p>
       </div>
     </div>
