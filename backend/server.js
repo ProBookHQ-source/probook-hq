@@ -69,14 +69,15 @@ app.use(helmet({
   },
 }));
 
-app.use(cors({
-  // Fail closed: if FRONTEND_URL isn't set, fall back to the known production URL
-  origin: process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app',
-  // credentials: true removed — the frontend uses JWT in Authorization headers (not cookies),
-  // so withCredentials is never set. Adding credentials: true would inject
-  // Access-Control-Allow-Credentials: true on every response, which is incompatible
-  // with Access-Control-Allow-Origin: * on the inbound endpoint (browsers reject that combo).
-}));
+// Skip cors() for /api/leads/inbound — that path uses its own ACAO: * set above.
+// cors() with a string origin sets ACAO to the configured origin on EVERY response,
+// which would override our wildcard and block requests from external client sites.
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/leads/inbound')) return next();
+  cors({
+    origin: process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app',
+  })(req, res, next);
+});
 app.use(express.json({ limit: '50kb' }));
 
 // ── Health check ──────────────────────────────────────────────────────────────
