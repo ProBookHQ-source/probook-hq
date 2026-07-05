@@ -262,7 +262,7 @@ router.post('/cancel-token/:token', async (req, res) => {
     if (hitLimit) {
       // Too many self-service actions — alert admin, don't auto-issue rebook link
       notifications.sendAdminNoMatch({ ...lead, description: `[ABUSE FLAG] Homeowner attempted a 2nd self-service cancellation. Manual review needed.` }).catch(console.error);
-      return res.json({ message: 'Your appointment has been cancelled. Please contact bookings@probookhq.com to arrange a new time.', limit_reached: true });
+      return res.json({ message: 'Your appointment has been cancelled. Please contact bookings@tractifyhq.com to arrange a new time.', limit_reached: true });
     }
     await db.prepare('UPDATE leads SET reschedule_count = COALESCE(reschedule_count, 0) + 1 WHERE id = $1').run(lead.id);
     await db.prepare('UPDATE booking_tokens SET used = 1 WHERE lead_id = $1 AND used = 0').run(lead.id);
@@ -316,7 +316,7 @@ router.post('/reschedule-token/:token', async (req, res) => {
   const hitLimit = (lead.reschedule_count || 0) >= 1;
   if (hitLimit) {
     notifications.sendAdminNoMatch({ ...lead, description: `[ABUSE FLAG] Homeowner attempted a 2nd self-service reschedule. Manual review needed.` }).catch(console.error);
-    return res.status(429).json({ error: 'You\'ve used your self-service reschedule. Please contact bookings@probookhq.com to arrange a new time.' });
+    return res.status(429).json({ error: 'You\'ve used your self-service reschedule. Please contact bookings@tractifyhq.com to arrange a new time.' });
   }
 
   await db.prepare("UPDATE appointments SET status = 'cancelled', updated_at = NOW() WHERE id = $1").run(appt.id);
@@ -387,7 +387,7 @@ router.put('/:id/admin-cancel', requireAdmin, async (req, res) => {
 
   await db.prepare("UPDATE appointments SET status = 'cancelled', updated_at = NOW() WHERE id = $1").run(req.params.id);
 
-  // Only send rebook flow for real ProAppt appointments (not external blocks)
+  // Only send rebook flow for real Tractify appointments (not external blocks)
   if (appt.lead_id) {
     await db.prepare("UPDATE leads SET status = 'matched' WHERE id = $1").run(appt.lead_id);
 

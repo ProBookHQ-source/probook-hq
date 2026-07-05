@@ -1,4 +1,4 @@
-# ProBook — Auto-Booking for Lead Generation
+# Tractify — Auto-Booking for Lead Generation
 
 A full-stack scheduling platform that automatically matches leads to contractors and books appointments — runs as a **single server**, one command.
 

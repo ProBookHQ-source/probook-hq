@@ -48,7 +48,7 @@ export default function ResetPassword() {
       <div className={bg}>
         <div className="w-full max-w-md text-center">
           <div className="flex justify-center mb-4">
-            <img src="/probook-icon-128.png" alt="ProAppt" className="w-14 h-14 rounded-2xl shadow-lg" />
+            <img src="/probook-icon-128.png" alt="Tractify" className="w-14 h-14 rounded-2xl shadow-lg" />
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-8">
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -74,7 +74,7 @@ export default function ResetPassword() {
     <div className={bg}>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <img src="/probook-icon-128.png" alt="ProAppt" className="w-14 h-14 rounded-2xl shadow-lg mb-4 mx-auto" />
+          <img src="/probook-icon-128.png" alt="Tractify" className="w-14 h-14 rounded-2xl shadow-lg mb-4 mx-auto" />
           <h1 className="text-2xl font-bold text-gray-900">Set a new password</h1>
           <p className="text-gray-500 text-sm mt-1">Choose something strong — at least 8 characters.</p>
         </div>

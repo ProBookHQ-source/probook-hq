@@ -543,8 +543,8 @@ export default function ContractorPortal() {
         {/* Logo */}
         <div className="px-5 pt-6 pb-5">
           <div className="flex items-center gap-2.5">
-            <img src="/probook-icon-128.png" alt="ProAppt" className="w-8 h-8 rounded-xl shadow-sm" />
-            <span className="font-bold text-gray-900 text-base tracking-tight">ProAppt</span>
+            <img src="/probook-icon-128.png" alt="Tractify" className="w-8 h-8 rounded-xl shadow-sm" />
+            <span className="font-bold text-gray-900 text-base tracking-tight">Tractify</span>
           </div>
         </div>
 
@@ -1048,7 +1048,7 @@ export default function ContractorPortal() {
                               />
                             )}
                             {appt && appt.status === 'external' && (
-                              // Striped "outside block" — not a ProAppt appointment
+                              // Striped "outside block" — not a Tractify appointment
                               <div
                                 className="absolute inset-x-1 inset-y-0.5 rounded-xl overflow-hidden cursor-pointer group"
                                 style={{
@@ -1082,7 +1082,7 @@ export default function ContractorPortal() {
                               </div>
                             )}
                             {appt && appt.status !== 'external' && appt.status !== 'cancelled' && (
-                              // Normal ProAppt appointment block
+                              // Normal Tractify appointment block
                               <div
                                 className={`absolute inset-x-1 inset-y-0.5 rounded-xl ${(APPT_COLORS[appt.status] || APPT_COLORS.confirmed).block} px-2 py-1 overflow-hidden shadow-sm`}
                               >
@@ -1459,7 +1459,7 @@ export default function ContractorPortal() {
                         placeholder="e.g. 3 (leave blank for no limit)"
                       />
                       <p className="text-xs text-gray-400 mt-1">
-                        ProAppt won't book more than this many appointments on any single day. Leave blank for no limit.
+                        Tractify won't book more than this many appointments on any single day. Leave blank for no limit.
                       </p>
                     </div>
                     <button
@@ -1525,7 +1525,7 @@ export default function ContractorPortal() {
                     <p className="text-sm text-gray-500 mb-1">
                       If you use Google Calendar, connect it here and your bookings will show up there automatically.
                     </p>
-                    <p className="text-xs text-gray-400 mb-4">You don't need this for ProAppt to work — it's just a bonus if you want it.</p>
+                    <p className="text-xs text-gray-400 mb-4">You don't need this for Tractify to work — it's just a bonus if you want it.</p>
                     <button onClick={connectGoogle} className="btn-secondary gap-2">
                       <LinkIcon className="w-4 h-4" />
                       Connect Google Calendar

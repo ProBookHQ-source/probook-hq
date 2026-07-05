@@ -23,7 +23,7 @@ function NotFound() {
     <div className="min-h-screen bg-gradient-to-br from-brand-50 to-purple-50 flex items-center justify-center p-4">
       <div className="text-center">
         <div className="flex justify-center mb-4">
-          <img src="/probook-icon-128.png" alt="ProAppt" className="w-16 h-16 rounded-2xl" />
+          <img src="/probook-icon-128.png" alt="Tractify" className="w-16 h-16 rounded-2xl" />
         </div>
         <h1 className="text-5xl font-black text-gray-900 mb-2">404</h1>
         <p className="text-gray-500 mb-6">This page doesn't exist.</p>

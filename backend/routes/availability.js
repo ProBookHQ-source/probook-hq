@@ -159,7 +159,7 @@ router.get('/:contractorId/open-slots', async (req, res) => {
 
 // ── Block external time (outside appointment) ─────────────────────────────────
 // Inserts one appointment row per hour with status='external' so the unique
-// index prevents ProAppt homeowners from booking those slots.
+// index prevents Tractify homeowners from booking those slots.
 router.post('/:contractorId/manual-block', requireContractor, async (req, res) => {
   const { contractorId } = req.params;
   if (req.user.role !== 'admin' && req.user.id !== contractorId) {

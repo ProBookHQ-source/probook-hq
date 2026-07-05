@@ -14,8 +14,8 @@ export default function LandingPage() {
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 shrink-0">
-            <img src="/probook-icon-128.png" alt="ProAppt" className="w-8 h-8 rounded-lg" />
-            <span className="font-bold text-gray-900 text-base sm:text-lg">ProAppt</span>
+            <img src="/probook-icon-128.png" alt="Tractify" className="w-8 h-8 rounded-lg" />
+            <span className="font-bold text-gray-900 text-base sm:text-lg">Tractify</span>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -47,7 +47,7 @@ export default function LandingPage() {
             <span className="text-brand-500">Booked Instantly.</span>
           </h1>
           <p className="text-base sm:text-lg md:text-xl text-gray-500 mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed px-2">
-            ProAppt connects homeowners with top local contractors in seconds — no phone calls, no waiting. Get matched, pick a time, done.
+            Tractify connects homeowners with top local contractors in seconds — no phone calls, no waiting. Get matched, pick a time, done.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4 sm:px-0">
             <button
@@ -132,12 +132,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── WHY PROBOOK ── */}
+      {/* ── WHY TRACTIFY ── */}
       <section className="py-14 md:py-24 bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
             <div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-5 sm:mb-6">Why homeowners choose ProAppt</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-5 sm:mb-6">Why homeowners choose Tractify</h2>
               <div className="space-y-4 sm:space-y-5">
                 {[
                   { icon: Clock, title: 'Instant matching', desc: 'No waiting days for a callback. Get matched in seconds.' },
@@ -183,7 +183,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-10 sm:mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Are you a contractor?</h2>
-            <p className="text-gray-500 text-sm sm:text-base max-w-xl mx-auto">Join ProAppt and get qualified leads delivered straight to your calendar — no cold calling, no chasing.</p>
+            <p className="text-gray-500 text-sm sm:text-base max-w-xl mx-auto">Join Tractify and get qualified leads delivered straight to your calendar — no cold calling, no chasing.</p>
           </div>
           <div className="grid sm:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-10">
             {[
@@ -235,10 +235,10 @@ export default function LandingPage() {
       <footer className="bg-gray-900 py-8 sm:py-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <img src="/probook-icon-128.png" alt="ProAppt" className="w-7 h-7 rounded-lg" />
-            <span className="font-bold text-white">ProAppt</span>
+            <img src="/probook-icon-128.png" alt="Tractify" className="w-7 h-7 rounded-lg" />
+            <span className="font-bold text-white">Tractify</span>
           </div>
-          <p className="text-gray-500 text-sm">© {new Date().getFullYear()} ProAppt. All rights reserved.</p>
+          <p className="text-gray-500 text-sm">© {new Date().getFullYear()} Tractify. All rights reserved.</p>
           <div className="flex gap-5 text-sm text-gray-500">
             <a href="/get-quote" className="hover:text-white transition-colors">Get a Quote</a>
             <a href="/apply" className="hover:text-white transition-colors">Join as Contractor</a>

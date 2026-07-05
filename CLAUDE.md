@@ -1,4 +1,4 @@
-# ProAppt — Master Context Document
+# Tractify — Master Context Document
 *Paste this entire document at the start of any new chat. Last updated: June 28, 2026.*
 
 ---
@@ -12,19 +12,19 @@
 
 ---
 
-## What ProAppt Is
-A full-stack auto-booking platform for Jose's lead generation business. The model: Jose runs niche lead gen sites (starting with OilToHeatRebate.com for Seattle oil-to-heat-pump conversions), sells those leads to HVAC contractors, and uses ProAppt to automatically match leads to contractors and handle appointment booking — no manual scheduling needed.
+## What Tractify Is
+A full-stack auto-booking platform for Jose's lead generation business. The model: Jose runs niche lead gen sites (starting with OilToHeatRebate.com for Seattle oil-to-heat-pump conversions), sells those leads to HVAC contractors, and uses Tractify to automatically match leads to contractors and handle appointment booking — no manual scheduling needed.
 
 **The full lead flow:**
 1. Homeowner fills out quiz on OilToHeatRebate.com (or future niche sites)
 2. Google Apps Script saves lead to Google Sheet + sends owner email + sends homeowner confirmation
-3. Apps Script bridge POSTs lead to ProAppt's `/api/leads/inbound` endpoint *(currently dormant — see Bridge section)*
-4. ProAppt auto-matches lead to the right contractor by niche + zip code (round-robin rotation)
+3. Apps Script bridge POSTs lead to Tractify's `/api/leads/inbound` endpoint *(currently dormant — see Bridge section)*
+4. Tractify auto-matches lead to the right contractor by niche + zip code (round-robin rotation)
 5. Homeowner gets email with personalized booking link (48hr expiry)
 6. Homeowner picks time from contractor's live availability calendar
 7. Appointment confirmed — both parties notified, synced to Google Calendar
 
-**Business model:** Sell raw leads first (no ProAppt needed), then upgrade contractors to booked leads via ProAppt (much higher value product).
+**Business model:** Sell raw leads first (no Tractify needed), then upgrade contractors to booked leads via Tractify (much higher value product).
 
 ---
 
@@ -40,12 +40,12 @@ A full-stack auto-booking platform for Jose's lead generation business. The mode
 - **Hosting:** Railway.app (auto-deploys on every GitHub push to main)
 - **Railway project name:** compassionate-elegance
 - **Database:** PostgreSQL (Railway managed — persistent across redeploys ✅)
-- **Email:** Resend HTTP API (FROM: bookings@probookhq.com)
+- **Email:** Resend HTTP API (FROM: bookings@tractifyhq.com)
 - **Build system:** `nixpacks.toml` (replaced Dockerfile — installs backend + frontend deps, builds React, starts node)
 
 ## Admin Login Credentials
 - **Email:** oiltoheatrebate@gmail.com
-- **Password hint:** the word ProAppt followed by the year 2024 and an exclamation mark
+- **Password hint:** the word Tractify followed by the year 2024 and an exclamation mark
 
 **To create a new admin account if locked out:**
 ```bash
@@ -62,7 +62,7 @@ curl -X POST https://probookhq.com/api/auth/admin/register \
 - **Database:** PostgreSQL via `pg` npm package (Railway managed)
 - **Frontend:** React + Vite + Tailwind CSS (pre-built, served by Express at `frontend/dist`)
 - **Auth:** JWT tokens (admin + contractor roles, 7-day expiry)
-- **Email:** Resend HTTP API — `RESEND_API_KEY` env var, FROM: bookings@probookhq.com
+- **Email:** Resend HTTP API — `RESEND_API_KEY` env var, FROM: bookings@tractifyhq.com
 - **Calendar:** Google Calendar API OAuth2 (built, not yet configured with credentials)
 - **Deployment:** nixpacks on Railway, auto-deploy via GitHub push
 - **DNS:** Cloudflare (probookhq.com → Railway)
@@ -79,8 +79,8 @@ DATABASE_URL         → auto-set by Railway PostgreSQL plugin
 JWT_SECRET           → strong random hex string (set)
 SETUP_KEY            → CHANGED from default (set to strong value) ✅
 RESEND_API_KEY       → set (Resend account key)
-FROM_EMAIL           → bookings@probookhq.com
-BRAND_NAME           → ProAppt
+FROM_EMAIL           → bookings@tractifyhq.com
+BRAND_NAME           → Tractify
 FRONTEND_URL         → https://probookhq.com
 INBOUND_API_KEY      → set (Fort Knox key from randomkeygen.com) ← bridge auth key
 GOOGLE_CLIENT_ID     → not set yet
@@ -277,7 +277,7 @@ Partial unique index prevents double-booking (excludes cancelled rows).
 ---
 
 ## Email Templates (notifications.js)
-All emails use a shared branded HTML base with ProAppt logo, indigo accent (#6366f1). Uses Resend HTTP API.
+All emails use a shared branded HTML base with Tractify logo, indigo accent (#6366f1). Uses Resend HTTP API.
 
 | Function | Trigger | Recipients |
 |----------|---------|-----------|
@@ -409,8 +409,8 @@ All pages are fully responsive. Key fixes applied:
 
 ---
 
-## The Bridge (OilToHeatRebate.com → ProAppt)
-Automatically sends leads from the quiz site into ProAppt's matching engine.
+## The Bridge (OilToHeatRebate.com → Tractify)
+Automatically sends leads from the quiz site into Tractify's matching engine.
 
 **Current status: DORMANT (intentionally)** — no contractors onboarded yet.
 
@@ -557,18 +557,18 @@ The app is fully built, deployed, and tested. All features complete including de
 - [ ] Flip bridge ON once first contractor is onboarded (see Bridge section — no code changes needed)
 - [ ] Google Calendar credentials (deferred — add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` to Railway when ready)
 - [ ] Wire JS fetch snippet into intake form HTML on each step's Next/Back button click (intake form already fires to `/api/intake/track` — verify it's working)
-- [ ] Build intake funnel view in ProAppt admin dashboard (data is being collected, UI not yet built)
+- [ ] Build intake funnel view in Tractify admin dashboard (data is being collected, UI not yet built)
 
 ## ⚠️ Client Go-Live Checklist (HVAC Website Bundle)
 **Run through this every single time you onboard a new HVAC client. Do not skip steps.**
 
-1. [ ] Create contractor account in ProAppt admin → Contractors → Add Contractor
-2. [ ] Create API key in ProAppt admin → API Keys → New Key
+1. [ ] Create contractor account in Tractify admin → Contractors → Add Contractor
+2. [ ] Create API key in Tractify admin → API Keys → New Key
    - Name: client's business name (e.g. "Premier Comfort HVAC")
    - Source slug: their domain slug (e.g. "premiercomforthvac")
    - Link to their contractor account
    - **⚠️ ALWAYS set `Allowed Origins` to their deployed domain** (e.g. `https://premiercomforthvac.com, https://www.premiercomforthvac.com`)
-   - **If you forget `allowed_origins`, anyone who finds the API key can flood ProAppt with fake leads from any website**
+   - **If you forget `allowed_origins`, anyone who finds the API key can flood Tractify with fake leads from any website**
 3. [ ] Copy the generated API key — it's only shown once
 4. [ ] Paste the CLIENT config (from intake form Worker submission) into the HVAC template `index.html`
 5. [ ] Replace `YOUR_PROBOOK_API_KEY` in the CLIENT config with the real key from step 3
@@ -576,8 +576,8 @@ The app is fully built, deployed, and tested. All features complete including de
 7. [ ] Swap in client's logo, cover photo (from R2 bucket if uploaded via intake form)
 8. [ ] Deploy to Cloudflare Pages (or client's host)
 9. [ ] Verify the deployed domain matches what you set in `allowed_origins` — test a lead submission
-10. [ ] Have contractor log into ProAppt portal and set their weekly availability
-11. [ ] Send contractor their ProAppt portal login
+10. [ ] Have contractor log into Tractify portal and set their weekly availability
+11. [ ] Send contractor their Tractify portal login
 
 ---
 
