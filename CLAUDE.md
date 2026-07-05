@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Paste this entire document at the start of any new chat. Last updated: June 28, 2026.*
+*Paste this entire document at the start of any new chat. Last updated: July 4, 2026.*
 
 ---
 
@@ -29,18 +29,19 @@ A full-stack auto-booking platform for Jose's lead generation business. The mode
 ---
 
 ## Live Deployment
-- **Live URL:** https://probook-hq-production.up.railway.app
-- **Custom domain:** https://probookhq.com (live, via Cloudflare DNS → Railway)
-- **Landing page:** https://probookhq.com
-- **Admin dashboard:** https://probookhq.com/admin
-- **Lead form:** https://probookhq.com/get-quote
-- **Contractor portal:** https://probookhq.com/contractor
-- **Contractor apply:** https://probookhq.com/apply
-- **Login:** https://probookhq.com/login
+- **Live URL:** https://tractifyhq.com
+- **Internal Railway URL:** https://probook-hq-production.up.railway.app (keep — Railway internal)
+- **Landing page:** https://tractifyhq.com
+- **Admin dashboard:** https://tractifyhq.com/admin
+- **Lead form:** https://tractifyhq.com/get-quote
+- **Contractor portal:** https://tractifyhq.com/contractor
+- **Contractor apply:** https://tractifyhq.com/apply
+- **Login:** https://tractifyhq.com/login
 - **Hosting:** Railway.app (auto-deploys on every GitHub push to main)
 - **Railway project name:** compassionate-elegance
 - **Database:** PostgreSQL (Railway managed — persistent across redeploys ✅)
-- **Email:** Resend HTTP API (FROM: bookings@tractifyhq.com)
+- **Email:** Resend HTTP API (FROM: bookings@tractifyhq.com) — domain verified via Cloudflare auto-configure ✅
+- **DNS:** Cloudflare (tractifyhq.com → Railway) — tractifyhq.com added to Cloudflare July 4, 2026
 - **Build system:** `nixpacks.toml` (replaced Dockerfile — installs backend + frontend deps, builds React, starts node)
 
 ## Admin Login Credentials
@@ -49,7 +50,7 @@ A full-stack auto-booking platform for Jose's lead generation business. The mode
 
 **To create a new admin account if locked out:**
 ```bash
-curl -X POST https://probookhq.com/api/auth/admin/register \
+curl -X POST https://tractifyhq.com/api/auth/admin/register \
   -H "Content-Type: application/json" \
   -d '{"email":"oiltoheatrebate@gmail.com","password":"YOURPASSWORD","name":"Jose","setupKey":"YOUR_SETUP_KEY"}'
 ```
@@ -81,7 +82,7 @@ SETUP_KEY            → CHANGED from default (set to strong value) ✅
 RESEND_API_KEY       → set (Resend account key)
 FROM_EMAIL           → bookings@tractifyhq.com
 BRAND_NAME           → Tractify
-FRONTEND_URL         → https://probookhq.com
+FRONTEND_URL         → https://tractifyhq.com
 INBOUND_API_KEY      → set (Fort Knox key from randomkeygen.com) ← bridge auth key
 GOOGLE_CLIENT_ID     → not set yet
 GOOGLE_CLIENT_SECRET → not set yet
@@ -541,7 +542,7 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 
 ---
 
-## Launch Status (as of June 28, 2026)
+## Launch Status (as of July 4, 2026)
 The app is fully built, deployed, and tested. All features complete including dedicated contractor routing, domain-restricted API keys, and intake form tracking. Fully mobile-responsive.
 
 **Completed since launch:**
@@ -551,6 +552,7 @@ The app is fully built, deployed, and tested. All features complete including de
 - ✅ Domain-restricted API keys (June 28) — `allowed_origins` field on inbound_api_keys prevents API key theft by rejecting requests from non-whitelisted domains
 - ✅ Same-day time block fix (June 28) — contractors can now block time slots for the current day; was broken by a UTC timezone parsing bug in ContractorPortal.jsx
 - ✅ Intake form step tracking (June 28) — `/api/intake/track` endpoint + `intake_events` table lets the HVAC client intake form fire step events so Jose can see dropoff rates per form step
+- ✅ Full rebrand to Tractify (July 4) — renamed from ProBook → ProAppt → Tractify across entire codebase; tractifyhq.com bought, added to Cloudflare, Resend domain verified via Cloudflare auto-configure, Railway custom domain updated, all env vars updated (BRAND_NAME, FROM_EMAIL, FRONTEND_URL)
 
 **Remaining operational items (not code):**
 - [ ] Run full end-to-end test with a real contractor before onboarding clients

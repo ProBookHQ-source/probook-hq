@@ -49,6 +49,10 @@ app.use(helmet({
   },
 }));
 
+// Inbound lead endpoint is called from external client sites — must allow any origin.
+// Security is enforced server-side via API key + allowed_origins check in the route itself.
+app.use('/api/leads/inbound', cors({ origin: '*' }));
+
 app.use(cors({
   // Fail closed: if FRONTEND_URL isn't set, fall back to the known production URL
   origin: process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app',
