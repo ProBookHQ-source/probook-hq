@@ -32,6 +32,22 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change-me-in-producti
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.set('trust proxy', 1); // trust Cloudflare + Railway proxy
 
+// ── CORS for inbound lead endpoint ───────────────────────────────────────────
+// Registered BEFORE Helmet so nothing can strip or override these headers.
+// The inbound endpoint is called from external client sites (hvactemplate.pages.dev, etc.)
+// Security is enforced server-side: API key auth + allowed_origins check inside the route.
+app.use('/api/leads/inbound', (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 // Security headers
 app.use(helmet({
   contentSecurityPolicy: {
@@ -48,10 +64,6 @@ app.use(helmet({
     },
   },
 }));
-
-// Inbound lead endpoint is called from external client sites — must allow any origin.
-// Security is enforced server-side via API key + allowed_origins check in the route itself.
-app.use('/api/leads/inbound', cors({ origin: '*' }));
 
 app.use(cors({
   // Fail closed: if FRONTEND_URL isn't set, fall back to the known production URL
