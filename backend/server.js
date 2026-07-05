@@ -50,6 +50,10 @@ app.use('/api/leads/inbound', (req, res, next) => {
 
 // Security headers
 app.use(helmet({
+  // cross-origin allows external client sites (hvactemplate.pages.dev, etc.) to read
+  // API responses via fetch(). Without this, Helmet's default CORP: same-origin blocks
+  // cross-origin reads even when Access-Control-Allow-Origin: * is set.
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
   contentSecurityPolicy: {
     directives: {
       defaultSrc:      ["'self'"],
