@@ -68,7 +68,10 @@ app.use(helmet({
 app.use(cors({
   // Fail closed: if FRONTEND_URL isn't set, fall back to the known production URL
   origin: process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app',
-  credentials: true,
+  // credentials: true removed — the frontend uses JWT in Authorization headers (not cookies),
+  // so withCredentials is never set. Adding credentials: true would inject
+  // Access-Control-Allow-Credentials: true on every response, which is incompatible
+  // with Access-Control-Allow-Origin: * on the inbound endpoint (browsers reject that combo).
 }));
 app.use(express.json({ limit: '50kb' }));
 
