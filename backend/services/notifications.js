@@ -116,7 +116,7 @@ function emailBase({ accentColor = '#6366f1', label, headline, sub = '', bodyCon
       <tr>
         <td style="padding-right:10px;vertical-align:middle;">${iconImg}</td>
         <td style="vertical-align:middle;line-height:1;">
-          <span style="font-size:24px;font-weight:800;color:${accentColor};letter-spacing:-0.5px;">Tracti</span><span style="font-size:24px;font-weight:400;color:#1a1a2e;letter-spacing:-0.5px;">fy</span>
+          <span style="font-size:24px;font-weight:800;color:${accentColor};letter-spacing:-0.5px;">Tractify</span>
         </td>
       </tr>
     </table>
