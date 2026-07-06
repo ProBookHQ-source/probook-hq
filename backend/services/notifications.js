@@ -28,6 +28,17 @@ function esc(str) {
     .replace(/"/g, '&quot;');
 }
 
+// Strip HTML tags to produce a plain text fallback — helps Gmail route to Primary vs Promotions
+function htmlToText(html) {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&mdash;/g, '—').replace(/&rarr;/g, '→')
+    .replace(/&nbsp;/g, ' ').replace(/&#\d+;/g, '')
+    .replace(/\s+/g, ' ').trim();
+}
+
 // ── Core send function ────────────────────────────────────────────────────────
 async function sendEmail(to, subject, html) {
   const apiKey = process.env.RESEND_API_KEY || process.env.SMTP_PASS;
@@ -42,6 +53,7 @@ async function sendEmail(to, subject, html) {
     to:   [to],
     subject,
     html,
+    text: htmlToText(html), // plain text version — improves deliverability and inbox placement
   });
 
   return new Promise((resolve, reject) => {
@@ -254,35 +266,35 @@ async function sendBookingLink(lead, contractor, bookingUrl) {
   const contractorName = esc(contractor.company_name || contractor.name);
   const html = emailBase({
     accentColor: '#6366f1',
-    label: 'YOUR CONTRACTOR MATCH',
-    headline: `You've been matched!`,
-    sub: `${contractorName} is ready for your project.`,
+    label: 'BOOK YOUR APPOINTMENT',
+    headline: `Your appointment is one click away.`,
+    sub: `${contractorName} has an opening for you — pick a time below.`,
     bodyContent: `
       <tr><td style="padding:0 0 20px;">
         <p style="margin:0;font-size:16px;color:#374151;">Hi <strong>${esc(lead.name)}</strong>,</p>
       </td></tr>
       <tr><td style="padding:0 0 20px;">
         <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
-          We found a qualified contractor for your project. Click below to pick an appointment time that works for you — it only takes a few seconds.
+          Thanks for reaching out to <strong>${contractorName}</strong>. Use the link below to choose an appointment time that works for you — no phone call needed.
         </p>
       </td></tr>
 
-      ${ctaBtn(bookingUrl, 'Pick Your Appointment Time')}
+      ${ctaBtn(bookingUrl, 'Choose Your Appointment Time')}
 
       ${sectionLabel("Here's What Happens Next")}
       <tr><td style="padding:0 0 8px;">
-        ${stepCard(1, 'Pick your time', 'Choose any available slot from the calendar — no phone calls needed.')}
-        ${stepCard(2, 'Get a confirmation', 'You\'ll get a confirmation email the moment you book.')}
-        ${stepCard(3, 'Your contractor arrives', `${contractorName} will show up ready to help with your project.`)}
+        ${stepCard(1, 'Pick your time', 'Browse available slots and choose whatever works for your schedule.')}
+        ${stepCard(2, 'Get a confirmation', 'You\'ll receive a confirmation email the moment you book.')}
+        ${stepCard(3, 'Your contractor arrives', `${contractorName} will come out at the scheduled time, ready to go.`)}
       </td></tr>
 
-      ${calloutBox('<strong>Heads up:</strong> This booking link expires in 48 hours. Add bookings@tractifyhq.com to your contacts so future emails don\'t get missed.')}
+      ${calloutBox('<strong>Heads up:</strong> This link expires in 48 hours. If you need more time, just reply to this email and we\'ll send you a new one.')}
 
       <tr><td>
-        <p style="margin:0;font-size:13px;color:#9ca3af;">Questions? Just reply to this email and we'll get back to you promptly.</p>
+        <p style="margin:0;font-size:13px;color:#9ca3af;">Questions? Just reply to this email and we'll get back to you right away.</p>
       </td></tr>`,
   });
-  return sendEmail(lead.email, `You've been matched with ${esc(contractor.company_name || contractor.name)} — book your time | ${BRAND}`, html);
+  return sendEmail(lead.email, `Book your appointment with ${esc(contractor.company_name || contractor.name)}`, html);
 }
 
 async function notifyContractor(contractor, lead) {
@@ -292,10 +304,12 @@ async function notifyContractor(contractor, lead) {
       ? (typeof lead.metadata === 'string' ? JSON.parse(lead.metadata) : lead.metadata)
       : {};
     const labelMap = {
+      service_type: 'Service Requested',
+      address: 'Address',
       heating: 'Heating System', oil_tank: 'Oil Tank', ductwork: 'Ductwork',
       year_built: 'Year Built', square_footage: 'Square Footage', monthly_oil_bill: 'Monthly Oil Bill',
       reason: 'Reason for Switch', timeline: 'Timeline', homeowner: 'Homeowner Status',
-      household_size: 'Household Size', income: 'Income Bracket', address: 'Address',
+      household_size: 'Household Size', income: 'Income Bracket',
     };
     const tierRow   = lead.external_tier ? infoRow('Lead Tier', `<span style="color:#059669;font-weight:700;">${esc(lead.external_tier)} (score: ${lead.external_score || '?'})</span>`) : '';
     const sourceRow = lead.source_site ? infoRow('Source', esc(lead.source_site)) : '';
@@ -334,7 +348,7 @@ async function notifyContractor(contractor, lead) {
 
       ${ctaBtn(`${APP_URL}/contractor`, 'View Your Dashboard')}`,
   });
-  return sendEmail(contractor.email, `New lead assigned: ${lead.name} in ${lead.zip_code} | ${BRAND}`, html);
+  return sendEmail(contractor.email, `New lead: ${esc(lead.name)} — ${esc(lead.zip_code)}`, html);
 }
 
 async function sendAppointmentConfirmation(lead, contractor, appointment) {
@@ -342,6 +356,13 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
   const isReschedule = !!appointment.is_reschedule;
+
+  // Pull address + service type from lead metadata for contractor email
+  let leadMeta = {};
+  try { leadMeta = lead.metadata ? (typeof lead.metadata === 'string' ? JSON.parse(lead.metadata) : lead.metadata) : {}; } catch (e) {}
+  const serviceAddress = leadMeta.address ? `${leadMeta.address}, ${lead.zip_code}` : lead.zip_code;
+  const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(serviceAddress)}`;
+  const serviceType = leadMeta.service_type || null;
 
   const makeHtml = (recipientName, otherPartyName, isContractor = false) => emailBase({
     accentColor: '#6366f1',
@@ -373,9 +394,22 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
       ${sectionLabel(isContractor && isReschedule ? "Updated Schedule" : "What Happens Next")}
       <tr><td style="padding:0 0 20px;">
         ${isContractor ? `
-        ${stepCard(1, isReschedule ? 'All updated' : 'Review the lead details', isReschedule ? 'Your Tractify schedule reflects the new time. If you have Google Calendar connected, it\'s already synced.' : 'Check the homeowner\'s project description before the visit.')}
-        ${stepCard(2, 'Show up ready', `Arrive at the scheduled time prepared to assess and discuss the project with ${esc(otherPartyName)}.`)}
-        ${stepCard(3, 'Close the job', 'Provide your quote or service on-site. Tractify will keep sending you matched leads.')}
+        ${sectionLabel('Job Details')}
+        <tr><td>
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+            ${infoRow('Customer', esc(otherPartyName), true)}
+            ${lead.phone ? infoRow('Phone', `<a href="tel:${esc(lead.phone)}" style="color:#6366f1;text-decoration:none;">${esc(lead.phone)}</a>`) : ''}
+            ${lead.email ? infoRow('Email', `<a href="mailto:${esc(lead.email)}" style="color:#6366f1;text-decoration:none;">${esc(lead.email)}</a>`) : ''}
+            ${serviceType ? infoRow('Service', esc(serviceType), true) : ''}
+            ${infoRow('Address', `<a href="${mapsUrl}" style="color:#6366f1;text-decoration:none;font-weight:600;">${esc(serviceAddress)}</a><br><span style="font-size:12px;color:#9ca3af;">Tap to open in Google Maps &rarr;</span>`)}
+          </table>
+        </td></tr>
+        ${sectionLabel('Next Steps')}
+        <tr><td style="padding:0 0 20px;">
+        ${stepCard(1, isReschedule ? 'Schedule updated' : 'Review before the visit', isReschedule ? 'Your Tractify schedule reflects the new time.' : `Review the job details above and reach out to ${esc(otherPartyName)} if you have any questions before the appointment.`)}
+        ${stepCard(2, 'Show up on time', `Arrive at the address above at the scheduled time ready to assess the job.`)}
+        ${stepCard(3, 'Close the job', 'Provide your quote or complete the service. Tractify will keep sending you booked appointments.')}
+        </td></tr>
         ` : `
         ${stepCard(1, 'You\'re all set', 'No additional steps needed — your contractor will handle the rest.')}
         ${stepCard(2, 'Be ready for your contractor', `${esc(otherPartyName)} will arrive at the scheduled time.`)}
@@ -396,12 +430,12 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
   });
 
   const contractorSubject = isReschedule
-    ? `Appointment rescheduled: ${dateStr} — ${lead.name} | ${BRAND}`
-    : `Appointment confirmed: ${dateStr} — ${lead.name} | ${BRAND}`;
+    ? `Rescheduled: ${lead.name} — ${dateStr}`
+    : `Confirmed: ${lead.name} — ${dateStr}`;
 
   await Promise.allSettled([
-    sendEmail(lead.email,       `Appointment confirmed: ${dateStr} | ${BRAND}`, makeHtml(lead.name, contractor.company_name || contractor.name, false)),
-    sendEmail(contractor.email, contractorSubject,                               makeHtml(contractor.name, lead.name, true)),
+    sendEmail(lead.email,       `Your appointment is confirmed — ${dateStr}`, makeHtml(lead.name, contractor.company_name || contractor.name, false)),
+    sendEmail(contractor.email, contractorSubject,                             makeHtml(contractor.name, lead.name, true)),
   ]);
 }
 
@@ -429,7 +463,7 @@ async function sendCancellationAndRebook(lead, contractor, newBookingUrl) {
         <p style="margin:0;font-size:13px;color:#9ca3af;">Sorry for the disruption — if you have any questions, just reply to this email.</p>
       </td></tr>`,
   });
-  return sendEmail(lead.email, `Your appointment was cancelled — rebook now | ${BRAND}`, html);
+  return sendEmail(lead.email, `Your appointment was cancelled — here's your new booking link`, html);
 }
 
 // Notify admin when no contractor could be matched to a new lead
@@ -520,8 +554,8 @@ async function sendAppointmentReminder(appt) {
   });
 
   await Promise.allSettled([
-    sendEmail(appt.lead_email,       `Reminder: your appointment is tomorrow | ${BRAND}`,            homeownerHtml),
-    sendEmail(appt.contractor_email, `Reminder: appointment tomorrow — ${appt.lead_name} | ${BRAND}`, contractorHtml),
+    sendEmail(appt.lead_email,       `Your appointment is tomorrow`,                          homeownerHtml),
+    sendEmail(appt.contractor_email, `Tomorrow: appointment with ${appt.lead_name}`,           contractorHtml),
   ]);
 }
 
@@ -551,7 +585,7 @@ async function sendHomeownerRebookLink(lead, contractor, bookingUrl) {
         <p style="margin:0;font-size:13px;color:#9ca3af;">Questions? Just reply to this email and we'll get back to you right away.</p>
       </td></tr>`,
   });
-  return sendEmail(lead.email, `Your appointment was cancelled — book a new time | ${BRAND}`, html);
+  return sendEmail(lead.email, `Your appointment was cancelled — book a new time`, html);
 }
 
 // Notify contractor when homeowner cancels via self-service link
@@ -578,7 +612,7 @@ async function sendHomeownerCancelledNotice(contractor, lead, appointment) {
   });
   return sendEmail(
     contractor.email,
-    `Appointment cancelled by homeowner — ${esc(lead.name)} | ${BRAND}`,
+    `Cancelled: ${esc(lead.name)} — ${dateStr}`,
     html
   );
 }
@@ -607,7 +641,7 @@ async function sendContractorDeclined(contractor) {
         </p>
       </td></tr>`,
   });
-  return sendEmail(contractor.email, `Application update — ${BRAND}`, html);
+  return sendEmail(contractor.email, `Your Tractify application`, html);
 }
 
 // ── Contractor applied: ack to applicant ──────────────────────────────────────
@@ -643,7 +677,7 @@ async function sendContractorApplicationAck(contractor) {
         <p style="margin:0;font-size:13px;color:#9ca3af;">Questions? Reply to this email and we'll get back to you right away.</p>
       </td></tr>`,
   });
-  return sendEmail(contractor.email, `Application received — ${BRAND}`, html);
+  return sendEmail(contractor.email, `We received your application`, html);
 }
 
 // ── Contractor applied: alert to admin ───────────────────────────────────────
