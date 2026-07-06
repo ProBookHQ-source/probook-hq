@@ -391,7 +391,7 @@ async function sendAppointmentConfirmation(lead, contractor, appointment) {
 
       ${apptCard(dateStr, fmtTime(appointment.scheduled_time))}
 
-      ${sectionLabel(isContractor && isReschedule ? "Updated Schedule" : "What Happens Next")}
+      ${!isContractor ? sectionLabel("What Happens Next") : ''}
       <tr><td style="padding:0 0 20px;">
         ${isContractor ? `
         ${sectionLabel('Job Details')}
