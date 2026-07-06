@@ -212,6 +212,15 @@ router.post('/inbound', async (req, res) => {
       await db.prepare(
         `UPDATE leads SET assigned_contractor_id = $1, status = 'matched' WHERE id = $2`
       ).run(dedicatedContractorId, id);
+
+      // Create booking token — sendMatchNotifications needs this to build the booking URL.
+      // matchOnly() normally does this, but the dedicated path bypasses matchOnly entirely.
+      const bookingToken = uuidv4();
+      const tokenExpiry = new Date(Date.now() + 48 * 3600 * 1000); // 48hr
+      await db.prepare(
+        'INSERT INTO booking_tokens (id, lead_id, token, expires_at) VALUES ($1, $2, $3, $4)'
+      ).run(uuidv4(), id, bookingToken, tokenExpiry);
+
       logEvent(id, 'direct_assigned', 'system', `Directly assigned to contractor ${dedicatedContractorId} via dedicated API key`);
       console.log(`🎯 Inbound lead directly assigned to contractor ${dedicatedContractorId} (dedicated key)`);
       matchingEngine.sendMatchNotifications(id).catch(err =>
