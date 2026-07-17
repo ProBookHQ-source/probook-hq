@@ -3,6 +3,7 @@ import LoginPage from './pages/LoginPage';
 import AdminDashboard from './pages/AdminDashboard';
 import ContractorPortal from './pages/ContractorPortal';
 import BookingFlow from './pages/BookingFlow';
+import DirectBooking from './pages/DirectBooking';
 import CancelPage from './pages/CancelPage';
 import ContractorApply from './pages/ContractorApply';
 import LeadIntakeWidget from './pages/LeadIntakeWidget';
@@ -40,6 +41,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/book/:token" element={<BookingFlow />} />
+      <Route path="/schedule/:slug" element={<DirectBooking />} />
       <Route path="/cancel/:token" element={<CancelPage mode="cancel" />} />
       <Route path="/reschedule/:token" element={<CancelPage mode="reschedule" />} />
       <Route path="/get-quote" element={<LeadIntakeWidget />} />

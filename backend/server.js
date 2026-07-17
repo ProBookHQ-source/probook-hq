@@ -205,6 +205,11 @@ db._ready.then(async () => {
   await db.query(`ALTER TABLE inbound_api_keys ADD COLUMN IF NOT EXISTS contractor_id TEXT REFERENCES contractors(id) ON DELETE SET NULL`);
   // Domain restriction: only accept inbound leads from whitelisted origins (prevents API key theft/abuse)
   await db.query(`ALTER TABLE inbound_api_keys ADD COLUMN IF NOT EXISTS allowed_origins TEXT`);
+  // Personal booking slug — lets contractors share tractifyhq.com/schedule/:slug
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS booking_slug TEXT UNIQUE`);
+  // Allow lead_id to be NULL in appointments (external blocks + direct bookings)
+  await db.query(`ALTER TABLE appointments ALTER COLUMN lead_id DROP NOT NULL`).catch(() => {});
+
   // Intake form step tracking — powers dropoff funnel in admin dashboard
   await db.query(`
     CREATE TABLE IF NOT EXISTS intake_events (

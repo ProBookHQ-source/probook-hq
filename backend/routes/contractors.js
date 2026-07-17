@@ -52,6 +52,17 @@ router.get('/admin/performance', requireAdmin, async (req, res) => {
   res.json(rows);
 });
 
+// ── Public slug lookup — for personal booking pages (/schedule/:slug) ─────────
+router.get('/public/:slug', async (req, res) => {
+  const contractor = await db.prepare(`
+    SELECT id, name, company_name, booking_slug
+    FROM contractors
+    WHERE booking_slug = $1 AND is_active = 1
+  `).get(req.params.slug);
+  if (!contractor) return res.status(404).json({ error: 'Booking page not found' });
+  res.json(contractor);
+});
+
 // ── Get single contractor ─────────────────────────────────────────────────────
 router.get('/:id', requireContractor, async (req, res) => {
   const { id } = req.params;

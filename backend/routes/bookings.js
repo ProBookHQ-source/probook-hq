@@ -67,9 +67,9 @@ router.get('/', requireAdmin, async (req, res) => {
     SELECT a.*, l.name as lead_name, l.email as lead_email,
            c.name as contractor_name, c.company_name, n.name as niche_name
     FROM appointments a
-    JOIN leads l ON a.lead_id = l.id
-    JOIN contractors c ON a.contractor_id = c.id
-    JOIN niches n ON l.niche_id = n.id
+    LEFT JOIN leads l ON a.lead_id = l.id
+    LEFT JOIN contractors c ON a.contractor_id = c.id
+    LEFT JOIN niches n ON l.niche_id = n.id
   `;
   const params = [];
   const conditions = [];
@@ -211,6 +211,161 @@ router.post('/book', async (req, res) => {
     cancel_token: cancelToken, reschedule_token: rescheduleToken,
     is_reschedule: bookingToken.source === 'reschedule',
   }).catch(err => console.error('Confirmation email error:', err.message));
+});
+
+// ── Direct booking (personal booking pages — no lead/token required) ─────────
+// Used by tractifyhq.com/schedule/:slug — prospect books a call directly with a contractor.
+router.post('/book-direct', async (req, res) => {
+  const { contractor_id, name, email, phone, date, time, notes } = req.body;
+  if (!contractor_id || !name || !email || !date || !time) {
+    return res.status(400).json({ error: 'contractor_id, name, email, date, and time are required' });
+  }
+
+  // ── 1. Validate contractor ────────────────────────────────────────────────
+  const contractor = await db.prepare(
+    'SELECT * FROM contractors WHERE id = $1 AND is_active = 1'
+  ).get(contractor_id);
+  if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
+
+  // ── 2. Validate slot is not in the past ───────────────────────────────────
+  const now = new Date();
+  const requestedDT = new Date(`${date}T${time}:00`);
+  if (requestedDT < now) {
+    return res.status(400).json({ error: 'Cannot book a time slot in the past.' });
+  }
+
+  // ── 3. Validate slot is within contractor's availability ──────────────────
+  const dayOfWeek = requestedDT.getDay();
+  const override = await db.prepare(
+    'SELECT * FROM availability_overrides WHERE contractor_id = $1 AND date = $2'
+  ).get(contractor_id, date);
+
+  let slotValid = false;
+  if (override) {
+    if (!override.is_available) {
+      return res.status(409).json({ error: 'No availability on that date. Please pick another.' });
+    }
+    if (override.start_time && override.end_time) {
+      const t = time.slice(0, 5);
+      slotValid = t >= override.start_time.slice(0, 5) && t < override.end_time.slice(0, 5);
+    }
+  }
+  if (!slotValid) {
+    const weeklySlots = await db.prepare(
+      'SELECT * FROM availability_slots WHERE contractor_id = $1 AND day_of_week = $2 AND is_active = 1'
+    ).all(contractor_id, dayOfWeek);
+    const t = time.slice(0, 5);
+    slotValid = weeklySlots.some(s => t >= s.start_time.slice(0, 5) && t < s.end_time.slice(0, 5));
+  }
+  if (!slotValid) {
+    return res.status(409).json({ error: 'That time is no longer available. Please pick another.' });
+  }
+
+  // ── 4. Check daily max ────────────────────────────────────────────────────
+  if (contractor.max_appointments_per_day) {
+    const { rows: countRows } = await db.query(`
+      SELECT COUNT(*) AS cnt FROM appointments
+      WHERE contractor_id = $1 AND scheduled_date = $2 AND status NOT IN ('cancelled')
+    `, [contractor_id, date]);
+    if (parseInt(countRows[0].cnt) >= contractor.max_appointments_per_day) {
+      return res.status(409).json({ error: 'Fully booked that day. Please pick another date.' });
+    }
+  }
+
+  // ── 5. Check for conflicts ────────────────────────────────────────────────
+  const conflict = await db.prepare(`
+    SELECT id FROM appointments
+    WHERE contractor_id = $1 AND scheduled_date = $2 AND scheduled_time = $3
+    AND status NOT IN ('cancelled')
+  `).get(contractor_id, date, time);
+  if (conflict) {
+    return res.status(409).json({ error: 'That time slot was just taken. Please pick another.' });
+  }
+
+  // ── 6. Create appointment (lead_id = NULL — direct booking, not a lead) ───
+  const appointmentId = uuidv4();
+  const contactInfo = JSON.stringify({ name, email, phone: phone || '', notes: notes || '' });
+  try {
+    await db.query(
+      `INSERT INTO appointments (id, lead_id, contractor_id, scheduled_date, scheduled_time, status, notes)
+       VALUES ($1, NULL, $2, $3, $4, 'confirmed', $5)`,
+      [appointmentId, contractor_id, date, time, contactInfo]
+    );
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'That time slot was just taken. Please pick another.' });
+    }
+    throw err;
+  }
+
+  // ── 7. Send email notifications ───────────────────────────────────────────
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'https://tractifyhq.com';
+  const BRAND_NAME   = process.env.BRAND_NAME   || 'Tractify';
+  const FROM_EMAIL   = process.env.FROM_EMAIL    || 'bookings@tractifyhq.com';
+  const RESEND_KEY   = process.env.RESEND_API_KEY;
+
+  const fmtDate = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const fmtTime = (() => {
+    const [h, m] = time.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12  = h % 12 || 12;
+    return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+  })();
+
+  const sendEmail = async (to, subject, html) => {
+    if (!RESEND_KEY) return;
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_KEY}` },
+      body: JSON.stringify({ from: `${BRAND_NAME} <${FROM_EMAIL}>`, to, subject, html }),
+    });
+  };
+
+  // Confirmation to prospect
+  sendEmail(email, `Your call with ${contractor.name || contractor.company_name} is confirmed`, `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#111">
+      <div style="background:#6366f1;padding:24px;border-radius:8px 8px 0 0">
+        <h1 style="margin:0;color:#fff;font-size:22px">${BRAND_NAME}</h1>
+      </div>
+      <div style="padding:32px;background:#fff;border:1px solid #e5e7eb;border-top:0;border-radius:0 0 8px 8px">
+        <h2 style="margin:0 0 8px">You're booked, ${name.split(' ')[0]}! 🎉</h2>
+        <p style="color:#6b7280;margin:0 0 24px">Here are your call details:</p>
+        <div style="background:#f9fafb;border-radius:8px;padding:20px;margin-bottom:24px">
+          <p style="margin:0 0 8px"><strong>📅 Date:</strong> ${fmtDate}</p>
+          <p style="margin:0 0 8px"><strong>🕐 Time:</strong> ${fmtTime}</p>
+          <p style="margin:0"><strong>👤 With:</strong> ${contractor.name}${contractor.company_name ? ` — ${contractor.company_name}` : ''}</p>
+        </div>
+        <p style="color:#6b7280;font-size:14px">We'll reach out on the day of your call. See you then!</p>
+      </div>
+    </div>
+  `).catch(console.error);
+
+  // Notification to contractor
+  sendEmail(contractor.email, `New booking: ${name} — ${fmtDate} at ${fmtTime}`, `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#111">
+      <div style="background:#6366f1;padding:24px;border-radius:8px 8px 0 0">
+        <h1 style="margin:0;color:#fff;font-size:22px">${BRAND_NAME}</h1>
+      </div>
+      <div style="padding:32px;background:#fff;border:1px solid #e5e7eb;border-top:0;border-radius:0 0 8px 8px">
+        <h2 style="margin:0 0 8px">New booking on your calendar</h2>
+        <div style="background:#f9fafb;border-radius:8px;padding:20px;margin-bottom:24px">
+          <p style="margin:0 0 8px"><strong>👤 Name:</strong> ${name}</p>
+          <p style="margin:0 0 8px"><strong>📧 Email:</strong> ${email}</p>
+          ${phone ? `<p style="margin:0 0 8px"><strong>📞 Phone:</strong> ${phone}</p>` : ''}
+          ${notes ? `<p style="margin:0 0 8px"><strong>📝 Notes:</strong> ${notes}</p>` : ''}
+          <p style="margin:0 0 8px"><strong>📅 Date:</strong> ${fmtDate}</p>
+          <p style="margin:0"><strong>🕐 Time:</strong> ${fmtTime}</p>
+        </div>
+        <p style="color:#6b7280;font-size:14px">View all appointments in your <a href="${FRONTEND_URL}/contractor" style="color:#6366f1">Tractify portal</a>.</p>
+      </div>
+    </div>
+  `).catch(console.error);
+
+  res.status(201).json({
+    appointment_id: appointmentId,
+    date, time,
+    message: 'Booking confirmed! Check your email for details.',
+  });
 });
 
 // ── Self-service: get cancel info (public) ────────────────────────────────────
