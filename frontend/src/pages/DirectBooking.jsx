@@ -137,7 +137,7 @@ export default function DirectBooking() {
   const PageHeader = () => (
     <div className="text-center mb-8">
       <img src="/probook-icon-128.png" alt="Tractify" className="w-12 h-12 rounded-2xl shadow-lg mb-3 mx-auto" />
-      <h1 className="text-2xl font-bold text-gray-900">Book a call with {displayName}</h1>
+      <h1 className="text-2xl font-bold text-gray-900">Book a call with the Tractify team</h1>
       <p className="text-gray-500 text-sm mt-1">Pick a time that works for you. No back-and-forth.</p>
     </div>
   );
@@ -181,12 +181,15 @@ export default function DirectBooking() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone <span className="text-red-400">*</span>
+                </label>
                 <input
                   type="tel"
+                  required
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
-                  placeholder="(optional)"
+                  placeholder="(425) 555-0100"
                   className="input w-full"
                 />
               </div>
