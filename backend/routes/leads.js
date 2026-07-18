@@ -203,18 +203,15 @@ router.post('/inbound', async (req, res) => {
 
   console.log(`🌐 Inbound lead from ${source_site || 'unknown'} — ${name} (${niche.name}, ${zip_code})`);
 
-  // Respond immediately, run matching/assignment async
-  res.status(201).json({ success: true, lead_id: id });
-
   if (dedicatedContractorId) {
-    // Direct assignment — API key is tied to one contractor, skip the matching engine entirely
+    // Direct assignment — API key is tied to one contractor, skip the matching engine entirely.
+    // We do this synchronously so we can return the booking_token in the response,
+    // enabling the HVAC template to show an inline slot picker immediately after form submit.
     try {
       await db.prepare(
         `UPDATE leads SET assigned_contractor_id = $1, status = 'matched' WHERE id = $2`
       ).run(dedicatedContractorId, id);
 
-      // Create booking token — sendMatchNotifications needs this to build the booking URL.
-      // matchOnly() normally does this, but the dedicated path bypasses matchOnly entirely.
       const bookingToken = uuidv4();
       const tokenExpiry = new Date(Date.now() + 48 * 3600 * 1000); // 48hr
       await db.prepare(
@@ -223,14 +220,29 @@ router.post('/inbound', async (req, res) => {
 
       logEvent(id, 'direct_assigned', 'system', `Directly assigned to contractor ${dedicatedContractorId} via dedicated API key`);
       console.log(`🎯 Inbound lead directly assigned to contractor ${dedicatedContractorId} (dedicated key)`);
+
+      // Respond with booking_token so the HVAC template can show inline slot picker
+      res.status(201).json({
+        success: true,
+        lead_id: id,
+        booking_token: bookingToken,
+        contractor_id: dedicatedContractorId,
+      });
+
+      // Fire notifications after response
       matchingEngine.sendMatchNotifications(id).catch(err =>
         console.error('Notification error (direct assign):', err)
       );
     } catch (err) {
       console.error('Direct assignment error:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to assign lead' });
+      }
     }
   } else {
-    // Shared marketplace — run round-robin matching engine
+    // Shared marketplace — respond immediately, run matching async
+    res.status(201).json({ success: true, lead_id: id });
+
     let matched = false;
     try { matched = await matchingEngine.matchOnly(id); }
     catch (err) { console.error('Matching error:', err); }
