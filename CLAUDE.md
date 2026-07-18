@@ -90,14 +90,55 @@ This requires:
 - The HVAC template `index.html` to show a booking UI inline after submission using that token
 - ✅ Built and deployed July 18 — inline slot picker shows immediately after form submit, no email step
 
-### Idea 3: Missed Call Text-Back (The SaaS Phase)
-The most powerful future direction: pitch Tractify not as a website but as an **app**.
+### Idea 3: The Two-Channel Traffic System — How Tractify Actually Delivers the 5 Jobs
 
-The pitch: *"Every time you miss a call, a text automatically goes out to that number. It says: 'Hey, sorry I missed you — here's a link to pick a time that works for you.' The customer clicks it, books a slot, and it goes on your calendar. You never lose another customer to a missed call."*
+This is the insight that cracked the whole model open (July 18, 2026).
 
-This is pure SaaS — no website build required, works with any contractor's existing website. The missed-call trigger can be built with Twilio (webhook on missed call → auto-SMS with booking link). This is Phase 2 and is not yet built, but the booking infrastructure already exists.
+The free trial only works if the 5 jobs actually happen fast. Without a traffic plan, you're hoping the contractor shares their link around — slow, unreliable, contractor-dependent. The two-channel system makes Tractify the one delivering the jobs, not just providing the tool.
 
-**Why this idea is powerful:** Contractors already feel the pain of missed calls every day. This pitches to a problem they know and hate, in language they understand. It's not "a system" (don't use that word — triggers resistance). It's "an app that texts them back for you."
+**Channel 1: Paid Ads → New Homeowners**
+Jose runs $5–10/day of Facebook/Instagram ads targeting homeowners in the contractor's service zip codes during their free trial.
+- Ad copy: *"Need HVAC service? Book online in 60 seconds."* → links to their Tractify subdomain
+- Homeowner lands on their professional site, fills out the form, books inline — one session, no friction
+- These are high-intent leads: they saw an HVAC ad because they need HVAC work
+- Cost to Jose: ~$150–300 for the trial period. Worth it to get 5 jobs fast and trigger the conversion
+- No new code needed — the inline booking is already built. Just run the ad.
+
+**Channel 2: Missed Call Text-Back → Existing Interested Homeowners**
+Every time the contractor misses a call, Tractify auto-texts the caller: *"Hey, sorry I missed you! Here's a link to book a time that works for you: [their booking link]"*
+- The homeowner already called — they already want to hire this contractor. Highest possible intent.
+- From cold calling sessions, HVAC contractors miss calls constantly (on rooftops, under houses, can't answer)
+- Every missed call that used to be a lost customer becomes a booked appointment automatically
+- Built with Twilio: missed call → webhook → Tractify API → auto-SMS with booking link
+- ~1 day of code to build. Contractor forwards their number to a Twilio number (5-min setup on onboarding call)
+
+**Why the combination is a breakthrough:**
+Both channels feed the same booking infrastructure that's already live. But together they create something no competitor is doing:
+- Ads drive NEW homeowners who've never heard of the contractor
+- Missed call text-back captures EXISTING interested homeowners who already called
+- Both convert via the same seamless inline booking flow
+- The contractor's professional Tractify site builds trust → ads convert better → more bookings
+
+The result: a contractor goes live on a Friday. By Monday, jobs are appearing on their calendar from both directions. They didn't share a link, they didn't do anything. Tractify did it for them.
+
+**Why this speeds up the whole business model:**
+- 5 free jobs happen in days, not weeks
+- Contractor sees value immediately → emotional hook before they've paid a dollar
+- Conversion call happens faster → revenue comes faster
+- Free trial filters itself: contractors who don't engage self-select out, costs Jose nothing
+
+**The pitch evolution:**
+Old: *"I'll build you a free website."*
+New: *"We run ads to bring you new customers AND automatically text back every call you miss with a booking link. Jobs show up on your calendar from both directions. First 5 on us."*
+
+That's not a website company. That's not a lead gen service. That's a complete done-for-you booked job pipeline. Nothing else in the market does all three: professional online presence + paid traffic + missed call recovery, all feeding one seamless booking system.
+
+**The innovation in one sentence:** Tractify doesn't just give contractors a booking tool — it drives the traffic, captures the missed calls, and delivers the booked jobs. The contractor just shows up.
+
+**Build status:**
+- ✅ Inline booking already live (July 18)
+- ✅ Paid ads — no code needed, just a Facebook ad account and budget
+- [ ] Missed call text-back via Twilio — ~1 day of code (Phase 1.5, build before first client onboards)
 
 ---
 
@@ -775,8 +816,8 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 - ✅ DirectBooking.jsx updated — headline "Claim Your 5 Free Booked Jobs", Tractify branding, phone formatting
 
 **Remaining — code:**
+- [ ] Missed call text-back via Twilio — ~1 day of code, build before first client onboards (see Idea 3)
 - [ ] Intake funnel view in admin dashboard (data collecting, UI not built)
-- [ ] Missed call text-back via Twilio (Phase 2 SaaS feature)
 - [ ] Subdomain auto-deploy (build AFTER 3+ manual client deployments prove the process)
 
 **Remaining — operational:**
@@ -839,8 +880,9 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 ---
 
 ## Scaling Plan
+- **Get first client jobs fast:** Run paid Facebook ads ($5–10/day) targeting homeowners in their zip during free trial + build Twilio missed call text-back. Both channels together = 5 jobs in days not weeks.
 - **New niches:** Add contractors under different niches — matching engine handles routing automatically
-- **New cities:** Add contractors with their service zip codes
-- **New lead gen sites:** Each site gets its own `PROBOOK_NICHE` and `PROBOOK_SOURCE` in its Apps Script
-- **SMS / missed call text-back:** Add Twilio to `notifications.js` — Phase 2 SaaS product
-- **Payments:** Add Stripe to charge contractors per lead or monthly subscription
+- **New cities:** Add contractors with their service zip codes — same paid ad playbook per market
+- **Email campaign:** After 2-3 case study results exist, run cold email via burner domain + Instantly.ai to scale contractor acquisition. Never send from tractifyhq.com.
+- **Payments:** Add Stripe to charge contractors $2,000 setup + $500/month retainer at conversion
+- **Missed call text-back as standalone SaaS:** Eventually pitch to contractors who don't want a full site — pure Twilio play, works with any existing website
