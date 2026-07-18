@@ -767,4 +767,49 @@ async function sendPasswordReset(contractor, resetUrl) {
   return sendEmail(contractor.email, `Reset your ${BRAND} password`, html);
 }
 
-module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset };
+// ── Direct booking: confirmation to prospect ──────────────────────────────────
+async function sendDirectBookingConfirmation(to, { firstName, contractorDisplayName, fmtDate, fmtTime }) {
+  const html = emailBase({
+    accentColor: '#6366f1',
+    label: 'BOOKING CONFIRMED',
+    headline: `You're booked, ${esc(firstName)}! 🎉`,
+    sub: 'Here are your call details.',
+    bodyContent: `
+      ${apptCard(esc(fmtDate), esc(fmtTime), `&#128100;&nbsp; With: ${esc(contractorDisplayName)}`)}
+      <tr><td style="padding:0 0 20px;">
+        <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
+          We'll reach out on the day of your call. If you have any questions before then, just reply to this email.
+        </p>
+      </td></tr>`,
+  });
+  return sendEmail(to, `Your call with ${esc(contractorDisplayName)} is confirmed ✓`, html);
+}
+
+// ── Direct booking: alert to contractor ──────────────────────────────────────
+async function sendDirectBookingContractorAlert(to, { name, email, phone, notes, fmtDate, fmtTime, appUrl }) {
+  const portalUrl = appUrl || APP_URL;
+  const html = emailBase({
+    accentColor: '#6366f1',
+    label: 'NEW BOOKING',
+    headline: 'New booking on your calendar',
+    bodyContent: `
+      ${sectionLabel('Contact Info')}
+      <tr><td style="padding:0 0 4px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+               style="background:#f9f9fc;border-radius:10px;padding:4px 0;">
+          <tbody>
+            ${infoRow('Name', esc(name), true)}
+            ${infoRow('Email', `<a href="mailto:${esc(email)}" style="color:#6366f1;text-decoration:none;">${esc(email)}</a>`)}
+            ${phone ? infoRow('Phone', `<a href="tel:${esc(phone)}" style="color:#6366f1;text-decoration:none;">${esc(phone)}</a>`) : ''}
+            ${notes ? infoRow('Notes', esc(notes)) : ''}
+          </tbody>
+        </table>
+      </td></tr>
+      ${sectionLabel('Appointment')}
+      ${apptCard(esc(fmtDate), esc(fmtTime))}
+      ${ctaBtn(`${portalUrl}/contractor`, 'View in Contractor Portal')}`,
+  });
+  return sendEmail(to, `New booking: ${esc(name)} — ${esc(fmtDate)} at ${esc(fmtTime)}`, html);
+}
+
+module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset, sendDirectBookingConfirmation, sendDirectBookingContractorAlert };
