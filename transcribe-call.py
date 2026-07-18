@@ -10,7 +10,11 @@ Usage: python3 transcribe-call.py /path/to/recording.mov
 import sys, os, time, json, urllib.request, subprocess, re
 from datetime import date
 
-API_KEY = "f54b5de5a59b468db95d34403ac16db4"
+API_KEY = os.environ.get("ASSEMBLYAI_API_KEY", "")
+if not API_KEY:
+    print("Error: ASSEMBLYAI_API_KEY environment variable not set.")
+    print("Add it to your ~/.zshrc:  export ASSEMBLYAI_API_KEY=your_key_here")
+    sys.exit(1)
 DESKTOP = os.path.expanduser("~/Desktop")
 LIVE_CALLS = os.path.expanduser("~/Desktop/live sales calls")
 
