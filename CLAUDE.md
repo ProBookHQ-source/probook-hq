@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 16, 2026.*
+*Last updated: July 18, 2026.*
 
 ---
 
@@ -29,7 +29,9 @@ Tractify is software that fills HVAC contractors' calendars with booked jobs aut
 
 **The pitch:** "You set your available hours. We do the rest. When a customer needs HVAC work, they find you, pick a time that works for you, and it goes straight on your calendar. No missed calls. No back and forth. No chasing leads. Just booked jobs showing up while you're on the job site."
 
-**The personal demo close:** Jose sends every prospect his booking link — `tractifyhq.com/schedule/jose`. When they book the call, he opens with: *"You just booked this call the exact same way your customers will book jobs with you."* The prospect experiences the product before Jose says another word.
+**The personal demo close:** Jose sends every prospect his booking link — `tractifyhq.com/schedule/book`. When they book the call, he opens with: *"You just booked this call the exact same way your customers will book jobs with you."* The prospect experiences the product before Jose says another word.
+
+**Note on the booking page:** The slug is `book` (not `jose`). Contractor account display name is "The Tractify Team". The 15-min call is for setting up a free trial — not a product demo. The product demos itself when real jobs start booking.
 
 ---
 
@@ -46,6 +48,20 @@ Every contractor starts as a free trial on a Tractify subdomain (e.g. `premierco
 - The funnel filters itself — engaged contractors convert, the rest self-select out
 - Scales infinitely online — one ad running 24/7, zero per-trial cost
 - The entire online pitch becomes: **"Let us get you your first 5 jobs free. No strings."**
+
+**How to deploy a free trial subdomain (manual process — first 2-3 clients):**
+No subdomain automation needed yet. Do it by hand:
+1. Edit `CLIENT` config in `~/Desktop/hvac-template/index.html` with client's info
+2. Deploy to a new Cloudflare Pages project → auto-gets a `.pages.dev` URL
+3. In Cloudflare DNS, add a CNAME: `premiercomforthvac` → `[their-pages-project].pages.dev`
+4. Client is live at `premiercomforthvac.tractifyhq.com` — looks professional, costs nothing
+5. Create their contractor account + API key in Tractify admin, link the API key to their contractor
+6. **⚠️ Set `allowed_origins` to `https://premiercomforthvac.tractifyhq.com`**
+7. Have contractor set their weekly availability in the portal
+
+When they convert (pay): buy their real domain, add it as a custom domain on the same Cloudflare Pages project. No code changes needed.
+
+**Build subdomain automation AFTER you have 3+ clients.** Do it by hand first — prove the process, then automate it.
 
 **The online ad:**
 Hook: *"HVAC contractors — we'll book your first 5 jobs for free."*
@@ -152,7 +168,7 @@ Then:
 
 ---
 
-**When they agree to a call — send them:** `tractifyhq.com/schedule/jose`
+**When they agree to a call — send them:** `tractifyhq.com/schedule/book`
 
 Have them book it live on the phone if possible. They experience the product before the sales call even starts.
 
@@ -182,10 +198,12 @@ Short. No explaining. No pitching. Just the outcome and the offer.
 
 ---
 
-**Prospects to follow up with:**
+**Prospects to follow up with (as of July 18):**
 - **Zach (McFarland HVAC)** — VERBAL YES on July 14. Follow up July 20th with new script.
 - **Justin** — Scheduled callback, score 8/10. Follow up July 20th.
 - **Rusty (Cool Heat 365)** — Has his direct cell. Call after 12pm.
+
+**New pitch for follow-up calls (July 2026):** Lead with the free 5 jobs offer, not the website. "Save my number — when you're ready to have jobs booking onto your calendar automatically, call me back and I'll give you the first 5 for free."
 
 **Key objections and counters are in:**
 - `~/Desktop/Tractify-SuperContext/04-SALES-PLAYBOOK.docx`
@@ -207,7 +225,7 @@ Short. No explaining. No pitching. Just the outcome and the offer.
 - **Internal Railway URL:** https://probook-hq-production.up.railway.app (keep — Railway internal)
 - **Landing page:** https://tractifyhq.com
 - **Admin dashboard:** https://tractifyhq.com/admin
-- **Jose's personal booking page:** https://tractifyhq.com/schedule/jose ✅ LIVE
+- **Jose's booking page:** https://tractifyhq.com/schedule/book ✅ LIVE (slug = 'book', display = 'The Tractify Team')
 - **Lead form:** https://tractifyhq.com/get-quote
 - **Contractor portal:** https://tractifyhq.com/contractor
 - **Contractor apply:** https://tractifyhq.com/apply
@@ -282,8 +300,9 @@ lead-booking-app/
 ├── nixpacks.toml             ← Railway build config (replaces Dockerfile)
 ├── railway.json              ← Minimal (just schema ref, no buildCommand)
 ├── NewScript.js              ← Updated Google Apps Script (with bridge) — copy to Apps Script editor
-├── build_cheatsheet.py       ← Generates sales cheat sheet PDF
-├── transcribe-call.py        ← Transcribes .m4a call recordings via AssemblyAI
+├── build_cheatsheet.py       ← Generates sales cheat sheet PDF (updated July 18 with new script)
+├── transcribe-call.py        ← Transcribes .m4a call recordings via AssemblyAI (API key via env var — NOT hardcoded)
+├── Tractify-Sales-Script.docx ← Master cold call script Word doc (full YES/NO paths, voicemail, objections)
 ├── prospect-tracker.xlsx     ← Live prospect pipeline (synced to SuperContext)
 ├── package.json
 ├── .env                      ← Local config only, NOT committed
@@ -360,7 +379,7 @@ applied_at, declined_at,
 google_refresh_token, google_calendar_id,
 reset_token TEXT,                ← for forgot-password flow
 reset_token_expires TIMESTAMPTZ,
-booking_slug TEXT UNIQUE,        ← e.g. 'jose' → tractifyhq.com/schedule/jose
+booking_slug TEXT UNIQUE,        ← e.g. 'book' → tractifyhq.com/schedule/book (Jose's slug is 'book', display = 'The Tractify Team')
 created_at
 ```
 
@@ -726,9 +745,15 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 **Direct booking (/schedule/:slug) doesn't appear in admin appointments tab**
 → Should not happen — admin query uses LEFT JOINs. If it does, verify bookings.js admin GET uses `LEFT JOIN leads` not `JOIN leads`.
 
+**Inline booking on HVAC template shows demo/fake slots instead of real availability**
+→ Two causes: (1) API key is not linked to a contractor — go to Admin → API Keys, edit the key, set the Contractor field. Without this, `contractor_id` is null in the API response and demo mode runs. (2) CORS not configured — `/api/availability` and `/api/bookings/book` must have wildcard CORS set in server.js (already done July 18).
+
+**Inline booking shows "No openings in the next 2 weeks"**
+→ API key IS linked to a contractor but the open-slots fetch is failing. Check: (1) CORS headers in server.js, (2) contractor has weekly availability set in the portal, (3) fetch URL uses `TRACTIFY_API = 'https://tractifyhq.com'` (not the old Railway URL).
+
 ---
 
-## Launch Status (as of July 16, 2026)
+## Launch Status (as of July 18, 2026)
 
 **Completed (all features):**
 - ✅ Full app built, deployed, tested — tractifyhq.com live
@@ -737,18 +762,28 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 - ✅ Same-day time block fix — UTC timezone parsing bug fixed in ContractorPortal.jsx
 - ✅ Intake form step tracking — `/api/intake/track` + `intake_events` table
 - ✅ Full rebrand to Tractify (July 4) — tractifyhq.com, Cloudflare, Resend, Railway all updated
-- ✅ Personal booking page `/schedule/:slug` (July 16) — Jose's page live at tractifyhq.com/schedule/jose
+- ✅ Personal booking page `/schedule/book` (July 16) — live at tractifyhq.com/schedule/book, display = "The Tractify Team"
 - ✅ `book-direct` endpoint — books appointments without lead/token (for /schedule pages)
 - ✅ Admin appointments query fixed — LEFT JOINs so direct bookings appear in dashboard
+- ✅ Direct booking emails upgraded (July 18) — `sendDirectBookingConfirmation` + `sendDirectBookingContractorAlert` in notifications.js replace old inline HTML
+- ✅ Task 3: `POST /api/leads/inbound` returns `booking_token` + `contractor_id` on dedicated contractor path (July 18)
+- ✅ Task 4: Inline slot picker on HVAC template — shows immediately after form submit, no email step (July 18)
+- ✅ Booking link email suppressed on dedicated path — inline booking replaces it entirely (July 18)
+- ✅ CORS fix — `/api/availability` and `/api/bookings/book` now accept cross-origin requests from external client sites (July 18)
+- ✅ AssemblyAI key secured — removed hardcoded key from transcribe-call.py, now reads from `ASSEMBLYAI_API_KEY` env var in ~/.zshrc
+- ✅ Master cold call script — Tractify-Sales-Script.docx created, cheat sheet PDF updated with new pitch
+- ✅ DirectBooking.jsx updated — headline "Claim Your 5 Free Booked Jobs", Tractify branding, phone formatting
 
 **Remaining — code:**
-- [ ] Task 3: Return `booking_token` in `POST /api/leads/inbound` response
-- [ ] Task 4: Inline booking on HVAC template — show slot picker after form submit (no email step)
 - [ ] Intake funnel view in admin dashboard (data collecting, UI not built)
 - [ ] Missed call text-back via Twilio (Phase 2 SaaS feature)
+- [ ] Subdomain auto-deploy (build AFTER 3+ manual client deployments prove the process)
 
 **Remaining — operational:**
-- [ ] Jose set his availability in contractor portal so /schedule/jose has actual time slots
+- [ ] ⚠️ Push July 18 changes to Railway: `git add -A && git commit -m 'Fix: CORS + email suppression' && git push origin main`
+- [ ] ⚠️ Jose set availability in contractor portal Sunday night before Monday calls (currently only Monday 9–12 set)
+- [ ] Set up email campaign targeting HVAC contractors (need a contractor email list first)
+- [ ] Onboard first 2-3 free trial clients using manual subdomain process (see Idea 0 section)
 - [ ] Run full end-to-end test with a real contractor before onboarding clients
 - [ ] Flip bridge ON once first contractor is onboarded (script properties only — no code changes)
 - [ ] Google Calendar credentials (deferred — add to Railway when ready)
@@ -758,15 +793,28 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 ## ⚠️ Client Go-Live Checklist (HVAC Website Bundle)
 **Run through this every single time you onboard a new HVAC client. Do not skip steps.**
 
-1. [ ] Create contractor account in Tractify admin → Contractors → Add Contractor
-2. [ ] Create API key in Tractify admin → API Keys → New Key
-   - Name: client's business name (e.g. "Premier Comfort HVAC")
-   - Source slug: their domain slug (e.g. "premiercomforthvac")
-   - Link to their contractor account
-   - **⚠️ ALWAYS set `Allowed Origins` to their deployed domain**
-   - **If you forget `allowed_origins`, anyone who finds the API key can flood Tractify with fake leads**
-3. [ ] Copy the generated API key — it's only shown once
-4. [ ] Paste the CLIENT config (from intake form Worker submission) into the HVAC template `index.html`
+### Free Trial Setup (subdomain — no domain purchase)
+1. [ ] Edit CLIENT config in `~/Desktop/hvac-template/index.html` with client info
+2. [ ] Deploy to a new Cloudflare Pages project → note the `.pages.dev` URL
+3. [ ] In Cloudflare DNS, add CNAME: `[clientslug]` → `[their-pages-project].pages.dev`
+   - Client is now live at `clientslug.tractifyhq.com`
+4. [ ] Create contractor account in Tractify admin → Contractors → Add Contractor
+5. [ ] Create API key in Tractify admin → API Keys → New Key
+   - Name: client's business name
+   - Source slug: their subdomain slug
+   - **Link to their contractor account** ← required for inline booking to work
+   - **⚠️ Set `Allowed Origins` to `https://clientslug.tractifyhq.com`**
+6. [ ] Copy the generated API key — shown once only
+7. [ ] Paste the key into `tractifyKey` in the CLIENT config, redeploy to Cloudflare Pages
+8. [ ] Have contractor log into Tractify portal and set their weekly availability
+9. [ ] Test: submit the lead form → inline slot picker should show with real slots → book a test appointment
+10. [ ] Send contractor their portal login
+
+### Conversion (paid — real domain)
+1. [ ] Buy their real domain
+2. [ ] Add as custom domain in the existing Cloudflare Pages project (same project, no redeploy)
+3. [ ] Update `allowed_origins` in the API key to include the real domain
+4. [ ] Charge $2,000 setup + $500/month retainer
 5. [ ] Replace `YOUR_PROBOOK_API_KEY` in the CLIENT config with the real key from step 3
 6. [ ] Update `CLIENT.sourceSite` and `CLIENT.siteUrl` to the client's actual domain
 7. [ ] Swap in client's logo, cover photo (from R2 bucket if uploaded via intake form)
