@@ -5,6 +5,7 @@ import { format, addDays, parseISO } from 'date-fns';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { Calendar, Clock, CheckCircle, ChevronLeft, ChevronRight, ArrowRight, User, Mail, Phone } from 'lucide-react';
+import { formatPhone } from '../utils/formatPhone';
 
 const LOOKAHEAD_DAYS = 14;
 
@@ -191,14 +192,15 @@ export default function DirectBooking() {
                   type="tel"
                   required
                   value={phone}
-                  onChange={e => setPhone(e.target.value)}
+                  onChange={e => setPhone(formatPhone(e.target.value))}
                   placeholder="(425) 555-0100"
                   className="input w-full"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Anything you'd like to share ahead of the call?
+                  Anything you'd like to share ahead of the call?{' '}
+                  <span className="text-gray-400 font-normal">(Optional)</span>
                 </label>
                 <textarea
                   value={notes}
