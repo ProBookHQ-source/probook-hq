@@ -32,21 +32,22 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change-me-in-producti
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.set('trust proxy', 1); // trust Cloudflare + Railway proxy
 
-// ── CORS for inbound lead endpoint ───────────────────────────────────────────
+// ── CORS for endpoints called by external client sites ────────────────────────
 // Registered BEFORE Helmet so nothing can strip or override these headers.
-// The inbound endpoint is called from external client sites (hvactemplate.pages.dev, etc.)
-// Security is enforced server-side: API key auth + allowed_origins check inside the route.
-app.use('/api/leads/inbound', (req, res, next) => {
+// Covers: lead inbound submission, slot availability lookup, and inline booking confirm.
+// Security is enforced server-side per route (API key auth, allowed_origins, token validation).
+const externalClientCors = (methods) => (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', methods + ', OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400');
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
-  }
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
-});
+};
+app.use('/api/leads/inbound',       externalClientCors('POST'));
+app.use('/api/availability',        externalClientCors('GET'));
+app.use('/api/bookings/book',       externalClientCors('POST'));
 
 // Security headers
 app.use(helmet({
@@ -69,11 +70,14 @@ app.use(helmet({
   },
 }));
 
-// Skip cors() for /api/leads/inbound — that path uses its own ACAO: * set above.
-// cors() with a string origin sets ACAO to the configured origin on EVERY response,
-// which would override our wildcard and block requests from external client sites.
+// Skip cors() for paths that already have wildcard CORS set above.
+// cors() with a string origin would override the wildcard and block external client sites.
 app.use((req, res, next) => {
-  if (req.path.startsWith('/api/leads/inbound')) return next();
+  if (
+    req.path.startsWith('/api/leads/inbound') ||
+    req.path.startsWith('/api/availability') ||
+    req.path.startsWith('/api/bookings/book')
+  ) return next();
   cors({
     origin: process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app',
   })(req, res, next);

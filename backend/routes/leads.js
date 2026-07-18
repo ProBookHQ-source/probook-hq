@@ -221,18 +221,14 @@ router.post('/inbound', async (req, res) => {
       logEvent(id, 'direct_assigned', 'system', `Directly assigned to contractor ${dedicatedContractorId} via dedicated API key`);
       console.log(`🎯 Inbound lead directly assigned to contractor ${dedicatedContractorId} (dedicated key)`);
 
-      // Respond with booking_token so the HVAC template can show inline slot picker
+      // Respond with booking_token so the HVAC template can show inline slot picker.
+      // No booking-link email sent — the inline slot picker replaces that step.
       res.status(201).json({
         success: true,
         lead_id: id,
         booking_token: bookingToken,
         contractor_id: dedicatedContractorId,
       });
-
-      // Fire notifications after response
-      matchingEngine.sendMatchNotifications(id).catch(err =>
-        console.error('Notification error (direct assign):', err)
-      );
     } catch (err) {
       console.error('Direct assignment error:', err);
       if (!res.headersSent) {
