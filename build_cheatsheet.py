@@ -107,7 +107,7 @@ def red_line(text):
 
 story = []
 story.append(Paragraph("TRACTIFY — COLD CALL CHEAT SHEET", TITLE))
-story.append(Paragraph("tractifyhq.com/schedule/jose  ·  July 2026", SUB))
+story.append(Paragraph("tractifyhq.com/schedule/book  ·  July 2026", SUB))
 story.append(HRFlowable(width=W, thickness=2, color=NAVY, spaceAfter=8))
 
 # ── SECTION 1: THE OPENER ─────────────────────────────────────────────────────
@@ -175,7 +175,7 @@ story.append(Spacer(1, 3))
 story.append(green_line("First 5 booked jobs FREE — zero cost to them, zero cost to you"))
 story.append(green_line("Live on a Tractify subdomain — no domain purchase needed until they convert"))
 story.append(green_line("After they convert: $2,000 setup + $500/month retainer"))
-story.append(green_line("Send them to: tractifyhq.com/schedule/jose — every time, no exceptions"))
+story.append(green_line("Send them to: tractifyhq.com/schedule/book — every time, no exceptions"))
 story.append(Spacer(1, 8))
 
 # ── SECTION 7: THE RULES ──────────────────────────────────────────────────────
@@ -185,7 +185,7 @@ story.append(red_line('NEVER say "website", "system", or "software" — only say
 story.append(red_line("NEVER chase a NO — plant the seed and hang up. Confidence is everything."))
 story.append(red_line("NEVER explain how it works on the cold call — sell the outcome only"))
 story.append(Spacer(1, 4))
-story.append(green_line("ALWAYS get them to book at tractifyhq.com/schedule/jose — the demo is the close"))
+story.append(green_line("ALWAYS get them to book at tractifyhq.com/schedule/book — the demo is the close"))
 story.append(green_line("ALWAYS offer the same thing: first 5 free, no strings, just want the case study"))
 story.append(Spacer(1, 8))
 
@@ -208,9 +208,9 @@ story.append(Spacer(1, 8))
 story.append(section_header("9  AFTER THE CALL"))
 story.append(Spacer(1, 3))
 for o, r in [
-    ("They agreed to a call", "Send tractifyhq.com/schedule/jose immediately — get them to book while you're still on the phone if possible."),
+    ("They agreed to a call", "Send tractifyhq.com/schedule/book immediately — get them to book while you're still on the phone if possible."),
     ("No answer / voicemail", "Log it. Call again in 2-3 days. New opener: \"I left you a voicemail a few days ago about booked jobs — did you get a chance to hear it?\""),
-    ("\"Call me back later\"", "Text within the hour: \"Hey [name], Jose here — following up on booked jobs for HVAC contractors. tractifyhq.com/schedule/jose when you're ready.\""),
+    ("\"Call me back later\"", "Text within the hour: \"Hey [name], Jose here — following up on booked jobs for HVAC contractors. tractifyhq.com/schedule/book when you're ready.\""),
     ("Spam warning", "\"You'll get a confirmation from bookings@tractifyhq.com — if you don't see it, check spam.\""),
     ("HOT PROSPECTS — follow up July 20", "Zach (McFarland HVAC) — verbal yes July 14. Justin — callback scheduled, score 8/10. Rusty (Cool Heat 365) — direct cell, call after 12pm."),
 ]:

@@ -66,7 +66,7 @@ When they convert (pay): buy their real domain, add it as a custom domain on the
 **The online ad:**
 Hook: *"HVAC contractors — we'll book your first 5 jobs for free."*
 Body: *"No website needed. No commitment. We plug you into our software, set up your availability, and get 5 booked appointments onto your calendar automatically. If you love it we keep going. If not, no hard feelings."*
-CTA: *"Book a 15 minute call to get started."* → tractifyhq.com/schedule/jose
+CTA: *"Book a 15 minute call to get started."* → tractifyhq.com/schedule/book
 
 **The flow:**
 1. Contractor books a call → deploy on subdomain → they get 5 free jobs
@@ -88,7 +88,7 @@ The new flow: **after form submit, show the slot picker inline right on the page
 This requires:
 - `POST /api/leads/inbound` to return a `booking_token` in its JSON response (small backend change)
 - The HVAC template `index.html` to show a booking UI inline after submission using that token
-- Still NOT built yet — this is Task 3 + Task 4
+- ✅ Built and deployed July 18 — inline slot picker shows immediately after form submit, no email step
 
 ### Idea 3: Missed Call Text-Back (The SaaS Phase)
 The most powerful future direction: pitch Tractify not as a website but as an **app**.
@@ -109,7 +109,7 @@ This is pure SaaS — no website build required, works with any contractor's exi
 - **Online (Jose owns):** Organic social content + paid ads targeting HVAC contractors. Cast a wide net. Scale what works.
 - **Cold calling (Daniel owns):** Direct outreach to Seattle/Snohomish contractors. Same pitch, human delivery.
 
-Both channels feed the same funnel — `tractifyhq.com/schedule/jose`.
+Both channels feed the same funnel — `tractifyhq.com/schedule/book`.
 
 ---
 
@@ -121,7 +121,7 @@ Hook: *"HVAC contractors — how many calls did you miss today?"*
 
 Body: *"You set your available hours. We do the rest. When a customer needs HVAC work, they find you, pick a time that works for you, and it goes straight on your calendar. No missed calls. No back and forth. No chasing leads. Just booked jobs showing up while you're on the job site. We're plugging in 2 HVAC contractors in the Seattle area for free to prove it works. You get booked jobs. We get our case study. Zero cost to you."*
 
-CTA: *"Book a 15 minute call and we'll show you exactly how it works."* → `tractifyhq.com/schedule/jose`
+CTA: *"Book a 15 minute call and we'll show you exactly how it works."* → `tractifyhq.com/schedule/book`
 
 **Content approach:**
 - Start organic — test messaging before spending money
@@ -190,7 +190,7 @@ Short. No explaining. No pitching. Just the outcome and the offer.
 - Never say "website", "system", or "software" in a cold call or voicemail — only say "booked jobs"
 - Never chase a no — plant the seed and move on, confidence is everything
 - The offer is always the same: first 5 booked jobs free, no strings, just want the case study
-- Always get them to book at tractifyhq.com/schedule/jose — they experience the product before the sales call
+- Always get them to book at tractifyhq.com/schedule/book — they experience the product before the sales call
 
 ---
 
@@ -479,16 +479,16 @@ created_at, updated_at
 ## Personal Booking Page (/schedule/:slug)
 
 **How it works:**
-- Each contractor can have a `booking_slug` (e.g. `'jose'`) set in the DB
-- `tractifyhq.com/schedule/jose` loads `DirectBooking.jsx` which looks up the contractor by slug
+- Each contractor can have a `booking_slug` (e.g. `'book'`) set in the DB
+- `tractifyhq.com/schedule/book` loads `DirectBooking.jsx` which looks up the contractor by slug
 - Visitor fills out name + email + phone (required) + optional notes
 - Picks date/time from the contractor's live availability
-- Books via `POST /api/bookings/book-direct` — creates appointment with `lead_id = NULL`, sends email to both parties
+- Books via `POST /api/bookings/book-direct` — creates appointment with `lead_id = NULL`, sends branded emails to both parties via notifications.js
 - No lead, no token, no email step — fully self-contained
 
-**Jose's slug:** `jose` → `tractifyhq.com/schedule/jose` ✅ LIVE
+**Jose's slug:** `book` → `tractifyhq.com/schedule/book` ✅ LIVE (display name = "The Tractify Team")
 
-**Use case:** Jose texts this link to every prospect after a cold call. The demo is the close.
+**Use case:** Jose texts this link to every prospect after a cold call. They book the 15-min setup call. He opens with: "You just booked this call the exact same way your customers will book jobs with you."
 
 **To set a slug for a new contractor:**
 ```sql
@@ -518,7 +518,7 @@ All emails use a shared branded HTML base with Tractify logo, indigo accent (#63
 | `sendContractorDeclined` | Admin declines | Contractor |
 | `sendPasswordReset` | Forgot password | Contractor |
 
-Direct bookings (via `/schedule/:slug`) send inline HTML emails built directly in `bookings.js` — not via notifications.js.
+Direct bookings (via `/schedule/:slug`) use `sendDirectBookingConfirmation` (to homeowner) and `sendDirectBookingContractorAlert` (to contractor) — both in `notifications.js`, using the same branded `emailBase()` template as all other emails. Updated July 18.
 
 ---
 
@@ -780,7 +780,6 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 - [ ] Subdomain auto-deploy (build AFTER 3+ manual client deployments prove the process)
 
 **Remaining — operational:**
-- [ ] ⚠️ Push July 18 changes to Railway: `git add -A && git commit -m 'Fix: CORS + email suppression' && git push origin main`
 - [ ] ⚠️ Jose set availability in contractor portal Sunday night before Monday calls (currently only Monday 9–12 set)
 - [ ] Set up email campaign targeting HVAC contractors (need a contractor email list first)
 - [ ] Onboard first 2-3 free trial clients using manual subdomain process (see Idea 0 section)
