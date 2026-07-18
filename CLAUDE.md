@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Paste this entire document at the start of any new chat. Last updated: July 4, 2026.*
+*Last updated: July 16, 2026.*
 
 ---
 
@@ -13,18 +13,192 @@
 ---
 
 ## What Tractify Is
-A full-stack auto-booking platform for Jose's lead generation business. The model: Jose runs niche lead gen sites (starting with OilToHeatRebate.com for Seattle oil-to-heat-pump conversions), sells those leads to HVAC contractors, and uses Tractify to automatically match leads to contractors and handle appointment booking — no manual scheduling needed.
+
+Tractify is software that fills HVAC contractors' calendars with booked jobs automatically. It is not a website company. It is not a lead gen service. It is a pipeline — contractors set their available hours, Tractify does the rest. When a customer needs HVAC work, they find the contractor, pick a time that works, and it goes straight on the calendar. No missed calls. No back and forth. No chasing leads. Just booked jobs showing up while the contractor is on the job site.
+
+**The three-word brand position: "Tractify fills your calendar."**
+
+**The website is invisible infrastructure.** Contractors aren't buying a website — they're buying a pipeline of booked jobs. The website is just how it works, the same way nobody buys Shopify because they want a website. They buy it because they want to sell things. Never lead with website, system, or technology. Lead with the outcome.
 
 **The full lead flow:**
-1. Homeowner fills out quiz on OilToHeatRebate.com (or future niche sites)
-2. Google Apps Script saves lead to Google Sheet + sends owner email + sends homeowner confirmation
-3. Apps Script bridge POSTs lead to Tractify's `/api/leads/inbound` endpoint *(currently dormant — see Bridge section)*
-4. Tractify auto-matches lead to the right contractor by niche + zip code (round-robin rotation)
-5. Homeowner gets email with personalized booking link (48hr expiry)
-6. Homeowner picks time from contractor's live availability calendar
-7. Appointment confirmed — both parties notified, synced to Google Calendar
+1. Homeowner fills out the lead form on the contractor's Tractify-powered site
+2. Tractify receives the lead via the inbound API (API key tied to that contractor)
+3. Homeowner gets an email with a personal booking link (48hr expiry)
+4. Homeowner picks a time from the contractor's live availability calendar
+5. Appointment confirmed — both parties notified, synced to Google Calendar
 
-**Business model:** Sell raw leads first (no Tractify needed), then upgrade contractors to booked leads via Tractify (much higher value product).
+**The pitch:** "You set your available hours. We do the rest. When a customer needs HVAC work, they find you, pick a time that works for you, and it goes straight on your calendar. No missed calls. No back and forth. No chasing leads. Just booked jobs showing up while you're on the job site."
+
+**The personal demo close:** Jose sends every prospect his booking link — `tractifyhq.com/schedule/jose`. When they book the call, he opens with: *"You just booked this call the exact same way your customers will book jobs with you."* The prospect experiences the product before Jose says another word.
+
+---
+
+## The Three Big Ideas (July 2026 Pivot)
+
+These came out of Jose's cold calling sessions July 13-14. They fundamentally change the direction of the business.
+
+### Idea 0: The Free Trial Funnel — Subdomains Before Domains
+Every contractor starts as a free trial on a Tractify subdomain (e.g. `premiercomforthvac.tractifyhq.com`). Full product, real booking flow, real appointments. Zero cost to Jose. They get their 5 free booked jobs. If they convert — buy the real domain, charge the $2,000 setup fee. If they don't — you spent nothing.
+
+**Why this is the scalable model:**
+- Zero marginal cost per free trial — subdomain costs nothing
+- You only invest real money on contractors who already proved they convert
+- The funnel filters itself — engaged contractors convert, the rest self-select out
+- Scales infinitely online — one ad running 24/7, zero per-trial cost
+- The entire online pitch becomes: **"Let us get you your first 5 jobs free. No strings."**
+
+**The online ad:**
+Hook: *"HVAC contractors — we'll book your first 5 jobs for free."*
+Body: *"No website needed. No commitment. We plug you into our software, set up your availability, and get 5 booked appointments onto your calendar automatically. If you love it we keep going. If not, no hard feelings."*
+CTA: *"Book a 15 minute call to get started."* → tractifyhq.com/schedule/jose
+
+**The flow:**
+1. Contractor books a call → deploy on subdomain → they get 5 free jobs
+2. After jobs 2-3: check-in call — let them tell you it's working
+3. After 5 jobs: conversion call — $2,000 setup + $500/month retainer
+4. They say yes: buy domain, full build, start retainer
+5. They say no: you spent nothing, move on
+
+### Idea 1: Stop Selling Websites, Sell Booked Appointments
+The old pitch was "I'll build you a free website." This frames Tractify as a web design service — low perceived value, tons of competition, and the word "free" signals desperation.
+
+The new pitch is: **"I get booked appointments onto your calendar."** The website is just infrastructure. The product is the outcome. This also solves the price anchoring problem — you're not selling a $500 website, you're selling $5,000+ worth of booked jobs.
+
+### Idea 2: Inline Booking on the HVAC Template (No Email Step)
+Currently after a homeowner fills out the lead form, they wait for a booking link email. That email step kills conversion — people click away, miss the email, or forget.
+
+The new flow: **after form submit, show the slot picker inline right on the page.** The homeowner books immediately while they're already engaged. No email to wait for, no link to click, no friction. The booking happens in one session.
+
+This requires:
+- `POST /api/leads/inbound` to return a `booking_token` in its JSON response (small backend change)
+- The HVAC template `index.html` to show a booking UI inline after submission using that token
+- Still NOT built yet — this is Task 3 + Task 4
+
+### Idea 3: Missed Call Text-Back (The SaaS Phase)
+The most powerful future direction: pitch Tractify not as a website but as an **app**.
+
+The pitch: *"Every time you miss a call, a text automatically goes out to that number. It says: 'Hey, sorry I missed you — here's a link to pick a time that works for you.' The customer clicks it, books a slot, and it goes on your calendar. You never lose another customer to a missed call."*
+
+This is pure SaaS — no website build required, works with any contractor's existing website. The missed-call trigger can be built with Twilio (webhook on missed call → auto-SMS with booking link). This is Phase 2 and is not yet built, but the booking infrastructure already exists.
+
+**Why this idea is powerful:** Contractors already feel the pain of missed calls every day. This pitches to a problem they know and hate, in language they understand. It's not "a system" (don't use that word — triggers resistance). It's "an app that texts them back for you."
+
+---
+
+## Sales Strategy (Active as of July 2026)
+
+**Current phase:** Free case study phase — onboard 2 HVAC contractors for free in exchange for testimonials and real revenue data. Use those results to unlock paid clients and scale.
+
+**Two channels running simultaneously:**
+- **Online (Jose owns):** Organic social content + paid ads targeting HVAC contractors. Cast a wide net. Scale what works.
+- **Cold calling (Daniel owns):** Direct outreach to Seattle/Snohomish contractors. Same pitch, human delivery.
+
+Both channels feed the same funnel — `tractifyhq.com/schedule/jose`.
+
+---
+
+### Online Channel Strategy
+
+**The online pitch:**
+
+Hook: *"HVAC contractors — how many calls did you miss today?"*
+
+Body: *"You set your available hours. We do the rest. When a customer needs HVAC work, they find you, pick a time that works for you, and it goes straight on your calendar. No missed calls. No back and forth. No chasing leads. Just booked jobs showing up while you're on the job site. We're plugging in 2 HVAC contractors in the Seattle area for free to prove it works. You get booked jobs. We get our case study. Zero cost to you."*
+
+CTA: *"Book a 15 minute call and we'll show you exactly how it works."* → `tractifyhq.com/schedule/jose`
+
+**Content approach:**
+- Start organic — test messaging before spending money
+- Platforms: Facebook first (HVAC owners are 35-55), Instagram secondary
+- Content types: screen recordings of the booking flow, before/after stories, case study results
+- Brand is faceless while building — no face on camera, text overlay and screen recordings
+- When a piece of organic content performs, put paid spend behind it to scale
+- **Never** mention website, system, or technology in ads — only outcomes and booked jobs
+
+**Why online scales better than cold calling:** A cold call requires a stranger to trust you in 60 seconds. An ad that offers 5 free booked jobs with zero risk self-selects contractors who are already interested. Lower friction, wider reach, and the funnel runs 24/7 without Jose or Daniel on the phone.
+
+---
+
+### Cold Calling Channel
+
+**The Master Script (July 2026 — use this verbatim):**
+
+---
+
+**Opener:**
+*"Hey [name], my name's Jose — quick question, are you currently buying booked jobs?"*
+
+That's it. Stop talking. Let them respond.
+
+---
+
+**If they say NO or not interested:**
+*"No worries at all. I'll tell you what — save my number. When you're ready to have jobs booking straight onto your calendar automatically, call me back and I'll hand you the first 5 for free. No strings."*
+
+Hang up. Move on. Don't pitch. Don't chase. You planted a seed — they'll think about it later.
+
+---
+
+**If they say YES or show any curiosity:**
+*"Perfect. We built software that plugs directly into your schedule — customers find you, pick a time that works for you, and it goes straight on your calendar. No missed calls, no phone tag, no back and forth. Just jobs showing up automatically while you're out in the field."*
+
+Pause. Let it land. Then:
+
+*"We're bringing on 2 contractors in the Seattle area right now completely free. First 5 booked jobs on us — we just want the case study. You'd be crazy not to at least take a look."*
+
+Then:
+
+*"You got 15 minutes this week? I'll walk you through the whole thing."*
+
+---
+
+**When they agree to a call — send them:** `tractifyhq.com/schedule/jose`
+
+Have them book it live on the phone if possible. They experience the product before the sales call even starts.
+
+---
+
+**The sales call opener (the close):**
+*"Before I say anything — you just booked this call the exact same way your customers are going to book jobs with you. That's the whole product right there."*
+
+---
+
+**If no answer — voicemail:**
+*"Hey [name], Jose here. Save my number — when you're ready to have jobs booking onto your calendar automatically, call me back and I'll give you the first 5 for free."*
+
+Short. No explaining. No pitching. Just the outcome and the offer.
+
+---
+
+**Rules that never change:**
+- Never say "website", "system", or "software" in a cold call or voicemail — only say "booked jobs"
+- Never chase a no — plant the seed and move on, confidence is everything
+- The offer is always the same: first 5 booked jobs free, no strings, just want the case study
+- Always get them to book at tractifyhq.com/schedule/jose — they experience the product before the sales call
+
+---
+
+**Voice agent / auto-attendant = warm lead:** They already understand missed calls cost money. Pitch: *"A voice agent is a fancy voicemail. Customers still can't book — they still have to wait for you to call back. This gets booked jobs onto your calendar automatically."*
+
+---
+
+**Prospects to follow up with:**
+- **Zach (McFarland HVAC)** — VERBAL YES on July 14. Follow up July 20th with new script.
+- **Justin** — Scheduled callback, score 8/10. Follow up July 20th.
+- **Rusty (Cool Heat 365)** — Has his direct cell. Call after 12pm.
+
+**Key objections and counters are in:**
+- `~/Desktop/Tractify-SuperContext/04-SALES-PLAYBOOK.docx`
+- The cheat sheet PDF (generated by `build_cheatsheet.py`)
+
+---
+
+### Team Structure
+- **Jose** — product, strategy, online content and ads, building
+- **Daniel** — cold calling, sales team lead, eventually director of operations
+- August 2026: Jose and Daniel calling together Mon-Fri 7am-12pm. Jose closes first 2-3 case study clients before August so Daniel inherits a proven script and real results to point to.
+- Daniel learns on the job — Jose calls while Daniel listens, then Daniel calls while Jose listens, debrief after every session.
+- This script is what Daniel learns. Simple enough that anyone can do it, sharp enough to convert.
 
 ---
 
@@ -33,6 +207,7 @@ A full-stack auto-booking platform for Jose's lead generation business. The mode
 - **Internal Railway URL:** https://probook-hq-production.up.railway.app (keep — Railway internal)
 - **Landing page:** https://tractifyhq.com
 - **Admin dashboard:** https://tractifyhq.com/admin
+- **Jose's personal booking page:** https://tractifyhq.com/schedule/jose ✅ LIVE
 - **Lead form:** https://tractifyhq.com/get-quote
 - **Contractor portal:** https://tractifyhq.com/contractor
 - **Contractor apply:** https://tractifyhq.com/apply
@@ -40,9 +215,9 @@ A full-stack auto-booking platform for Jose's lead generation business. The mode
 - **Hosting:** Railway.app (auto-deploys on every GitHub push to main)
 - **Railway project name:** compassionate-elegance
 - **Database:** PostgreSQL (Railway managed — persistent across redeploys ✅)
-- **Email:** Resend HTTP API (FROM: bookings@tractifyhq.com) — domain verified via Cloudflare auto-configure ✅
-- **DNS:** Cloudflare (tractifyhq.com → Railway) — tractifyhq.com added to Cloudflare July 4, 2026
-- **Build system:** `nixpacks.toml` (replaced Dockerfile — installs backend + frontend deps, builds React, starts node)
+- **Email:** Resend HTTP API (FROM: bookings@tractifyhq.com) — domain verified via Cloudflare ✅
+- **DNS:** Cloudflare (tractifyhq.com → Railway)
+- **Build system:** `nixpacks.toml`
 
 ## Admin Login Credentials
 - **Email:** oiltoheatrebate@gmail.com
@@ -66,7 +241,7 @@ curl -X POST https://tractifyhq.com/api/auth/admin/register \
 - **Email:** Resend HTTP API — `RESEND_API_KEY` env var, FROM: bookings@tractifyhq.com
 - **Calendar:** Google Calendar API OAuth2 (built, not yet configured with credentials)
 - **Deployment:** nixpacks on Railway, auto-deploy via GitHub push
-- **DNS:** Cloudflare (probookhq.com → Railway)
+- **DNS:** Cloudflare (tractifyhq.com → Railway)
 - **Rate limiting:** express-rate-limit (60/15min public, 10/15min auth, 3/hr apply)
 - **Security:** Helmet.js security headers, express-async-errors for async error handling
 - **Error monitoring:** Sentry (activates when `SENTRY_DSN` env var is set)
@@ -107,6 +282,9 @@ lead-booking-app/
 ├── nixpacks.toml             ← Railway build config (replaces Dockerfile)
 ├── railway.json              ← Minimal (just schema ref, no buildCommand)
 ├── NewScript.js              ← Updated Google Apps Script (with bridge) — copy to Apps Script editor
+├── build_cheatsheet.py       ← Generates sales cheat sheet PDF
+├── transcribe-call.py        ← Transcribes .m4a call recordings via AssemblyAI
+├── prospect-tracker.xlsx     ← Live prospect pipeline (synced to SuperContext)
 ├── package.json
 ├── .env                      ← Local config only, NOT committed
 │
@@ -118,8 +296,8 @@ lead-booking-app/
 │   ├── routes/
 │   │   ├── auth.js           ← Admin + contractor login/register, forgot/reset password, approve/decline contractors
 │   │   ├── leads.js          ← Public POST /, inbound bridge POST /inbound, admin CRUD, reassignment
-│   │   ├── contractors.js    ← Admin CRUD for contractors (list, add, update, delete)
-│   │   ├── bookings.js       ← Booking flow: validate-token, book, cancel, complete, delete; cancel-token/reschedule-token
+│   │   ├── contractors.js    ← Admin CRUD + public slug lookup (GET /public/:slug for /schedule pages)
+│   │   ├── bookings.js       ← Token booking, book-direct, cancel, complete, delete; cancel-token/reschedule-token
 │   │   ├── availability.js   ← Weekly slots + date overrides + open-slots + manual blocks
 │   │   ├── niches.js         ← Niche CRUD (admin)
 │   │   └── apikeys.js        ← Per-site API key management (admin)
@@ -145,14 +323,15 @@ lead-booking-app/
         ├── index.css                  ← Global CSS: overflow-x hidden on html/body/#root, 16px input font-size
         ├── api/client.js              ← Axios instance pointed at /api
         ├── pages/
-        │   ├── LandingPage.jsx        ← Public marketing page (probookhq.com)
+        │   ├── LandingPage.jsx        ← Public marketing page
         │   ├── LoginPage.jsx          ← Admin + contractor login (role toggle), forgot password link
         │   ├── ForgotPassword.jsx     ← Contractor forgot password form
         │   ├── ResetPassword.jsx      ← Contractor password reset (reads ?token= from URL)
         │   ├── ContractorApply.jsx    ← Public self-signup form for contractors
         │   ├── AdminDashboard.jsx     ← Full lead/contractor/appointment/niche/apikey management
         │   ├── ContractorPortal.jsx   ← Calendar UI, availability, blocking, settings, change password
-        │   ├── BookingFlow.jsx        ← Homeowner picks date + time from live calendar
+        │   ├── BookingFlow.jsx        ← Homeowner picks date + time (token-based, from email link)
+        │   ├── DirectBooking.jsx      ← Personal booking page (/schedule/:slug) — no token, no lead
         │   ├── LeadIntakeWidget.jsx   ← Embeddable lead form at /get-quote
         │   └── CancelPage.jsx         ← Homeowner self-service cancel/reschedule
         └── utils/formatPhone.js
@@ -181,6 +360,7 @@ applied_at, declined_at,
 google_refresh_token, google_calendar_id,
 reset_token TEXT,                ← for forgot-password flow
 reset_token_expires TIMESTAMPTZ,
+booking_slug TEXT UNIQUE,        ← e.g. 'jose' → tractifyhq.com/schedule/jose
 created_at
 ```
 
@@ -196,12 +376,14 @@ created_at
 
 **`appointments`**
 ```
-id, lead_id (nullable — NULL = external block), contractor_id,
+id, lead_id (nullable — NULL = direct booking or manual block), contractor_id,
 scheduled_date, scheduled_time, duration_minutes DEFAULT 60,
 status TEXT DEFAULT 'pending',   ← pending | confirmed | cancelled | completed
-google_event_id, notes, created_at, updated_at
+google_event_id, notes, cancel_token, reschedule_token,
+created_at, updated_at
 ```
-Partial unique index prevents double-booking (excludes cancelled rows).
+- Direct bookings (from `/schedule/:slug`) have `lead_id = NULL`. Contact info stored as JSON in `notes`.
+- Partial unique index prevents double-booking (excludes cancelled rows).
 
 **`availability_slots`** — weekly recurring schedule (contractor_id, day_of_week 0-6, start_time, end_time, is_active)
 
@@ -214,14 +396,10 @@ Partial unique index prevents double-booking (excludes cancelled rows).
 **`lead_events`** — full audit trail. Every status change, email send, match attempt, etc. (lead_id, event_type, payload JSONB, created_at)
 
 **`inbound_api_keys`** — per-site API keys for inbound lead submissions (id, name, key TEXT plaintext, source_slug, is_active, created_at, last_used_at, contractor_id TEXT → contractors.id, allowed_origins TEXT)
-- `contractor_id` is optional. When set, inbound leads from that key skip the matching engine entirely and are assigned directly to that contractor (status set to `matched` immediately). When null, normal round-robin matching runs.
-- `allowed_origins` is optional. Comma-separated list of allowed domains (e.g. `https://clientsite.com, https://www.clientsite.com`). When set, the inbound endpoint rejects requests whose `Origin` header doesn't match — prevents API key theft. Leave blank to allow any origin (backward compatible).
+- `contractor_id` is optional. When set, inbound leads from that key skip the matching engine and route directly to that contractor.
+- `allowed_origins` is optional. Comma-separated domains. When set, rejects requests whose `Origin` header doesn't match — prevents API key theft.
 
 **`intake_events`** — client onboarding intake form step tracking (id, type, step INTEGER, step_name TEXT, direction TEXT, client_id TEXT, business_name TEXT, ts TIMESTAMPTZ, created_at)
-- Fired from the client intake form HTML on every Next/Back click
-- `direction`: `start` (form opened) | `forward` (Next clicked) | `back` (Back clicked)
-- `client_id`: browser session ID generated once on form load
-- Powers the intake funnel stats endpoint for dropoff analysis
 
 ---
 
@@ -233,8 +411,10 @@ Partial unique index prevents double-booking (excludes cancelled rows).
 | POST | /api/leads | Submit lead (from /get-quote form) |
 | POST | /api/leads/inbound | Bridge endpoint for external sites (INBOUND_API_KEY auth) |
 | GET | /api/leads/meta/niches | List niches |
+| GET | /api/contractors/public/:slug | Look up contractor by booking_slug (for /schedule pages) |
 | GET | /api/bookings/validate-token/:token | Validate booking link |
-| POST | /api/bookings/book | Confirm appointment |
+| POST | /api/bookings/book | Confirm appointment (token-based, from email link) |
+| POST | /api/bookings/book-direct | Book without token — used by /schedule/:slug pages |
 | POST | /api/bookings/cancel-token | Homeowner self-cancel via token |
 | POST | /api/bookings/reschedule-token | Homeowner self-reschedule via token |
 | GET | /api/availability/:id/open-slots | Available times for booking |
@@ -245,7 +425,7 @@ Partial unique index prevents double-booking (excludes cancelled rows).
 | POST | /api/auth/contractor/reset-password | Reset password via token |
 | POST | /api/auth/admin/login | Admin login → JWT |
 | POST | /api/auth/admin/register | Create first admin (disabled after one exists) |
-| POST | /api/intake/track | Track intake form step event (called from client intake form HTML) |
+| POST | /api/intake/track | Track intake form step event |
 
 ### Admin (JWT required)
 | Method | Path | Description |
@@ -258,11 +438,11 @@ Partial unique index prevents double-booking (excludes cancelled rows).
 | PUT | /api/auth/contractor/:id/approve | Approve contractor application |
 | PUT | /api/auth/contractor/:id/decline | Decline contractor application |
 | DELETE | /api/auth/contractor/:id/application | Delete declined application |
-| GET/PUT/DELETE | /api/bookings | Appointment management |
+| GET/PUT/DELETE | /api/bookings | Appointment management (uses LEFT JOINs — shows direct bookings too) |
 | DELETE | /api/bookings/:id | Delete cancelled/completed appointment |
 | GET/POST/DELETE | /api/niches | Niche management |
-| GET/POST/PUT/DELETE | /api/apikeys | Per-site API key management (create accepts optional contractor_id and allowed_origins; PUT /:id/contractor updates contractor assignment; PUT /:id/origins updates allowed domains) |
-| GET | /api/intake/stats | Intake funnel dropoff stats (admin only) |
+| GET/POST/PUT/DELETE | /api/apikeys | Per-site API key management |
+| GET | /api/intake/stats | Intake funnel dropoff stats |
 
 ### Contractor (JWT required)
 | Method | Path | Description |
@@ -274,6 +454,27 @@ Partial unique index prevents double-booking (excludes cancelled rows).
 | PUT | /api/bookings/:id/complete | Mark as completed |
 | GET | /api/auth/google/connect/:contractorId | Start Google Calendar OAuth |
 | GET | /api/auth/google/callback | Google OAuth callback |
+
+---
+
+## Personal Booking Page (/schedule/:slug)
+
+**How it works:**
+- Each contractor can have a `booking_slug` (e.g. `'jose'`) set in the DB
+- `tractifyhq.com/schedule/jose` loads `DirectBooking.jsx` which looks up the contractor by slug
+- Visitor fills out name + email + phone (required) + optional notes
+- Picks date/time from the contractor's live availability
+- Books via `POST /api/bookings/book-direct` — creates appointment with `lead_id = NULL`, sends email to both parties
+- No lead, no token, no email step — fully self-contained
+
+**Jose's slug:** `jose` → `tractifyhq.com/schedule/jose` ✅ LIVE
+
+**Use case:** Jose texts this link to every prospect after a cold call. The demo is the close.
+
+**To set a slug for a new contractor:**
+```sql
+UPDATE contractors SET booking_slug = 'their-slug' WHERE email = 'their@email.com';
+```
 
 ---
 
@@ -298,6 +499,8 @@ All emails use a shared branded HTML base with Tractify logo, indigo accent (#63
 | `sendContractorDeclined` | Admin declines | Contractor |
 | `sendPasswordReset` | Forgot password | Contractor |
 
+Direct bookings (via `/schedule/:slug`) send inline HTML emails built directly in `bookings.js` — not via notifications.js.
+
 ---
 
 ## Contractor Flow (Self-Signup)
@@ -319,16 +522,6 @@ Contractors can apply themselves at `/apply`:
 5. Reset page validates token + expiry, lets user set new password (min 8 chars)
 6. On success: token cleared, password bcrypt-hashed and saved
 7. Always returns 200 on forgot-password (prevents email enumeration)
-
----
-
-## Password Visibility Toggle
-All password fields across the app have an Eye/EyeOff toggle button:
-- LoginPage.jsx (sign in)
-- ContractorApply.jsx (password + confirm)
-- ResetPassword.jsx (new password + confirm)
-- ContractorPortal.jsx — Change Password section (current, new, confirm)
-- AdminDashboard.jsx — Add Contractor form (temporary password)
 
 ---
 
@@ -364,12 +557,13 @@ Tabs: Leads | Contractors | Appointments | Performance | API Keys | Niches
 
 **Appointments tab:**
 - Full appointment list with lead info, contractor, date/time, status
+- Includes direct bookings (lead_id = NULL) — shown without lead name
 - Cancel button (all statuses)
 - Delete button (cancelled/completed only — with confirm step)
 
 **Performance tab:** Lead conversion rates, contractor stats, booking funnel metrics
 
-**API Keys tab:** Create/manage per-site API keys for external lead sources. Each key can optionally be linked to a specific contractor — when linked, all leads from that site route directly to that contractor, bypassing the shared matching engine. Each key also supports an optional allowed_origins field (comma-separated domains) to restrict which websites can use the key. Used for the HVAC website bundle business model.
+**API Keys tab:** Create/manage per-site API keys for external lead sources. Each key can optionally be linked to a specific contractor. Each key also supports an optional `allowed_origins` field.
 
 **Niches tab:** Add/edit/delete service niches
 
@@ -392,21 +586,12 @@ Tabs: Leads | Contractors | Appointments | Performance | API Keys | Niches
 ---
 
 ## Mobile Responsiveness (fully complete as of June 19, 2026)
-All pages are fully responsive. Key fixes applied:
-
-**`frontend/index.html`** — `shrink-to-fit=no` in viewport meta prevents Safari from auto-scaling the page when content is slightly wider than the viewport.
-
-**`frontend/src/index.css`** — overflow rules are placed OUTSIDE `@layer` (highest cascade priority, cannot be overridden by Tailwind). `overflow-x: hidden` on `html`, `body`, and `#root`. All `input`, `select`, `textarea` forced to `font-size: 16px !important` to prevent iOS Safari auto-zoom on focus. The `.input` component class uses `text-base` (16px).
-
-**`AdminDashboard.jsx`** — all mobile card views use `truncate` + `min-w-0` on long text (emails, names, company info). Main content div uses `md:ml-56 min-w-0 overflow-x-hidden` (NOT `w-full` — adding `w-full` with `ml-56` causes the div to extend past the viewport). All desktop table wrappers use `overflow-x-auto` (not `overflow-hidden`) so wide tables scroll rather than clip.
-
-**`ContractorPortal.jsx`** — Block Time form stacks vertically on mobile. TimeSelect widths reduced. All tab content containers have `overflow-y-auto overflow-x-hidden` (prevents implicit horizontal scroll). AppointmentCard text truncated.
-
-**Key CSS gotchas for future work:**
-- `overflow-x: clip` is NOT supported on iOS < 15.4 — always use `overflow-x: hidden` on root elements
-- Setting `overflow-y: auto` implicitly sets `overflow-x: auto` per CSS spec — always pair with explicit `overflow-x: hidden`
-- `@layer base` rules have lower cascade priority than non-layered CSS — put critical rules outside any `@layer`
-- Long text without `truncate` + `min-w-0` in flex containers genuinely widens layout past the viewport, bypassing any CSS overflow setting
+All pages are fully responsive. Key gotchas for future work:
+- `overflow-x: clip` is NOT supported on iOS < 15.4 — always use `overflow-x: hidden`
+- Setting `overflow-y: auto` implicitly sets `overflow-x: auto` per CSS spec — always pair explicitly
+- `@layer base` rules have lower cascade priority — put critical overflow rules outside any `@layer`
+- Long text without `truncate` + `min-w-0` in flex containers genuinely widens layout past the viewport
+- Safari auto-zooms inputs when `font-size < 16px` — fixed globally in `index.css` with `font-size: 16px !important`
 
 ---
 
@@ -418,7 +603,7 @@ Automatically sends leads from the quiz site into Tractify's matching engine.
 **How to flip it ON when ready:**
 1. Go to script.google.com → open Apps Script for OilToHeatRebate.com
 2. Click gear → Project Settings → Script Properties → Add:
-   - `PROBOOK_API_URL` = `https://probookhq.com`
+   - `PROBOOK_API_URL` = `https://tractifyhq.com`
    - `PROBOOK_API_KEY` = *(the value of `INBOUND_API_KEY` in Railway)*
 3. Deploy → Manage Deployments → new version
 
@@ -446,7 +631,7 @@ git push origin main
 ```
 Railway auto-deploys within ~2 minutes of the push.
 
-**Note:** The sandbox (Claude's shell) cannot push to GitHub via HTTPS. Always push from Jose's terminal.
+**Note:** Claude's shell cannot push to GitHub via HTTPS. Always push from Jose's terminal.
 
 **If Railway does not auto-deploy after a successful push:**
 ```bash
@@ -483,7 +668,6 @@ cmds = ["cd frontend && npm run build"]
 [start]
 cmd = "node backend/server.js"
 ```
-This replaced the Dockerfile. Railway uses this automatically.
 
 ---
 
@@ -497,6 +681,8 @@ await db.query(`UPDATE contractors SET status = 'approved' WHERE is_active = 1 A
 await db.query(`ALTER TABLE inbound_api_keys ADD COLUMN IF NOT EXISTS contractor_id TEXT REFERENCES contractors(id) ON DELETE SET NULL`);
 await db.query(`ALTER TABLE inbound_api_keys ADD COLUMN IF NOT EXISTS allowed_origins TEXT`);
 await db.query(`CREATE TABLE IF NOT EXISTS intake_events (...)`);
+await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS booking_slug TEXT UNIQUE`);
+await db.query(`ALTER TABLE appointments ALTER COLUMN lead_id DROP NOT NULL`).catch(() => {});
 ```
 Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a UUID stored as TEXT.
 
@@ -525,9 +711,6 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 **Forgot password email not arriving**
 → Contractor must have `is_active = 1` in DB. Check Railway logs for `[FORGOT-PW]` entries.
 
-**column "status" does not exist error**
-→ Startup migration adds this. Should never happen on a live deploy.
-
 **iOS Safari auto-zooms on input focus**
 → Safari zooms when input `font-size < 16px`. Fixed globally in `index.css`. If it recurs, verify the `font-size: 16px !important` rule is present outside any `@layer`.
 
@@ -535,31 +718,42 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 → Two root causes: (1) overflow rules in `@layer` can be overridden — rules must be outside any layer. (2) Long text without `truncate` + `min-w-0` genuinely widens layout. Both must be fixed together.
 
 **Contractor can't block same-day time slots**
-→ Root cause: `new Date("YYYY-MM-DD")` parses the string as UTC midnight, making today look like yesterday in Pacific time. Fixed by constructing the date as `new Date(year, month, day)` (local time) and never re-parsing the formatted string.
+→ Root cause: `new Date("YYYY-MM-DD")` parses as UTC midnight, making today look like yesterday in Pacific time. Fixed by constructing date as `new Date(year, month, day)` (local time).
 
 **API key rejected with 403 "Origin not allowed"**
 → The key has `allowed_origins` set. Add your domain to the allowed list in Admin → API Keys, or clear the field to allow any origin.
 
+**Direct booking (/schedule/:slug) doesn't appear in admin appointments tab**
+→ Should not happen — admin query uses LEFT JOINs. If it does, verify bookings.js admin GET uses `LEFT JOIN leads` not `JOIN leads`.
+
 ---
 
-## Launch Status (as of July 4, 2026)
-The app is fully built, deployed, and tested. All features complete including dedicated contractor routing, domain-restricted API keys, and intake form tracking. Fully mobile-responsive.
+## Launch Status (as of July 16, 2026)
 
-**Completed since launch:**
-- ✅ Railway credit card added
-- ✅ Dedicated contractor routing via API keys (June 23) — each HVAC client's website routes leads exclusively to their contractor, bypassing the shared matching engine
-- ✅ Admin dashboard overflow fix — desktop tables scroll correctly on all tabs
-- ✅ Domain-restricted API keys (June 28) — `allowed_origins` field on inbound_api_keys prevents API key theft by rejecting requests from non-whitelisted domains
-- ✅ Same-day time block fix (June 28) — contractors can now block time slots for the current day; was broken by a UTC timezone parsing bug in ContractorPortal.jsx
-- ✅ Intake form step tracking (June 28) — `/api/intake/track` endpoint + `intake_events` table lets the HVAC client intake form fire step events so Jose can see dropoff rates per form step
-- ✅ Full rebrand to Tractify (July 4) — renamed from ProBook → ProAppt → Tractify across entire codebase; tractifyhq.com bought, added to Cloudflare, Resend domain verified via Cloudflare auto-configure, Railway custom domain updated, all env vars updated (BRAND_NAME, FROM_EMAIL, FRONTEND_URL)
+**Completed (all features):**
+- ✅ Full app built, deployed, tested — tractifyhq.com live
+- ✅ Dedicated contractor routing via API keys — HVAC client sites route leads directly to their contractor
+- ✅ Domain-restricted API keys (`allowed_origins`) — prevents API key theft
+- ✅ Same-day time block fix — UTC timezone parsing bug fixed in ContractorPortal.jsx
+- ✅ Intake form step tracking — `/api/intake/track` + `intake_events` table
+- ✅ Full rebrand to Tractify (July 4) — tractifyhq.com, Cloudflare, Resend, Railway all updated
+- ✅ Personal booking page `/schedule/:slug` (July 16) — Jose's page live at tractifyhq.com/schedule/jose
+- ✅ `book-direct` endpoint — books appointments without lead/token (for /schedule pages)
+- ✅ Admin appointments query fixed — LEFT JOINs so direct bookings appear in dashboard
 
-**Remaining operational items (not code):**
+**Remaining — code:**
+- [ ] Task 3: Return `booking_token` in `POST /api/leads/inbound` response
+- [ ] Task 4: Inline booking on HVAC template — show slot picker after form submit (no email step)
+- [ ] Intake funnel view in admin dashboard (data collecting, UI not built)
+- [ ] Missed call text-back via Twilio (Phase 2 SaaS feature)
+
+**Remaining — operational:**
+- [ ] Jose set his availability in contractor portal so /schedule/jose has actual time slots
 - [ ] Run full end-to-end test with a real contractor before onboarding clients
-- [ ] Flip bridge ON once first contractor is onboarded (see Bridge section — no code changes needed)
-- [ ] Google Calendar credentials (deferred — add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` to Railway when ready)
-- [ ] Wire JS fetch snippet into intake form HTML on each step's Next/Back button click (intake form already fires to `/api/intake/track` — verify it's working)
-- [ ] Build intake funnel view in Tractify admin dashboard (data is being collected, UI not yet built)
+- [ ] Flip bridge ON once first contractor is onboarded (script properties only — no code changes)
+- [ ] Google Calendar credentials (deferred — add to Railway when ready)
+
+---
 
 ## ⚠️ Client Go-Live Checklist (HVAC Website Bundle)
 **Run through this every single time you onboard a new HVAC client. Do not skip steps.**
@@ -569,8 +763,8 @@ The app is fully built, deployed, and tested. All features complete including de
    - Name: client's business name (e.g. "Premier Comfort HVAC")
    - Source slug: their domain slug (e.g. "premiercomforthvac")
    - Link to their contractor account
-   - **⚠️ ALWAYS set `Allowed Origins` to their deployed domain** (e.g. `https://premiercomforthvac.com, https://www.premiercomforthvac.com`)
-   - **If you forget `allowed_origins`, anyone who finds the API key can flood Tractify with fake leads from any website**
+   - **⚠️ ALWAYS set `Allowed Origins` to their deployed domain**
+   - **If you forget `allowed_origins`, anyone who finds the API key can flood Tractify with fake leads**
 3. [ ] Copy the generated API key — it's only shown once
 4. [ ] Paste the CLIENT config (from intake form Worker submission) into the HVAC template `index.html`
 5. [ ] Replace `YOUR_PROBOOK_API_KEY` in the CLIENT config with the real key from step 3
@@ -601,5 +795,5 @@ The app is fully built, deployed, and tested. All features complete including de
 - **New niches:** Add contractors under different niches — matching engine handles routing automatically
 - **New cities:** Add contractors with their service zip codes
 - **New lead gen sites:** Each site gets its own `PROBOOK_NICHE` and `PROBOOK_SOURCE` in its Apps Script
-- **SMS:** Add Twilio to `notifications.js` for text alerts to contractors
+- **SMS / missed call text-back:** Add Twilio to `notifications.js` — Phase 2 SaaS product
 - **Payments:** Add Stripe to charge contractors per lead or monthly subscription

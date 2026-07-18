@@ -137,8 +137,8 @@ export default function DirectBooking() {
   const PageHeader = () => (
     <div className="text-center mb-8">
       <img src="/probook-icon-128.png" alt="Tractify" className="w-12 h-12 rounded-2xl shadow-lg mb-3 mx-auto" />
-      <h1 className="text-2xl font-bold text-gray-900">Book a call with the Tractify team</h1>
-      <p className="text-gray-500 text-sm mt-1">Pick a time that works for you. No back-and-forth.</p>
+      <h1 className="text-2xl font-bold text-gray-900">Claim Your 5 Free Booked Jobs</h1>
+      <p className="text-gray-500 text-sm mt-1">Pick a time. 15 minutes. We'll show you exactly how it works.</p>
     </div>
   );
 

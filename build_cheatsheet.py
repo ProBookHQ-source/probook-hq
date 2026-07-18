@@ -13,38 +13,52 @@ doc = SimpleDocTemplate(OUT, pagesize=letter,
 
 NAVY  = colors.HexColor("#1a2e4a")
 BLUE  = colors.HexColor("#1E5AA8")
+INDIGO = colors.HexColor("#4F46E5")
 LGRAY = colors.HexColor("#f0f4f9")
 DGRAY = colors.HexColor("#444444")
 GOLD  = colors.HexColor("#7a5c00")
 LGOLD = colors.HexColor("#fff8e1")
+GREEN = colors.HexColor("#065F46")
+LGREEN = colors.HexColor("#D1FAE5")
+RED   = colors.HexColor("#7F1D1D")
+LRED  = colors.HexColor("#FEE2E2")
 
 def style(name, **kw):
     base = dict(fontName="Helvetica", fontSize=9, leading=13, textColor=DGRAY, spaceAfter=2)
     base.update(kw)
     return ParagraphStyle(name, **base)
 
-TITLE = style("title", fontName="Helvetica-Bold", fontSize=15, textColor=NAVY, leading=18, spaceAfter=4, alignment=TA_CENTER)
+TITLE = style("title", fontName="Helvetica-Bold", fontSize=15, textColor=NAVY, leading=18, spaceAfter=2, alignment=TA_CENTER)
+SUB   = style("sub", fontSize=8.5, textColor=BLUE, leading=12, spaceAfter=6, alignment=TA_CENTER)
 SEC   = style("sec",   fontName="Helvetica-Bold", fontSize=10, textColor=colors.white, leading=14)
 BODY  = style("body",  fontSize=8.5, leading=12, spaceAfter=2, textColor=DGRAY)
 SCRPT = style("scrpt", fontName="Helvetica-Oblique", fontSize=8.5, leading=12, textColor=colors.HexColor("#222222"), leftIndent=8)
 GOLDS = style("golds", fontName="Helvetica-BoldOblique", fontSize=8.5, leading=12, textColor=GOLD)
+GREENS = style("greens", fontName="Helvetica-BoldOblique", fontSize=8.5, leading=12, textColor=GREEN)
+REDS  = style("reds", fontName="Helvetica-Bold", fontSize=8, leading=11, textColor=RED)
 
 W = 7.4 * inch
 
-def section_header(title):
+def section_header(title, color=BLUE):
     tbl = Table([[Paragraph(title, SEC)]], colWidths=[W])
     tbl.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,-1), BLUE),
+        ("BACKGROUND", (0,0), (-1,-1), color),
         ("LEFTPADDING", (0,0), (-1,-1), 8),
         ("TOPPADDING", (0,0), (-1,-1), 4),
         ("BOTTOMPADDING", (0,0), (-1,-1), 4),
     ]))
     return tbl
 
-def row(label, response, highlight=False):
-    bg = LGOLD if highlight else LGRAY
-    lbl_style = style("ls", fontName="Helvetica-Bold", fontSize=8.5, leading=12,
-                      textColor=GOLD if highlight else BLUE)
+def row(label, response, highlight=False, green=False):
+    if green:
+        bg = LGREEN
+        lbl_style = style("ls", fontName="Helvetica-Bold", fontSize=8.5, leading=12, textColor=GREEN)
+    elif highlight:
+        bg = LGOLD
+        lbl_style = style("ls", fontName="Helvetica-Bold", fontSize=8.5, leading=12, textColor=GOLD)
+    else:
+        bg = LGRAY
+        lbl_style = style("ls", fontName="Helvetica-Bold", fontSize=8.5, leading=12, textColor=BLUE)
     tbl = Table([[Paragraph(label, lbl_style), Paragraph(response, SCRPT)]],
                 colWidths=[2.3*inch, 5.1*inch])
     tbl.setStyle(TableStyle([
@@ -69,113 +83,136 @@ def gold_line(text):
     ]))
     return tbl
 
+def green_line(text):
+    tbl = Table([[Paragraph(f'✓  {text}', GREENS)]], colWidths=[W])
+    tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,-1), LGREEN),
+        ("LEFTPADDING", (0,0), (-1,-1), 10),
+        ("TOPPADDING", (0,0), (-1,-1), 5),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+        ("LINEBELOW", (0,0), (-1,-1), 0.5, colors.white),
+    ]))
+    return tbl
+
+def red_line(text):
+    tbl = Table([[Paragraph(f'✗  {text}', REDS)]], colWidths=[W])
+    tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,-1), LRED),
+        ("LEFTPADDING", (0,0), (-1,-1), 10),
+        ("TOPPADDING", (0,0), (-1,-1), 4),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+        ("LINEBELOW", (0,0), (-1,-1), 0.5, colors.white),
+    ]))
+    return tbl
+
 story = []
 story.append(Paragraph("TRACTIFY — COLD CALL CHEAT SHEET", TITLE))
-story.append(HRFlowable(width=W, thickness=2, color=NAVY, spaceAfter=10))
+story.append(Paragraph("tractifyhq.com/schedule/jose  ·  July 2026", SUB))
+story.append(HRFlowable(width=W, thickness=2, color=NAVY, spaceAfter=8))
 
-# 1. OPENERS
-story.append(section_header("1  OPENERS — First 5 Seconds"))
+# ── SECTION 1: THE OPENER ─────────────────────────────────────────────────────
+story.append(section_header("1  THE OPENER — Say This. Then Stop."))
+story.append(Spacer(1, 3))
+story.append(row("THE LINE ⭐", '"Hey [name], my name\'s Jose — quick question, are you currently buying booked jobs?"'))
+story.append(row("After you say it", "STOP. Let them respond. The silence is intentional. Do not fill it."))
+story.append(Spacer(1, 8))
+
+# ── SECTION 2: THE TWO PATHS ──────────────────────────────────────────────────
+story.append(section_header("2  THE TWO PATHS"))
+story.append(Spacer(1, 3))
+
+story.append(row('IF NO or "not interested"', '"No worries at all. I\'ll tell you what — save my number. When you\'re ready to have jobs booking straight onto your calendar automatically, call me back and I\'ll hand you the first 5 for free. No strings."', green=True))
+story.append(row("→ Then", "Hang up. Do not pitch. Do not chase. You planted a seed.", green=True))
+story.append(Spacer(1, 4))
+
+story.append(row('IF YES or any curiosity', '"Perfect. Customers find you, pick a time that works for you, and it books straight onto your calendar. No missed calls, no phone tag, no chasing. Just jobs showing up while you\'re on the job site."', highlight=True))
+story.append(row("→ Pause 2 seconds. Then:", '"We\'re plugging in 2 contractors in Seattle right now, completely free — first 5 booked jobs on us, zero risk on your end. You got 15 minutes this week to see how it works?"', highlight=True))
+story.append(Spacer(1, 4))
+
+story.append(row('IF MURKY — "what do you mean?" / "how does that work?"',
+    '"Basically — customers find you, pick a time from your calendar, and it books automatically. You just show up to the job. No back and forth. We\'re proving it free with 2 contractors in Seattle right now. You\'d be the second. 15 minutes this week?"'))
+story.append(Spacer(1, 8))
+
+# ── SECTION 3: VOICEMAIL ──────────────────────────────────────────────────────
+story.append(section_header("3  VOICEMAIL — Under 20 Seconds"))
+story.append(Spacer(1, 3))
+story.append(row("LEAVE THIS", '"Hey [name], Jose here. Save my number — when you\'re ready to have jobs booking onto your calendar automatically, call me back and I\'ll give you the first 5 for free."'))
+story.append(row("Rule", "Short. No explaining. No pitching. Just the outcome and the offer."))
+story.append(Spacer(1, 8))
+
+# ── SECTION 4: THE SALES CALL CLOSE ──────────────────────────────────────────
+story.append(section_header("4  THE SALES CALL OPENER — Say This Before Anything Else", INDIGO))
+story.append(Spacer(1, 3))
+story.append(row("OPEN WITH ⭐⭐", '"Before I say anything — you just booked this call the exact same way your customers are going to book jobs with you. That\'s the whole product right there."'))
+story.append(row("Why it works", "They already experienced the product. Everything after this is just answering questions."))
+story.append(Spacer(1, 8))
+
+# ── SECTION 5: OBJECTIONS ─────────────────────────────────────────────────────
+story.append(section_header("5  OBJECTIONS"))
 story.append(Spacer(1, 3))
 for o, r in [
-    ("Specific intel opener\n(BEST — use this first)", '"I looked up [Business] before calling — your website is serving gambling content now. Someone bought your old domain. Did you know that?"'),
-    ("No website opener", '"You\'ve got [X] five-star reviews but no website. Every customer who Googles you finds nothing."'),
-    ("Voicemail/called before\nopener ⭐", '"I\'ve actually tried reaching you a couple times — and honestly that\'s kind of why I\'m calling. If I\'m struggling to get through, how many customers gave up and called someone else?"'),
-    ("Permission opener", '"I\'ll be straight — this is a cold call. I\'ll keep it under a minute. Fair?"'),
+    ('"How much does it cost?"',
+     '"Nothing right now — we\'re doing 2 free buildouts for case studies. First 5 booked jobs on us. If you love it, we keep going. If not, no hard feelings."'),
+    ('"Send me some info"',
+     '"Totally — the fastest way to actually see it is a 15-minute call. I can walk you through it live. You got time this week?"'),
+    ('"I take every call myself —\nI don\'t know how long jobs run"',
+     '"That\'s exactly the problem. When you\'re on a job that runs long, customers can\'t reach you and they move on. With this, you set your open time slots — Tuesday 2pm, Thursday 10am, whatever. Customers pick from what you have open. You control the schedule, you\'re just not stuck by the phone."'),
+    ("They have a voice agent\n/ auto-attendant ⭐",
+     '"A voice agent is a fancy voicemail. Customers still can\'t book — they still have to wait for you to call back. This gets booked jobs onto your calendar automatically."'),
+    ('"We get all our work\nfrom referrals"',
+     '"Referrals are gold. This doesn\'t replace them — it captures the ones that can\'t reach you while you\'re on a job."'),
+    ('"I\'m too busy right now"',
+     '"That\'s the best problem to have. This is for when it slows down — and it always does eventually."'),
+    ('"I already have online booking"',
+     '"Is it live availability or preset windows? The difference is if you\'re booked Tuesday morning, customers can\'t pick Tuesday morning. It syncs automatically with your actual schedule."'),
 ]:
     story.append(row(o, r))
 story.append(Spacer(1, 8))
 
-# 2. INSTANT SHUTDOWNS
-story.append(section_header("2  INSTANT SHUTDOWNS — Recover Before They Hang Up"))
+# ── SECTION 6: THE OFFER ──────────────────────────────────────────────────────
+story.append(section_header("6  THE OFFER — Never Change This"))
 story.append(Spacer(1, 3))
-for o, r in [
-    ("\"Are you with marketing?\"\n⭐ NEW — memorize this", '"No — I actually called because I found something specific about your business. Takes 30 seconds — can I tell you what I found?"'),
-    ("\"I\'m not interested\"\n(before you\'ve said anything)", '"Totally fair — I\'d just take 20 seconds. I found something about [Business] specifically that I think you\'d want to know."'),
-    ("Hangs up immediately", "Don\'t call back same day. Text instead: \"Sorry to miss you — found something about [Business] worth a look. Can I send it over?\""),
-]:
-    story.append(row(o, r, highlight=True))
+story.append(green_line("First 5 booked jobs FREE — zero cost to them, zero cost to you"))
+story.append(green_line("Live on a Tractify subdomain — no domain purchase needed until they convert"))
+story.append(green_line("After they convert: $2,000 setup + $500/month retainer"))
+story.append(green_line("Send them to: tractifyhq.com/schedule/jose — every time, no exceptions"))
 story.append(Spacer(1, 8))
 
-# 3. OBJECTIONS
-story.append(section_header("3  OBJECTIONS — Mid-Call Comebacks"))
+# ── SECTION 7: THE RULES ──────────────────────────────────────────────────────
+story.append(section_header("7  THE RULES — NEVER BREAK THESE"))
 story.append(Spacer(1, 3))
-for o, r in [
-    ("\"Don\'t need a website /\nbeen fine without one\"", '"Word of mouth is great. But you\'re the one answering every call, right? Every job you\'re on a roof — that call goes to voicemail. That customer doesn\'t wait. They Google the next guy."'),
-    ("\"I already have a website\"", '"I know — I looked at it. That\'s actually why I\'m calling." [name the specific flaw]'),
-    ("\"We get all our work\nfrom referrals\"", '"Referrals are gold. But when they Google you to verify you\'re legit before calling — what do they find?"'),
-    ("\"I\'m too busy right now\"", '"That\'s the best problem to have. This is for when things slow down — and they always do."'),
-    ("\"How much does it cost?\"", '"Nothing right now — I\'m doing two free buildouts for case studies. That\'s why I\'m calling you specifically."'),
-    ("\"Send me some info\"", '"I could, but an email won\'t show you anything. Can I send you a link to the live demo instead — takes 30 seconds to see it?"'),
-    ("\"Not looking for an app\"", '"It\'s not an app they download — it\'s a booking link. They pick a time, it goes on your calendar. No phone tag."'),
-    ("\"I have to take every call\nmyself — I don\'t know\nhow long jobs will take\" ⭐", '"That\'s exactly the problem I\'m solving. Right now if you\'re on a job that runs long, customers can\'t reach you and they move on. With this, you set your available time slots — Tuesday 2pm, Thursday 10am, whatever works for you. Customers pick from what you have open. You\'re still controlling your schedule, you\'re just not stuck by the phone."'),
-    ("They have a voice agent\n(auto-attendant) ⭐", '"I noticed you have a voice agent — so you already know missed calls cost you jobs. The difference with what I\'m building is customers don\'t just leave a message, they actually book a time slot right there. No callback needed."'),
-]:
-    story.append(row(o, r))
+story.append(red_line('NEVER say "website", "system", or "software" — only say "booked jobs" and "your calendar"'))
+story.append(red_line("NEVER chase a NO — plant the seed and hang up. Confidence is everything."))
+story.append(red_line("NEVER explain how it works on the cold call — sell the outcome only"))
+story.append(Spacer(1, 4))
+story.append(green_line("ALWAYS get them to book at tractifyhq.com/schedule/jose — the demo is the close"))
+story.append(green_line("ALWAYS offer the same thing: first 5 free, no strings, just want the case study"))
 story.append(Spacer(1, 8))
 
-# 4. CLOSES
-story.append(section_header("4  CLOSES — Moving Them Forward"))
-story.append(Spacer(1, 3))
-for o, r in [
-    ("Case study close", '"I\'m not gonna charge you, ever. The only catch is I can use the results as proof for other contractors. You in?"'),
-    ("Demo text close", '"Do you have two minutes? I\'ll text you a link right now — fill it out yourself and see what your customers would see. Can I send that now?"'),
-    ("Scarcity close", '"I only have two free spots open. Are you someone who wants to move on this or should I keep going down my list?"'),
-    ("Mock-up offer\n(lukewarm prospects)", '"Let me build a one-page mock of what your site could look like. No commitment. If you hate it, you never hear from me again."'),
-]:
-    story.append(row(o, r))
-story.append(Spacer(1, 8))
-
-# 5. GOLD LINES
-story.append(section_header("5  GOLD LINES — Drop These Anywhere"))
+# ── SECTION 8: GOLD LINES ─────────────────────────────────────────────────────
+story.append(section_header("8  GOLD LINES — Drop These Anywhere"))
 story.append(Spacer(1, 3))
 for g in [
-    "I called 6 HVAC companies this morning. One picked up. Are you the one that picked up, or are you the five that didn't?",
-    "Your customers are doing the same thing I just did — and when they can't reach you, they don't call back. They Google the next guy.",
-    "You've got [X] five-star reviews. That's years of earned trust. Your website should close the deal. Right now it's doing nothing.",
-    "Every call you miss while you're on a roof — that job went to someone else.",
-    "Word of mouth built your business. A booking link keeps it from leaking.",
-    "A voice agent is a fancy voicemail. Customers still can\'t book — they still have to wait for you to call back. That\'s the gap.",
-    "I'm not selling you software. I'm handing you booked appointments.",
+    "Every call you miss while you're on a job — that customer didn't wait. They called the next guy.",
+    "A voice agent is a fancy voicemail. Customers still can't book — they still have to wait for you to call back.",
+    "You set your available hours. We do the rest. Jobs show up on your calendar automatically.",
+    "No missed calls. No phone tag. No back and forth. Just jobs.",
+    "Word of mouth built your business. This keeps it from leaking.",
+    "You just booked this call the exact same way your customers will book jobs with you.",
+    "I'm not selling you a website. I'm handing you booked appointments.",
 ]:
     story.append(gold_line(g))
 story.append(Spacer(1, 8))
 
-# 6. CALL FLOW
-story.append(section_header("6  CALL FLOW — 3-Minute Map"))
-story.append(Spacer(1, 3))
-flow_tbl = Table([
-    ["0:00–0:15", "Opener with specific intel. Get a laugh or a reaction."],
-    ["0:15–0:45", "One question: are you the one taking every call yourself? Let them answer."],
-    ["0:45–1:30", "Drop the bottleneck pain point. Sit on it. Then pivot to the product in one sentence."],
-    ["1:30–2:00", "Case study offer. Be honest — you need the proof, they get it free."],
-    ["2:00–2:30", "Ask to send the demo link right now. Get a yes while they're on the phone."],
-    ["2:30–3:00", "Confirm number for text. Thank them. Get off the phone."],
-], colWidths=[1.1*inch, 6.3*inch])
-flow_tbl.setStyle(TableStyle([
-    ("FONTNAME", (0,0), (0,-1), "Helvetica-Bold"),
-    ("FONTSIZE", (0,0), (-1,-1), 8.5),
-    ("TEXTCOLOR", (0,0), (0,-1), BLUE),
-    ("TEXTCOLOR", (1,0), (1,-1), DGRAY),
-    ("ROWBACKGROUNDS", (0,0), (-1,-1), [LGRAY, colors.white]),
-    ("VALIGN", (0,0), (-1,-1), "TOP"),
-    ("LEFTPADDING", (0,0), (-1,-1), 8),
-    ("TOPPADDING", (0,0), (-1,-1), 5),
-    ("BOTTOMPADDING", (0,0), (-1,-1), 5),
-    ("LINEBELOW", (0,0), (-1,-1), 0.5, colors.white),
-]))
-story.append(flow_tbl)
-story.append(Spacer(1, 8))
-
-# 7. AFTER THE CALL
-story.append(section_header("7  AFTER THE CALL"))
+# ── SECTION 9: AFTER THE CALL ─────────────────────────────────────────────────
+story.append(section_header("9  AFTER THE CALL"))
 story.append(Spacer(1, 3))
 for o, r in [
-    ("Verbal yes — send demo", "Text within 5 minutes: demo site link + spam warning text"),
-    ("No answer / voicemail", "Log it. Call again Day 5. Use voicemail-as-pain-point opener when they pick up."),
-    ("Voicemail word to avoid ⭐", "Never say \"system\" — it sounds like software and triggers resistance. Say: \"something that lets customers book with you directly when they can\'t get through on the phone.\""),
-    ("Texted back / not now", "Reply: \"No worries — I'll try you again tomorrow.\" Then do it."),
-    ("\"Are you with marketing?\" callback", "Immediate redirect: \"No — found something specific about your business. 30 seconds?\" Don't pause."),
-    ("Spam warning text", "\"You'll get a confirmation email from bookings@tractifyhq.com — if you don't see it, check spam and mark not spam.\""),
+    ("They agreed to a call", "Send tractifyhq.com/schedule/jose immediately — get them to book while you're still on the phone if possible."),
+    ("No answer / voicemail", "Log it. Call again in 2-3 days. New opener: \"I left you a voicemail a few days ago about booked jobs — did you get a chance to hear it?\""),
+    ("\"Call me back later\"", "Text within the hour: \"Hey [name], Jose here — following up on booked jobs for HVAC contractors. tractifyhq.com/schedule/jose when you're ready.\""),
+    ("Spam warning", "\"You'll get a confirmation from bookings@tractifyhq.com — if you don't see it, check spam.\""),
+    ("HOT PROSPECTS — follow up July 20", "Zach (McFarland HVAC) — verbal yes July 14. Justin — callback scheduled, score 8/10. Rusty (Cool Heat 365) — direct cell, call after 12pm."),
 ]:
     story.append(row(o, r))
 
