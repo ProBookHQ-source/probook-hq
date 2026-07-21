@@ -45,10 +45,11 @@ const externalClientCors = (methods) => (req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 };
-app.use('/api/leads/inbound',       externalClientCors('POST'));
-app.use('/api/availability',        externalClientCors('GET'));
-app.use('/api/bookings/book',       externalClientCors('POST'));
-app.use('/api/contractors/public',  externalClientCors('GET'));
+app.use('/api/leads/inbound',        externalClientCors('POST'));
+app.use('/api/availability',         externalClientCors('GET'));
+app.use('/api/bookings/book',        externalClientCors('POST'));
+app.use('/api/bookings/book-direct', externalClientCors('POST'));
+app.use('/api/contractors/public',   externalClientCors('GET'));
 
 // Security headers
 app.use(helmet({
