@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 19, 2026.*
+*Last updated: July 20, 2026.*
 
 ---
 
@@ -20,12 +20,15 @@ Tractify is software that fills HVAC contractors' calendars with booked jobs aut
 
 **The website is invisible infrastructure.** Contractors aren't buying a website — they're buying a pipeline of booked jobs. The website is just how it works, the same way nobody buys Shopify because they want a website. They buy it because they want to sell things. Never lead with website, system, or technology. Lead with the outcome.
 
-**The full lead flow:**
+**The full lead flow (general matching engine path):**
 1. Homeowner fills out the lead form on the contractor's Tractify-powered site
 2. Tractify receives the lead via the inbound API (API key tied to that contractor)
 3. Homeowner gets an email with a personal booking link (48hr expiry)
 4. Homeowner picks a time from the contractor's live availability calendar
 5. Appointment confirmed — both parties notified, synced to Google Calendar
+
+**⚡ Dedicated contractor path (HVAC template with API key linked to contractor):**
+Steps 3-4 above are replaced by inline booking. After form submit, the slot picker appears immediately on the same page. Homeowner books without waiting for an email or leaving the site. The booking link email is suppressed entirely on this path — `POST /api/leads/inbound` returns a `booking_token` + `contractor_id` directly in the JSON response, and the HVAC template uses those to show the calendar inline.
 
 **The pitch:** "You set your available hours. We do the rest. When a customer needs HVAC work, they find you, pick a time that works for you, and it goes straight on your calendar. No missed calls. No back and forth. No chasing leads. Just booked jobs showing up while you're on the job site."
 
@@ -69,7 +72,7 @@ Body: *"No website needed. No commitment. We plug you into our software, set up 
 CTA: *"Fill out our quick setup form and claim your 5 free jobs."* → intake.tractifyhq.com
 
 **The flow:**
-1. Contractor fills out intake form → success screen shows booking link (3 days out) → deploy on subdomain in that window → onboarding call → they get 5 free jobs
+1. Contractor fills out intake form → success screen shows inline slot picker → contractor books 15-min onboarding call (3 days out) → deploy on subdomain in that window → onboarding call → they get 5 free jobs
 2. After jobs 2-3: check-in call — let them tell you it's working
 3. After 5 jobs: conversion call — $2,000 setup + $500/month retainer
 4. They say yes: buy domain, full build, start retainer
@@ -138,7 +141,7 @@ That's not a website company. That's not a lead gen service. That's a complete d
 **Build status:**
 - ✅ Inline booking already live (July 18)
 - ✅ Paid ads — no code needed, just a Facebook ad account and budget
-- [ ] Missed call text-back via Twilio — ~1 day of code (Phase 1.5, build before first client onboards)
+- ✅ Missed call text-back via Twilio — built July 21 (see Twilio section below)
 
 ---
 
@@ -149,7 +152,7 @@ That's not a website company. That's not a lead gen service. That's a complete d
 **Why this is the right move:** Cold calling is 1:1. An ad runs 24/7 and reaches thousands simultaneously. Contractors who respond to an ad are already interested — they're half sold before the 15-minute call even starts. The free trial offer (5 booked jobs, zero risk) is strong enough to stop the scroll and convert. This is how you build a company at scale, not a local service business.
 
 **The funnel:**
-Ad or organic content → contractor fills out intake form at `intake.tractifyhq.com` → success screen shows booking link for onboarding call (3 days out minimum) → Jose deploys subdomain in that window → onboarding call walks contractor through setting availability + Twilio number forward → 5 jobs delivered (paid ads + missed call text-back) → conversion call → $2,000 setup + $500/month retainer
+Ad or organic content → contractor fills out intake form at `intake.tractifyhq.com` → success screen shows inline slot picker → contractor books 15-min onboarding call (3 days out minimum) → Jose deploys subdomain in that window → onboarding call walks contractor through setting availability + Twilio number forward → 5 jobs delivered (paid ads + missed call text-back) → conversion call → $2,000 setup + $500/month retainer
 
 **Why the call moved to after the form (July 19 pivot):**
 - Sending cold traffic directly to a booking link adds friction — form first converts better
@@ -157,7 +160,7 @@ Ad or organic content → contractor fills out intake form at `intake.tractifyhq
 - The onboarding call is now a pure setup call, not a sales call — contractor already committed by filling out the form
 - 3-day buffer between form submit and earliest call slot gives Jose time to deploy the subdomain, create the contractor account + API key, link it, set allowed_origins, and test end to end
 - Jose manages the 3-day buffer through availability settings in the contractor portal — block the next 2-3 days, only show slots from day 3 forward. No code needed.
-- The success screen after form submit immediately shows the booking link — strikes while they're engaged
+- The success screen after form submit immediately shows an inline slot picker — contractor books the onboarding call right there without leaving the page. Strikes while they're engaged, no link to click, no new tab.
 
 ---
 
@@ -182,7 +185,7 @@ Ad or organic content → contractor fills out intake form at `intake.tractifyhq
 - Run the best-performing organic video as a paid ad
 - Target: HVAC business owners, Washington state to start, expand nationally as it proves out
 - Budget: $20/day to start. Scale what converts, kill what doesn't.
-- Drive directly to `intake.tractifyhq.com` — form first, booking link shown on success screen
+- Drive directly to `intake.tractifyhq.com` — form first, inline slot picker shown on success screen
 - Track cost per completed form — that's the conversion metric that matters
 
 **The compounding flywheel:**
@@ -604,6 +607,47 @@ All pages are fully responsive. Key gotchas for future work:
 
 ---
 
+## Missed Call Text-Back (Twilio)
+Built July 21, 2026. Every missed call a contractor gets becomes a booked appointment automatically.
+
+**How the flow works:**
+1. Contractor buys a Twilio phone number (~$1/month) in the Twilio console
+2. On the onboarding call, contractor forwards their business number to the Twilio number (5 min setup on their iPhone/Android)
+3. When a homeowner calls and the contractor doesn't answer, the call forwards to Twilio
+4. Twilio fires `POST https://tractifyhq.com/api/twilio/missed-call`
+5. Tractify looks up the contractor by their Twilio number, sends the caller an SMS with a booking link
+6. Twilio plays a voice message and hangs up
+
+**The SMS text:**
+> "Hey! This is [Business Name] — sorry we missed your call, we're out on a job. Book a time that works for you here: tractifyhq.com/schedule/[slug] — takes 60 seconds and we'll confirm right away."
+
+**The voice message (read by Twilio's Alice voice):**
+> "Thanks for calling [Business Name]. We're out on a job right now but we just texted you a link to book a time that works for you. Check your messages!"
+
+**Twilio webhook URL to paste in Twilio console:**
+`https://tractifyhq.com/api/twilio/missed-call`
+(Paste this in the Twilio number's "A call comes in" → Webhook URL field)
+
+**Railway env vars needed:**
+- `TWILIO_ACCOUNT_SID` — from Twilio console (Account SID)
+- `TWILIO_AUTH_TOKEN` — from Twilio console (Auth Token)
+
+**Per-contractor setup (Admin Dashboard):**
+1. Buy a Twilio phone number for the contractor in Twilio console
+2. Set the webhook URL on that number to `https://tractifyhq.com/api/twilio/missed-call`
+3. In Admin Dashboard → Contractors → click "Set Twilio #" on their card → enter the number in E.164 format (`+12065551234`)
+4. On the onboarding call, have the contractor enable call forwarding to that Twilio number
+
+**Files:**
+- `backend/routes/twilio.js` — the webhook handler
+- `backend/server.js` — startup migration for `twilio_number` column, route registration
+- `backend/routes/contractors.js` — `twilio_number` added to SELECT + PUT
+
+**Twilio signature validation:**
+The webhook validates Twilio's `X-Twilio-Signature` header using `TWILIO_AUTH_TOKEN`. If the header is invalid, it logs a warning and still returns a valid TwiML `<Hangup/>` response (so Twilio doesn't retry). Validation only runs if `TWILIO_AUTH_TOKEN` is set — safe to test locally without it.
+
+---
+
 ## The Bridge (OilToHeatRebate.com → Tractify)
 Automatically sends leads from the quiz site into Tractify's matching engine.
 
@@ -743,7 +787,7 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 
 ---
 
-## Launch Status (as of July 18, 2026)
+## Launch Status (as of July 20, 2026)
 
 **Completed (all features):**
 - ✅ Full app built, deployed, tested — tractifyhq.com live
@@ -759,13 +803,15 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 - ✅ Task 3: `POST /api/leads/inbound` returns `booking_token` + `contractor_id` on dedicated contractor path (July 18)
 - ✅ Task 4: Inline slot picker on HVAC template — shows immediately after form submit, no email step (July 18)
 - ✅ Booking link email suppressed on dedicated path — inline booking replaces it entirely (July 18)
-- ✅ CORS fix — `/api/availability` and `/api/bookings/book` now accept cross-origin requests from external client sites (July 18)
+- ✅ CORS fix — `/api/availability`, `/api/bookings/book`, `/api/bookings/book-direct`, `/api/contractors/public` all accept cross-origin requests (July 18–20)
 - ✅ AssemblyAI key secured — removed hardcoded key from transcribe-call.py, now reads from `ASSEMBLYAI_API_KEY` env var in ~/.zshrc
 - ✅ Master cold call script — Tractify-Sales-Script.docx created, cheat sheet PDF updated with new pitch
 - ✅ DirectBooking.jsx updated — headline "Claim Your 5 Free Booked Jobs", Tractify branding, phone formatting
+- ✅ Intake form rebuilt (July 20) — down to 4 steps (~5 min): Your Info → Numbers & Hours → Services & Coverage → Review & Submit. Branding step, headline step, and About section removed.
+- ✅ Intake overlay conversion-optimized (July 20) — "Claim Your 5 Free Booked Jobs." headline, urgency badge, 3-step flow, confirm-step booking, sessionStorage refresh restore, "Don't have a Google listing?" path
+- ✅ Missed call text-back via Twilio — fully built (July 21). `POST /api/twilio/missed-call` webhook, `twilio_number` column on contractors, Admin Dashboard "Set Twilio #" per-contractor UI.
 
 **Remaining — code:**
-- [ ] Missed call text-back via Twilio — ~1 day of code, build before first client onboards (see Idea 3)
 - [ ] Intake funnel view in admin dashboard (data collecting, UI not built)
 - [ ] Subdomain auto-deploy (build AFTER 3+ manual client deployments prove the process)
 
@@ -782,7 +828,7 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 ## ⚠️ Client Go-Live Checklist (HVAC Pipeline Bundle)
 **Run through this every single time you onboard a new HVAC client. Do not skip steps.**
 
-**New onboarding flow (July 19):** Contractor fills out intake form → success screen shows booking link (3 days out) → Jose does steps 1-8 below in that window → onboarding call walks contractor through availability setup + Twilio forward.
+**New onboarding flow (July 19):** Contractor fills out intake form → success screen shows inline slot picker → contractor books onboarding call (3 days out minimum) → Jose does steps 1-8 below in that window → onboarding call walks contractor through availability setup + Twilio forward.
 
 ### Free Trial Setup (subdomain — no domain purchase)
 1. [ ] Contractor submits intake form at `intake.tractifyhq.com` — their info comes to you via email + R2

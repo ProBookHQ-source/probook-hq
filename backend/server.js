@@ -79,13 +79,16 @@ app.use((req, res, next) => {
     req.path.startsWith('/api/leads/inbound') ||
     req.path.startsWith('/api/availability') ||
     req.path.startsWith('/api/bookings/book') ||
-    req.path.startsWith('/api/contractors/public')
+    req.path.startsWith('/api/contractors/public') ||
+    req.path.startsWith('/api/twilio') // Twilio webhooks are server-to-server — no CORS needed
   ) return next();
   cors({
     origin: process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app',
   })(req, res, next);
 });
 app.use(express.json({ limit: '50kb' }));
+// Twilio webhooks are sent as application/x-www-form-urlencoded
+app.use(express.urlencoded({ extended: false }));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health',     (req, res) => res.json({ ok: true }));
@@ -151,6 +154,7 @@ app.use('/api/availability', require('./routes/availability'));
 app.use('/api/niches',       require('./routes/niches'));
 app.use('/api/apikeys',      require('./routes/apikeys'));
 app.use('/api/intake',       require('./routes/intake'));
+app.use('/api/twilio',       require('./routes/twilio'));
 
 // ── Google Calendar OAuth ─────────────────────────────────────────────────────
 const googleCalendar = require('./services/googleCalendar');
@@ -216,6 +220,8 @@ db._ready.then(async () => {
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS booking_slug TEXT UNIQUE`);
   // Allow lead_id to be NULL in appointments (external blocks + direct bookings)
   await db.query(`ALTER TABLE appointments ALTER COLUMN lead_id DROP NOT NULL`).catch(() => {});
+  // Twilio missed call text-back — each contractor gets their own Twilio number
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS twilio_number TEXT`);
 
   // Intake form step tracking — powers dropoff funnel in admin dashboard
   await db.query(`

@@ -28,6 +28,7 @@
     "node-sqlite3-wasm": "^0.8.57",
     "nodemailer": "^6.9.9",
     "pg": "^8.21.0",
+    "twilio": "^5.7.0",
     "uuid": "^9.0.1",
     "zipcodes": "^8.0.0"
   },

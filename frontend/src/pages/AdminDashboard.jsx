@@ -41,6 +41,8 @@ export default function AdminDashboard() {
   const [setPasswordFor, setSetPasswordFor] = useState(null);
   const [newPwValue, setNewPwValue] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [setTwilioFor, setSetTwilioFor] = useState(null);
+  const [twilioNumberInput, setTwilioNumberInput] = useState('');
   const [showTempPw, setShowTempPw] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeySlug, setNewKeySlug] = useState('');
@@ -190,6 +192,12 @@ export default function AdminDashboard() {
     mutationFn: (data) => api.post('/contractors', data),
     onSuccess: () => { toast.success('Contractor added!'); qc.invalidateQueries(['admin-contractors']); setShowAddContractor(false); contractorForm.reset(); },
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to add contractor'),
+  });
+
+  const setContractorTwilio = useMutation({
+    mutationFn: ({ id, twilio_number }) => api.put(`/contractors/${id}`, { twilio_number }),
+    onSuccess: () => { toast.success('Twilio number saved'); setSetTwilioFor(null); setTwilioNumberInput(''); qc.invalidateQueries(['admin-contractors']); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to save Twilio number'),
   });
 
   const approveContractor = useMutation({
@@ -678,7 +686,28 @@ export default function AdminDashboard() {
                   {c.google_refresh_token && (
                     <p className="text-xs text-green-600 mt-2 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Google Calendar linked</p>
                   )}
+                  {c.twilio_number && (
+                    <p className="text-xs text-indigo-600 mt-1 flex items-center gap-1"><Phone className="w-3 h-3" /> {c.twilio_number}</p>
+                  )}
                   <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+                    {setTwilioFor === c.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="tel"
+                          value={twilioNumberInput}
+                          onChange={e => setTwilioNumberInput(e.target.value)}
+                          placeholder="+12065551234"
+                          className="input text-xs py-1 px-2 h-7 flex-1"
+                          autoFocus
+                        />
+                        <button onClick={() => twilioNumberInput && setContractorTwilio.mutate({ id: c.id, twilio_number: twilioNumberInput })} disabled={!twilioNumberInput || setContractorTwilio.isPending} className="text-xs bg-brand-500 text-white px-2 py-0.5 rounded font-medium hover:bg-brand-600 disabled:opacity-40">Save</button>
+                        <button onClick={() => { setSetTwilioFor(null); setTwilioNumberInput(''); }} className="text-xs text-gray-500 hover:text-gray-700 font-medium">Cancel</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setSetTwilioFor(c.id); setTwilioNumberInput(c.twilio_number || ''); setSetPasswordFor(null); setConfirmDeleteContractor(null); }} className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 font-medium">
+                        <Phone className="w-3 h-3" /> {c.twilio_number ? 'Change Twilio #' : 'Set Twilio #'}
+                      </button>
+                    )}
                     {setPasswordFor === c.id ? (
                       <div className="flex items-center gap-2">
                         <div className="relative flex-1">
