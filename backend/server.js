@@ -48,6 +48,7 @@ const externalClientCors = (methods) => (req, res, next) => {
 app.use('/api/leads/inbound',       externalClientCors('POST'));
 app.use('/api/availability',        externalClientCors('GET'));
 app.use('/api/bookings/book',       externalClientCors('POST'));
+app.use('/api/contractors/public',  externalClientCors('GET'));
 
 // Security headers
 app.use(helmet({
@@ -76,7 +77,8 @@ app.use((req, res, next) => {
   if (
     req.path.startsWith('/api/leads/inbound') ||
     req.path.startsWith('/api/availability') ||
-    req.path.startsWith('/api/bookings/book')
+    req.path.startsWith('/api/bookings/book') ||
+    req.path.startsWith('/api/contractors/public')
   ) return next();
   cors({
     origin: process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app',

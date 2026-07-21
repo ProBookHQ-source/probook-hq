@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 18, 2026.*
+*Last updated: July 19, 2026.*
 
 ---
 
@@ -66,10 +66,10 @@ When they convert (pay): buy their real domain, add it as a custom domain on the
 **The online ad:**
 Hook: *"HVAC contractors — we'll book your first 5 jobs for free."*
 Body: *"No website needed. No commitment. We plug you into our software, set up your availability, and get 5 booked appointments onto your calendar automatically. If you love it we keep going. If not, no hard feelings."*
-CTA: *"Book a 15 minute call to get started."* → tractifyhq.com/schedule/book
+CTA: *"Fill out our quick setup form and claim your 5 free jobs."* → intake.tractifyhq.com
 
 **The flow:**
-1. Contractor books a call → deploy on subdomain → they get 5 free jobs
+1. Contractor fills out intake form → success screen shows booking link (3 days out) → deploy on subdomain in that window → onboarding call → they get 5 free jobs
 2. After jobs 2-3: check-in call — let them tell you it's working
 3. After 5 jobs: conversion call — $2,000 setup + $500/month retainer
 4. They say yes: buy domain, full build, start retainer
@@ -142,122 +142,71 @@ That's not a website company. That's not a lead gen service. That's a complete d
 
 ---
 
-## Sales Strategy (Active as of July 2026)
+## Sales Strategy (Pivoted July 18, 2026)
 
-**Current phase:** Free case study phase — onboard 2 HVAC contractors for free in exchange for testimonials and real revenue data. Use those results to unlock paid clients and scale.
+**Current phase:** Content + paid ads — both Jose and Daniel heads down creating content and running paid ads targeting HVAC contractors. Cold calling is retired. The offer is strong enough to convert at scale without it. The goal is to get the offer in front of as many contractors as possible and let the product sell itself.
 
-**Two channels running simultaneously:**
-- **Online (Jose owns):** Organic social content + paid ads targeting HVAC contractors. Cast a wide net. Scale what works.
-- **Cold calling (Daniel owns):** Direct outreach to Seattle/Snohomish contractors. Same pitch, human delivery.
+**Why this is the right move:** Cold calling is 1:1. An ad runs 24/7 and reaches thousands simultaneously. Contractors who respond to an ad are already interested — they're half sold before the 15-minute call even starts. The free trial offer (5 booked jobs, zero risk) is strong enough to stop the scroll and convert. This is how you build a company at scale, not a local service business.
 
-Both channels feed the same funnel — `tractifyhq.com/schedule/book`.
+**The funnel:**
+Ad or organic content → contractor fills out intake form at `intake.tractifyhq.com` → success screen shows booking link for onboarding call (3 days out minimum) → Jose deploys subdomain in that window → onboarding call walks contractor through setting availability + Twilio number forward → 5 jobs delivered (paid ads + missed call text-back) → conversion call → $2,000 setup + $500/month retainer
 
----
-
-### Online Channel Strategy
-
-**The online pitch:**
-
-Hook: *"HVAC contractors — how many calls did you miss today?"*
-
-Body: *"You set your available hours. We do the rest. When a customer needs HVAC work, they find you, pick a time that works for you, and it goes straight on your calendar. No missed calls. No back and forth. No chasing leads. Just booked jobs showing up while you're on the job site. We're plugging in 2 HVAC contractors in the Seattle area for free to prove it works. You get booked jobs. We get our case study. Zero cost to you."*
-
-CTA: *"Book a 15 minute call and we'll show you exactly how it works."* → `tractifyhq.com/schedule/book`
-
-**Content approach:**
-- Start organic — test messaging before spending money
-- Platforms: Facebook first (HVAC owners are 35-55), Instagram secondary
-- Content types: screen recordings of the booking flow, before/after stories, case study results
-- Brand is faceless while building — no face on camera, text overlay and screen recordings
-- When a piece of organic content performs, put paid spend behind it to scale
-- **Never** mention website, system, or technology in ads — only outcomes and booked jobs
-
-**Why online scales better than cold calling:** A cold call requires a stranger to trust you in 60 seconds. An ad that offers 5 free booked jobs with zero risk self-selects contractors who are already interested. Lower friction, wider reach, and the funnel runs 24/7 without Jose or Daniel on the phone.
+**Why the call moved to after the form (July 19 pivot):**
+- Sending cold traffic directly to a booking link adds friction — form first converts better
+- The intake form is simple enough that contractors self-onboard without needing a call first
+- The onboarding call is now a pure setup call, not a sales call — contractor already committed by filling out the form
+- 3-day buffer between form submit and earliest call slot gives Jose time to deploy the subdomain, create the contractor account + API key, link it, set allowed_origins, and test end to end
+- Jose manages the 3-day buffer through availability settings in the contractor portal — block the next 2-3 days, only show slots from day 3 forward. No code needed.
+- The success screen after form submit immediately shows the booking link — strikes while they're engaged
 
 ---
 
-### Cold Calling Channel
+### Content + Ads Strategy (August 2026)
 
-**The Master Script (July 2026 — use this verbatim):**
+**Both Jose and Daniel are on camera.** Faces convert better than faceless content. Real people building a real product for real contractors.
 
----
+**Platforms in order of priority:**
+- Facebook — HVAC owners are 35-55, they're in contractor groups, this is the primary channel
+- Instagram — secondary, repurpose Facebook content
+- TikTok — younger contractors, organic reach still massive
 
-**Opener:**
-*"Hey [name], my name's Jose — quick question, are you currently buying booked jobs?"*
+**Content types that work:**
+- Short video: Jose or Daniel talking directly to camera. Hook in first 2 seconds. Show the booking flow. Real, raw, no production needed.
+- Screen recordings: show what it looks like when a job lands on a contractor's calendar automatically
+- Case study content: once first clients onboard, film the results — real appointments, real revenue. This becomes the best ad creative.
+- Behind the scenes: building the company, the vision, the mission. People root for founders they can see.
 
-That's it. Stop talking. Let them respond.
+**The hook that works:** *"HVAC contractors — we're giving away 5 free booked jobs."* That's the scroll-stopper. Everything else follows.
 
----
+**Paid ads:**
+- Run the best-performing organic video as a paid ad
+- Target: HVAC business owners, Washington state to start, expand nationally as it proves out
+- Budget: $20/day to start. Scale what converts, kill what doesn't.
+- Drive directly to `intake.tractifyhq.com` — form first, booking link shown on success screen
+- Track cost per completed form — that's the conversion metric that matters
 
-**If they say NO or not interested:**
-*"No worries at all. I'll tell you what — save my number. When you're ready to have jobs booking straight onto your calendar automatically, call me back and I'll hand you the first 5 for free. No strings."*
+**The compounding flywheel:**
+Content → inbound contractor books call → onboard on free trial → deliver 5 jobs → contractor converts → case study → better content → more contractors → repeat. Every case study makes the next ad more powerful.
 
-Hang up. Move on. Don't pitch. Don't chase. You planted a seed — they'll think about it later.
-
----
-
-**If they say YES or show any curiosity:**
-*"Perfect. We built software that plugs directly into your schedule — customers find you, pick a time that works for you, and it goes straight on your calendar. No missed calls, no phone tag, no back and forth. Just jobs showing up automatically while you're out in the field."*
-
-Pause. Let it land. Then:
-
-*"We're bringing on 2 contractors in the Seattle area right now completely free. First 5 booked jobs on us — we just want the case study. You'd be crazy not to at least take a look."*
-
-Then:
-
-*"You got 15 minutes this week? I'll walk you through the whole thing."*
-
----
-
-**When they agree to a call — send them:** `tractifyhq.com/schedule/book`
-
-Have them book it live on the phone if possible. They experience the product before the sales call even starts.
-
----
-
-**The sales call opener (the close):**
-*"Before I say anything — you just booked this call the exact same way your customers are going to book jobs with you. That's the whole product right there."*
-
----
-
-**If no answer — voicemail:**
-*"Hey [name], Jose here. Save my number — when you're ready to have jobs booking onto your calendar automatically, call me back and I'll give you the first 5 for free."*
-
-Short. No explaining. No pitching. Just the outcome and the offer.
-
----
+**AI automation (future):** Once the creative formula is proven, train AI to generate ad variations, test hooks, and distribute at scale. Cold calling can never be automated this way. Content can.
 
 **Rules that never change:**
-- Never say "website", "system", or "software" in a cold call or voicemail — only say "booked jobs"
-- Never chase a no — plant the seed and move on, confidence is everything
-- The offer is always the same: first 5 booked jobs free, no strings, just want the case study
-- Always get them to book at tractifyhq.com/schedule/book — they experience the product before the sales call
+- Never mention website, system, or technology — only booked jobs and outcomes
+- The offer is always 5 free booked jobs, no strings, we want the case study
+- Every piece of content drives to `intake.tractifyhq.com`
+- The sales call opener never changes: *"Before I say anything — you just booked this call the exact same way your customers are going to book jobs with you. That's the whole product right there."*
 
 ---
 
-**Voice agent / auto-attendant = warm lead:** They already understand missed calls cost money. Pitch: *"A voice agent is a fancy voicemail. Customers still can't book — they still have to wait for you to call back. This gets booked jobs onto your calendar automatically."*
+### Cold Calling (Retired July 18, 2026)
+Cold calling served its purpose — it proved the pitch, sharpened the script, and identified the pain points contractors actually have. That foundation now lives in the content. The script still exists in `Tractify-Sales-Script.docx` for reference. The offer and the opener are still the same — they just get delivered through content now instead of a phone.
 
 ---
 
-**Prospects to follow up with (as of July 18):**
-- **Zach (McFarland HVAC)** — VERBAL YES on July 14. Follow up July 20th with new script.
-- **Justin** — Scheduled callback, score 8/10. Follow up July 20th.
-- **Rusty (Cool Heat 365)** — Has his direct cell. Call after 12pm.
-
-**New pitch for follow-up calls (July 2026):** Lead with the free 5 jobs offer, not the website. "Save my number — when you're ready to have jobs booking onto your calendar automatically, call me back and I'll give you the first 5 for free."
-
-**Key objections and counters are in:**
-- `~/Desktop/Tractify-SuperContext/04-SALES-PLAYBOOK.docx`
-- The cheat sheet PDF (generated by `build_cheatsheet.py`)
-
----
-
-### Team Structure
-- **Jose** — product, strategy, online content and ads, building
-- **Daniel** — cold calling, sales team lead, eventually director of operations
-- August 2026: Jose and Daniel calling together Mon-Fri 7am-12pm. Jose closes first 2-3 case study clients before August so Daniel inherits a proven script and real results to point to.
-- Daniel learns on the job — Jose calls while Daniel listens, then Daniel calls while Jose listens, debrief after every session.
-- This script is what Daniel learns. Simple enough that anyone can do it, sharp enough to convert.
+### Team Structure (August 2026)
+- **Jose** — product, strategy, content creation, paid ads, building
+- **Daniel** — content creation, distribution, community engagement in contractor groups
+- Both heads down on content and ads all of August. This is the do-or-die month — generate revenue or go back to jobs. The product is real, the offer is real, the funnel is real. August is about getting it in front of as many contractors as possible.
 
 ---
 
@@ -830,25 +779,29 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 
 ---
 
-## ⚠️ Client Go-Live Checklist (HVAC Website Bundle)
+## ⚠️ Client Go-Live Checklist (HVAC Pipeline Bundle)
 **Run through this every single time you onboard a new HVAC client. Do not skip steps.**
 
+**New onboarding flow (July 19):** Contractor fills out intake form → success screen shows booking link (3 days out) → Jose does steps 1-8 below in that window → onboarding call walks contractor through availability setup + Twilio forward.
+
 ### Free Trial Setup (subdomain — no domain purchase)
-1. [ ] Edit CLIENT config in `~/Desktop/hvac-template/index.html` with client info
-2. [ ] Deploy to a new Cloudflare Pages project → note the `.pages.dev` URL
-3. [ ] In Cloudflare DNS, add CNAME: `[clientslug]` → `[their-pages-project].pages.dev`
+1. [ ] Contractor submits intake form at `intake.tractifyhq.com` — their info comes to you via email + R2
+2. [ ] Edit CLIENT config in `~/Desktop/hvac-template/index.html` with client info from the form
+3. [ ] Deploy to a new Cloudflare Pages project → note the `.pages.dev` URL
+4. [ ] In Cloudflare DNS, add CNAME: `[clientslug]` → `[their-pages-project].pages.dev`
    - Client is now live at `clientslug.tractifyhq.com`
-4. [ ] Create contractor account in Tractify admin → Contractors → Add Contractor
-5. [ ] Create API key in Tractify admin → API Keys → New Key
+5. [ ] Create contractor account in Tractify admin → Contractors → Add Contractor
+6. [ ] Create API key in Tractify admin → API Keys → New Key
    - Name: client's business name
    - Source slug: their subdomain slug
    - **Link to their contractor account** ← required for inline booking to work
    - **⚠️ Set `Allowed Origins` to `https://clientslug.tractifyhq.com`**
-6. [ ] Copy the generated API key — shown once only
-7. [ ] Paste the key into `tractifyKey` in the CLIENT config, redeploy to Cloudflare Pages
-8. [ ] Have contractor log into Tractify portal and set their weekly availability
-9. [ ] Test: submit the lead form → inline slot picker should show with real slots → book a test appointment
-10. [ ] Send contractor their portal login
+7. [ ] Copy the generated API key — shown once only
+8. [ ] Paste the key into `tractifyKey` in the CLIENT config, redeploy to Cloudflare Pages
+9. [ ] On the onboarding call: walk contractor through setting weekly availability in the portal
+10. [ ] On the onboarding call: have contractor forward their number to Twilio number (5 min)
+11. [ ] Test: submit the lead form → inline slot picker should show with real slots → book a test appointment
+12. [ ] Send contractor their portal login
 
 ### Conversion (paid — real domain)
 1. [ ] Buy their real domain
