@@ -270,32 +270,37 @@ export default function ContractorPortal() {
   const { data: contractorProfile } = useQuery({
     queryKey: ['contractor-profile', user.id],
     queryFn: () => api.get(`/contractors/${user.id}`).then(r => r.data),
-    onSuccess: (data) => {
-      setProfileForm({
-        name: data.name || '',
-        phone: data.phone || '',
-        company_name: data.company_name || '',
-      });
-      setPrefForm({
-        service_radius_miles: data.service_radius_miles ?? '',
-        max_appointments_per_day: data.max_appointments_per_day ?? '',
-      });
-      // Load onboarding steps and show first-login modal if no steps done yet
-      const steps = typeof data.onboarding_steps === 'string'
-        ? JSON.parse(data.onboarding_steps || '{}')
-        : (data.onboarding_steps || {});
-      setOnboardingSteps(steps);
-      const hasSeenModal = localStorage.getItem(`onboarding_modal_seen_${user.id}`);
-      if (!hasSeenModal && Object.keys(steps).length === 0) {
-        setShowOnboardingModal(true);
-        localStorage.setItem(`onboarding_modal_seen_${user.id}`, '1');
-      }
-      try {
-        const zips = JSON.parse(data.service_zip_codes || '[]');
-        setZipInput(Array.isArray(zips) ? zips.join(', ') : (data.service_zip_codes || ''));
-      } catch { setZipInput(data.service_zip_codes || ''); }
-    },
   });
+
+  // React Query v5 removed onSuccess — use useEffect instead
+  useEffect(() => {
+    if (!contractorProfile) return;
+    const data = contractorProfile;
+    setProfileForm({
+      name: data.name || '',
+      phone: data.phone || '',
+      company_name: data.company_name || '',
+    });
+    setPrefForm({
+      service_radius_miles: data.service_radius_miles ?? '',
+      max_appointments_per_day: data.max_appointments_per_day ?? '',
+    });
+    // Load onboarding steps and show first-login modal if no steps done yet
+    const steps = typeof data.onboarding_steps === 'string'
+      ? JSON.parse(data.onboarding_steps || '{}')
+      : (data.onboarding_steps || {});
+    setOnboardingSteps(steps);
+    const hasSeenModal = localStorage.getItem(`onboarding_modal_seen_${user.id}`);
+    if (!hasSeenModal && Object.keys(steps).length === 0) {
+      setShowOnboardingModal(true);
+      localStorage.setItem(`onboarding_modal_seen_${user.id}`, '1');
+    }
+    try {
+      const zips = JSON.parse(data.service_zip_codes || '[]');
+      setZipInput(Array.isArray(zips) ? zips.join(', ') : (data.service_zip_codes || ''));
+    } catch { setZipInput(data.service_zip_codes || ''); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contractorProfile]);
 
   const { data: appointments = [] } = useQuery({
     queryKey: ['appointments', user.id, from, to],
