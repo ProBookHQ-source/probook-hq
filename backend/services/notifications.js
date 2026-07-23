@@ -812,4 +812,76 @@ async function sendDirectBookingContractorAlert(to, { name, email, phone, notes,
   return sendEmail(to, `New booking: ${esc(name)} — ${esc(fmtDate)} at ${esc(fmtTime)}`, html);
 }
 
-module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset, sendDirectBookingConfirmation, sendDirectBookingContractorAlert };
+// ── Onboarding nudge — contractor hasn't finished setup after 48 hours ─────────
+async function sendOnboardingNudge(contractor, completedSteps) {
+  const STEPS = [
+    { key: 'availability', label: 'Confirm your availability' },
+    { key: 'twilio',       label: 'Set up call forwarding' },
+    { key: 'gbp',          label: 'Add booking link to Google Business Profile' },
+    { key: 'nextdoor',     label: 'Post on Nextdoor' },
+    { key: 'facebook',     label: 'Post in a Facebook group' },
+    { key: 'reviewers',    label: 'Message your Google reviewers' },
+  ];
+  const steps = typeof completedSteps === 'string' ? JSON.parse(completedSteps || '{}') : (completedSteps || {});
+  const doneCount  = STEPS.filter(s => steps[s.key]).length;
+  const remaining  = STEPS.filter(s => !steps[s.key]);
+  const portalUrl  = `${APP_URL}/contractor`;
+
+  const stepRows = remaining.map(s =>
+    `<tr><td style="padding:6px 16px;font-size:14px;color:#4b5563;border-bottom:1px solid #f3f4f6;">
+      ⬜ ${esc(s.label)}
+    </td></tr>`
+  ).join('');
+
+  const contractorHtml = emailBase({
+    accentColor: '#6366f1',
+    label: 'ACTION NEEDED',
+    headline: `${doneCount} of 6 setup steps done`,
+    sub: `Complete your setup to start getting booked jobs, ${esc(contractor.name.split(' ')[0])}.`,
+    bodyContent: `
+      <tr><td style="padding:0 0 16px;">
+        <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
+          You're almost there! Finish these remaining steps so Tractify can start sending you booked jobs:
+        </p>
+      </td></tr>
+      <tr><td style="padding:0 0 20px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+               style="background:#f9f9fc;border-radius:10px;overflow:hidden;">
+          <tbody>${stepRows}</tbody>
+        </table>
+      </td></tr>
+      ${ctaBtn(portalUrl, 'Complete My Setup →')}`,
+  });
+
+  const adminHtml = emailBase({
+    accentColor: '#f59e0b',
+    label: 'SETUP STALLED',
+    headline: `${esc(contractor.company_name || contractor.name)} hasn't finished setup`,
+    sub: `${doneCount} of 6 steps complete after 48 hours.`,
+    bodyContent: `
+      <tr><td style="padding:0 0 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+               style="background:#f9f9fc;border-radius:10px;overflow:hidden;">
+          <tbody>
+            ${infoRow('Contractor', esc(contractor.name), true)}
+            ${infoRow('Business', esc(contractor.company_name || '—'))}
+            ${infoRow('Email', `<a href="mailto:${esc(contractor.email)}" style="color:#6366f1;">${esc(contractor.email)}</a>`)}
+            ${infoRow('Steps done', `${doneCount} / 6`)}
+            ${infoRow('Missing', remaining.map(s => s.label).join(', '))}
+          </tbody>
+        </table>
+      </td></tr>
+      <tr><td style="padding:0 0 20px;">
+        <p style="margin:0;font-size:14px;color:#6b7280;line-height:1.6;">
+          Low completion = low engagement. Consider whether to invest paid ads behind this contractor.
+        </p>
+      </td></tr>`,
+  });
+
+  // Notify contractor
+  await sendEmail(contractor.email, `Complete your Tractify setup (${doneCount}/6 done)`, contractorHtml).catch(e => console.error('[NUDGE] contractor email failed:', e.message));
+  // Notify Jose + Daniel
+  await sendEmail('ayc98223@gmail.com', `⚠️ Setup stalled: ${contractor.company_name || contractor.name} (${doneCount}/6 steps)`, adminHtml).catch(e => console.error('[NUDGE] admin email failed:', e.message));
+}
+
+module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset, sendDirectBookingConfirmation, sendDirectBookingContractorAlert, sendOnboardingNudge };

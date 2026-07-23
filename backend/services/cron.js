@@ -73,4 +73,50 @@ cron.schedule('0 * * * *', async () => {
   }
 });
 
-console.log('✅ Cron jobs started (appointment reminders every hour)');
+// ── Onboarding nudge ─────────────────────────────────────────────────────────
+// Runs once daily at 10 AM. Finds contractors who started onboarding 48+ hours
+// ago but haven't completed all 6 steps — sends nudge to contractor + admins.
+cron.schedule('0 10 * * *', async () => {
+  console.log('⏰ [cron] Running onboarding nudge check…');
+  try {
+    const cutoff = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+    const { rows: contractors } = await db.query(`
+      SELECT id, name, email, company_name, onboarding_steps, twilio_number
+      FROM contractors
+      WHERE is_active = 1
+        AND onboarding_started_at IS NOT NULL
+        AND onboarding_started_at < $1
+        AND onboarding_nudge_sent_at IS NULL
+        AND (
+          onboarding_steps IS NULL
+          OR NOT (
+            (onboarding_steps->>'availability')::boolean = true AND
+            (onboarding_steps->>'twilio')::boolean = true AND
+            (onboarding_steps->>'gbp')::boolean = true AND
+            (onboarding_steps->>'nextdoor')::boolean = true AND
+            (onboarding_steps->>'facebook')::boolean = true AND
+            (onboarding_steps->>'reviewers')::boolean = true
+          )
+        )
+    `, [cutoff]);
+
+    if (!contractors.length) {
+      console.log('⏰ [cron] No onboarding nudges needed');
+      return;
+    }
+
+    for (const contractor of contractors) {
+      try {
+        await notifications.sendOnboardingNudge(contractor, contractor.onboarding_steps);
+        await db.query(`UPDATE contractors SET onboarding_nudge_sent_at = NOW() WHERE id = $1`, [contractor.id]);
+        console.log(`⏰ [cron] Onboarding nudge sent — ${contractor.name} (${contractor.email})`);
+      } catch (err) {
+        console.error(`⏰ [cron] Nudge failed for ${contractor.id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('⏰ [cron] Onboarding nudge job error:', err.message);
+  }
+});
+
+console.log('✅ Cron jobs started (appointment reminders every hour, onboarding nudge daily at 10am)');

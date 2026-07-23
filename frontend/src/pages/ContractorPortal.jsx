@@ -12,7 +12,7 @@ import {
   Calendar, Clock, CheckCircle, XCircle, LogOut,
   ChevronLeft, ChevronRight, ChevronDown, Phone, Mail,
   Link as LinkIcon, Settings, Lock, User, Ban, CalendarPlus, Trash2,
-  Home, Plus, X, Eye, EyeOff,
+  Home, Plus, X, Eye, EyeOff, ListChecks, ExternalLink, Copy,
 } from 'lucide-react';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -249,6 +249,11 @@ export default function ContractorPortal() {
   const [isDirty, setIsDirty] = useState(false);
   const isLoadingFromSlots = useRef(false);
 
+  // ── Onboarding checklist state ─────────────────────────────────────────────
+  const [onboardingSteps, setOnboardingSteps] = useState({});
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  const [expandedStep, setExpandedStep] = useState(null);
+
   const from     = format(weekStart, 'yyyy-MM-dd');
   const to       = format(addDays(weekStart, 6), 'yyyy-MM-dd');
   const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -275,6 +280,16 @@ export default function ContractorPortal() {
         service_radius_miles: data.service_radius_miles ?? '',
         max_appointments_per_day: data.max_appointments_per_day ?? '',
       });
+      // Load onboarding steps and show first-login modal if no steps done yet
+      const steps = typeof data.onboarding_steps === 'string'
+        ? JSON.parse(data.onboarding_steps || '{}')
+        : (data.onboarding_steps || {});
+      setOnboardingSteps(steps);
+      const hasSeenModal = localStorage.getItem(`onboarding_modal_seen_${user.id}`);
+      if (!hasSeenModal && Object.keys(steps).length === 0) {
+        setShowOnboardingModal(true);
+        localStorage.setItem(`onboarding_modal_seen_${user.id}`, '1');
+      }
       try {
         const zips = JSON.parse(data.service_zip_codes || '[]');
         setZipInput(Array.isArray(zips) ? zips.join(', ') : (data.service_zip_codes || ''));
@@ -460,6 +475,18 @@ export default function ContractorPortal() {
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to change password'),
   });
 
+  const markStep = useMutation({
+    mutationFn: (step) => api.put(`/contractors/${user.id}/onboarding-step`, { step }),
+    onSuccess: (res) => {
+      const steps = typeof res.data.onboarding_steps === 'string'
+        ? JSON.parse(res.data.onboarding_steps || '{}')
+        : (res.data.onboarding_steps || {});
+      setOnboardingSteps(steps);
+      toast.success('Step marked complete!');
+    },
+    onError: () => toast.error('Failed to save step'),
+  });
+
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleAddOverride = () => {
     if (!computedOverrideDate) return toast.error('Please select a month and day');
@@ -526,12 +553,82 @@ export default function ContractorPortal() {
     return Array.from({ length: maxH - minH }, (_, i) => `${String(i + minH).padStart(2, '0')}:00`);
   }, [slots]);
 
+  // ── Onboarding checklist config ────────────────────────────────────────────
+  const ONBOARDING_STEPS = [
+    {
+      key: 'availability',
+      label: 'Confirm your availability',
+      icon: '📅',
+      description: 'Your hours have been pre-set based on your intake form. Tap below to confirm they look right — you can adjust anytime.',
+      action: { label: 'Go to My Schedule →', onClick: () => setTab('availability') },
+    },
+    {
+      key: 'twilio',
+      label: 'Set up missed call forwarding',
+      icon: '📞',
+      description: contractorProfile?.twilio_number
+        ? `Forward unanswered calls to your Tractify number: ${contractorProfile.twilio_number}. This turns every missed call into an automatic booking text.`
+        : 'Your Tractify number will be set up soon. Check back after your onboarding call.',
+      instructions: [
+        { platform: 'iPhone', steps: 'Settings → Phone → Call Forwarding → When Unanswered → enter your Tractify number → toggle on' },
+        { platform: 'Android', steps: 'Phone app → Menu (⋮) → Settings → Supplementary services → Call forwarding → When unanswered → enter your Tractify number' },
+      ],
+      copyText: contractorProfile?.twilio_number || null,
+    },
+    {
+      key: 'gbp',
+      label: 'Add booking link to Google Business Profile',
+      icon: '🔍',
+      description: 'Add your Tractify booking link under "Appointments" in your Google Business Profile. This lets customers searching "HVAC near me" book directly from your Google listing — free, zero ad spend.',
+      instructions: [
+        { platform: 'Steps', steps: 'Go to business.google.com → click your business → Edit Profile → scroll to "Appointments" → paste your booking link → Save' },
+      ],
+      copyText: contractorProfile?.booking_slug ? `https://tractifyhq.com/schedule/${contractorProfile.booking_slug}` : null,
+    },
+    {
+      key: 'nextdoor',
+      label: 'Post in a local Nextdoor neighborhood',
+      icon: '🏘️',
+      description: 'HVAC is the #1 requested service on Nextdoor. One post in your neighborhood can drive 2-3 bookings before your ads even start.',
+      copyText: contractorProfile
+        ? `Hey neighbors! ${contractorProfile.company_name || contractorProfile.name} now has online booking — pick a time that works for you right here: ${contractorProfile.booking_slug ? `https://tractifyhq.com/schedule/${contractorProfile.booking_slug}` : 'your booking link'}. Happy to help with any HVAC needs!`
+        : null,
+      link: { label: 'Open Nextdoor →', url: 'https://nextdoor.com' },
+    },
+    {
+      key: 'facebook',
+      label: 'Post in a local Facebook community group',
+      icon: '👥',
+      description: 'Find a local Facebook group like "[Your City] Neighbors" or "[Your City] Community Board" and post once. People asking for HVAC recommendations are mid-search — they convert immediately.',
+      copyText: contractorProfile
+        ? `Hi everyone! I run ${contractorProfile.company_name || contractorProfile.name} and we just launched online booking — no more phone tag, just pick a time that works for you: ${contractorProfile.booking_slug ? `https://tractifyhq.com/schedule/${contractorProfile.booking_slug}` : 'your booking link'}. Happy to help with any heating or cooling needs!`
+        : null,
+      link: { label: 'Open Facebook →', url: 'https://facebook.com/groups' },
+    },
+    {
+      key: 'reviewers',
+      label: 'Message your top Google reviewers',
+      icon: '⭐',
+      description: 'Your past happy customers already trust you. A quick message to your top Google reviewers can book 2-3 jobs before anything else kicks in.',
+      instructions: [
+        { platform: 'Find reviewers', steps: 'Go to business.google.com → Reviews → click "Reply" next to each review to send them a message' },
+      ],
+      copyText: contractorProfile
+        ? `Hi [Name]! Thanks again for the kind review — it means a lot. We just launched online booking so you can schedule service anytime without the phone tag: ${contractorProfile.booking_slug ? `https://tractifyhq.com/schedule/${contractorProfile.booking_slug}` : 'your booking link'}. Hope we can help again soon!`
+        : null,
+    },
+  ];
+
+  const completedStepCount = ONBOARDING_STEPS.filter(s => onboardingSteps[s.key]).length;
+  const allStepsDone = completedStepCount === ONBOARDING_STEPS.length;
+
   // ── Sidebar nav items ──────────────────────────────────────────────────────
   const NAV = [
-    { id: 'home',         label: 'Home',        icon: Home,     badge: todayCount || null },
-    { id: 'calendar',     label: 'Calendar',    icon: Calendar, badge: null },
-    { id: 'availability', label: 'My Schedule', icon: Clock,    badge: null },
-    { id: 'settings',     label: 'Settings',    icon: Settings, badge: null },
+    { id: 'home',         label: 'Home',        icon: Home,       badge: todayCount || null },
+    { id: 'calendar',     label: 'Calendar',    icon: Calendar,   badge: null },
+    { id: 'availability', label: 'My Schedule', icon: Clock,      badge: null },
+    { id: 'setup',        label: 'Setup',       icon: ListChecks, badge: allStepsDone ? null : `${completedStepCount}/6` },
+    { id: 'settings',     label: 'Settings',    icon: Settings,   badge: null },
   ];
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -1370,6 +1467,174 @@ export default function ContractorPortal() {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════ FIRST-LOGIN ONBOARDING MODAL ════════════════ */}
+        {showOnboardingModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
+              <div className="text-4xl mb-4">🚀</div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">You're almost live!</h2>
+              <p className="text-gray-500 mb-6 leading-relaxed">
+                Complete 6 quick setup steps to activate all your booking channels. Most contractors finish in under 30 minutes and see their first job within 48 hours.
+              </p>
+              <div className="space-y-2 text-left mb-8">
+                {ONBOARDING_STEPS.map((s, i) => (
+                  <div key={s.key} className="flex items-center gap-3 px-4 py-2.5 bg-gray-50 rounded-xl">
+                    <span className="text-lg">{s.icon}</span>
+                    <span className="text-sm font-medium text-gray-700">{s.label}</span>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => { setShowOnboardingModal(false); setTab('setup'); }}
+                className="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-sm text-base"
+              >
+                Start Setup →
+              </button>
+              <button
+                onClick={() => setShowOnboardingModal(false)}
+                className="mt-3 w-full text-sm text-gray-400 hover:text-gray-600 py-2"
+              >
+                I'll do this later
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════ SETUP CHECKLIST ════════════════ */}
+        {tab === 'setup' && (
+          <div className="flex-1 overflow-y-auto overflow-x-hidden pb-16 md:pb-0">
+            <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 md:py-8">
+
+              {/* Header */}
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold text-gray-900">Setup Checklist</h1>
+                <p className="text-gray-400 text-sm mt-1">
+                  Complete all 6 steps to activate your booking channels and start getting jobs.
+                </p>
+              </div>
+
+              {/* Progress bar */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-semibold text-gray-700">{completedStepCount} of 6 steps complete</span>
+                  {allStepsDone && (
+                    <span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">All done! 🎉</span>
+                  )}
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2.5">
+                  <div
+                    className="bg-brand-500 h-2.5 rounded-full transition-all duration-500"
+                    style={{ width: `${(completedStepCount / 6) * 100}%` }}
+                  />
+                </div>
+                {allStepsDone && (
+                  <p className="text-sm text-gray-500 mt-3 text-center">
+                    All channels are live. Jobs are on their way — check your calendar.
+                  </p>
+                )}
+              </div>
+
+              {/* Steps */}
+              <div className="space-y-3">
+                {ONBOARDING_STEPS.map((step, i) => {
+                  const done = !!onboardingSteps[step.key];
+                  const isOpen = expandedStep === step.key;
+                  return (
+                    <div key={step.key} className={`bg-white rounded-2xl border transition-all shadow-sm ${done ? 'border-green-200' : 'border-gray-100'}`}>
+                      {/* Step header */}
+                      <button
+                        onClick={() => setExpandedStep(isOpen ? null : step.key)}
+                        className="w-full flex items-center gap-4 px-5 py-4 text-left"
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${
+                          done ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          {done ? <CheckCircle className="w-5 h-5" /> : i + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-semibold text-sm ${done ? 'text-green-700' : 'text-gray-900'}`}>
+                            <span className="mr-2">{step.icon}</span>{step.label}
+                          </p>
+                        </div>
+                        <ChevronDown className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {/* Expanded content */}
+                      {isOpen && (
+                        <div className="px-5 pb-5 border-t border-gray-50 pt-4 space-y-4">
+                          <p className="text-sm text-gray-600 leading-relaxed">{step.description}</p>
+
+                          {/* Platform instructions */}
+                          {step.instructions?.map(inst => (
+                            <div key={inst.platform} className="bg-gray-50 rounded-xl px-4 py-3">
+                              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{inst.platform}</p>
+                              <p className="text-sm text-gray-700 leading-relaxed">{inst.steps}</p>
+                            </div>
+                          ))}
+
+                          {/* Copy text */}
+                          {step.copyText && (
+                            <div className="bg-brand-50 border border-brand-100 rounded-xl px-4 py-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs font-bold text-brand-600 uppercase tracking-wide">Copy & paste</p>
+                                <button
+                                  onClick={() => { navigator.clipboard.writeText(step.copyText); toast.success('Copied!'); }}
+                                  className="flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700 bg-white px-2 py-1 rounded-lg border border-brand-200 transition-all"
+                                >
+                                  <Copy className="w-3 h-3" /> Copy
+                                </button>
+                              </div>
+                              <p className="text-sm text-gray-700 leading-relaxed break-words">{step.copyText}</p>
+                            </div>
+                          )}
+
+                          {/* External link */}
+                          {step.link && (
+                            <a
+                              href={step.link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 text-sm font-semibold text-brand-600 hover:text-brand-700"
+                            >
+                              <ExternalLink className="w-4 h-4" /> {step.link.label}
+                            </a>
+                          )}
+
+                          {/* Schedule tab shortcut */}
+                          {step.action && (
+                            <button
+                              onClick={step.action.onClick}
+                              className="inline-flex items-center gap-2 text-sm font-semibold text-brand-600 hover:text-brand-700"
+                            >
+                              {step.action.label}
+                            </button>
+                          )}
+
+                          {/* Mark done */}
+                          {!done && (
+                            <button
+                              onClick={() => markStep.mutate(step.key)}
+                              disabled={markStep.isPending}
+                              className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all text-sm"
+                            >
+                              {markStep.isPending ? 'Saving…' : '✓ Mark as done'}
+                            </button>
+                          )}
+                          {done && (
+                            <div className="flex items-center gap-2 text-green-600 text-sm font-semibold">
+                              <CheckCircle className="w-4 h-4" /> Completed
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

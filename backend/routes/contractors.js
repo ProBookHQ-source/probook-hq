@@ -73,6 +73,7 @@ router.get('/:id', requireContractor, async (req, res) => {
     SELECT c.id, c.email, c.name, c.phone, c.company_name, c.niche_id,
            c.service_zip_codes, c.google_calendar_id, c.is_active, c.created_at,
            c.service_radius_miles, c.max_appointments_per_day,
+           c.twilio_number, c.onboarding_steps, c.booking_slug,
            n.name as niche_name
     FROM contractors c
     LEFT JOIN niches n ON c.niche_id = n.id
@@ -80,6 +81,33 @@ router.get('/:id', requireContractor, async (req, res) => {
   `).get(id);
   if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
   res.json(contractor);
+});
+
+// ── Mark onboarding step complete ─────────────────────────────────────────────
+router.put('/:id/onboarding-step', requireContractor, async (req, res) => {
+  const { id } = req.params;
+  if (req.user.role !== 'admin' && req.user.id !== id) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  const { step } = req.body; // e.g. 'availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers'
+  if (!step) return res.status(400).json({ error: 'step is required' });
+
+  // Set onboarding_started_at on first step completion if not already set
+  await db.query(`
+    UPDATE contractors
+    SET onboarding_started_at = COALESCE(onboarding_started_at, NOW())
+    WHERE id = $1
+  `, [id]);
+
+  // Merge the completed step into the JSONB column
+  await db.query(`
+    UPDATE contractors
+    SET onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || $1::jsonb
+    WHERE id = $2
+  `, [JSON.stringify({ [step]: true }), id]);
+
+  const updated = await db.prepare(`SELECT onboarding_steps FROM contractors WHERE id = $1`).get(id);
+  res.json({ onboarding_steps: updated.onboarding_steps });
 });
 
 // ── Create contractor (admin only) ────────────────────────────────────────────

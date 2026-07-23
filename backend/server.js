@@ -222,6 +222,12 @@ db._ready.then(async () => {
   await db.query(`ALTER TABLE appointments ALTER COLUMN lead_id DROP NOT NULL`).catch(() => {});
   // Twilio missed call text-back — each contractor gets their own Twilio number
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS twilio_number TEXT`);
+  // Self-serve onboarding checklist — tracks which setup steps each contractor has completed
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS onboarding_steps JSONB DEFAULT '{}'`);
+  // Track when contractor first logged in — used to detect 48hr nudge window
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS onboarding_started_at TIMESTAMPTZ`);
+  // Prevent duplicate nudge emails — set after first nudge is sent
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS onboarding_nudge_sent_at TIMESTAMPTZ`);
 
   // Intake form step tracking — powers dropoff funnel in admin dashboard
   await db.query(`
