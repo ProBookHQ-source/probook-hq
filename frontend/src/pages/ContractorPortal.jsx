@@ -573,7 +573,7 @@ export default function ContractorPortal() {
       icon: '📞',
       description: contractorProfile?.twilio_number
         ? `Forward unanswered calls to your Tractify number: ${contractorProfile.twilio_number}. This turns every missed call into an automatic booking text.`
-        : 'Your Tractify number will be set up soon. Check back after your onboarding call.',
+        : 'Your dedicated Tractify number is being set up. You\'ll get an email with it shortly — then come back here to complete this step.',
       instructions: [
         { platform: 'iPhone', steps: 'Settings → Phone → Call Forwarding → When Unanswered → enter your Tractify number → toggle on' },
         { platform: 'Android', steps: 'Phone app → Menu (⋮) → Settings → Supplementary services → Call forwarding → When unanswered → enter your Tractify number' },
