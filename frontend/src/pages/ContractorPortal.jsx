@@ -1481,7 +1481,10 @@ export default function ContractorPortal() {
         {showOnboardingModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
-              <img src="/probook-logo-dark.png" alt="Tractify" className="h-8 mx-auto mb-5" />
+              <div className="flex items-center justify-center gap-2.5 mb-5">
+                <img src="/probook-icon-128.png" alt="Tractify" className="w-8 h-8 rounded-xl shadow-sm" />
+                <span className="font-bold text-gray-900 text-lg tracking-tight">Tractify</span>
+              </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">You're almost live!</h2>
               <p className="text-gray-500 mb-6 leading-relaxed">
                 Complete 6 quick setup steps to activate all your booking channels.
