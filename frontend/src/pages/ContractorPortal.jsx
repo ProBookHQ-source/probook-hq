@@ -594,7 +594,7 @@ export default function ContractorPortal() {
       key: 'nextdoor',
       label: 'Post in a local Nextdoor neighborhood',
       icon: '🏘️',
-      description: 'HVAC is the #1 requested service on Nextdoor. One post in your neighborhood can drive 2-3 bookings before your ads even start.',
+      description: 'HVAC is the #1 requested service on Nextdoor. One post in your neighborhood puts your booking link in front of homeowners who are already asking for recommendations.',
       copyText: contractorProfile
         ? `Hey neighbors! ${contractorProfile.company_name || contractorProfile.name} now has online booking — pick a time that works for you right here: ${contractorProfile.booking_slug ? `https://tractifyhq.com/schedule/${contractorProfile.booking_slug}` : 'your booking link'}. Happy to help with any HVAC needs!`
         : null,
@@ -1481,10 +1481,10 @@ export default function ContractorPortal() {
         {showOnboardingModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
-              <div className="text-4xl mb-4">🚀</div>
+              <img src="/probook-logo-dark.png" alt="Tractify" className="h-8 mx-auto mb-5" />
               <h2 className="text-2xl font-bold text-gray-900 mb-2">You're almost live!</h2>
               <p className="text-gray-500 mb-6 leading-relaxed">
-                Complete 6 quick setup steps to activate all your booking channels. Most contractors finish in under 30 minutes and see their first job within 48 hours.
+                Complete 6 quick setup steps to activate all your booking channels.
               </p>
               <div className="space-y-2 text-left mb-8">
                 {ONBOARDING_STEPS.map((s, i) => (
