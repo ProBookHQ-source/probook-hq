@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const zlib   = require('zlib');
 
 const CF_API      = 'https://api.cloudflare.com/client/v4';
 const ACCOUNT_ID  = () => process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -30,26 +31,28 @@ async function createPagesProject(name) {
 }
 
 // ── Deploy a single index.html file to an existing Pages project ──────────────
-// Uses the Cloudflare Pages Direct Upload API via native FormData (Node 18+).
-// FormData handles multipart encoding and correctly sets Content-Disposition
-// with both name and filename attributes, which Cloudflare requires.
+// Uses the Cloudflare Pages Direct Upload API (same approach as Wrangler):
+// - Files are gzip-compressed before upload
+// - SHA256 hash is computed from the COMPRESSED content
+// - Content-Type for file parts is application/octet-stream
+// - Manifest keys use leading slash (e.g. /index.html)
 async function deployToPages(projectName, htmlContent) {
-  const htmlBuffer = Buffer.from(htmlContent, 'utf-8');
-  const hash       = crypto.createHash('sha256').update(htmlBuffer).digest('hex');
+  const rawBuffer  = Buffer.from(htmlContent, 'utf-8');
+  const compressed = zlib.gzipSync(rawBuffer);
+  const hash       = crypto.createHash('sha256').update(compressed).digest('hex');
 
   const form = new FormData();
 
-  // Part 1: manifest — maps file path → sha256 hash
-  form.append(
-    'manifest',
-    new Blob([JSON.stringify({ 'index.html': hash })], { type: 'application/json' })
-  );
+  // Manifest: plain string field — must NOT be a Blob or File because undici adds
+  // filename="blob" to the Content-Disposition, which makes CF treat it as a file
+  // upload instead of a named field and returns "manifest field not provided".
+  form.append('manifest', JSON.stringify({ '/index.html': hash }));
 
-  // Part 2: the file itself — named by its hash, filename tells CF which path it belongs to
+  // File: gzip-compressed content, part name = hash, filename = hash (Wrangler convention)
   form.append(
     hash,
-    new Blob([htmlBuffer], { type: 'text/html' }),
-    'index.html'
+    new Blob([compressed], { type: 'application/octet-stream' }),
+    hash
   );
 
   const res  = await fetch(
@@ -57,15 +60,16 @@ async function deployToPages(projectName, htmlContent) {
     {
       method:  'POST',
       headers: { Authorization: `Bearer ${API_TOKEN()}` },
-      // Do NOT set Content-Type manually — fetch sets it automatically with the correct boundary
       body: form,
     }
   );
   const data = await res.json();
+  // Log full response so Railway logs show exactly what CF returns
+  console.log(`[CF-DEPLOY] HTTP ${res.status} — ${JSON.stringify(data).slice(0, 800)}`);
   if (!data.success) {
     throw new Error(`Pages deploy failed: ${JSON.stringify(data.errors)}`);
   }
-  console.log(`[CF] Deployment created: ${data.result?.url || projectName}`);
+  console.log(`[CF] Deployment live: ${data.result?.url || projectName}`);
   return data.result;
 }
 
