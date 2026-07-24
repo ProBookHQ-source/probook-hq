@@ -1,7 +1,6 @@
 'use strict';
 
 const crypto = require('crypto');
-const zlib   = require('zlib');
 
 const CF_API      = 'https://api.cloudflare.com/client/v4';
 const ACCOUNT_ID  = () => process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -31,27 +30,29 @@ async function createPagesProject(name) {
 }
 
 // ── Deploy a single index.html file to an existing Pages project ──────────────
-// Uses the Cloudflare Pages Direct Upload API (same approach as Wrangler):
-// - Files are gzip-compressed before upload
-// - SHA256 hash is computed from the COMPRESSED content
-// - Content-Type for file parts is application/octet-stream
+// Uses the Cloudflare Pages Direct Upload API.
+// - Raw (uncompressed) HTML bytes — Pages handles storage and serving natively
+// - SHA256 hash computed from raw content
+// - Content-Type: text/html so Pages knows what it's storing
 // - Manifest keys use leading slash (e.g. /index.html)
+// NOTE: Do NOT gzip the content here. If we upload gzip bytes without a
+// per-part Content-Encoding header (which FormData can't set), Pages stores
+// binary and serves it as HTML → HTTP 500.
 async function deployToPages(projectName, htmlContent) {
-  const rawBuffer  = Buffer.from(htmlContent, 'utf-8');
-  const compressed = zlib.gzipSync(rawBuffer);
-  const hash       = crypto.createHash('sha256').update(compressed).digest('hex');
+  const rawBuffer = Buffer.from(htmlContent, 'utf-8');
+  const hash      = crypto.createHash('sha256').update(rawBuffer).digest('hex');
 
   const form = new FormData();
 
   // Manifest: plain string field — must NOT be a Blob or File because undici adds
   // filename="blob" to the Content-Disposition, which makes CF treat it as a file
-  // upload instead of a named field and returns "manifest field not provided".
+  // upload instead of a named field and returns error 8000096.
   form.append('manifest', JSON.stringify({ '/index.html': hash }));
 
-  // File: gzip-compressed content, part name = hash, filename = hash (Wrangler convention)
+  // File: raw HTML bytes, part name = hash, filename = hash
   form.append(
     hash,
-    new Blob([compressed], { type: 'application/octet-stream' }),
+    new Blob([rawBuffer], { type: 'text/html; charset=utf-8' }),
     hash
   );
 
@@ -69,7 +70,8 @@ async function deployToPages(projectName, htmlContent) {
   if (!data.success) {
     throw new Error(`Pages deploy failed: ${JSON.stringify(data.errors)}`);
   }
-  console.log(`[CF] Deployment live: ${data.result?.url || projectName}`);
+  const deployUrl = data.result?.url || `https://${projectName}.pages.dev`;
+  console.log(`[CF] Deployment live: ${deployUrl}`);
   return data.result;
 }
 
@@ -104,12 +106,31 @@ async function removePagesDomain(projectName, domain) {
 
 // ── Register a custom domain on a Cloudflare Pages project ───────────────────
 // Registers the domain with Pages AND creates the DNS record automatically.
-// If already registered (retry/test scenario), removes and re-adds so Cloudflare
-// recreates the DNS record fresh.
+// If already registered AND active — skip entirely (DNS + SSL already working).
+// If already registered but NOT active — remove and re-add to recover.
 //
 // IMPORTANT: Never also call createCname() after this — a proxied CNAME to
 // .pages.dev conflicts with Pages' internal routing and causes HTTP 500.
 async function addPagesDomain(projectName, domain) {
+  // ── Check current status first ────────────────────────────────────────────
+  const checkRes = await fetch(
+    `${CF_API}/accounts/${ACCOUNT_ID()}/pages/projects/${projectName}/domains/${encodeURIComponent(domain)}`,
+    { headers: { Authorization: `Bearer ${API_TOKEN()}` } }
+  );
+  if (checkRes.ok) {
+    const checkData = await checkRes.json();
+    if (checkData.success && checkData.result?.status === 'active') {
+      console.log(`[CF] Custom domain ${domain} already active — skipping (DNS + SSL intact)`);
+      return checkData.result;
+    }
+    // Registered but not active — remove and re-add below
+    if (checkData.success) {
+      console.log(`[CF] Domain registered but status=${checkData.result?.status} — removing and re-adding`);
+      await removePagesDomain(projectName, domain);
+    }
+  }
+
+  // ── Try to register ───────────────────────────────────────────────────────
   const res  = await fetch(
     `${CF_API}/accounts/${ACCOUNT_ID()}/pages/projects/${projectName}/domains`,
     { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ name: domain }) }
@@ -122,19 +143,9 @@ async function addPagesDomain(projectName, domain) {
       errMsg.toLowerCase().includes('already');
 
     if (alreadyExists) {
-      // Force re-registration so Cloudflare recreates the DNS record
-      console.log(`[CF] Domain already registered — removing and re-adding to refresh DNS`);
-      await removePagesDomain(projectName, domain);
-      const res2  = await fetch(
-        `${CF_API}/accounts/${ACCOUNT_ID()}/pages/projects/${projectName}/domains`,
-        { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ name: domain }) }
-      );
-      const data2 = await res2.json();
-      if (!data2.success) {
-        throw new Error(`Pages domain re-add failed: ${JSON.stringify(data2.errors)}`);
-      }
-      console.log(`[CF] Custom domain refreshed: ${domain} → ${projectName}`);
-      return data2.result;
+      // Race condition — registered between our check and add; check status again
+      console.log(`[CF] Domain registered concurrently — treating as active`);
+      return { name: domain };
     }
     throw new Error(`Pages custom domain failed: ${errMsg}`);
   }
