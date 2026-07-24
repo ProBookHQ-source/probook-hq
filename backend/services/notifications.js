@@ -884,4 +884,79 @@ async function sendOnboardingNudge(contractor, completedSteps) {
   await sendEmail('ayc98223@gmail.com', `⚠️ Setup stalled: ${contractor.company_name || contractor.name} (${doneCount}/6 steps)`, adminHtml).catch(e => console.error('[NUDGE] admin email failed:', e.message));
 }
 
-module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset, sendDirectBookingConfirmation, sendDirectBookingContractorAlert, sendOnboardingNudge };
+// ── Welcome email after auto-deploy ──────────────────────────────────────────
+// Sent to the contractor right after their site is deployed.
+// { name, email, company, siteUrl, portalUrl, loginEmail, password }
+async function sendContractorWelcomeEmail({ name, email, company, siteUrl, portalUrl, loginEmail, password }) {
+  const html = emailBase({
+    label:    'You\'re Live on Tractify',
+    headline: `${esc(company)} is ready to take bookings!`,
+    sub:      'Your site is live. Log in to complete your setup and activate all 6 booking channels.',
+    bodyContent: `
+      <tr><td style="padding:0 0 20px;">
+        <p style="margin:0;font-size:15px;color:#374151;line-height:1.6;">
+          Hi ${esc(name)},<br><br>
+          Your Tractify site is live at:<br>
+          <a href="${esc(siteUrl)}" style="color:#6366f1;font-weight:700;">${esc(siteUrl)}</a>
+        </p>
+      </td></tr>
+
+      <tr><td style="padding:0 0 24px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+               style="background:#f5f3ff;border-radius:10px;border-left:4px solid #6366f1;">
+          <tr><td style="padding:18px 22px;">
+            <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:1px;">Your Portal Login</p>
+            <p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>URL:</strong> <a href="${esc(portalUrl)}" style="color:#6366f1;">${esc(portalUrl)}</a></p>
+            <p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>Email:</strong> ${esc(loginEmail)}</p>
+            <p style="margin:0;font-size:14px;color:#374151;"><strong>Password:</strong> <code style="background:#ede9fe;padding:2px 6px;border-radius:4px;font-size:13px;">${esc(password)}</code></p>
+          </td></tr>
+        </table>
+      </td></tr>
+
+      <tr><td style="padding:0 0 8px;">
+        <p style="margin:0 0 12px;font-size:15px;font-weight:700;color:#1a1a2e;">What to do next:</p>
+        ${stepCard(1, 'Log into your portal', `Go to <a href="${esc(portalUrl)}" style="color:#6366f1;">${esc(portalUrl)}</a> and change your password`)}
+        ${stepCard(2, 'Complete your setup checklist', 'Activate all 6 booking channels — takes about 10 minutes. Instructions are right inside the portal.')}
+        ${stepCard(3, 'Watch jobs come in', 'Once setup is complete, Tractify starts delivering booked appointments automatically.')}
+      </td></tr>
+
+      <tr><td style="padding:12px 0 0;">
+        <p style="margin:0;font-size:14px;color:#6b7280;line-height:1.6;">
+          Questions? Reply to this email — we respond same day.<br>
+          <strong>Jose &amp; Daniel — Tractify</strong>
+        </p>
+      </td></tr>
+    `,
+  });
+  await sendEmail(email, `Your Tractify site is live — ${esc(company)}`, html);
+}
+
+// ── Admin alert after auto-deploy ─────────────────────────────────────────────
+async function sendDeployAlertToAdmin({ businessName, contactEmail, siteUrl, contractorId, slug }) {
+  const html = emailBase({
+    label:    'New Contractor Deployed',
+    headline: esc(businessName),
+    sub:      'Auto-deploy completed — review and optionally run ads.',
+    bodyContent: `
+      <tr><td style="padding:0 0 20px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+               style="background:#f5f3ff;border-radius:10px;border-left:4px solid #6366f1;">
+          <tr><td style="padding:18px 22px;">
+            <p style="margin:0 0 6px;font-size:15px;font-weight:700;color:#1a1a2e;">${esc(businessName)}</p>
+            <p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>Email:</strong> ${esc(contactEmail)}</p>
+            <p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>Site:</strong> <a href="${esc(siteUrl)}" style="color:#6366f1;">${esc(siteUrl)}</a></p>
+            <p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>Slug:</strong> ${esc(slug)}</p>
+            <p style="margin:0;font-size:14px;color:#374151;"><strong>Contractor ID:</strong> <code style="background:#ede9fe;padding:2px 6px;border-radius:4px;font-size:12px;">${esc(contractorId)}</code></p>
+          </td></tr>
+        </table>
+      </td></tr>
+      <tr><td style="padding:0 0 8px;">
+        <p style="margin:0;font-size:14px;color:#6b7280;">Next: decide if this contractor gets paid ad spend. If yes, run Facebook ads targeting their service zip codes. If the organic channels are strong (GBP, reviewers, Nextdoor) they may hit 5 jobs without ads.</p>
+      </td></tr>
+    `,
+  });
+  const adminTo = process.env.ADMIN_EMAIL || 'oiltoheatrebate@gmail.com';
+  await sendEmail(adminTo, `New contractor deployed: ${businessName}`, html);
+}
+
+module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset, sendDirectBookingConfirmation, sendDirectBookingContractorAlert, sendOnboardingNudge, sendContractorWelcomeEmail, sendDeployAlertToAdmin };

@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 21, 2026 (brainstorm session 2).*
+*Last updated: July 23, 2026 (session 3 — automation complete, heading into August).*
 
 ---
 
@@ -9,6 +9,14 @@
 - **Business email:** oiltoheatrebate@gmail.com
 - **GitHub account:** ProBookHQ-source (linked to ayc98223@gmail.com)
 - **GitHub repo:** https://github.com/ProBookHQ-source/probook-hq
+
+## Business / Legal
+- **LLC name:** OMNIANCEGROUP LLC
+- **EIN:** 42-4017025 (issued July 23, 2026 — CP 575B letter on file)
+- **EIN note:** Newly issued — not yet propagated to IRS verification systems Twilio checks (Error 18602). This resolves on its own within a few weeks.
+- **Next steps unblocked by EIN:** Open business bank account, complete Washington state business license
+- **Washington state business license:** Not yet obtained — do after bank account is open
+- **Business bank account:** Not yet opened — EIN in hand, do this next
 
 ---
 
@@ -160,13 +168,7 @@ The result: a contractor goes live on a Friday. By Monday, jobs are appearing on
 - Conversion call happens faster → revenue comes faster
 - Free trial filters itself: contractors who don't engage self-select out, costs Jose nothing
 
-**The onboarding call sets up ALL of this in under 30 minutes:**
-1. Set weekly availability in contractor portal (5 min)
-2. Enable call forwarding to Twilio number (2 min)
-3. Add booking link to Google Business Profile under "Appointments" (10 min)
-4. Post in one local Nextdoor neighborhood + one local Facebook group (5 min)
-5. Send booking link messages to top 10-20 Google reviewers (5 min)
-6. Jose turns on paid ads targeting their zip codes after the call
+**There is no onboarding call.** The self-serve checklist inside the contractor portal (built July 23) replaces the call entirely. Contractor logs in for the first time → first-login modal walks them through 6 steps → they complete each step at their own pace. Jose and Daniel are completely out of the onboarding process. All 6 channels activate through the checklist with zero human involvement from the Tractify side.
 
 **The innovation in one sentence:** Tractify doesn't just give contractors a booking tool — it activates every channel they already have, drives new traffic from multiple directions, and delivers the booked jobs. The contractor just shows up.
 
@@ -233,19 +235,10 @@ Tractify automatically texts each contractor's past customer list when seasons c
 
 **Why this is the right move:** Cold calling is 1:1. An ad runs 24/7 and reaches thousands simultaneously. Contractors who respond to an ad are already interested — they're half sold before the 15-minute call even starts. The free trial offer (5 booked jobs, zero risk) is strong enough to stop the scroll and convert. This is how you build a company at scale, not a local service business.
 
-**The funnel:**
-Ad or organic content → contractor fills out intake form at `intake.tractifyhq.com` → success screen shows inline slot picker → contractor books 15-min onboarding call (3 days out minimum) → Jose deploys subdomain in that window → onboarding call walks contractor through setting availability + Twilio forward + GBP book button + Nextdoor post + Facebook group post + Google reviewer messages → Jose turns on paid ads after the call → 5 jobs delivered across all 6 channels → conversion call → $2,000 setup + $800/month retainer
+**The funnel (fully automated as of July 23, 2026):**
+Ad or organic content → contractor fills out intake form at `intake.tractifyhq.com` → subdomain auto-deploys instantly (Cloudflare Pages API) → contractor receives portal login via email → first-login modal appears → contractor completes 6-step self-serve checklist (availability, Twilio forwarding, GBP booking link, Nextdoor, Facebook group, Google reviewers) → 6 channels activate → 5 jobs delivered → Stripe conversion page → $2,000 setup + $800/month retainer. Zero Jose or Daniel involvement after the ad runs.
 
-**Why the call moved to after the form (July 19 pivot):**
-- Sending cold traffic directly to a booking link adds friction — form first converts better
-- The intake form is simple enough that contractors self-onboard without needing a call first
-- The onboarding call is now a pure setup call, not a sales call — contractor already committed by filling out the form
-- 3-day buffer between form submit and earliest call slot gives Jose time to deploy the subdomain, create the contractor account + API key, link it, set allowed_origins, and test end to end
-- Jose manages the 3-day buffer through availability settings in the contractor portal — block the next 2-3 days, only show slots from day 3 forward. No code needed.
-- The success screen after form submit immediately shows an inline slot picker — contractor books the onboarding call right there without leaving the page. Strikes while they're engaged, no link to click, no new tab.
-
-**The onboarding call gets removed after the first 3 clients (north star):**
-The call exists only to manually walk contractors through setup steps. Once the self-serve onboarding flow is built into the contractor portal (see Planned Features), the call is no longer needed and becomes a bottleneck. After first 3 clients prove the process, the call is retired entirely. Contractor fills out form → auto-deployed on subdomain → logs into portal → guided checklist walks them through every setup step themselves, at their own pace, no Jose or Daniel involved. That's the Shopify model and that's what makes scale possible — the bottleneck becomes traffic, not time.
+**There is no onboarding call.** It was planned, then removed. The self-serve checklist replaced it entirely before the first client. The only bottlenecks in August are: (1) ad reach — how many contractors see the offer, and (2) job delivery speed — how fast the 6 channels get 5 bookings onto each contractor's calendar. Deployment is instant and automatic. Setup is self-serve. The pipeline is hands-off.
 
 ---
 
@@ -449,32 +442,33 @@ Each paying contractor gets a unique referral link. When another contractor sign
 *(See Idea 4 above for full details)*
 Build after first 3 paying clients are stable. Requires A2P 10DLC registration through Twilio before any bulk sends.
 
-### 7. Self-Serve Onboarding Flow (Removes the Call Entirely)
-After the first 3 clients prove the manual process, build a guided setup checklist inside the contractor portal. This is the Shopify model — contractor logs in for the first time and sees a step-by-step flow instead of a blank dashboard.
+### 7. Self-Serve Onboarding Checklist — ✅ BUILT (July 23, 2026)
+⚠️ **Revisit and optimize before August 3rd** — checklist is functional and live but needs a polish pass before first real contractor sees it. Do this AFTER subdomain auto-deploy is complete.
+The onboarding call was planned, then removed. The checklist replaced it entirely before the first client ever signed up.
 
-**The checklist steps (everything currently done on the onboarding call):**
-1. Set your weekly availability (already exists in portal — just needs to be surfaced as step 1 with a prompt)
-2. Enable call forwarding to your Twilio number (step-by-step instructions with iPhone/Android screenshots, carrier-specific guides)
-3. Add your booking link to Google Business Profile under "Appointments" (screenshots, exact steps)
-4. Post in a local Nextdoor neighborhood (suggested copy they can paste, link to Nextdoor)
-5. Post in a local Facebook community group (suggested copy, instructions)
-6. Message your top Google reviewers (template message ready to copy-paste, instructions on finding them)
+**What was built:**
+- First-login modal: appears the first time a contractor logs in, shows all 6 steps, "Start Setup →" button takes them to the Setup tab
+- Persistent Setup tab in the sidebar with progress badge (e.g. "2/6") that disappears when all steps are done
+- 6 expandable step cards with: description, platform-specific instructions, copy-paste text (booking link pre-filled), and "Mark as done" button
+- 48hr nudge: if contractor started setup but hasn't completed all steps after 48hrs, cron job sends nudge email to contractor + Jose + Daniel
+- localStorage flag prevents the modal from showing again after the first view (keyed by contractor ID)
 
-**UX details:**
-- Progress tracker: "3 of 6 setup steps complete"
-- Each step has a "Mark as done" checkbox
-- Automated follow-up email if steps aren't completed within 48 hours
-- Steps are explained well enough that a non-technical contractor can do all of them without calling anyone
+**The 6 steps:**
+1. Confirm your availability (portal calendar link)
+2. Set up missed call forwarding (Twilio number shown when assigned, iPhone/Android instructions)
+3. Add booking link to Google Business Profile (exact steps for business.google.com)
+4. Post in a local Nextdoor neighborhood (pre-written post copy with booking link)
+5. Post in a local Facebook community group (pre-written post copy)
+6. Message your top Google reviewers (pre-written message template)
 
-**Why this is the most important scale unlock:**
-Once this is built, the onboarding call is gone. Contractor fills out form → auto-deployed on subdomain → receives portal login → completes checklist at their own pace. Jose and Daniel are completely out of the onboarding process. The bottleneck shifts from "how many calls can we do" to "how much traffic can we drive." That's when 50 clients a month becomes operationally possible.
+### 8. Subdomain Auto-Deploy — ⚠️ NEXT TO BUILD (before first client)
+Form submission triggers: auto-create contractor account → auto-generate API key linked to that contractor → auto-deploy HVAC template subdomain via Cloudflare Pages API → auto-set CNAME in Cloudflare DNS → auto-email contractor their portal login with first-login instructions. Zero human involvement from form submit to contractor going live.
 
-**Build after:** First 3 clients onboarded manually. Use those 3 to document exactly what the call covers, then encode every step into the checklist.
+Also: intake form collects contractor's business hours → auto-populate their weekly availability slots on deploy. Contractor still reviews and adjusts in the portal, but the baseline is pre-filled from what they told us.
 
-### 8. Subdomain Auto-Deploy
-After the self-serve onboarding checklist is built, automate the subdomain deployment itself. Form submission triggers: auto-create contractor account → auto-generate API key linked to that contractor → auto-deploy subdomain via Cloudflare Pages API → auto-set CNAME in Cloudflare DNS → auto-email contractor their portal login. Zero human involvement from form submit to contractor going live. This is the final piece that makes the full pipeline hands-off.
+**This is the final automation piece.** Once built, the entire pipeline from ad click to contractor going live is hands-off. The only remaining bottlenecks are ad reach and job delivery speed.
 
-**Build after:** Self-serve onboarding flow is live and proven with 3+ clients.
+**Build before August if at all possible.** Until it's built, subdomain deploy is manual (still fast — edit CLIENT config, deploy to Cloudflare Pages, set CNAME, create contractor account + API key). The manual process is documented in the Client Go-Live Checklist below.
 
 ### 9. The Proactive Outreach Play
 *(See Scaling Plan below for full details)*
@@ -1085,7 +1079,7 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 
 ---
 
-## Launch Status (as of July 20, 2026)
+## Launch Status (as of July 23, 2026)
 
 **Completed (all features):**
 - ✅ Full app built, deployed, tested — tractifyhq.com live
@@ -1108,17 +1102,19 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 - ✅ Intake form rebuilt (July 20) — down to 4 steps (~5 min): Your Info → Numbers & Hours → Services & Coverage → Review & Submit. Branding step, headline step, and About section removed.
 - ✅ Intake overlay conversion-optimized (July 20) — "Claim Your 5 Free Booked Jobs." headline, urgency badge, 3-step flow, confirm-step booking, sessionStorage refresh restore, "Don't have a Google listing?" path
 - ✅ Missed call text-back via Twilio — fully built (July 21). `POST /api/twilio/missed-call` webhook, `twilio_number` column on contractors, Admin Dashboard "Set Twilio #" per-contractor UI.
+- ✅ Self-serve onboarding checklist — built July 23. First-login modal + persistent Setup tab with 6 steps, copy-paste text, platform-specific instructions, 48hr nudge email to contractor + Jose + Daniel if incomplete. Replaces onboarding call entirely.
 
-**Remaining — must do before first client:**
-- [ ] ⚠️ Twilio compliance approval (pending — up to 48 business hours from July 21). Once approved: buy local number, set webhook, test end-to-end flow (call from another phone, don't answer, verify SMS arrives with booking link)
-- [ ] ⚠️ Jose set availability in contractor portal (currently only Monday 9–12 set — expand before clients)
-- [ ] UptimeRobot monitoring — 15 min setup. Ping /health every 5 min, SMS alert if down. Free tier.
-- [ ] Railway database backups — requires Railway Pro plan ($20/month). Do NOT upgrade until first paying client. Once first client pays, upgrade to Pro and enable backups immediately.
-- [ ] Service agreement — simple 1-page terms on intake form. Defines: free trial = 5 booked appointments (not 5 closed jobs), what retainer covers, cancellation terms. Add acceptance checkbox to intake form, store timestamp in DB.
-- [ ] Full end-to-end test with a real contractor before any client goes live (see test steps below)
+**Remaining — must do before first client (blocking):**
+- [ ] ⚠️ Twilio compliance approval (pending — emailed trusthub-verify@twilio.com with CP 575B on July 23). Once approved: buy local number, set webhook to `https://tractifyhq.com/api/twilio/missed-call`, set Twilio number on contractor in admin, test end-to-end.
+- [ ] ⚠️ Subdomain auto-deploy — the final automation piece. Form submit → auto-create contractor account + API key → auto-deploy via Cloudflare Pages API → auto-CNAME in Cloudflare DNS → auto-email portal login. Until this is built, subdomain deploy is still manual (fast but requires Jose). Build this before August.
+- [ ] Jose expand availability in contractor portal (only relevant for Jose's personal booking page at /schedule/book — not blocking client onboarding since auto-deploy pre-populates from intake form hours)
+- [ ] UptimeRobot monitoring — ✅ first monitor created (tractifyhq.com/health). Done.
+- [ ] Railway database backups — requires Pro plan ($20/month). Do NOT upgrade until first paying client. Once first client pays, upgrade immediately.
+- [ ] Service agreement — simple 1-page terms on intake form. Defines: free trial = 5 booked appointments (not 5 closed jobs), what retainer covers, cancellation terms. Add acceptance checkbox, store timestamp in DB.
+- [ ] Full end-to-end test before first real client goes live.
 
 **Remaining — must do before first client converts (not day 1 blocking):**
-- [ ] Stripe integration — contractor conversion must be self-serve. Job 5 milestone trigger → Stripe payment page → $2,000 setup fee → system flips them to paid automatically. No manual invoicing at scale.
+- [ ] Stripe integration — self-serve conversion at job 5. Job 5 milestone trigger → Stripe payment page → $2,000 setup fee → system flips them to paid. No manual invoicing.
 - [ ] Job milestone trigger (job 3 + job 5) — portal notification + email, data-aware messaging (see Planned Features)
 - [ ] Revenue + outcome logging — "Did this job close? How much?" after each completed appointment
 
@@ -1126,10 +1122,6 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 - [ ] Booking source tracking — `booking_source` field on appointments. Know which channels perform. (see Planned Features)
 - [ ] Contractor dashboard live stats — jobs this month, revenue this month, total all time, next appointment (see Planned Features)
 - [ ] Automatic review request — SMS to homeowner 3 hours after appointment completed (see Planned Features)
-
-**Remaining — post first 3 clients:**
-- [ ] Self-serve onboarding checklist (replaces onboarding call — see Planned Features)
-- [ ] Subdomain auto-deploy (see Planned Features)
 - [ ] Intake funnel view in admin dashboard (data collecting, UI not built)
 - [ ] Flip bridge ON once first contractor is onboarded (script properties only — no code changes)
 - [ ] Google Calendar credentials (deferred — add to Railway when ready)
@@ -1139,7 +1131,7 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 ## ⚠️ Client Go-Live Checklist (HVAC Pipeline Bundle)
 **Run through this every single time you onboard a new HVAC client. Do not skip steps.**
 
-**New onboarding flow (July 19):** Contractor fills out intake form → success screen shows inline slot picker → contractor books onboarding call (3 days out minimum) → Jose does steps 1-8 below in that window → onboarding call walks contractor through availability setup + Twilio forward.
+**Current flow (July 23 — subdomain auto-deploy not yet built):** Contractor fills out intake form → Jose manually deploys subdomain using steps below → contractor receives portal login email → contractor completes 6-step checklist on their own → no call, no Jose involvement after deploy. Once subdomain auto-deploy is built, even the manual steps below disappear entirely.
 
 ### Free Trial Setup (subdomain — no domain purchase)
 1. [ ] Contractor submits intake form at `intake.tractifyhq.com` — their info comes to you via email + R2
@@ -1194,7 +1186,7 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 ---
 
 ## Scaling Plan
-- **Get first client jobs fast:** All 6 channels activated on the onboarding call — paid ads, missed call text-back, Google Business Profile, Nextdoor, Google reviewers, Facebook groups. 5 jobs in 48-72 hours for the right contractor.
+- **Get first client jobs fast:** All 6 channels activate through the self-serve checklist — missed call text-back (Twilio), Google Business Profile booking button, Nextdoor, Facebook groups, Google reviewers. No call needed. The contractor does it themselves. Jose selectively runs paid ads behind contractors he believes are winners — not automatic for everyone.
 - **New niches:** Add contractors under different niches — matching engine handles routing automatically
 - **New cities:** Add contractors with their service zip codes — same paid ad playbook per market
 - **Email campaign:** After 2-3 case study results exist, run cold email via burner domain + Instantly.ai to scale contractor acquisition. Never send from tractifyhq.com.
