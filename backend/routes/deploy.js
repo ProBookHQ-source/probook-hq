@@ -111,8 +111,8 @@ ${zipChunks.join(',\n')}
 
       // ── LOGO & BRANDING ──────────────────────────────────────
       logoTagline:     "Heating &amp; Cooling Specialists",
-      logoImg:         "${esc(data.logoUrl || '')}",
-      coverPhoto:      "${esc(data.coverUrl || '')}",
+      logoImg:         "${esc(data.logoUrl || 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAC6klEQVR4nO3cW27bQBBE0aLg72iRDpw1RYgWaW/A+fBTFh8z5AjUVN3zHRNG+qpbMuIMuoHHp+fXWzwX0vl0HFo+r8nDGPh+tgax6YsZ/P1YG8KqL2Lw96s2hKo/zOD7URrCofSBDL8vpfMqCoDh96lkbosBMPy+Lc1vNgCG72FujpMBMHwvU/McDYDhexqb61UADN/bz/kWfwyEp4sAePVn+D5nNkC4zwB49Wf5mDcbINwg8epPxgYIRwDhCCDcgfufjQ0QjgDCPez9Ddzav7+/mj7v95+Xps/bGxsgHAFUcHv1S+YBtF7/jqwDwDICKOS4/iUCiGcbAPe/jG0AKEMABVzvv0QA8SwD4P6XswygJef1LxFAPAIIRwAz3Ne/ZBgAbwDr2AWAOgQwIWH9SwQQzyoA7n89qwBQjwBGpNx/iQDi2QTA/V/HJoBWkta/RADxCCCcRQCt7n/a+pdMAsB6BBCOAMIRwLvE+y8ZBMAPgLbpPgBsQwDKXf9SwP8RVKLFGek1oq43APd/u64DwHYE0ECv618igHjdBsD9b6PbANAGAWzU8/2XOv45QIu/eM5I8AZg+G9iA8AbAtig9/svhQbA+v8SGQC+EEA4AggXFwC/Q3ApLgBcIoBwUQHw8e9aVACtuNx/iQDixQTA+h8XEwDGEUAlp/svEUC8iAC4/9MiAsA0Aqjgdv+lgABY//PsA8A8AghnHQDrf5l1AC05vgGUCCCebQCs/zK2AaAMARRwvf8SAcSzDID7X84yAJQjgAXO918yDID1X8cuANQZHp+eX/f+JrAfNkA4AghHAOEO59Nx2PubwH7YAOEIIBwBhDtIEu8DMp1Px4ENEO4zALZAlo95swHCXQTAFsjwfc5sgHBXAbAFvP2c7+gGIAJPY3OdPAFE4GVqnrPvAYjAw9wcF98EEkHfluZX9CmACPpUMrfij4FE0JfSea0aKv+Q9H7VvlA3vaoJ4X6s3dBN1joh7Gfraf4PmHi8/d4+/WIAAAAASUVORK5CYII=')}",
+      coverPhoto:      "${esc(data.coverUrl || 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=1920&q=80')}",
       coverPhotoFocus: "center",
 
       // ── SOCIAL PROOF ─────────────────────────────────────────
