@@ -93,34 +93,48 @@ async function deleteDnsRecords(subdomain) {
   }
 }
 
+// ── Remove a custom domain from a Cloudflare Pages project ───────────────────
+async function removePagesDomain(projectName, domain) {
+  const res = await fetch(
+    `${CF_API}/accounts/${ACCOUNT_ID()}/pages/projects/${projectName}/domains/${encodeURIComponent(domain)}`,
+    { method: 'DELETE', headers: { Authorization: `Bearer ${API_TOKEN()}` } }
+  );
+  console.log(`[CF] Removed domain ${domain} from ${projectName} (HTTP ${res.status})`);
+}
+
 // ── Register a custom domain on a Cloudflare Pages project ───────────────────
-// This is the correct way to serve a custom subdomain from Pages.
-// It registers the domain with Pages AND automatically creates the DNS record.
+// Registers the domain with Pages AND creates the DNS record automatically.
+// If already registered (retry/test scenario), removes and re-adds so Cloudflare
+// recreates the DNS record fresh.
 //
-// projectName: e.g. "tractify-premiercomfort"
-// domain:      e.g. "premiercomfort.tractifyhq.com"
+// IMPORTANT: Never also call createCname() after this — a proxied CNAME to
+// .pages.dev conflicts with Pages' internal routing and causes HTTP 500.
 async function addPagesDomain(projectName, domain) {
   const res  = await fetch(
     `${CF_API}/accounts/${ACCOUNT_ID()}/pages/projects/${projectName}/domains`,
-    {
-      method:  'POST',
-      headers: jsonHeaders(),
-      body:    JSON.stringify({ name: domain }),
-    }
+    { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ name: domain }) }
   );
   const data = await res.json();
   if (!data.success) {
-    // Ignore "already exists" / "already in use" errors — idempotent re-runs
     const errMsg = JSON.stringify(data.errors || '');
     const alreadyExists =
-      data.errors?.some(e =>
-        e.code === 8000007 || // already added to this project
-        e.code === 8000013    // already used by another project
-      ) ||
+      data.errors?.some(e => e.code === 8000007 || e.code === 8000013) ||
       errMsg.toLowerCase().includes('already');
+
     if (alreadyExists) {
-      console.log(`[CF] Custom domain ${domain} already registered — skipping`);
-      return null;
+      // Force re-registration so Cloudflare recreates the DNS record
+      console.log(`[CF] Domain already registered — removing and re-adding to refresh DNS`);
+      await removePagesDomain(projectName, domain);
+      const res2  = await fetch(
+        `${CF_API}/accounts/${ACCOUNT_ID()}/pages/projects/${projectName}/domains`,
+        { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ name: domain }) }
+      );
+      const data2 = await res2.json();
+      if (!data2.success) {
+        throw new Error(`Pages domain re-add failed: ${JSON.stringify(data2.errors)}`);
+      }
+      console.log(`[CF] Custom domain refreshed: ${domain} → ${projectName}`);
+      return data2.result;
     }
     throw new Error(`Pages custom domain failed: ${errMsg}`);
   }

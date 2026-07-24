@@ -19,7 +19,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const db           = require('../database/db');
 const { sendContractorWelcomeEmail, sendDeployAlertToAdmin } = require('../services/notifications');
-const { createPagesProject, deployToPages, addPagesDomain, createCname } = require('../services/cloudflare');
+const { createPagesProject, deployToPages, addPagesDomain } = require('../services/cloudflare');
 
 const router = express.Router();
 
@@ -348,24 +348,16 @@ router.post('/', requireDeploySecret, async (req, res) => {
     }
   }
 
-  // ── Step 6: Register custom domain + ensure DNS CNAME exists ────────────
-  // addPagesDomain registers the subdomain with the Pages project and
-  // creates the DNS CNAME automatically for NEW registrations.
-  // But if the domain was already registered from a previous deploy attempt,
-  // Pages returns "already exists" and does NOT recreate the DNS record.
-  // So we always call createCname afterwards as a guarantee — it silently
-  // ignores error 81053 if the record already exists.
+  // ── Step 6: Register custom domain with Pages ────────────────────────────
+  // addPagesDomain() handles everything: registers with Pages AND creates DNS.
+  // If already registered (retry), it removes and re-adds to refresh DNS.
+  // Do NOT call createCname() here — a proxied CNAME to .pages.dev conflicts
+  // with Pages' internal routing and causes HTTP 500.
   try {
     await addPagesDomain(projectName, `${slug}.tractifyhq.com`);
-    log(`Custom domain registered: ${slug}.tractifyhq.com → ${projectName}`);
+    log(`Custom domain live: ${slug}.tractifyhq.com`);
   } catch (dnsErr) {
-    log(`Custom domain note: ${dnsErr.message}`);
-  }
-  try {
-    await createCname(slug, `${projectName}.pages.dev`);
-    log(`CNAME ensured: ${slug}.tractifyhq.com → ${projectName}.pages.dev`);
-  } catch (cnameErr) {
-    log(`CNAME note: ${cnameErr.message}`);
+    log(`Custom domain error: ${dnsErr.message}`);
   }
 
   // ── Step 7: Pre-populate availability ────────────────────────────────────
