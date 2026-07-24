@@ -19,7 +19,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const db           = require('../database/db');
 const { sendContractorWelcomeEmail, sendDeployAlertToAdmin } = require('../services/notifications');
-const { createPagesProject, deployToPages, addPagesDomain, deleteDnsRecords } = require('../services/cloudflare');
+const { createPagesProject, deployToPages, addPagesDomain, createCname } = require('../services/cloudflare');
 
 const router = express.Router();
 
@@ -348,19 +348,24 @@ router.post('/', requireDeploySecret, async (req, res) => {
     }
   }
 
-  // ── Step 6: Register custom domain on the Pages project ─────────────────
-  // First delete any stale CNAME records for this subdomain — they conflict
-  // with the Pages Custom Domains API which creates its own DNS records.
-  try {
-    await deleteDnsRecords(slug);
-  } catch (cleanupErr) {
-    log(`DNS cleanup warning: ${cleanupErr.message}`);
-  }
+  // ── Step 6: Register custom domain + ensure DNS CNAME exists ────────────
+  // addPagesDomain registers the subdomain with the Pages project and
+  // creates the DNS CNAME automatically for NEW registrations.
+  // But if the domain was already registered from a previous deploy attempt,
+  // Pages returns "already exists" and does NOT recreate the DNS record.
+  // So we always call createCname afterwards as a guarantee — it silently
+  // ignores error 81053 if the record already exists.
   try {
     await addPagesDomain(projectName, `${slug}.tractifyhq.com`);
     log(`Custom domain registered: ${slug}.tractifyhq.com → ${projectName}`);
   } catch (dnsErr) {
     log(`Custom domain note: ${dnsErr.message}`);
+  }
+  try {
+    await createCname(slug, `${projectName}.pages.dev`);
+    log(`CNAME ensured: ${slug}.tractifyhq.com → ${projectName}.pages.dev`);
+  } catch (cnameErr) {
+    log(`CNAME note: ${cnameErr.message}`);
   }
 
   // ── Step 7: Pre-populate availability ────────────────────────────────────
