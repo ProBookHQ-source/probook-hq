@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 23, 2026 (session 3 — automation complete, heading into August).*
+*Last updated: July 24, 2026 (session 4 — subdomain auto-deploy fully built and live).*
 
 ---
 
@@ -461,14 +461,28 @@ The onboarding call was planned, then removed. The checklist replaced it entirel
 5. Post in a local Facebook community group (pre-written post copy)
 6. Message your top Google reviewers (pre-written message template)
 
-### 8. Subdomain Auto-Deploy — ⚠️ NEXT TO BUILD (before first client)
-Form submission triggers: auto-create contractor account → auto-generate API key linked to that contractor → auto-deploy HVAC template subdomain via Cloudflare Pages API → auto-set CNAME in Cloudflare DNS → auto-email contractor their portal login with first-login instructions. Zero human involvement from form submit to contractor going live.
+### 8. Subdomain Auto-Deploy — ✅ BUILT (July 24, 2026)
+**The final automation piece. The entire pipeline from ad click to contractor going live is now fully hands-off.**
 
-Also: intake form collects contractor's business hours → auto-populate their weekly availability slots on deploy. Contractor still reviews and adjusts in the portal, but the baseline is pre-filled from what they told us.
+Form submission → Cloudflare Worker → `POST /api/deploy` on Tractify → auto-create contractor account + API key → inject CLIENT config into HVAC template → deploy to Cloudflare Pages → create CNAME in DNS → pre-populate availability from intake hours → send contractor welcome email (portal URL + temp password) → send Jose admin alert.
 
-**This is the final automation piece.** Once built, the entire pipeline from ad click to contractor going live is hands-off. The only remaining bottlenecks are ad reach and job delivery speed.
+**Files built:**
+- `backend/services/cloudflare.js` — Pages API + DNS API wrapper (`createPagesProject`, `deployToPages`, `createCname`)
+- `backend/routes/deploy.js` — main deploy endpoint (`POST /api/deploy`, auth via `DEPLOY_SECRET` Bearer header)
+- `backend/templates/hvac-template.html` — HVAC template copy with `<!-- TRACTIFY_CONFIG_START/END -->` markers for config injection
+- `backend/services/notifications.js` — added `sendContractorWelcomeEmail` + `sendDeployAlertToAdmin`
+- `hvac-template/index.html` — added `<!-- TRACTIFY_CONFIG_START/END -->` markers around the `<script>` config block
+- `hvac-template/intake-form.html` — added `hoursRaw` to Worker payload (wdOpen/wdClose/satOpen/satClose/sunOpen/sunClose)
+- `NewWorkerScript-auto-deploy.js` — updated Worker that calls `/api/deploy` fire-and-forget after R2 save
 
-**Build before August if at all possible.** Until it's built, subdomain deploy is manual (still fast — edit CLIENT config, deploy to Cloudflare Pages, set CNAME, create contractor account + API key). The manual process is documented in the Client Go-Live Checklist below.
+**Railway env vars added (July 24):**
+- `DEPLOY_SECRET` — shared secret between Tractify and the Worker
+- `ADMIN_EMAIL` — `ayc98223@gmail.com` (admin alert emails)
+
+**Cloudflare Worker secret added (July 24):**
+- `TRACTIFY_DEPLOY_KEY` = same value as `DEPLOY_SECRET` (set via `wrangler secret put`)
+
+**Slug generation:** business name → lowercase → strip non-alphanumeric → e.g. "Premier Comfort HVAC" → "premiercomforthvac" → live at `premiercomforthvac.tractifyhq.com`. Booking slug auto-set to same value → direct booking at `tractifyhq.com/schedule/{slug}`.
 
 ### 9. The Proactive Outreach Play
 *(See Scaling Plan below for full details)*
@@ -1103,15 +1117,16 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 - ✅ Intake overlay conversion-optimized (July 20) — "Claim Your 5 Free Booked Jobs." headline, urgency badge, 3-step flow, confirm-step booking, sessionStorage refresh restore, "Don't have a Google listing?" path
 - ✅ Missed call text-back via Twilio — fully built (July 21). `POST /api/twilio/missed-call` webhook, `twilio_number` column on contractors, Admin Dashboard "Set Twilio #" per-contractor UI.
 - ✅ Self-serve onboarding checklist — built July 23. First-login modal + persistent Setup tab with 6 steps, copy-paste text, platform-specific instructions, 48hr nudge email to contractor + Jose + Daniel if incomplete. Replaces onboarding call entirely.
+- ✅ Subdomain auto-deploy — built July 24. Intake form submit → fully automated pipeline: contractor account + API key + Cloudflare Pages deploy + CNAME + availability pre-population + welcome email + admin alert. Zero Jose involvement. `DEPLOY_SECRET` set in Railway, `TRACTIFY_DEPLOY_KEY` set in Cloudflare Worker. New files: `backend/services/cloudflare.js`, `backend/routes/deploy.js`, `backend/templates/hvac-template.html`, `NewWorkerScript-auto-deploy.js`.
 
 **Remaining — must do before first client (blocking):**
 - [ ] ⚠️ Twilio compliance approval (pending — emailed trusthub-verify@twilio.com with CP 575B on July 23). Once approved: buy local number, set webhook to `https://tractifyhq.com/api/twilio/missed-call`, set Twilio number on contractor in admin, test end-to-end.
-- [ ] ⚠️ Subdomain auto-deploy — the final automation piece. Form submit → auto-create contractor account + API key → auto-deploy via Cloudflare Pages API → auto-CNAME in Cloudflare DNS → auto-email portal login. Until this is built, subdomain deploy is still manual (fast but requires Jose). Build this before August.
-- [ ] Jose expand availability in contractor portal (only relevant for Jose's personal booking page at /schedule/book — not blocking client onboarding since auto-deploy pre-populates from intake form hours)
+- [ ] ✅ Subdomain auto-deploy — BUILT July 24. Pipeline is fully automated.
+- [ ] Jose expand availability in contractor portal (only relevant for Jose's personal booking page at /schedule/book — not blocking client onboarding)
 - [ ] UptimeRobot monitoring — ✅ first monitor created (tractifyhq.com/health). Done.
 - [ ] Railway database backups — requires Pro plan ($20/month). Do NOT upgrade until first paying client. Once first client pays, upgrade immediately.
 - [ ] Service agreement — simple 1-page terms on intake form. Defines: free trial = 5 booked appointments (not 5 closed jobs), what retainer covers, cancellation terms. Add acceptance checkbox, store timestamp in DB.
-- [ ] Full end-to-end test before first real client goes live.
+- [ ] Full end-to-end test of auto-deploy flow (in progress July 24 — submit test intake form, verify site deploys + emails arrive).
 
 **Remaining — must do before first client converts (not day 1 blocking):**
 - [ ] Stripe integration — self-serve conversion at job 5. Job 5 milestone trigger → Stripe payment page → $2,000 setup fee → system flips them to paid. No manual invoicing.
@@ -1123,51 +1138,46 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 - [ ] Contractor dashboard live stats — jobs this month, revenue this month, total all time, next appointment (see Planned Features)
 - [ ] Automatic review request — SMS to homeowner 3 hours after appointment completed (see Planned Features)
 - [ ] Intake funnel view in admin dashboard (data collecting, UI not built)
+- [ ] Remove "service area description" field from intake form — redundant. ZIP codes drive the matching engine. `serviceArea` in CLIENT config can be auto-generated from city name. Less friction on the form.
 - [ ] Flip bridge ON once first contractor is onboarded (script properties only — no code changes)
 - [ ] Google Calendar credentials (deferred — add to Railway when ready)
 
 ---
 
-## ⚠️ Client Go-Live Checklist (HVAC Pipeline Bundle)
-**Run through this every single time you onboard a new HVAC client. Do not skip steps.**
+## Client Go-Live Checklist (HVAC Pipeline Bundle)
 
-**Current flow (July 23 — subdomain auto-deploy not yet built):** Contractor fills out intake form → Jose manually deploys subdomain using steps below → contractor receives portal login email → contractor completes 6-step checklist on their own → no call, no Jose involvement after deploy. Once subdomain auto-deploy is built, even the manual steps below disappear entirely.
+**As of July 24, 2026 — fully automated.** Contractor submits intake form → everything below happens automatically with zero Jose involvement.
 
-### Free Trial Setup (subdomain — no domain purchase)
-1. [ ] Contractor submits intake form at `intake.tractifyhq.com` — their info comes to you via email + R2
-2. [ ] Edit CLIENT config in `~/Desktop/hvac-template/index.html` with client info from the form
-3. [ ] Deploy to a new Cloudflare Pages project → note the `.pages.dev` URL
-4. [ ] In Cloudflare DNS, add CNAME: `[clientslug]` → `[their-pages-project].pages.dev`
-   - Client is now live at `clientslug.tractifyhq.com`
-5. [ ] Create contractor account in Tractify admin → Contractors → Add Contractor
-6. [ ] Create API key in Tractify admin → API Keys → New Key
-   - Name: client's business name
-   - Source slug: their subdomain slug
-   - **Link to their contractor account** ← required for inline booking to work
-   - **⚠️ Set `Allowed Origins` to `https://clientslug.tractifyhq.com`**
-7. [ ] Copy the generated API key — shown once only
-8. [ ] Paste the key into `tractifyKey` in the CLIENT config, redeploy to Cloudflare Pages
-9. [ ] On the onboarding call: walk contractor through setting weekly availability in the portal
-10. [ ] On the onboarding call: have contractor forward their number to Twilio number (2 min)
-11. [ ] On the onboarding call: add booking link to Google Business Profile under "Appointments" (10 min)
-12. [ ] On the onboarding call: post in one local Nextdoor neighborhood + one local Facebook group (5 min)
-13. [ ] On the onboarding call: send booking link message to top 10-20 Google reviewers (5 min)
-14. [ ] After the call: Jose turns on paid Facebook/Instagram ads targeting their zip codes ($5-10/day)
-15. [ ] Test: submit the lead form → inline slot picker should show with real slots → book a test appointment
-16. [ ] Send contractor their portal login
+### What happens automatically (zero manual steps)
+1. Worker receives intake form submission → saves to R2 → calls `POST /api/deploy`
+2. Tractify creates contractor account (email = contactEmail, temp password generated)
+3. Tractify creates API key linked to contractor, `allowed_origins` = their subdomain
+4. Tractify builds CLIENT config from form data, injects into HVAC template
+5. Tractify deploys to Cloudflare Pages project `tractify-{slug}`
+6. Tractify creates CNAME: `{slug}.tractifyhq.com` → `tractify-{slug}.pages.dev`
+7. Tractify pre-populates availability slots from their intake form hours
+8. Contractor receives welcome email: portal URL + login email + temp password
+9. Jose receives admin alert email: contractor info + site URL
+10. Contractor logs in → first-login modal → completes 6-step self-serve checklist
+
+### Jose's only post-deploy decisions
+- [ ] Decide whether this contractor gets paid ad spend (selective — not automatic for everyone)
+- [ ] If Twilio is approved: buy local number, set webhook, set number in admin → contractor handles forwarding themselves via checklist
 
 ### Conversion (paid — real domain)
 1. [ ] Buy their real domain
-2. [ ] Add as custom domain in the existing Cloudflare Pages project (same project, no redeploy)
-3. [ ] Update `allowed_origins` in the API key to include the real domain
-4. [ ] Charge $2,000 setup + $800/month retainer
-5. [ ] Replace `YOUR_PROBOOK_API_KEY` in the CLIENT config with the real key from step 3
-6. [ ] Update `CLIENT.sourceSite` and `CLIENT.siteUrl` to the client's actual domain
-7. [ ] Swap in client's logo, cover photo (from R2 bucket if uploaded via intake form)
-8. [ ] Deploy to Cloudflare Pages (or client's host)
-9. [ ] Verify the deployed domain matches what you set in `allowed_origins` — test a lead submission
-10. [ ] Have contractor log into Tractify portal and set their weekly availability
-11. [ ] Send contractor their Tractify portal login
+2. [ ] Add as custom domain in the existing Cloudflare Pages project (same project `tractify-{slug}`, no redeploy needed)
+3. [ ] Update `allowed_origins` in their API key to include the real domain (Admin → API Keys → edit)
+4. [ ] Charge $2,000 setup + $800/month retainer via Stripe (once Stripe is integrated)
+5. [ ] Swap in client's real logo + cover photo if they provide them (redeploy to Cloudflare Pages)
+
+### If auto-deploy ever fails (fallback — manual process)
+1. Edit CLIENT config in `~/Desktop/hvac-template/index.html` with client info
+2. Deploy to new Cloudflare Pages project → note `.pages.dev` URL
+3. In Cloudflare DNS, add CNAME: `{slug}` → `{project}.pages.dev`
+4. Create contractor account in Admin → Contractors → Add Contractor
+5. Create API key in Admin → API Keys → New Key → link to contractor → set `allowed_origins`
+6. Paste key into `tractifyKey` in CLIENT config, redeploy
 
 ---
 

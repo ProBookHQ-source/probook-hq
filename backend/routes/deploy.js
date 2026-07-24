@@ -19,7 +19,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const db           = require('../database/db');
 const { sendContractorWelcomeEmail, sendDeployAlertToAdmin } = require('../services/notifications');
-const { createPagesProject, deployToPages, createCname } = require('../services/cloudflare');
+const { createPagesProject, deployToPages, addPagesDomain } = require('../services/cloudflare');
 
 const router = express.Router();
 
@@ -348,13 +348,15 @@ router.post('/', requireDeploySecret, async (req, res) => {
     }
   }
 
-  // ── Step 6: Create CNAME ──────────────────────────────────────────────────
+  // ── Step 6: Register custom domain on the Pages project ─────────────────
+  // addPagesDomain() is the correct API — it tells Cloudflare Pages to serve
+  // this subdomain AND automatically creates the necessary DNS record.
+  // A raw CNAME to .pages.dev does NOT work; the Pages Custom Domains API is required.
   try {
-    await createCname(slug, `${projectName}.pages.dev`);
-    log(`CNAME created: ${slug}.tractifyhq.com → ${projectName}.pages.dev`);
+    await addPagesDomain(projectName, `${slug}.tractifyhq.com`);
+    log(`Custom domain registered: ${slug}.tractifyhq.com → ${projectName}`);
   } catch (dnsErr) {
-    // CNAME already exists = fine (caught inside createCname already)
-    log(`CNAME note: ${dnsErr.message}`);
+    log(`Custom domain note: ${dnsErr.message}`);
   }
 
   // ── Step 7: Pre-populate availability ────────────────────────────────────

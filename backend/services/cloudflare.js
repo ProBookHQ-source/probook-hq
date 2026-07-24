@@ -74,24 +74,57 @@ async function deployToPages(projectName, htmlContent) {
   return data.result;
 }
 
-// ── Create a CNAME record pointing subdomain → pages.dev URL ─────────────────
-// subdomain: e.g. "premiercomforthvac"   (no domain suffix — CF adds tractifyhq.com)
-// target:    e.g. "tractify-premiercomforthvac.pages.dev"
+// ── Register a custom domain on a Cloudflare Pages project ───────────────────
+// This is the correct way to serve a custom subdomain from Pages.
+// It registers the domain with Pages AND automatically creates the DNS record.
+//
+// projectName: e.g. "tractify-premiercomfort"
+// domain:      e.g. "premiercomfort.tractifyhq.com"
+async function addPagesDomain(projectName, domain) {
+  const res  = await fetch(
+    `${CF_API}/accounts/${ACCOUNT_ID()}/pages/projects/${projectName}/domains`,
+    {
+      method:  'POST',
+      headers: jsonHeaders(),
+      body:    JSON.stringify({ name: domain }),
+    }
+  );
+  const data = await res.json();
+  if (!data.success) {
+    // Ignore "already exists" / "already in use" errors — idempotent re-runs
+    const errMsg = JSON.stringify(data.errors || '');
+    const alreadyExists =
+      data.errors?.some(e =>
+        e.code === 8000007 || // already added to this project
+        e.code === 8000013    // already used by another project
+      ) ||
+      errMsg.toLowerCase().includes('already');
+    if (alreadyExists) {
+      console.log(`[CF] Custom domain ${domain} already registered — skipping`);
+      return null;
+    }
+    throw new Error(`Pages custom domain failed: ${errMsg}`);
+  }
+  console.log(`[CF] Custom domain registered: ${domain} → ${projectName}`);
+  return data.result;
+}
+
+// ── Create a CNAME record (kept for reference / manual use) ──────────────────
+// NOTE: For Pages subdomain routing, use addPagesDomain() above instead.
 async function createCname(subdomain, target) {
   const res  = await fetch(`${CF_API}/zones/${ZONE_ID()}/dns_records`, {
     method:  'POST',
     headers: jsonHeaders(),
     body:    JSON.stringify({
       type:    'CNAME',
-      name:    subdomain,             // CF appends .tractifyhq.com automatically
+      name:    subdomain,
       content: target,
       proxied: true,
-      ttl:     1,                     // 1 = automatic TTL (required when proxied)
+      ttl:     1,
     }),
   });
   const data = await res.json();
   if (!data.success) {
-    // Ignore "already exists" error (code 81053) — idempotent re-runs
     const alreadyExists = data.errors?.some(e => e.code === 81053);
     if (!alreadyExists) {
       throw new Error(`DNS CNAME create failed: ${JSON.stringify(data.errors)}`);
@@ -102,4 +135,4 @@ async function createCname(subdomain, target) {
   return data.result;
 }
 
-module.exports = { createPagesProject, deployToPages, createCname };
+module.exports = { createPagesProject, deployToPages, addPagesDomain, createCname };
