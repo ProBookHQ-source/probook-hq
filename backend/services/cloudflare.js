@@ -74,6 +74,26 @@ async function deployToPages(projectName, htmlContent) {
   return data.result;
 }
 
+// ── Delete stale DNS records for a subdomain (cleanup before custom domain add) ─
+// Finds and deletes any existing CNAME records for `subdomain.tractifyhq.com`
+// so Pages can create its own record without conflict.
+async function deleteDnsRecords(subdomain) {
+  const fullName = `${subdomain}.tractifyhq.com`;
+  const res = await fetch(
+    `${CF_API}/zones/${ZONE_ID()}/dns_records?type=CNAME&name=${encodeURIComponent(fullName)}&per_page=50`,
+    { headers: { Authorization: `Bearer ${API_TOKEN()}` } }
+  );
+  const data = await res.json();
+  if (!data.success || !data.result?.length) return;
+  for (const record of data.result) {
+    await fetch(`${CF_API}/zones/${ZONE_ID()}/dns_records/${record.id}`, {
+      method:  'DELETE',
+      headers: { Authorization: `Bearer ${API_TOKEN()}` },
+    });
+    console.log(`[CF] Deleted stale DNS record: ${record.name} → ${record.content}`);
+  }
+}
+
 // ── Register a custom domain on a Cloudflare Pages project ───────────────────
 // This is the correct way to serve a custom subdomain from Pages.
 // It registers the domain with Pages AND automatically creates the DNS record.
@@ -135,4 +155,4 @@ async function createCname(subdomain, target) {
   return data.result;
 }
 
-module.exports = { createPagesProject, deployToPages, addPagesDomain, createCname };
+module.exports = { createPagesProject, deployToPages, addPagesDomain, deleteDnsRecords, createCname };

@@ -19,7 +19,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const db           = require('../database/db');
 const { sendContractorWelcomeEmail, sendDeployAlertToAdmin } = require('../services/notifications');
-const { createPagesProject, deployToPages, addPagesDomain } = require('../services/cloudflare');
+const { createPagesProject, deployToPages, addPagesDomain, deleteDnsRecords } = require('../services/cloudflare');
 
 const router = express.Router();
 
@@ -349,9 +349,13 @@ router.post('/', requireDeploySecret, async (req, res) => {
   }
 
   // ── Step 6: Register custom domain on the Pages project ─────────────────
-  // addPagesDomain() is the correct API — it tells Cloudflare Pages to serve
-  // this subdomain AND automatically creates the necessary DNS record.
-  // A raw CNAME to .pages.dev does NOT work; the Pages Custom Domains API is required.
+  // First delete any stale CNAME records for this subdomain — they conflict
+  // with the Pages Custom Domains API which creates its own DNS records.
+  try {
+    await deleteDnsRecords(slug);
+  } catch (cleanupErr) {
+    log(`DNS cleanup warning: ${cleanupErr.message}`);
+  }
   try {
     await addPagesDomain(projectName, `${slug}.tractifyhq.com`);
     log(`Custom domain registered: ${slug}.tractifyhq.com → ${projectName}`);
