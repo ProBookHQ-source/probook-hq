@@ -19,7 +19,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const db           = require('../database/db');
 const { sendContractorWelcomeEmail, sendDeployAlertToAdmin } = require('../services/notifications');
-const { createPagesProject, deployToPages, addPagesDomain } = require('../services/cloudflare');
+const { deployToPages, addPagesDomain } = require('../services/cloudflare');
 
 const router = express.Router();
 
@@ -323,29 +323,16 @@ router.post('/', requireDeploySecret, async (req, res) => {
 
   log(`Template built (${templateHtml.length} bytes)`);
 
-  // ── Step 5: Deploy to Cloudflare Pages ────────────────────────────────────
+  // ── Step 5: Deploy to Cloudflare Pages (via Wrangler CLI) ────────────────
+  // Wrangler creates the Pages project automatically if it doesn't exist,
+  // or deploys to the existing project on retry. No need to call createPagesProject.
   let pagesResult;
   try {
-    // Create project first (idempotent — may already exist on retry)
-    const project = await createPagesProject(projectName);
-    log(`Pages project created: ${project.subdomain}`);
     pagesResult = await deployToPages(projectName, templateHtml);
     log(`Pages deployment complete: ${pagesResult.url || projectName}`);
   } catch (cfError) {
-    // Pages project may already exist (retry scenario) — try deploy anyway
-    if (cfError.message.includes('already exists') || cfError.message.includes('A project with this name already exists')) {
-      log(`Pages project already exists — deploying directly`);
-      try {
-        pagesResult = await deployToPages(projectName, templateHtml);
-        log(`Pages deployment complete (existing project)`);
-      } catch (deployErr) {
-        log(`Pages deploy failed: ${deployErr.message}`);
-        throw deployErr;
-      }
-    } else {
-      log(`Pages error: ${cfError.message}`);
-      throw cfError;
-    }
+    log(`Pages deploy failed: ${cfError.message}`);
+    throw cfError;
   }
 
   // ── Step 6: Register custom domain with Pages ────────────────────────────

@@ -1,6 +1,13 @@
 'use strict';
 
-const crypto = require('crypto');
+const crypto      = require('crypto');
+const path        = require('path');
+const fs          = require('fs');
+const os          = require('os');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+
+const execFileAsync = promisify(execFile);
 
 const CF_API      = 'https://api.cloudflare.com/client/v4';
 const ACCOUNT_ID  = () => process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -30,49 +37,50 @@ async function createPagesProject(name) {
 }
 
 // ── Deploy a single index.html file to an existing Pages project ──────────────
-// Uses the Cloudflare Pages Direct Upload API.
-// - Raw (uncompressed) HTML bytes — Pages handles storage and serving natively
-// - SHA256 hash computed from raw content
-// - Content-Type: text/html so Pages knows what it's storing
-// - Manifest keys use leading slash (e.g. /index.html)
-// NOTE: Do NOT gzip the content here. If we upload gzip bytes without a
-// per-part Content-Encoding header (which FormData can't set), Pages stores
-// binary and serves it as HTML → HTTP 500.
+// Uses Wrangler CLI (Cloudflare's own battle-tested deploy tool) rather than
+// the raw Direct Upload API. This eliminates all multipart/gzip complexity.
+// Wrangler is installed as a backend dependency and invoked as a child process.
 async function deployToPages(projectName, htmlContent) {
-  const rawBuffer = Buffer.from(htmlContent, 'utf-8');
-  const hash      = crypto.createHash('sha256').update(rawBuffer).digest('hex');
+  // Write HTML to a temp directory for Wrangler
+  const tmpDir  = fs.mkdtempSync(path.join(os.tmpdir(), 'tractify-'));
+  const htmlPath = path.join(tmpDir, 'index.html');
 
-  const form = new FormData();
+  try {
+    fs.writeFileSync(htmlPath, htmlContent, 'utf-8');
 
-  // Manifest: plain string field — must NOT be a Blob or File because undici adds
-  // filename="blob" to the Content-Disposition, which makes CF treat it as a file
-  // upload instead of a named field and returns error 8000096.
-  form.append('manifest', JSON.stringify({ '/index.html': hash }));
+    // Path to wrangler binary installed in backend/node_modules
+    const wranglerBin = path.join(__dirname, '../../node_modules/.bin/wrangler');
 
-  // File: raw HTML bytes, part name = hash, filename = hash
-  form.append(
-    hash,
-    new Blob([rawBuffer], { type: 'text/html; charset=utf-8' }),
-    hash
-  );
+    console.log(`[CF-WRANGLER] Deploying ${htmlContent.length} bytes to ${projectName}`);
 
-  const res  = await fetch(
-    `${CF_API}/accounts/${ACCOUNT_ID()}/pages/projects/${projectName}/deployments`,
-    {
-      method:  'POST',
-      headers: { Authorization: `Bearer ${API_TOKEN()}` },
-      body: form,
-    }
-  );
-  const data = await res.json();
-  // Log full response so Railway logs show exactly what CF returns
-  console.log(`[CF-DEPLOY] HTTP ${res.status} — ${JSON.stringify(data).slice(0, 800)}`);
-  if (!data.success) {
-    throw new Error(`Pages deploy failed: ${JSON.stringify(data.errors)}`);
+    const { stdout, stderr } = await execFileAsync(
+      wranglerBin,
+      [
+        'pages', 'deploy', tmpDir,
+        `--project-name=${projectName}`,
+        '--branch=main',
+        '--commit-dirty=true',
+      ],
+      {
+        env: {
+          ...process.env,
+          CLOUDFLARE_API_TOKEN:  process.env.CLOUDFLARE_API_TOKEN,
+          CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
+          // Suppress wrangler telemetry prompts
+          WRANGLER_SEND_METRICS: 'false',
+          NO_COLOR: '1',
+        },
+        timeout: 120_000, // 2-minute timeout
+      }
+    );
+
+    const output = (stdout + stderr).trim();
+    console.log(`[CF-WRANGLER] ${output}`);
+    return { url: `https://${projectName}.pages.dev` };
+
+  } finally {
+    try { fs.rmSync(tmpDir, { recursive: true }); } catch {}
   }
-  const deployUrl = data.result?.url || `https://${projectName}.pages.dev`;
-  console.log(`[CF] Deployment live: ${deployUrl}`);
-  return data.result;
 }
 
 // ── Delete stale DNS records for a subdomain (cleanup before custom domain add) ─
