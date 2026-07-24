@@ -49,7 +49,8 @@ async function deployToPages(projectName, htmlContent) {
     fs.writeFileSync(htmlPath, htmlContent, 'utf-8');
 
     // Path to wrangler binary installed in backend/node_modules
-    const wranglerBin = path.join(__dirname, '../../node_modules/.bin/wrangler');
+    // __dirname = backend/services/, so ../node_modules = backend/node_modules
+    const wranglerBin = path.join(__dirname, '../node_modules/.bin/wrangler');
 
     console.log(`[CF-WRANGLER] Deploying ${htmlContent.length} bytes to ${projectName}`);
 

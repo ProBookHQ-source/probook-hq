@@ -324,15 +324,15 @@ router.post('/', requireDeploySecret, async (req, res) => {
   log(`Template built (${templateHtml.length} bytes)`);
 
   // ── Step 5: Deploy to Cloudflare Pages (via Wrangler CLI) ────────────────
-  // Wrangler creates the Pages project automatically if it doesn't exist,
-  // or deploys to the existing project on retry. No need to call createPagesProject.
+  // Non-fatal: if deploy fails, contractor account + emails still succeed.
+  // Jose gets the admin alert and can manually deploy if needed.
   let pagesResult;
   try {
     pagesResult = await deployToPages(projectName, templateHtml);
     log(`Pages deployment complete: ${pagesResult.url || projectName}`);
   } catch (cfError) {
-    log(`Pages deploy failed: ${cfError.message}`);
-    throw cfError;
+    log(`Pages deploy FAILED (non-fatal): ${cfError.message}`);
+    // Continue — emails and DB records are more important than the page deploy
   }
 
   // ── Step 6: Register custom domain with Pages ────────────────────────────
