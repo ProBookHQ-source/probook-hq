@@ -30,47 +30,42 @@ async function createPagesProject(name) {
 }
 
 // ── Deploy a single index.html file to an existing Pages project ──────────────
-// Uses the Cloudflare Pages Direct Upload API (multipart/form-data).
-// The manifest maps file paths → sha256 hashes; each hash is a separate part.
+// Uses the Cloudflare Pages Direct Upload API via native FormData (Node 18+).
+// FormData handles multipart encoding and correctly sets Content-Disposition
+// with both name and filename attributes, which Cloudflare requires.
 async function deployToPages(projectName, htmlContent) {
   const htmlBuffer = Buffer.from(htmlContent, 'utf-8');
   const hash       = crypto.createHash('sha256').update(htmlBuffer).digest('hex');
-  const boundary   = `TractifyDeploy${Date.now()}`;
 
-  const body = Buffer.concat([
-    // Part 1: manifest
-    Buffer.from(`--${boundary}\r\n`),
-    Buffer.from(`Content-Disposition: form-data; name="manifest"\r\n`),
-    Buffer.from(`Content-Type: application/json\r\n`),
-    Buffer.from(`\r\n`),
-    Buffer.from(`{"index.html":"${hash}"}`),
-    Buffer.from(`\r\n`),
-    // Part 2: the HTML file (named by its hash)
-    Buffer.from(`--${boundary}\r\n`),
-    Buffer.from(`Content-Disposition: form-data; name="${hash}"\r\n`),
-    Buffer.from(`Content-Type: text/html\r\n`),
-    Buffer.from(`\r\n`),
-    htmlBuffer,
-    Buffer.from(`\r\n`),
-    // Close delimiter
-    Buffer.from(`--${boundary}--\r\n`),
-  ]);
+  const form = new FormData();
+
+  // Part 1: manifest — maps file path → sha256 hash
+  form.append(
+    'manifest',
+    new Blob([JSON.stringify({ 'index.html': hash })], { type: 'application/json' })
+  );
+
+  // Part 2: the file itself — named by its hash, filename tells CF which path it belongs to
+  form.append(
+    hash,
+    new Blob([htmlBuffer], { type: 'text/html' }),
+    'index.html'
+  );
 
   const res  = await fetch(
     `${CF_API}/accounts/${ACCOUNT_ID()}/pages/projects/${projectName}/deployments`,
     {
       method:  'POST',
-      headers: {
-        Authorization:  `Bearer ${API_TOKEN()}`,
-        'Content-Type': `multipart/form-data; boundary=${boundary}`,
-      },
-      body,
+      headers: { Authorization: `Bearer ${API_TOKEN()}` },
+      // Do NOT set Content-Type manually — fetch sets it automatically with the correct boundary
+      body: form,
     }
   );
   const data = await res.json();
   if (!data.success) {
     throw new Error(`Pages deploy failed: ${JSON.stringify(data.errors)}`);
   }
+  console.log(`[CF] Deployment created: ${data.result?.url || projectName}`);
   return data.result;
 }
 
