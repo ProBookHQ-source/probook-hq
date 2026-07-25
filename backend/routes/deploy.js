@@ -125,7 +125,7 @@ ${zipChunks.join(',\n')}
       responseTime:    "1 hour",
 
       // ── FINANCING ────────────────────────────────────────────
-      financingFrom:   "${esc(data.financingFrom || '')}",
+      financingFrom:   "${esc(data.financingFrom ? (String(data.financingFrom).startsWith('$') ? data.financingFrom : '$' + data.financingFrom) : '')}",
 
       // ── HERO HEADLINE ────────────────────────────────────────
       heroLine1:       "Comfort You Can",
