@@ -40,13 +40,24 @@ async function createPagesProject(name) {
 // Uses Wrangler CLI (Cloudflare's own battle-tested deploy tool) rather than
 // the raw Direct Upload API. This eliminates all multipart/gzip complexity.
 // Wrangler is installed as a backend dependency and invoked as a child process.
-async function deployToPages(projectName, htmlContent) {
+// extraAssets: array of { src: absolutePath, dest: filename } to copy into deploy dir
+async function deployToPages(projectName, htmlContent, extraAssets = []) {
   // Write HTML to a temp directory for Wrangler
   const tmpDir  = fs.mkdtempSync(path.join(os.tmpdir(), 'tractify-'));
   const htmlPath = path.join(tmpDir, 'index.html');
 
   try {
     fs.writeFileSync(htmlPath, htmlContent, 'utf-8');
+
+    // Copy extra assets (images, etc.) into the deploy directory so relative
+    // URLs like ./Coverphoto.jpg and ./probooklogo.png resolve correctly
+    for (const { src, dest } of extraAssets) {
+      try {
+        fs.copyFileSync(src, path.join(tmpDir, dest));
+      } catch (e) {
+        console.warn(`[CF-WRANGLER] Could not copy asset ${dest}: ${e.message}`);
+      }
+    }
 
     // Path to wrangler binary installed in backend/node_modules
     // __dirname = backend/services/, so ../node_modules = backend/node_modules
