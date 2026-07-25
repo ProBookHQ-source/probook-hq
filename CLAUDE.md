@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 24, 2026 (session 4 — subdomain auto-deploy fully built and live).*
+*Last updated: July 25, 2026 (session 6 — full channel strategy documented: 10 channels + 3 automated retention/referral triggers. Personal demo close retired — funnel is fully automated through Stripe, no human sales involvement).*
 
 ---
 
@@ -40,9 +40,7 @@ Steps 3-4 above are replaced by inline booking. After form submit, the slot pick
 
 **The pitch:** "You set your available hours. We do the rest. When a customer needs HVAC work, they find you, pick a time that works for you, and it goes straight on your calendar. No missed calls. No back and forth. No chasing leads. Just booked jobs showing up while you're on the job site."
 
-**The personal demo close:** Jose sends every prospect his booking link — `tractifyhq.com/schedule/book`. When they book the call, he opens with: *"You just booked this call the exact same way your customers will book jobs with you."* The prospect experiences the product before Jose says another word.
-
-**Note on the booking page:** The slug is `book` (not `jose`). Contractor account display name is "The Tractify Team". The 15-min call is for setting up a free trial — not a product demo. The product demos itself when real jobs start booking.
+**Note on the booking page:** The slug is `book` (not `jose`). Contractor account display name is "The Tractify Team". The funnel is fully automated — no personal sales call, no demo close. Contractor fills out the intake form, the pipeline deploys automatically, jobs appear, Stripe handles conversion at job 5. Zero human involvement from Tractify's side.
 
 ---
 
@@ -50,41 +48,34 @@ Steps 3-4 above are replaced by inline booking. After form submit, the slot pick
 
 These came out of Jose's cold calling sessions July 13-14. They fundamentally change the direction of the business.
 
-### Idea 0: The Free Trial Funnel — Subdomains Before Domains
-Every contractor starts as a free trial on a Tractify subdomain (e.g. `premiercomforthvac.tractifyhq.com`). Full product, real booking flow, real appointments. Zero cost to Jose. They get their 5 free booked jobs. If they convert — buy the real domain, charge the $2,000 setup fee. If they don't — you spent nothing.
+### Idea 0: The Free Trial Funnel — Subdomains Forever
+Every contractor lives on a Tractify subdomain permanently (e.g. `premiercomforthvac.tractifyhq.com`) — both during the free trial AND after converting to paid. No custom domain is ever purchased. The subdomain is the product. Homeowners don't care about the URL — they find the contractor through GBP, ads, missed call text-back, or social channels where the URL is never visible. The site just works.
 
-**Why this is the scalable model:**
-- Zero marginal cost per free trial — subdomain costs nothing
-- You only invest real money on contractors who already proved they convert
-- The funnel filters itself — engaged contractors convert, the rest self-select out
-- Scales infinitely online — one ad running 24/7, zero per-trial cost
+**Why subdomains forever is the right call:**
+- Zero marginal cost per contractor — no domain to buy, no DNS to configure, no extra build
+- Setup cost per contractor = ~$1.80 (Twilio number) — essentially nothing
+- Twilio numbers from non-converting trials can be released and reused for new contractors
+- Conversion moment is clean: Stripe fires at job 5, system marks them paid, everything keeps running. Nothing else changes.
+- Maximum lock-in: contractor's entire online booking presence lives on Tractify's domain. They can't leave and take anything with them. Zero leverage for the contractor, all leverage for Tractify.
+- Scales infinitely — one ad running 24/7, zero per-contractor infrastructure cost forever
 - The entire online pitch becomes: **"Let us get you your first 5 jobs free. No strings."**
 
-**How to deploy a free trial subdomain (manual process — first 2-3 clients):**
-No subdomain automation needed yet. Do it by hand:
-1. Edit `CLIENT` config in `~/Desktop/hvac-template/index.html` with client's info
-2. Deploy to a new Cloudflare Pages project → auto-gets a `.pages.dev` URL
-3. In Cloudflare DNS, add a CNAME: `premiercomforthvac` → `[their-pages-project].pages.dev`
-4. Client is live at `premiercomforthvac.tractifyhq.com` — looks professional, costs nothing
-5. Create their contractor account + API key in Tractify admin, link the API key to their contractor
-6. **⚠️ Set `allowed_origins` to `https://premiercomforthvac.tractifyhq.com`**
-7. Have contractor set their weekly availability in the portal
-
-When they convert (pay): buy their real domain, add it as a custom domain on the same Cloudflare Pages project. No code changes needed.
-
-**Build subdomain automation AFTER you have 3+ clients.** Do it by hand first — prove the process, then automate it.
+**If a contractor asks about the URL:** "Your booking platform runs on the Tractify network — same way Square payment links say square.site, or your GBP listing lives on Google. The homeowner experience is identical and the jobs work exactly the same way."
 
 **The online ad:**
 Hook: *"HVAC contractors — we'll book your first 5 jobs for free."*
 Body: *"No website needed. No commitment. We plug you into our software, set up your availability, and get 5 booked appointments onto your calendar automatically. If you love it we keep going. If not, no hard feelings."*
 CTA: *"Fill out our quick setup form and claim your 5 free jobs."* → intake.tractifyhq.com
 
-**The flow:**
-1. Contractor fills out intake form → success screen shows inline slot picker → contractor books 15-min onboarding call (3 days out) → deploy on subdomain in that window → onboarding call → they get 5 free jobs
-2. After jobs 2-3: check-in call — let them tell you it's working
-3. After 5 jobs: conversion call — $2,000 setup + $800/month retainer
-4. They say yes: buy domain, full build, start retainer
-5. They say no: you spent nothing, move on
+**The fully automated flow (no human involvement from Tractify):**
+1. Contractor sees ad → fills out intake form at `intake.tractifyhq.com`
+2. Pipeline auto-deploys: subdomain live, contractor account created, API key linked, 10 channels ready
+3. Contractor logs in → first-login modal → completes self-serve checklist
+4. Jobs start appearing on their calendar from multiple channels simultaneously
+5. At job 3: automated portal notification + email — data-aware messaging
+6. At job 5: automated Stripe payment page — $2,000 setup + $800/month retainer. One click, done.
+7. They pay → system flips them to paid, everything keeps running
+8. They don't pay → trial ends, you spent nothing, move on
 
 ### Idea 1: Stop Selling Websites, Sell Booked Appointments
 The old pitch was "I'll build you a free website." This frames Tractify as a web design service — low perceived value, tons of competition, and the word "free" signals desperation.
@@ -151,24 +142,63 @@ Every city has local Facebook groups ("Seattle Neighbors," "Bellevue Community B
 - Booking rate on this traffic is extremely high — intent is already there
 - Can be done on the onboarding call in minutes, contractor takes over afterward
 
+**Channel 7: Facebook Messenger + Instagram DM Auto-Reply → Captured Inbound Interest**
+Most contractors have a Facebook Business page and Instagram. Homeowners DM them constantly and get no response for days — those leads die. Facebook and Instagram both allow automatic instant replies to every incoming DM.
+- Auto-reply message: *"Thanks for reaching out to [Business Name]! You can book a time that works for you here: [booking link] — takes 60 seconds and we'll confirm right away."*
+- Set up once per contractor during onboarding week via Meta Business Suite — runs forever after that
+- Zero cost, zero ongoing effort — every DM becomes a potential booking automatically
+- Works 24/7: homeowner messages at 11pm, they get the booking link instantly instead of waiting until morning
+- **Build status: No code needed on Tractify side.** Set up manually by Jose/Daniel in Meta Business Suite during contractor's first week. Takes 5 minutes per contractor.
+- ⚠️ **Onboarding checklist:** Add as Step 7 in the contractor portal checklist with exact instructions + copy-paste reply text
+
+**Channel 8: Facebook Pixel + Retargeting → Homeowners Who Almost Booked**
+Every homeowner who visits the contractor's Tractify subdomain but doesn't fill out the form is a warm lead that currently disappears. The Facebook Pixel captures them and lets retargeting ads follow them automatically.
+- Add pixel base code to `hvac-template/index.html` with a `fbPixelId` variable in the CLIENT config
+- When `fbPixelId` is set, the pixel fires on every page load — Tractify's retargeting campaign automatically serves these visitors "Still need AC service? Book in 60 seconds" ads for the next 2 weeks
+- Retargeting CPCs are 50-70% cheaper than cold traffic and convert 2-3x better — these visitors already showed intent
+- Jose runs one retargeting campaign from his Business Manager with URL-based audience rules per contractor subdomain (e.g. all visitors to `premiercomfort.tractifyhq.com` → custom audience → retargeting ad)
+- Fire-and-forget: set up once per contractor, runs automatically while their trial is active
+- **Build needed:** Add `fbPixelId: ""` to CLIENT config in `deploy.js` `buildClientConfig()`. Add pixel snippet to `hvac-template/index.html` that only fires when `fbPixelId` is non-empty. Jose sets pixel ID per contractor when deploying.
+
+**Channel 9: Facebook Lead Ads → Direct Tractify Webhook**
+Instead of sending homeowners to the HVAC template site, Facebook Lead Ads open a pre-filled form inside Facebook — name, phone, and email auto-populated from their account. No page to load, no form to type. Homeowner taps "Get Quote," confirms their info, submits. Facebook fires a webhook to Tractify immediately. Tractify creates the lead and sends the homeowner an SMS with their booking link. 3-5x higher conversion than click-to-website ads because friction is nearly zero.
+- Facebook fires `POST /api/leads/facebook` webhook when a lead submits
+- Tractify calls Facebook Graph API with the `lead_id` to retrieve name, phone, email
+- Lead is created in the system, booking link SMS sent automatically
+- If API key is contractor-linked, routes directly to them — no matching engine needed
+- Jose sets up one Lead Ad campaign per contractor in his Business Manager, points webhook to Tractify
+- **Build needed:** New route `backend/routes/facebook.js` — webhook verification (Facebook sends a challenge on setup), lead retrieval via Graph API, SMS dispatch via Twilio. Store a `FB_PAGE_ACCESS_TOKEN` env var in Railway.
+
+**Channel 10: SMS Keyword → Physical Touchpoint Bookings**
+Every physical thing the contractor owns becomes a lead source. Truck wrap, business card, invoice, fridge magnet left at every completed job — all say "Text BOOK to [number]." Someone sees the truck in a neighbor's driveway, texts the keyword, gets the booking link back in seconds automatically. The truck is driving around the service area generating leads 24/7 with zero effort.
+- Contractor's existing Twilio number handles inbound SMS (same number already used for missed call text-back)
+- When anyone texts that number (any message, no specific keyword required), auto-reply fires: *"Book online with [Business Name]: tractifyhq.com/schedule/[slug] — takes 60 seconds."*
+- Works from any physical touchpoint — van wrap, business card, invoice, fridge magnet, door hanger
+- Fridge magnet left at every completed job = permanent re-booking channel from every past customer
+- **Build needed:** Add inbound SMS handler to `backend/routes/twilio.js`. Twilio fires `POST /api/twilio/inbound-sms` when someone texts the contractor's number. Look up contractor by Twilio number, reply with their booking link. Separate from the missed call webhook (which fires on voice calls). Set the SMS webhook URL in Twilio console alongside the existing voice webhook.
+
 **Why the combination is a breakthrough:**
-All six channels feed the same booking infrastructure that's already live. Together they create something no competitor is doing — a complete done-for-you demand generation machine:
+All ten channels feed the same booking infrastructure that's already live. Together they create something no competitor is doing — a complete done-for-you demand generation machine:
 - Paid ads drive NEW homeowners who've never heard of the contractor
+- Facebook Lead Ads capture that same traffic with zero landing-page friction
 - Missed call text-back captures homeowners who already called and got no answer
+- SMS keyword turns every physical touchpoint into an automatic lead source
 - Google Business Profile captures people actively searching right now
 - Nextdoor captures neighborhood trust traffic
 - Google reviewers re-engage past customers who already love the contractor
 - Facebook groups capture homeowners mid-search in real time
+- Facebook Messenger + Instagram auto-reply captures every inbound DM automatically
+- Facebook Pixel + retargeting recaptures homeowners who visited but didn't book
 
 The result: a contractor goes live on a Friday. By Monday, jobs are appearing on their calendar from every direction. They didn't share a link, they didn't do anything. Tractify did it for them.
 
 **Why this speeds up the whole business model:**
 - 5 free jobs happen in days, not weeks
 - Contractor sees value immediately → emotional hook before they've paid a dollar
-- Conversion call happens faster → revenue comes faster
+- Stripe conversion page fires at job 5 → revenue arrives with zero human involvement
 - Free trial filters itself: contractors who don't engage self-select out, costs Jose nothing
 
-**There is no onboarding call.** The self-serve checklist inside the contractor portal (built July 23) replaces the call entirely. Contractor logs in for the first time → first-login modal walks them through 6 steps → they complete each step at their own pace. Jose and Daniel are completely out of the onboarding process. All 6 channels activate through the checklist with zero human involvement from the Tractify side.
+**There is no onboarding call.** The self-serve checklist inside the contractor portal (built July 23) replaces the call entirely. Contractor logs in for the first time → first-login modal walks them through the setup steps → they complete each step at their own pace. Jose and Daniel are completely out of the onboarding process. All channels activate through the checklist or automatically — zero human involvement from the Tractify side.
 
 **The innovation in one sentence:** Tractify doesn't just give contractors a booking tool — it activates every channel they already have, drives new traffic from multiple directions, and delivers the booked jobs. The contractor just shows up.
 
@@ -177,6 +207,11 @@ The result: a contractor goes live on a Friday. By Monday, jobs are appearing on
 - ✅ Paid ads — no code needed, just a Facebook ad account and budget
 - ✅ Missed call text-back via Twilio — built July 21 (see Twilio section below)
 - ✅ Google Business Profile, Nextdoor, Facebook groups, Google reviewers — no code needed, done on onboarding call
+- ⬜ Facebook Messenger + Instagram DM auto-reply — no Tractify code needed; set up in Meta Business Suite per contractor. Add as Step 7 to onboarding checklist UI.
+- ⬜ Facebook Pixel + retargeting — small template + deploy.js change. Add `fbPixelId` to CLIENT config. Jose runs retargeting campaign from his Business Manager.
+- ⬜ Missed call follow-up text at 2 hours (if no booking) — backend change in `backend/routes/twilio.js`
+- ⬜ Facebook Lead Ads webhook — new route `backend/routes/facebook.js`. Receive lead webhook, call Graph API to get name/phone/email, create lead, send booking link SMS. Needs `FB_PAGE_ACCESS_TOKEN` in Railway env vars.
+- ⬜ SMS keyword / inbound SMS handler — add inbound SMS webhook to `backend/routes/twilio.js`. Anyone who texts contractor's Twilio number gets auto-reply with their booking link. Powers all physical touchpoints (van, business card, fridge magnet, door hanger).
 
 ### Idea 5: One Template Per Niche — The Automation Backbone (July 21, 2026)
 
@@ -192,13 +227,13 @@ Tractify is not a website company. The website is infrastructure — the same wa
 - The contractor's name, reviews, phone, and service area make it theirs. Homeowners don't compare contractor sites side by side anyway.
 
 **Why this makes the whole company work:**
-This is the piece that makes everything else click together. One template + variable substitution from intake form data = deployment can be fully automated. "Contractor fills out form" to "contractor is live with 6 channels running" with zero human involvement. That's always been the destination — this is what gets you there.
+This is the piece that makes everything else click together. One template + variable substitution from intake form data = deployment can be fully automated. "Contractor fills out form" to "contractor is live with 10 channels running" with zero human involvement. That's always been the destination — this is what gets you there.
 
 **The constraint IS the product:**
 By not offering custom sites, you lock yourself into selling outcomes instead of deliverables. You literally can't sell websites because you don't have a web design service. You only have booked jobs. Every conversation starts and ends there. Not a pitch — just true.
 
 **Why this unlocks the proactive outreach play at scale:**
-When you're ready to find contractors, deploy their site, run $20 in ads, and call them with a booked job — you can do it for any niche in minutes. Swap the cover photo. Same form. Same API key flow. Same 6 channels. Same conversion call. The playbook doesn't change per niche, only the photo does. Without this, each new niche is a design project. With this, each new niche is a folder copy.
+When you're ready to find contractors, deploy their site, run $20 in ads, and let jobs appear automatically — you can do it for any niche in minutes. Swap the cover photo. Same form. Same API key flow. Same 10 channels. Same Stripe conversion at job 5. The playbook doesn't change per niche, only the photo does. Without this, each new niche is a design project. With this, each new niche is a folder copy.
 
 **Build status:** HVAC template already exists and is live. This decision means no new design work is needed per client or per niche expansion — only the template variables change.
 
@@ -233,12 +268,12 @@ Tractify automatically texts each contractor's past customer list when seasons c
 
 **Current phase:** Content + paid ads — both Jose and Daniel heads down creating content and running paid ads targeting HVAC contractors. Cold calling is retired. The offer is strong enough to convert at scale without it. The goal is to get the offer in front of as many contractors as possible and let the product sell itself.
 
-**Why this is the right move:** Cold calling is 1:1. An ad runs 24/7 and reaches thousands simultaneously. Contractors who respond to an ad are already interested — they're half sold before the 15-minute call even starts. The free trial offer (5 booked jobs, zero risk) is strong enough to stop the scroll and convert. This is how you build a company at scale, not a local service business.
+**Why this is the right move:** Cold calling is 1:1. An ad runs 24/7 and reaches thousands simultaneously. Contractors who respond to an ad are already interested — they're already half sold. The free trial offer (5 booked jobs, zero risk) is strong enough to stop the scroll and convert. This is how you build a company at scale, not a local service business.
 
 **The funnel (fully automated as of July 23, 2026):**
-Ad or organic content → contractor fills out intake form at `intake.tractifyhq.com` → subdomain auto-deploys instantly (Cloudflare Pages API) → contractor receives portal login via email → first-login modal appears → contractor completes 6-step self-serve checklist (availability, Twilio forwarding, GBP booking link, Nextdoor, Facebook group, Google reviewers) → 6 channels activate → 5 jobs delivered → Stripe conversion page → $2,000 setup + $800/month retainer. Zero Jose or Daniel involvement after the ad runs.
+Ad or organic content → contractor fills out intake form at `intake.tractifyhq.com` → subdomain auto-deploys instantly (Cloudflare Pages + Wrangler CLI) → contractor receives portal login via email → first-login modal appears → contractor completes self-serve onboarding checklist (availability, Twilio forwarding, GBP booking link, Nextdoor, Facebook group, Google reviewers, Messenger/Instagram auto-reply) → 10 channels activate → 5 jobs delivered → automated Stripe conversion page → $2,000 setup + $800/month retainer. Zero Jose or Daniel involvement after the ad runs.
 
-**There is no onboarding call.** It was planned, then removed. The self-serve checklist replaced it entirely before the first client. The only bottlenecks in August are: (1) ad reach — how many contractors see the offer, and (2) job delivery speed — how fast the 6 channels get 5 bookings onto each contractor's calendar. Deployment is instant and automatic. Setup is self-serve. The pipeline is hands-off.
+**There is no onboarding call.** It was planned, then removed. The self-serve checklist replaced it entirely before the first client. The only bottlenecks in August are: (1) ad reach — how many contractors see the offer, and (2) job delivery speed — how fast the channels get 5 bookings onto each contractor's calendar. Deployment is instant and automatic. Setup is self-serve. The pipeline is hands-off.
 
 ---
 
@@ -247,7 +282,8 @@ Ad or organic content → contractor fills out intake form at `intake.tractifyhq
 **The core principle:** Price reflects value delivered, not cost to serve. Costs stay flat. Value to the contractor compounds every month.
 
 ### Phase 1 — Proving It (First 3-5 clients)
-- **Setup fee:** $2,000 (one-time — covers subdomain deploy, contractor account setup, API key, onboarding call, Twilio setup)
+- **Setup fee:** $2,000 (one-time — covers contractor account setup, API key, Twilio number, channel activation, ad spend to deliver the 5 free jobs)
+- **Actual cost to Tractify per contractor:** ~$1.80 (Twilio number) + selective ad spend. Twilio numbers from non-converting trials are released back to the pool and reused for new contractors.
 - **Retainer:** $800/month
   - $500 stays in pocket
   - $300 goes toward paid Facebook/Instagram ad spend for that contractor during active period
@@ -301,7 +337,7 @@ Hook with a pain point the contractor feels daily → show the solution working 
 - Track cost per completed form — that's the conversion metric that matters
 
 **The compounding flywheel:**
-Content → inbound contractor books call → onboard on free trial → deliver 5 jobs → contractor converts → case study auto-generated from system data → better content → more contractors → repeat. Every case study makes the next ad more powerful. The 5 free trial clients aren't just the first clients — they are the ad creative for every client after them.
+Content → inbound contractor fills intake form → pipeline auto-deploys → 10 channels activate → 5 jobs delivered → Stripe conversion at job 5 → case study auto-generated from system data → better content → more contractors → repeat. Every case study makes the next ad more powerful. The 5 free trial clients aren't just the first clients — they are the ad creative for every client after them.
 
 **The Facebook group runs alongside content from day one:**
 Start building "Home Service Contractors — More Booked Jobs" (or similar non-niche-specific name) aggressively in August alongside content creation. Not HVAC-specific — applies to all home service niches as Tractify expands. The group is a long play: build it with genuine value (tactical posts, win posts, question posts, behind-the-scenes), let trust compound over weeks, contractors self-convert to the intake form after seeing real results. Group members convert at higher rates than cold ad traffic because the trust is already built. The group becomes the best sales channel over time — an audience Tractify owns permanently.
@@ -317,7 +353,7 @@ Facebook ad (HomeAdvisor targeting) → join the group → weeks of value conten
 - Never mention website, system, or technology — only booked jobs and outcomes
 - The offer is always 5 free booked jobs, no strings, we want the case study
 - Every piece of content drives to `intake.tractifyhq.com`
-- The sales call opener never changes: *"Before I say anything — you just booked this call the exact same way your customers are going to book jobs with you. That's the whole product right there."*
+- The funnel is fully automated — no personal sales calls, no demo close, no onboarding call. Stripe handles conversion at job 5.
 
 ---
 
@@ -349,6 +385,34 @@ Case studies don't require filming, chasing contractors, or getting anyone on ca
 ## Planned Features (Build Order — Post First 3 Clients)
 
 These are confirmed ideas from the July 21 brainstorm. Not building yet — get first clients first, then build in this order.
+
+### 0. Three Channel Enhancements (Build Before/During First Contractors)
+
+These are quick wins that strengthen job delivery for the first free trial contractors. Build alongside or just before first client activation, not after.
+
+**A. Facebook Pixel + Retargeting on HVAC Template**
+Add `fbPixelId: ""` to `buildClientConfig()` in `deploy.js`. Add pixel snippet to `hvac-template/index.html` — only fires when `fbPixelId` is non-empty. Jose sets the pixel ID per contractor when deploying. Run one retargeting campaign from Jose's Business Manager using URL-based custom audiences per contractor subdomain. Retargeting CPCs are 50-70% cheaper than cold traffic and convert 2-3x better.
+
+**B. Messenger + Instagram DM Auto-Reply (Step 7 in Onboarding Checklist)**
+No Tractify code needed. Jose/Daniel sets up the auto-reply in Meta Business Suite during the contractor's first week (5 min per contractor). Add Step 7 to the onboarding checklist UI in `ContractorPortal.jsx` with copy-paste reply text pre-filled with their booking link. Reply text: *"Thanks for reaching out to [Business Name]! Book a time here: [slug] — takes 60 seconds."*
+
+**C. Missed Call Follow-Up Text (2 Hours, No Booking)**
+After the initial missed call SMS fires, schedule a 2-hour delayed check. If the caller hasn't booked → send one follow-up text: *"Just checking in — still happy to help. Here's that booking link: [slug]"*. One follow-up only, never a third. Implementation: `setTimeout` or a lightweight queue in the Twilio webhook handler (`backend/routes/twilio.js`). Check `appointments` table for a booking tied to that caller phone + contractor within the 2-hour window before sending.
+
+**D. Abandoned Booking Follow-Up**
+When a homeowner submits the lead form on the HVAC template but doesn't pick a time from the slot picker, they're the hottest possible lead — they filled out the form, they just got interrupted. 1 hour after form submission with no corresponding appointment, Tractify auto-texts them: *"Hey, looks like you got pulled away — here's your booking link to grab a time whenever you're ready: [link]."* Implementation: cron job that checks `leads` table for entries created 1 hour ago with `status = 'new'` (no appointment yet) and fires a Twilio SMS. Log in `lead_events`.
+
+**E. 12-Month Past Customer Re-Engagement**
+Every completed job seeds an automatic booking 12 months later. On the anniversary of a completed appointment, Tractify auto-texts the homeowner: *"It's been a year since [Business Name] serviced your system — most units need an annual tune-up to stay efficient. Book yours here: [link]."* Pure automated recurring revenue that compounds as the customer base grows — month 1 you have nothing, month 13 the re-bookings start arriving with zero ad spend. Implementation: cron job running daily, checks `appointments` where `status = 'completed'` and `created_at` is ~365 days ago, fires Twilio SMS to the homeowner contact stored in the lead record.
+
+**F. Post-Job Referral Text**
+3 days after an appointment is marked complete, Tractify auto-texts the homeowner: *"Really glad we could help — if you know anyone who needs HVAC work, here's a link they can use to book directly: [link]."* No incentive needed — HVAC is one of the highest-referral service categories, people actively recommend their contractors. This makes that recommendation frictionless and automatic. Implementation: cron job or `setTimeout` triggered when appointment status flips to `completed`. Fires 3 days later via Twilio. Log in `lead_events`.
+
+**G. Facebook Lead Ads → Tractify Webhook (Channel 9)**
+New route `backend/routes/facebook.js`. Facebook fires a webhook when a homeowner submits a Lead Ad form. Flow: webhook received → call Graph API with `lead_id` to retrieve name/phone/email → create lead in Tractify → send homeowner SMS with booking link immediately. Requires: `FB_PAGE_ACCESS_TOKEN` Railway env var (a Page-level access token from Jose's Business Manager), Facebook webhook verification challenge handler (Facebook sends a GET with `hub.challenge` on setup — must echo it back). Jose sets up one Lead Ad campaign per contractor in his Business Manager targeting homeowners in their zip codes, pointing the lead webhook to `https://tractifyhq.com/api/leads/facebook`. 3-5x higher conversion than click-to-website ads — no landing page, form is pre-filled from Facebook account.
+
+**H. SMS Keyword / Inbound SMS Handler (Channel 10)**
+Add inbound SMS handling to `backend/routes/twilio.js`. When anyone texts the contractor's Twilio number (any message), Tractify looks up the contractor by Twilio number and auto-replies with their booking link: *"Book online with [Business Name]: tractifyhq.com/schedule/[slug] — takes 60 seconds."* In Twilio console, set the "A message comes in" webhook on the contractor's number to `https://tractifyhq.com/api/twilio/inbound-sms` (separate from the voice webhook at `/api/twilio/missed-call`). Powers every physical touchpoint — truck wrap, business cards, invoices, fridge magnets left at completed jobs, door hangers. The truck becomes a rolling lead generation machine. The fridge magnet becomes a permanent re-booking channel from every past customer's home forever.
 
 ### 1. Booking Source Tracking
 Add a `booking_source` field to the `appointments` table. Every booking gets tagged with which channel drove it:
@@ -409,7 +473,7 @@ After an appointment is marked complete, the contractor gets a small inline prom
 - Tractify intelligence: you'll know which contractors close well (80%+) vs. which need coaching (30%). Route more leads to high-closers.
 - Phase 2 price justification: "Tractify generated $X for you last month" is an inarguable anchor for raising the retainer
 
-### 4. Automatic Review Request After Completed Appointments
+### 5. Automatic Review Request After Completed Appointments
 After every appointment is marked complete, Tractify automatically texts the homeowner 3 hours later:
 *"Hi [Name], thanks for choosing [Business Name] today — if everything went great, a quick Google review would mean the world to them: [direct review link]"*
 
@@ -420,7 +484,7 @@ More reviews → higher Google rating → better placement in "HVAC near me" sea
 
 **Implementation:** Store Google review link on contractor profile. Add cron trigger 3 hours after appointment status flips to "completed." Send SMS via Twilio.
 
-### 5. Monthly Results Report (Auto-Generated)
+### 6. Monthly Results Report (Auto-Generated)
 At the end of each month, Tractify automatically emails each contractor a results summary:
 - Jobs booked this month
 - Missed calls recovered
@@ -431,18 +495,18 @@ At the end of each month, Tractify automatically emails each contractor a result
 
 Zero manual work. Fully automated. Runs on node-cron at end of month. Makes the value of Tractify visible every single month — the contractor gets proof delivered to their inbox whether they logged in or not. Pure retention tool.
 
-### 6. Contractor Referral Program
+### 7. Contractor Referral Program
 Each paying contractor gets a unique referral link. When another contractor signs up through that link AND converts to a paying client (not just free trial), the referrer gets one month of retainer free.
 
 - Reward is conversion-only — not free trial signups. Prevents gaming.
 - Turns every happy client into a sales channel automatically.
 - HVAC contractors talk to each other constantly. One happy client in a market can unlock the whole market.
 
-### 7. Broadcast SMS + Seasonal Campaigns
+### 8. Broadcast SMS + Seasonal Campaigns
 *(See Idea 4 above for full details)*
 Build after first 3 paying clients are stable. Requires A2P 10DLC registration through Twilio before any bulk sends.
 
-### 7. Self-Serve Onboarding Checklist — ✅ BUILT (July 23, 2026)
+### 9. Self-Serve Onboarding Checklist — ✅ BUILT (July 23, 2026)
 ⚠️ **Revisit and optimize before August 3rd** — checklist is functional and live but needs a polish pass before first real contractor sees it. Do this AFTER subdomain auto-deploy is complete.
 The onboarding call was planned, then removed. The checklist replaced it entirely before the first client ever signed up.
 
@@ -461,19 +525,29 @@ The onboarding call was planned, then removed. The checklist replaced it entirel
 5. Post in a local Facebook community group (pre-written post copy)
 6. Message your top Google reviewers (pre-written message template)
 
-### 8. Subdomain Auto-Deploy — ✅ BUILT (July 24, 2026)
-**The final automation piece. The entire pipeline from ad click to contractor going live is now fully hands-off.**
+### 10. Subdomain Auto-Deploy — ✅ CONFIRMED LIVE (July 25, 2026)
+**The final automation piece. The entire pipeline from ad click to contractor going live is fully hands-off and confirmed working in production.**
 
-Form submission → Cloudflare Worker → `POST /api/deploy` on Tractify → auto-create contractor account + API key → inject CLIENT config into HVAC template → deploy to Cloudflare Pages → create CNAME in DNS → pre-populate availability from intake hours → send contractor welcome email (portal URL + temp password) → send Jose admin alert.
+Form submission → Cloudflare Worker → `POST /api/deploy` on Tractify → auto-create contractor account + API key → inject CLIENT config into HVAC template → deploy to Cloudflare Pages via Wrangler CLI → register `{slug}.tractifyhq.com` subdomain → pre-populate availability from intake hours → send contractor welcome email (portal URL + temp password) → send Jose admin alert.
+
+**Confirmed live:** `evergreenhomeheatingandenergy.tractifyhq.com` — first contractor site deployed end-to-end via automated pipeline (July 25, 2026).
 
 **Files built:**
-- `backend/services/cloudflare.js` — Pages API + DNS API wrapper (`createPagesProject`, `deployToPages`, `createCname`)
-- `backend/routes/deploy.js` — main deploy endpoint (`POST /api/deploy`, auth via `DEPLOY_SECRET` Bearer header)
+- `backend/services/cloudflare.js` — Cloudflare API wrapper. `deployToPages` uses **Wrangler CLI** (not raw Direct Upload API). `addPagesDomain` checks domain status first — skips re-registration if already active.
+- `backend/routes/deploy.js` — main deploy endpoint (`POST /api/deploy`, auth via `DEPLOY_SECRET` Bearer header). Pages deploy step is **non-fatal** — contractor account and emails always complete even if deploy errors.
 - `backend/templates/hvac-template.html` — HVAC template copy with `<!-- TRACTIFY_CONFIG_START/END -->` markers for config injection
 - `backend/services/notifications.js` — added `sendContractorWelcomeEmail` + `sendDeployAlertToAdmin`
 - `hvac-template/index.html` — added `<!-- TRACTIFY_CONFIG_START/END -->` markers around the `<script>` config block
 - `hvac-template/intake-form.html` — added `hoursRaw` to Worker payload (wdOpen/wdClose/satOpen/satClose/sunOpen/sunClose)
 - `NewWorkerScript-auto-deploy.js` — updated Worker that calls `/api/deploy` fire-and-forget after R2 save
+
+**Wrangler CLI deployment (critical implementation detail):**
+The raw Cloudflare Pages Direct Upload API was tried extensively but produced HTTP 500 on the deployed site regardless of gzip vs raw, manifest key format, or content-type. Root cause was never isolated — likely a per-part Content-Encoding issue with Node.js native FormData. Solution: install `wrangler` as a backend npm dependency and invoke it as a child process. Wrangler handles all upload internals (compression, hashing, multipart format) and is battle-tested. Wrangler is in `backend/package.json` dependencies. Binary path: `backend/node_modules/.bin/wrangler` → resolved in code as `path.join(__dirname, '../node_modules/.bin/wrangler')` from `backend/services/`.
+
+**Default config values injected when intake form fields are empty:**
+- `logoImg` — Tractify logo embedded as base64 data URL (no external URL needed, never breaks)
+- `coverPhoto` — HVAC stock photo from Unsplash (`images.unsplash.com/photo-1621905252507-b35492cc74b4`)
+- Both get replaced with contractor's real assets at conversion (add to Client Go-Live Checklist step)
 
 **Railway env vars added (July 24):**
 - `DEPLOY_SECRET` — shared secret between Tractify and the Worker
@@ -484,14 +558,14 @@ Form submission → Cloudflare Worker → `POST /api/deploy` on Tractify → aut
 
 **Slug generation:** business name → lowercase → strip non-alphanumeric → e.g. "Premier Comfort HVAC" → "premiercomforthvac" → live at `premiercomforthvac.tractifyhq.com`. Booking slug auto-set to same value → direct booking at `tractifyhq.com/schedule/{slug}`.
 
-### 9. The Proactive Outreach Play
+### 11. The Proactive Outreach Play
 *(See Scaling Plan below for full details)*
 Phase 3 only — after full onboarding automation + 5-10 paying clients. Find contractor, deploy subdomain automatically, spend on ads, call them with a real booked job. Close rate near 100%.
 
 ---
 
 ### Cold Calling (Retired July 18, 2026)
-Cold calling served its purpose — it proved the pitch, sharpened the script, and identified the pain points contractors actually have. That foundation now lives in the content. The script still exists in `Tractify-Sales-Script.docx` for reference. The offer and the opener are still the same — they just get delivered through content now instead of a phone.
+Cold calling served its purpose — it proved the pitch, sharpened the script, and identified the pain points contractors actually have. That foundation now lives in the content. The script still exists in `Tractify-Sales-Script.docx` for reference. The offer is the same — 5 free booked jobs, no strings. The delivery is different — content and ads at scale instead of 1:1 phone calls.
 
 ---
 
@@ -560,10 +634,15 @@ FROM_EMAIL           → bookings@tractifyhq.com
 BRAND_NAME           → Tractify
 FRONTEND_URL         → https://tractifyhq.com
 INBOUND_API_KEY      → set (Fort Knox key from randomkeygen.com) ← bridge auth key
+TWILIO_ACCOUNT_SID   → set (July 21) ← missed call text-back
+TWILIO_AUTH_TOKEN    → set (July 21) ← missed call text-back
+DEPLOY_SECRET        → set (July 24) ← shared secret with Cloudflare Worker
+ADMIN_EMAIL          → ayc98223@gmail.com (July 24) ← admin alert emails
 GOOGLE_CLIENT_ID     → not set yet
 GOOGLE_CLIENT_SECRET → not set yet
 GOOGLE_REDIRECT_URI  → not set yet
 SENTRY_DSN           → not set yet (optional — add to enable error monitoring)
+FB_PAGE_ACCESS_TOKEN → not set yet (needed for Facebook Lead Ads webhook — Channel 9)
 ```
 
 ---
@@ -771,7 +850,7 @@ created_at, updated_at
 
 **Jose's slug:** `book` → `tractifyhq.com/schedule/book` ✅ LIVE (display name = "The Tractify Team")
 
-**Use case:** Jose texts this link to every prospect after a cold call. They book the 15-min setup call. He opens with: "You just booked this call the exact same way your customers will book jobs with you."
+**Use case:** Available if Jose or Daniel ever want to send a booking link manually, but the primary funnel is fully automated through `intake.tractifyhq.com`. No personal demo close — the product proves itself when jobs appear on the contractor's calendar.
 
 **To set a slug for a new contractor:**
 ```sql
@@ -910,6 +989,12 @@ Built July 21, 2026. Every missed call a contractor gets becomes a booked appoin
 
 **The SMS text:**
 > "Hey! This is [Business Name] — sorry we missed your call, we're out on a job. Book a time that works for you here: tractifyhq.com/schedule/[slug] — takes 60 seconds and we'll confirm right away."
+
+**Follow-up text (sent ~2 hours later if no booking):**
+> "Just checking in — still happy to help. Here's that booking link if you'd like to grab a time: tractifyhq.com/schedule/[slug]"
+- Only fires if the caller has NOT booked within 2 hours of the initial text — no spam if they already converted
+- One follow-up only (no third text)
+- **Build needed:** cron job or `setTimeout` in the Twilio webhook handler. After sending the initial SMS, schedule a 2-hour delayed check: query `appointments` for a booking tied to that phone number + contractor within the last 2 hours. If none found, send the follow-up via Twilio. Log the follow-up in `lead_events` so the admin can see it.
 
 **The voice message (read by Twilio's Alice voice):**
 > "Thanks for calling [Business Name]. We're out on a job right now but we just texted you a link to book a time that works for you. Check your messages!"
@@ -1085,6 +1170,18 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 **Direct booking (/schedule/:slug) doesn't appear in admin appointments tab**
 → Should not happen — admin query uses LEFT JOINs. If it does, verify bookings.js admin GET uses `LEFT JOIN leads` not `JOIN leads`.
 
+**Auto-deploy: `spawn /app/node_modules/.bin/wrangler ENOENT`**
+→ Wrong wrangler binary path. Wrangler is in `backend/node_modules/` (it's in `backend/package.json`). The correct path from `backend/services/cloudflare.js` is `path.join(__dirname, '../node_modules/.bin/wrangler')` which resolves to `/app/backend/node_modules/.bin/wrangler`. Do NOT use `../../node_modules/.bin/wrangler` (that would look in the project root `/app/node_modules/`).
+
+**Auto-deploy: Pages deploy succeeds but site serves HTTP 500**
+→ This was the reason we abandoned the raw Cloudflare Pages Direct Upload API and switched to Wrangler CLI. The raw API accepted uploads (gzip or plain) but served 500 — likely corrupted project state from multiple failed deploy attempts. Wrangler CLI (`wrangler pages deploy <dir>`) handles all multipart upload complexity correctly. If this ever recurs, delete the Pages project in the Cloudflare dashboard and redeploy fresh via Wrangler.
+
+**Auto-deploy: Contractor emails not arriving even though Wrangler deploy succeeded**
+→ Check `deploy.js` — the Pages deploy step must be wrapped in try/catch that does NOT re-throw on failure. If it throws, execution stops before Steps 7 (welcome email) and 8 (admin alert). The catch block should log the error and continue.
+
+**Auto-deploy: Site loads but logo is missing / cover photo is stock gray**
+→ Normal for new contractors — they don't upload assets during the intake form. `buildClientConfig` in `deploy.js` defaults `logoImg` to the Tractify base64 logo and `coverPhoto` to the Unsplash HVAC stock URL. If logo still isn't showing, verify the base64 string in `deploy.js` is intact (it's long — check it wasn't truncated on a git edit).
+
 **Inline booking on HVAC template shows demo/fake slots instead of real availability**
 → Two causes: (1) API key is not linked to a contractor — go to Admin → API Keys, edit the key, set the Contractor field. Without this, `contractor_id` is null in the API response and demo mode runs. (2) CORS not configured — `/api/availability` and `/api/bookings/book` must have wildcard CORS set in server.js (already done July 18).
 
@@ -1093,7 +1190,7 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 
 ---
 
-## Launch Status (as of July 23, 2026)
+## Launch Status (as of July 25, 2026)
 
 **Completed (all features):**
 - ✅ Full app built, deployed, tested — tractifyhq.com live
@@ -1117,16 +1214,28 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 - ✅ Intake overlay conversion-optimized (July 20) — "Claim Your 5 Free Booked Jobs." headline, urgency badge, 3-step flow, confirm-step booking, sessionStorage refresh restore, "Don't have a Google listing?" path
 - ✅ Missed call text-back via Twilio — fully built (July 21). `POST /api/twilio/missed-call` webhook, `twilio_number` column on contractors, Admin Dashboard "Set Twilio #" per-contractor UI.
 - ✅ Self-serve onboarding checklist — built July 23. First-login modal + persistent Setup tab with 6 steps, copy-paste text, platform-specific instructions, 48hr nudge email to contractor + Jose + Daniel if incomplete. Replaces onboarding call entirely.
-- ✅ Subdomain auto-deploy — built July 24. Intake form submit → fully automated pipeline: contractor account + API key + Cloudflare Pages deploy + CNAME + availability pre-population + welcome email + admin alert. Zero Jose involvement. `DEPLOY_SECRET` set in Railway, `TRACTIFY_DEPLOY_KEY` set in Cloudflare Worker. New files: `backend/services/cloudflare.js`, `backend/routes/deploy.js`, `backend/templates/hvac-template.html`, `NewWorkerScript-auto-deploy.js`.
+- ✅ Subdomain auto-deploy — CONFIRMED LIVE July 25. Intake form submit → fully automated pipeline: contractor account + API key + Cloudflare Pages deploy (via Wrangler CLI) + custom domain + availability pre-population + welcome email + admin alert. Zero Jose involvement. First live site: `evergreenhomeheatingandenergy.tractifyhq.com`. Default Tractify logo (base64) + default cover photo (Unsplash) injected when contractor hasn't provided assets yet.
 
-**Remaining — must do before first client (blocking):**
-- [ ] ⚠️ Twilio compliance approval (pending — emailed trusthub-verify@twilio.com with CP 575B on July 23). Once approved: buy local number, set webhook to `https://tractifyhq.com/api/twilio/missed-call`, set Twilio number on contractor in admin, test end-to-end.
-- [ ] ✅ Subdomain auto-deploy — BUILT July 24. Pipeline is fully automated.
-- [ ] Jose expand availability in contractor portal (only relevant for Jose's personal booking page at /schedule/book — not blocking client onboarding)
-- [ ] UptimeRobot monitoring — ✅ first monitor created (tractifyhq.com/health). Done.
-- [ ] Railway database backups — requires Pro plan ($20/month). Do NOT upgrade until first paying client. Once first client pays, upgrade immediately.
-- [ ] Service agreement — simple 1-page terms on intake form. Defines: free trial = 5 booked appointments (not 5 closed jobs), what retainer covers, cancellation terms. Add acceptance checkbox, store timestamp in DB.
-- [ ] Full end-to-end test of auto-deploy flow (in progress July 24 — submit test intake form, verify site deploys + emails arrive).
+**Remaining — fine-tuning before first real contractor (do in order):**
+- [ ] **Retest full pipeline** — delete test contractor, push latest code (logo + cover photo + wrangler path fix), submit intake form, verify: (1) site loads with Tractify logo + cover photo, (2) both emails arrive (contractor welcome + admin alert), (3) Sentry shows no errors.
+- [ ] **Onboarding checklist polish pass** — ⚠️ flagged for review before August 3rd. Go through all 6 steps as if you're a new contractor. Fix any confusing copy, broken links, or missing Twilio number display issues.
+- [ ] **Twilio compliance approval** — pending (emailed trusthub-verify@twilio.com with CP 575B on July 23). Once approved: buy local number, set webhook to `https://tractifyhq.com/api/twilio/missed-call`, set on contractor in admin, test end-to-end.
+- [ ] **Service agreement** — simple 1-page terms on intake form. Defines: free trial = 5 booked appointments (not 5 closed jobs), what retainer covers, cancellation terms. Add acceptance checkbox, store timestamp in DB.
+- [ ] Jose expand availability in contractor portal (for /schedule/book — not blocking client onboarding)
+- [ ] Railway database backups — requires Pro plan ($20/month). Do NOT upgrade until first paying client.
+
+**Remaining — must do before first client converts:**
+- [ ] Stripe integration — self-serve conversion at job 5. Job 5 milestone trigger → Stripe payment page → $2,000 setup fee → system flips them to paid. No manual invoicing.
+- [ ] Job milestone trigger (job 3 + job 5) — portal notification + email, data-aware messaging (see Planned Features)
+- [ ] Revenue + outcome logging — "Did this job close? How much?" after each completed appointment
+
+**Remaining — makes the business smarter (build in parallel):**
+- [ ] Booking source tracking — `booking_source` field on appointments. Know which channels perform. (see Planned Features)
+- [ ] Contractor dashboard live stats — jobs this month, revenue this month, total all time, next appointment (see Planned Features)
+- [ ] Automatic review request — SMS to homeowner 3 hours after appointment completed (see Planned Features)
+- [ ] Intake funnel view in admin dashboard (data collecting, UI not built)
+- [ ] Flip bridge ON once first contractor is onboarded (script properties only — no code changes)
+- [ ] Google Calendar credentials (deferred — add to Railway when ready)
 
 **Remaining — must do before first client converts (not day 1 blocking):**
 - [ ] Stripe integration — self-serve conversion at job 5. Job 5 milestone trigger → Stripe payment page → $2,000 setup fee → system flips them to paid. No manual invoicing.
@@ -1152,24 +1261,27 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 1. Worker receives intake form submission → saves to R2 → calls `POST /api/deploy`
 2. Tractify creates contractor account (email = contactEmail, temp password generated)
 3. Tractify creates API key linked to contractor, `allowed_origins` = their subdomain
-4. Tractify builds CLIENT config from form data, injects into HVAC template
-5. Tractify deploys to Cloudflare Pages project `tractify-{slug}`
-6. Tractify creates CNAME: `{slug}.tractifyhq.com` → `tractify-{slug}.pages.dev`
+4. Tractify builds CLIENT config from form data, injects into HVAC template (default Tractify logo + Unsplash cover photo if no assets uploaded)
+5. Tractify deploys to Cloudflare Pages via **Wrangler CLI** (`wrangler pages deploy`) — creates project if it doesn't exist, handles all upload complexity
+6. Tractify registers custom domain `{slug}.tractifyhq.com` on the Pages project via `addPagesDomain()` — Cloudflare handles DNS automatically (no manual CNAME needed)
 7. Tractify pre-populates availability slots from their intake form hours
 8. Contractor receives welcome email: portal URL + login email + temp password
 9. Jose receives admin alert email: contractor info + site URL
 10. Contractor logs in → first-login modal → completes 6-step self-serve checklist
 
+**CONFIRMED LIVE July 25, 2026** — `evergreenhomeheatingandenergy.tractifyhq.com` deployed end-to-end with zero manual steps.
+
 ### Jose's only post-deploy decisions
 - [ ] Decide whether this contractor gets paid ad spend (selective — not automatic for everyone)
 - [ ] If Twilio is approved: buy local number, set webhook, set number in admin → contractor handles forwarding themselves via checklist
 
-### Conversion (paid — real domain)
-1. [ ] Buy their real domain
-2. [ ] Add as custom domain in the existing Cloudflare Pages project (same project `tractify-{slug}`, no redeploy needed)
-3. [ ] Update `allowed_origins` in their API key to include the real domain (Admin → API Keys → edit)
-4. [ ] Charge $2,000 setup + $800/month retainer via Stripe (once Stripe is integrated)
-5. [ ] Swap in client's real logo + cover photo if they provide them (redeploy to Cloudflare Pages)
+### Conversion (paid — stays on subdomain)
+Contractor stays on their Tractify subdomain permanently — no domain purchase, no DNS changes, no extra build. The only thing that changes at conversion:
+1. [ ] Stripe payment fires ($2,000 setup + $800/month retainer) — automated at job 5 once Stripe is integrated
+2. [ ] System marks contractor as paid — everything else keeps running exactly as-is
+3. [ ] Swap in client's real logo + cover photo if they provide them (redeploy to Cloudflare Pages via Wrangler)
+
+**That's it.** Zero infrastructure work on conversion. The subdomain, the booking flow, the API key, the Twilio number — all already live and running. Stripe fires, they're paid, done.
 
 ### If auto-deploy ever fails (fallback — manual process)
 1. Edit CLIENT config in `~/Desktop/hvac-template/index.html` with client info
