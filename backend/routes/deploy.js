@@ -121,11 +121,11 @@ ${zipChunks.join(',\n')}
       yearsInBusiness: "${esc(data.years || '')}",
 
       // ── CLAIMS & GUARANTEES ──────────────────────────────────
-      warrantyYears:   "",
+      warrantyYears:   "${esc(data.warrantyYears || '')}",
       responseTime:    "1 hour",
 
       // ── FINANCING ────────────────────────────────────────────
-      financingFrom:   "",
+      financingFrom:   "${esc(data.financingFrom || '')}",
 
       // ── HERO HEADLINE ────────────────────────────────────────
       heroLine1:       "Comfort You Can",
@@ -169,11 +169,12 @@ ${zipChunks.join(',\n')}
       },
 
       // ── FEATURE FLAGS ────────────────────────────────────────
+      // Defaults to enabled if not sent (backwards-compatible with old submissions)
       features: {
-        nate:         true,
-        emergency247: true,
-        financing:    false,
-        commercial:   true,
+        nate:         ${data.nate         !== false},
+        emergency247: ${data.emergency    !== false},
+        financing:    ${data.financing    !== false},
+        commercial:   ${data.commercial   !== false},
         faq:          true,
         showMap:      ${data.address ? 'true' : 'false'},
       },
