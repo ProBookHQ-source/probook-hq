@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 25, 2026 (session 6 — full channel strategy documented: 10 channels + 3 automated retention/referral triggers. Personal demo close retired — funnel is fully automated through Stripe, no human sales involvement).*
+*Last updated: July 25, 2026 (session 7 — comprehensive field audit complete, all data now transfers correctly from intake form → deploy.js → deployed site. probooklogo.png embedded as base64 in template — no more missing file issues on Pages deploys).*
 
 ---
 
@@ -1179,8 +1179,11 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 **Auto-deploy: Contractor emails not arriving even though Wrangler deploy succeeded**
 → Check `deploy.js` — the Pages deploy step must be wrapped in try/catch that does NOT re-throw on failure. If it throws, execution stops before Steps 7 (welcome email) and 8 (admin alert). The catch block should log the error and continue.
 
-**Auto-deploy: Site loads but logo is missing / cover photo is stock gray**
-→ Normal for new contractors — they don't upload assets during the intake form. `buildClientConfig` in `deploy.js` defaults `logoImg` to the Tractify base64 logo and `coverPhoto` to the Unsplash HVAC stock URL. If logo still isn't showing, verify the base64 string in `deploy.js` is intact (it's long — check it wasn't truncated on a git edit).
+**Auto-deploy: "Powered by Tractify" badge shows broken image instead of logo**
+→ FIXED (July 25, session 7). `probooklogo.png` was deployed as a separate file via `extraAssets` but Cloudflare Pages didn't consistently serve it. Fix: embedded as base64 data URL directly in `backend/templates/hvac-template.html` and `hvac-template/index.html`. No separate file needed — it's self-contained in the HTML forever. If the badge ever breaks again, check that the base64 string in the template wasn't accidentally truncated on a git edit.
+
+**Auto-deploy: Site loads but contractor logo is missing (nav/header)**
+→ Normal for new contractors — they don't upload a logo during the intake form. `buildClientConfig` in `deploy.js` defaults `logoImg` to `""` (empty string) so only the company name text shows in nav. At conversion, swap in their real logo by setting `logoImg` to their uploaded URL and redeploying via Wrangler.
 
 **Inline booking on HVAC template shows demo/fake slots instead of real availability**
 → Two causes: (1) API key is not linked to a contractor — go to Admin → API Keys, edit the key, set the Contractor field. Without this, `contractor_id` is null in the API response and demo mode runs. (2) CORS not configured — `/api/availability` and `/api/bookings/book` must have wildcard CORS set in server.js (already done July 18).
@@ -1214,10 +1217,14 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 - ✅ Intake overlay conversion-optimized (July 20) — "Claim Your 5 Free Booked Jobs." headline, urgency badge, 3-step flow, confirm-step booking, sessionStorage refresh restore, "Don't have a Google listing?" path
 - ✅ Missed call text-back via Twilio — fully built (July 21). `POST /api/twilio/missed-call` webhook, `twilio_number` column on contractors, Admin Dashboard "Set Twilio #" per-contractor UI.
 - ✅ Self-serve onboarding checklist — built July 23. First-login modal + persistent Setup tab with 6 steps, copy-paste text, platform-specific instructions, 48hr nudge email to contractor + Jose + Daniel if incomplete. Replaces onboarding call entirely.
-- ✅ Subdomain auto-deploy — CONFIRMED LIVE July 25. Intake form submit → fully automated pipeline: contractor account + API key + Cloudflare Pages deploy (via Wrangler CLI) + custom domain + availability pre-population + welcome email + admin alert. Zero Jose involvement. First live site: `evergreenhomeheatingandenergy.tractifyhq.com`. Default Tractify logo (base64) + default cover photo (Unsplash) injected when contractor hasn't provided assets yet.
+- ✅ Subdomain auto-deploy — CONFIRMED LIVE July 25. Intake form submit → fully automated pipeline: contractor account + API key + Cloudflare Pages deploy (via Wrangler CLI) + custom domain + availability pre-population + welcome email + admin alert. Zero Jose involvement. First live site: `evergreenhomeheatingandenergy.tractifyhq.com`. Default Tractify logo (base64) + default cover photo (`./Coverphoto.jpg`) injected when contractor hasn't provided assets yet.
+- ✅ Comprehensive field audit — all 24 fields `deploy.js` reads from `data.*` verified present in `submitForm()` payload. Two gaps fixed: `licenseNumber` (`g('f-license')`) and `serviceArea` (`g('f-service-area') || g('f-city')`) were missing, now added.
+- ✅ Feature flags fully wired — `emergency`, `financing`, `warranty`, `nate`, `commercial` all sent in payload and read correctly in `buildClientConfig()`. `warrantyYears` and `financingFrom` also transfer correctly.
+- ✅ probooklogo.png — embedded as base64 data URL directly in both `backend/templates/hvac-template.html` and `hvac-template/index.html`. No longer a separate file that can go missing on Cloudflare Pages deploys. Cover photo (`Coverphoto.jpg`) continues to deploy as a file (hardcoded in CSS, not via CLIENT config).
+- ✅ Intake form redeployed to `intake.tractifyhq.com` with licenseNumber + serviceArea fix.
 
 **Remaining — fine-tuning before first real contractor (do in order):**
-- [ ] **Retest full pipeline** — delete test contractor, push latest code (logo + cover photo + wrangler path fix), submit intake form, verify: (1) site loads with Tractify logo + cover photo, (2) both emails arrive (contractor welcome + admin alert), (3) Sentry shows no errors.
+- [ ] **Retest full pipeline** — delete test contractor, submit fresh intake form at `intake.tractifyhq.com`, verify: (1) "Powered by Tractify" badge shows logo correctly at bottom right, (2) cover photo is the HVAC image (not Unsplash), (3) feature flags match what was entered on form (test emergency off, financing on), (4) both emails arrive (contractor welcome + admin alert), (5) check `CLIENT.licenseNumber` and `CLIENT.serviceArea` in browser console match form inputs.
 - [ ] **Onboarding checklist polish pass** — ⚠️ flagged for review before August 3rd. Go through all 6 steps as if you're a new contractor. Fix any confusing copy, broken links, or missing Twilio number display issues.
 - [ ] **Twilio compliance approval** — pending (emailed trusthub-verify@twilio.com with CP 575B on July 23). Once approved: buy local number, set webhook to `https://tractifyhq.com/api/twilio/missed-call`, set on contractor in admin, test end-to-end.
 - [ ] **Service agreement** — simple 1-page terms on intake form. Defines: free trial = 5 booked appointments (not 5 closed jobs), what retainer covers, cancellation terms. Add acceptance checkbox, store timestamp in DB.
@@ -1234,20 +1241,6 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 - [ ] Contractor dashboard live stats — jobs this month, revenue this month, total all time, next appointment (see Planned Features)
 - [ ] Automatic review request — SMS to homeowner 3 hours after appointment completed (see Planned Features)
 - [ ] Intake funnel view in admin dashboard (data collecting, UI not built)
-- [ ] Flip bridge ON once first contractor is onboarded (script properties only — no code changes)
-- [ ] Google Calendar credentials (deferred — add to Railway when ready)
-
-**Remaining — must do before first client converts (not day 1 blocking):**
-- [ ] Stripe integration — self-serve conversion at job 5. Job 5 milestone trigger → Stripe payment page → $2,000 setup fee → system flips them to paid. No manual invoicing.
-- [ ] Job milestone trigger (job 3 + job 5) — portal notification + email, data-aware messaging (see Planned Features)
-- [ ] Revenue + outcome logging — "Did this job close? How much?" after each completed appointment
-
-**Remaining — makes the business smarter (build in parallel):**
-- [ ] Booking source tracking — `booking_source` field on appointments. Know which channels perform. (see Planned Features)
-- [ ] Contractor dashboard live stats — jobs this month, revenue this month, total all time, next appointment (see Planned Features)
-- [ ] Automatic review request — SMS to homeowner 3 hours after appointment completed (see Planned Features)
-- [ ] Intake funnel view in admin dashboard (data collecting, UI not built)
-- [ ] Remove "service area description" field from intake form — redundant. ZIP codes drive the matching engine. `serviceArea` in CLIENT config can be auto-generated from city name. Less friction on the form.
 - [ ] Flip bridge ON once first contractor is onboarded (script properties only — no code changes)
 - [ ] Google Calendar credentials (deferred — add to Railway when ready)
 
