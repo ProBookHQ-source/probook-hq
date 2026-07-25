@@ -321,6 +321,15 @@ router.post('/', requireDeploySecret, async (req, res) => {
     configBlock
   );
 
+  // Fix CSS cover photo — inject real URL directly into the stylesheet so it
+  // loads on first paint without waiting for JS. Replaces the local file reference
+  // that would 404 on the deployed subdomain.
+  const coverUrl = data.coverUrl || 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=1920&q=80';
+  templateHtml = templateHtml.replace(
+    "url('./Coverphoto.jpg') center center / cover no-repeat,",
+    `url('${coverUrl}') center center / cover no-repeat,`
+  );
+
   log(`Template built (${templateHtml.length} bytes)`);
 
   // ── Step 5: Deploy to Cloudflare Pages (via Wrangler CLI) ────────────────
