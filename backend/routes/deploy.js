@@ -248,6 +248,7 @@ router.post('/', requireDeploySecret, async (req, res) => {
   const log   = (msg) => console.log(`[DEPLOY] [${data.businessName}] ${msg}`);
 
   log(`Starting auto-deploy for ${email}`);
+  log(`DEBUG fields — emergency:${data.emergency} warranty:${data.warranty} warrantyYears:${data.warrantyYears} financing:${data.financing} financingFrom:${data.financingFrom} nate:${data.nate} commercial:${data.commercial}`);
 
   // Check for duplicate email
   const existing = await db.prepare('SELECT id FROM contractors WHERE email = $1').get(email);
