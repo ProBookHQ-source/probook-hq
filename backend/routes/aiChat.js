@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../database/db');
 const { requireContractor } = require('../middleware/auth');
 const Anthropic = require('@anthropic-ai/sdk');
+const { v4: uuidv4 } = require('uuid');
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -167,11 +168,12 @@ RULES:
     if (name === 'block_time') {
       try {
         const durationMinutes = Math.round(input.duration_hours * 60);
+        const blockId = uuidv4();
         await db.query(
           `INSERT INTO appointments
-             (contractor_id, scheduled_date, scheduled_time, duration_minutes, status, notes)
-           VALUES ($1, $2, $3, $4, 'confirmed', 'Blocked via AI assistant')`,
-          [contractorId, input.date, input.start_time, durationMinutes]
+             (id, contractor_id, lead_id, scheduled_date, scheduled_time, duration_minutes, status, notes)
+           VALUES ($1, $2, NULL, $3, $4, $5, 'external', 'Blocked via AI assistant')`,
+          [blockId, contractorId, input.date, input.start_time, durationMinutes]
         );
         toolResult = `Blocked: ${input.date} starting at ${input.start_time} for ${input.duration_hours} hours.`;
         actionTaken = { type: 'block_time', date: input.date, start_time: input.start_time, duration_hours: input.duration_hours };
