@@ -1578,7 +1578,7 @@ export default function ContractorPortal() {
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0">
 
               {/* ── Left: checklist ── */}
-              <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 md:py-8 min-w-0">
+              <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 md:py-8 min-w-0 bg-white">
 
               {/* Header */}
               <div className="mb-6">
@@ -1710,7 +1710,7 @@ export default function ContractorPortal() {
               </div> {/* end left column */}
 
               {/* ── Right: AI assistant panel ── */}
-              <div className="flex-1 flex flex-col border-t md:border-t-0 md:border-l border-gray-100 min-w-0">
+              <div className="flex-1 flex flex-col border-t md:border-t-0 md:border-l border-gray-200 min-w-0 bg-gray-50">
                 <div className="flex-1 flex flex-col overflow-hidden">
                   {/* Panel header */}
                   <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2.5 shrink-0 bg-white">
