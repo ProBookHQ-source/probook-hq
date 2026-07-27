@@ -282,9 +282,14 @@ export default function ContractorPortal() {
       const { data } = await api.post('/contractor/ai-chat', { message: msg, history });
       setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
       if (data.action) {
-        // Refresh calendar data after a calendar action
-        qc.invalidateQueries({ queryKey: ['appts'] });
-        qc.invalidateQueries({ queryKey: ['homeAppts'] });
+        if (data.action.type === 'complete_setup_step') {
+          // Refresh contractor profile so checklist badge + steps update
+          qc.invalidateQueries({ queryKey: ['contractor-profile', user.id] });
+        } else {
+          // Refresh calendar data after a calendar action
+          qc.invalidateQueries({ queryKey: ['appts'] });
+          qc.invalidateQueries({ queryKey: ['homeAppts'] });
+        }
       }
     } catch (err) {
       const errMsg = err.response?.data?.error || 'Something went wrong. Try again.';
@@ -1902,9 +1907,9 @@ export default function ContractorPortal() {
                   <p className="text-sm font-semibold text-gray-700 mb-3">Try saying:</p>
                   <div className="space-y-2">
                     {[
+                      'Help me set up my account',
                       'What\'s on my calendar tomorrow?',
                       'Block Thursday 2pm to 5pm',
-                      'What jobs do I have this week?',
                     ].map(s => (
                       <button
                         key={s}

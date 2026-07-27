@@ -31,7 +31,7 @@ router.post('/', requireContractor, async (req, res) => {
   const twoWeeksOut = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   const [contractorResult, appointmentsResult, slotsResult] = await Promise.all([
-    db.query('SELECT * FROM contractors WHERE id = $1', [contractorId]),
+    db.query('SELECT id, name, company_name, phone, booking_slug, twilio_number, onboarding_steps FROM contractors WHERE id = $1', [contractorId]),
     db.query(
       `SELECT a.id, a.scheduled_date, a.scheduled_time, a.duration_minutes, a.status, a.notes,
               l.name as lead_name, l.phone as lead_phone, l.email as lead_email
@@ -73,12 +73,71 @@ router.post('/', requireContractor, async (req, res) => {
 
   const todayDayName = DAYS[new Date().getDay()];
 
-  const systemPrompt = `You are the Tractify AI assistant built into the contractor portal for ${contractor.company_name || contractor.name}. You help contractors manage their calendar and get answers fast — without navigating menus or clicking around the portal.
+  // ── Checklist context ─────────────────────────────────────────────────────
+  const completedSteps = typeof contractor.onboarding_steps === 'string'
+    ? JSON.parse(contractor.onboarding_steps || '{}')
+    : (contractor.onboarding_steps || {});
+
+  const bookingLink = contractor.booking_slug
+    ? `https://tractifyhq.com/schedule/${contractor.booking_slug}`
+    : 'https://tractifyhq.com/schedule/[their-slug]';
+
+  const twilioNumber = contractor.twilio_number || '(not assigned yet — will be in their welcome email)';
+
+  const STEP_DETAILS = {
+    availability: {
+      label: 'Confirm your availability',
+      done: !!completedSteps.availability,
+      guide: 'Ask them to click "My Schedule" in the sidebar. Their hours were pre-set from their intake form — they just need to confirm they look right and adjust if needed. Once they\'ve checked it, ask them to say "done" so you can mark it complete.',
+    },
+    twilio: {
+      label: 'Set up missed call forwarding',
+      done: !!completedSteps.twilio,
+      guide: `This turns every missed call into an automatic booking text. Their Tractify number is: ${twilioNumber}\n\nFor iPhone: Settings → Phone → Call Forwarding → When Unanswered → type in ${twilioNumber} → toggle on.\n\nFor Android: Open the Phone app → tap the 3-dot menu (⋮) → Settings → Supplementary services → Call forwarding → When unanswered → enter ${twilioNumber} → Save.\n\nOnce they confirm it's set up, mark this step complete.`,
+    },
+    gbp: {
+      label: 'Add booking link to Google Business Profile',
+      done: !!completedSteps.gbp,
+      guide: `Their booking link is: ${bookingLink}\n\nSteps: Go to business.google.com → click their business name → Edit Profile → scroll down to "Appointments" → paste the booking link → Save.\n\nThis lets homeowners searching "HVAC near me" on Google book directly from the listing — free, zero ad spend. Once they confirm it's added, mark this step complete.`,
+    },
+    nextdoor: {
+      label: 'Post in a local Nextdoor neighborhood',
+      done: !!completedSteps.nextdoor,
+      guide: `HVAC is the #1 requested service on Nextdoor. One post can bring 2-3 jobs.\n\nHere's the copy to paste:\n"Hey neighbors! ${contractor.company_name || contractor.name} now has online booking — pick a time that works for you: ${bookingLink}. Happy to help with any HVAC needs!"\n\nGo to nextdoor.com, find your neighborhood, paste the post. Once posted, mark this step complete.`,
+    },
+    facebook: {
+      label: 'Post in a local Facebook community group',
+      done: !!completedSteps.facebook,
+      guide: `Search Facebook for "[Their City] Neighbors" or "[Their City] Community" groups. Join 1-2 and post once.\n\nHere's the copy:\n"Hi everyone! I run ${contractor.company_name || contractor.name} and we just launched online booking — no more phone tag, just pick a time that works for you: ${bookingLink}. Happy to help with heating or cooling needs!"\n\nGo to facebook.com/groups to find local groups. Once posted, mark this step complete.`,
+    },
+    reviewers: {
+      label: 'Message your top Google reviewers',
+      done: !!completedSteps.reviewers,
+      guide: `Their past happy customers are the warmest possible leads. Go to business.google.com → Reviews → click "Reply" next to a review — this opens a message to that reviewer.\n\nHere's the message to send:\n"Hi [Name]! Thanks again for the kind review — it means a lot. We just launched online booking so you can schedule anytime without the phone tag: ${bookingLink}. Hope we can help again soon!"\n\nSend to their top 5-10 reviewers. Once they've done it, mark this step complete.`,
+    },
+  };
+
+  const incompleteSteps = Object.entries(STEP_DETAILS).filter(([, s]) => !s.done);
+  const completedCount = Object.values(STEP_DETAILS).filter(s => s.done).length;
+
+  const checklistSummary = Object.entries(STEP_DETAILS).map(([key, s]) =>
+    `  [${s.done ? '✓' : ' '}] ${s.label}`
+  ).join('\n');
+
+  const systemPrompt = `You are the Tractify AI assistant built into the contractor portal for ${contractor.company_name || contractor.name}. You help contractors manage their calendar AND guide them through their setup steps — all through conversation, no menu navigation needed.
 
 CONTRACTOR:
   Name: ${contractor.name}
   Company: ${contractor.company_name || 'N/A'}
+  Booking link: ${bookingLink}
   Today: ${todayDayName}, ${today}
+
+SETUP CHECKLIST (${completedCount}/6 complete):
+${checklistSummary}
+${incompleteSteps.length > 0 ? `\nNext step to guide them through: "${incompleteSteps[0][1].label}"` : '\nAll setup steps complete!'}
+
+STEP-BY-STEP GUIDES (for incomplete steps only):
+${incompleteSteps.map(([key, s]) => `\n[${s.label}]\n${s.guide}`).join('\n')}
 
 UPCOMING APPOINTMENTS (next 14 days):
 ${apptText}
@@ -87,19 +146,23 @@ REGULAR WEEKLY SCHEDULE:
 ${scheduleText}
 
 WHAT YOU CAN DO:
-  - Block time on their calendar (e.g. "block Tuesday 2pm to 4pm" or "I have a job Thursday morning")
-  - Cancel a booked appointment (homeowner gets notified and a rebook link automatically)
+  - Guide them through setup steps one at a time, with exact copy-paste text and step-by-step instructions
+  - Mark a setup step complete when they confirm they've done it (use the complete_setup_step tool)
+  - Block time on their calendar ("block Tuesday 2pm to 4pm" or "I have a job Thursday morning")
+  - Cancel a booked appointment (homeowner gets a rebook link automatically)
   - Tell them what's on their calendar on any day or time range
   - Answer questions about how Tractify works
 
 RULES:
-  - Be short. Contractors are usually on job sites. 1–3 sentences max unless they ask for more detail.
-  - After blocking time, confirm clearly: "Done — [day] [date] from [time] to [time] is blocked."
-  - After cancelling a REAL_APPOINTMENT: "Done — [name]'s appointment on [date] at [time] is cancelled. They'll get a rebook link automatically."
-  - After clearing an EXTERNAL_BLOCK: "Done — [time] on [date] is now open." Do NOT mention homeowners or rebook links — there's no customer involved.
-  - Never guess at appointment IDs. Only cancel appointments that appear in the list above.
-  - If the date is ambiguous (e.g. "Tuesday" could be this Tuesday or next), confirm which one before acting.
-  - If someone asks something you can't do, say so plainly and suggest what they can do in the portal instead.`;
+  - Be short. Contractors are usually on job sites. 1–3 sentences max unless guiding through a setup step.
+  - When guiding a setup step: give one clear action at a time, then ask "Done?" before moving to the next instruction.
+  - After completing a setup step: use the complete_setup_step tool to mark it, then congratulate them briefly and offer to start the next incomplete step.
+  - After blocking time, confirm: "Done — [day] [date] from [time] to [time] is blocked."
+  - After cancelling a REAL_APPOINTMENT: "Done — [name]'s appointment is cancelled. They'll get a rebook link automatically."
+  - After clearing an EXTERNAL_BLOCK: "Done — [time] on [date] is now open." Never mention homeowners for blocks.
+  - Never guess at appointment IDs. Only cancel appointments shown in the list above.
+  - If a date is ambiguous, confirm which one before acting.
+  - If they ask "what do I need to set up" or "how do I get started", walk them through the incomplete steps in order.`;
 
   // ── Tool definitions ──────────────────────────────────────────────────────
   const tools = [
@@ -123,6 +186,21 @@ RULES:
           },
         },
         required: ['date', 'start_time', 'duration_hours'],
+      },
+    },
+    {
+      name: 'complete_setup_step',
+      description: 'Mark a setup/onboarding step as complete after the contractor confirms they have done it. Only call this after explicit confirmation from the contractor.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          step_key: {
+            type: 'string',
+            enum: ['availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers'],
+            description: 'The step key to mark complete',
+          },
+        },
+        required: ['step_key'],
       },
     },
     {
@@ -168,7 +246,23 @@ RULES:
     const { name, id: toolUseId, input } = toolUseBlock;
     let toolResult;
 
-    if (name === 'block_time') {
+    if (name === 'complete_setup_step') {
+      try {
+        const { step_key } = input;
+        await db.query(`
+          UPDATE contractors
+          SET onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || $1::jsonb,
+              onboarding_started_at = COALESCE(onboarding_started_at, NOW())
+          WHERE id = $2
+        `, [JSON.stringify({ [step_key]: true }), contractorId]);
+        toolResult = `Step "${step_key}" marked complete.`;
+        actionTaken = { type: 'complete_setup_step', step_key };
+        console.log(`[AI-CHAT] Marked step "${step_key}" complete for contractor ${contractorId}`);
+      } catch (err) {
+        toolResult = `Error marking step complete: ${err.message}`;
+        console.error('[AI-CHAT] complete_setup_step error:', err.message);
+      }
+    } else if (name === 'block_time') {
       try {
         // Build one slot per hour (calendar renders per-hour blocks)
         const [startH, startM] = input.start_time.split(':').map(Number);
