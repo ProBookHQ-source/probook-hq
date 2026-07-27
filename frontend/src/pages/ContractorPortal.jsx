@@ -1575,12 +1575,10 @@ export default function ContractorPortal() {
 
         {/* ════════════════ SETUP CHECKLIST ════════════════ */}
         {tab === 'setup' && (
-          <div className="flex-1 overflow-y-auto overflow-x-hidden pb-16 md:pb-0">
-            <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 md:py-8">
-              <div className="flex flex-col md:flex-row gap-6 items-start">
+          <div className="flex-1 flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0">
 
               {/* ── Left: checklist ── */}
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 md:py-8 min-w-0">
 
               {/* Header */}
               <div className="mb-6">
@@ -1712,10 +1710,10 @@ export default function ContractorPortal() {
               </div> {/* end left column */}
 
               {/* ── Right: AI assistant panel ── */}
-              <div className="w-full md:w-80 shrink-0 md:sticky md:top-6">
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col" style={{ height: '520px' }}>
+              <div className="flex-1 flex flex-col border-t md:border-t-0 md:border-l border-gray-100 min-w-0">
+                <div className="flex-1 flex flex-col overflow-hidden">
                   {/* Panel header */}
-                  <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2.5 shrink-0">
+                  <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2.5 shrink-0 bg-white">
                     <div className="w-7 h-7 rounded-lg bg-brand-500 flex items-center justify-center shrink-0">
                       <MessageSquare className="w-3.5 h-3.5 text-white" />
                     </div>
@@ -1729,7 +1727,7 @@ export default function ContractorPortal() {
                   </div>
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
+                  <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 bg-gray-50">
                     {chatMessages.length === 0 && (
                       <div className="space-y-2 pt-1">
                         {[
@@ -1740,7 +1738,7 @@ export default function ContractorPortal() {
                           <button
                             key={s}
                             onClick={() => sendChatMessage(s)}
-                            className="w-full text-left text-xs bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-gray-600 hover:border-brand-400 hover:text-brand-600 transition-colors"
+                            className="w-full text-left text-sm bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-600 hover:border-brand-400 hover:text-brand-600 transition-colors"
                           >
                             {s}
                           </button>
@@ -1749,10 +1747,10 @@ export default function ContractorPortal() {
                     )}
                     {chatMessages.map((msg, i) => (
                       <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
+                        <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                           msg.role === 'user'
                             ? 'bg-brand-500 text-white rounded-br-sm'
-                            : 'bg-gray-100 text-gray-800 rounded-bl-sm'
+                            : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm'
                         }`}>
                           {msg.content}
                         </div>
@@ -1773,30 +1771,28 @@ export default function ContractorPortal() {
                   </div>
 
                   {/* Input */}
-                  <div className="shrink-0 border-t border-gray-100 px-3 py-2.5">
+                  <div className="shrink-0 border-t border-gray-100 bg-white px-6 py-4">
                     <form onSubmit={(e) => { e.preventDefault(); sendChatMessage(); }} className="flex gap-2 items-center">
                       <input
                         type="text"
                         value={chatInput}
                         onChange={e => setChatInput(e.target.value)}
                         placeholder="Ask a question…"
-                        className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
+                        className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
                         disabled={chatLoading}
                       />
                       <button
                         type="submit"
                         disabled={!chatInput.trim() || chatLoading}
-                        className="w-8 h-8 rounded-xl bg-brand-500 flex items-center justify-center text-white disabled:opacity-40 shrink-0"
+                        className="w-10 h-10 rounded-xl bg-brand-500 flex items-center justify-center text-white disabled:opacity-40 shrink-0"
                       >
-                        <Send className="w-3.5 h-3.5" />
+                        <Send className="w-4 h-4" />
                       </button>
                     </form>
                   </div>
                 </div>
               </div>
 
-              </div> {/* end flex row */}
-            </div>
           </div>
         )}
 
