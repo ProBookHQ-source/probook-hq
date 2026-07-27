@@ -169,6 +169,7 @@ ${zipChunks.join(',\n')}
       // ── GOOGLE REVIEWS ───────────────────────────────────────
       googleBusinessUrl: "${esc(data.googleUrl || '')}",
       reviews: ${JSON.stringify(data.reviews || [])},
+      services: ${JSON.stringify(Array.isArray(data.services) ? data.services : [])},
 
       // ── TRACTIFY INTEGRATION ─────────────────────────────────
       tractifyKey:      "${esc(apiKey)}",

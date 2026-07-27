@@ -2120,15 +2120,6 @@
               <label for="h-service">Service Needed *</label>
               <select id="h-service" name="service_type" required>
                 <option value="" disabled selected>Select a service…</option>
-                <option value="ac_repair">AC Repair</option>
-                <option value="ac_install">AC Installation</option>
-                <option value="heat_pump">Heat Pump</option>
-                <option value="furnace_repair">Furnace Repair</option>
-                <option value="furnace_install">Furnace Installation</option>
-                <option value="maintenance">Maintenance / Tune-Up</option>
-                <option value="air_quality">Indoor Air Quality</option>
-                <option value="commercial">Commercial HVAC</option>
-                <option value="other">Other / Not Sure</option>
               </select>
             </div>
             <div class="form-social-proof">
@@ -2253,76 +2244,7 @@
         <h2 class="section-title">Complete HVAC Services</h2>
         <p class="section-sub">From emergency repairs to full system replacements — we handle everything your home or business needs, done right the first time.</p>
       </div>
-      <div class="services-grid">
-
-        <div class="service-card">
-          <div class="service-card-poster">
-            <span class="service-badge">⭐ Most Requested</span>
-            <svg width="54" height="54" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><line x1="12" y1="15" x2="12" y2="17"/></svg>
-          </div>
-          <div class="service-card-body">
-            <h3>AC Installation &amp; Repair</h3>
-            <p>Central AC, ductless mini-splits, and smart thermostat integration. Fast repairs when it matters most.</p>
-            <a href="#hero" class="service-link" data-service="ac_repair">Book Your Free Estimate →</a>
-          </div>
-        </div>
-
-        <div class="service-card">
-          <div class="service-card-poster">
-            <svg width="54" height="54" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M12 2C8 6 4 10 4 14a8 8 0 0 0 16 0c0-4-4-8-8-12z"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="9" y1="21" x2="15" y2="21"/></svg>
-          </div>
-          <div class="service-card-body">
-            <h3>Furnace &amp; Heating</h3>
-            <p>Gas, electric, and oil furnace installation, tune-ups, and emergency repairs before the cold hits.</p>
-            <a href="#hero" class="service-link" data-service="furnace_repair">Book Your Free Estimate →</a>
-          </div>
-        </div>
-
-        <div class="service-card">
-          <div class="service-card-poster">
-            <svg width="54" height="54" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-          </div>
-          <div class="service-card-body">
-            <h3>Heat Pump Systems</h3>
-            <p>Year-round efficiency with modern heat pump technology — one system handles heating and cooling both.</p>
-            <a href="#hero" class="service-link" data-service="heat_pump">Book Your Free Estimate →</a>
-          </div>
-        </div>
-
-        <div class="service-card">
-          <div class="service-card-poster">
-            <svg width="54" height="54" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 10 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/></svg>
-          </div>
-          <div class="service-card-body">
-            <h3>Indoor Air Quality</h3>
-            <p>Air purifiers, humidifiers, UV lights, and HEPA filtration for cleaner, healthier air in every room.</p>
-            <a href="#hero" class="service-link" data-service="air_quality">Book Your Free Estimate →</a>
-          </div>
-        </div>
-
-        <div class="service-card">
-          <div class="service-card-poster">
-            <svg width="54" height="54" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-          </div>
-          <div class="service-card-body">
-            <h3>Maintenance Plans</h3>
-            <p>Annual tune-ups and priority service plans that extend equipment life and keep warranties valid.</p>
-            <a href="#hero" class="service-link" data-service="maintenance">Book Your Free Estimate →</a>
-          </div>
-        </div>
-
-        <div class="service-card" id="service-commercial">
-          <div class="service-card-poster">
-            <svg width="54" height="54" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
-          </div>
-          <div class="service-card-body">
-            <h3>Commercial HVAC</h3>
-            <p>Light commercial units, rooftop systems, and maintenance contracts for local businesses of any size.</p>
-            <a href="#hero" class="service-link" data-service="commercial">Book Your Free Estimate →</a>
-          </div>
-        </div>
-
-      </div>
+      <div class="services-grid" id="services-grid"><!-- populated by JS --></div>
 
       <!-- Not sure strip -->
       <div class="services-footer">
@@ -2549,14 +2471,7 @@
           <!-- Services -->
           <div class="footer-col">
             <h4>Services</h4>
-            <ul class="footer-links">
-              <li><a href="#services">AC Repair &amp; Install</a></li>
-              <li><a href="#services">Heat Pumps</a></li>
-              <li><a href="#services">Furnace Service</a></li>
-              <li><a href="#services">Air Quality</a></li>
-              <li><a href="#services">Maintenance Plans</a></li>
-              <li><a href="#hero" style="color:var(--primary); font-weight:700;">Book Free Estimate →</a></li>
-            </ul>
+            <ul class="footer-links" id="footer-services-list"><!-- populated by JS --></ul>
           </div>
 
           <!-- Hours -->
@@ -2729,9 +2644,82 @@
       hide('cred-emergency-div');
       hide('footer-emergency-bar');
     }
-    if (!CLIENT.features.commercial) {
-      hide('service-commercial');
-    }
+    // ── Dynamic service rendering ─────────────────────────────────────────
+    (function renderServices() {
+      const CATALOG = {
+        'AC Repair':            { title: 'AC Repair & Cooling',    val: 'ac_repair',       desc: 'Central AC, ductless mini-splits, and emergency cooling repairs — fast response when it matters most.',                  icon: '<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><line x1="12" y1="15" x2="12" y2="17"/>' },
+        'AC Installation':      { title: 'AC Installation',         val: 'ac_install',      desc: 'New central AC systems and ductless mini-splits installed with precision — full smart thermostat integration included.',    icon: '<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><line x1="12" y1="15" x2="12" y2="17"/>' },
+        'Furnace Repair':       { title: 'Furnace Repair',          val: 'furnace_repair',  desc: 'Gas, electric, and oil furnace diagnostics and repairs — certified technicians, fast turnaround.',                        icon: '<path d="M12 2C8 6 4 10 4 14a8 8 0 0 0 16 0c0-4-4-8-8-12z"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="9" y1="21" x2="15" y2="21"/>' },
+        'Furnace Installation': { title: 'Furnace Installation',    val: 'furnace_install', desc: 'New high-efficiency gas, electric, and oil furnace systems installed right — built to last and keep warranties valid.',   icon: '<path d="M12 2C8 6 4 10 4 14a8 8 0 0 0 16 0c0-4-4-8-8-12z"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="9" y1="21" x2="15" y2="21"/>' },
+        'Heat Pump':            { title: 'Heat Pump Systems',       val: 'heat_pump',       desc: 'Year-round efficiency with modern heat pump technology — one system handles heating and cooling both.',                    icon: '<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>' },
+        'Duct Cleaning':        { title: 'Duct Cleaning',           val: 'duct_clean',      desc: 'Professional duct and vent cleaning for better air quality, lower energy bills, and longer equipment life.',               icon: '<path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 10 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>' },
+        'Mini-Splits':          { title: 'Mini-Split Systems',      val: 'mini_split',      desc: 'Ductless mini-split installation for zone-controlled comfort in any room — no existing ductwork required.',               icon: '<rect x="3" y="6" width="18" height="8" rx="2"/><line x1="6" y1="14" x2="6" y2="20"/><line x1="18" y1="14" x2="18" y2="20"/><line x1="3" y1="20" x2="21" y2="20"/>' },
+        'Maintenance Plans':    { title: 'Maintenance Plans',       val: 'maintenance',     desc: 'Annual tune-ups and priority service plans that extend equipment life and keep warranties valid.',                          icon: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>' },
+        'Indoor Air Quality':   { title: 'Indoor Air Quality',      val: 'air_quality',     desc: 'Air purifiers, humidifiers, UV lights, and HEPA filtration for cleaner, healthier air in every room.',                     icon: '<path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 10 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>' },
+        'Thermostat Install':   { title: 'Smart Thermostat',        val: 'thermostat',      desc: 'Programmable and smart thermostat installation — take full control of your comfort and lower energy bills automatically.',  icon: '<circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>' }
+      };
+      const COMMERCIAL = { title: 'Commercial HVAC', val: 'commercial', desc: 'Light commercial units, rooftop systems, and maintenance contracts for local businesses of any size.', icon: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/>' };
+      const DEFAULTS = ['AC Repair','Furnace Repair','Heat Pump','Indoor Air Quality','Maintenance Plans'];
+      const src = (Array.isArray(CLIENT.services) && CLIENT.services.length) ? CLIENT.services : DEFAULTS;
+      const entries = src.map(n => CATALOG[n] || { title: n, val: n.toLowerCase().replace(/\s+/g,'_'), desc: 'Professional service — ask us about availability in your area.', icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>' });
+
+      // Cards
+      const grid = document.getElementById('services-grid');
+      if (grid) {
+        grid.innerHTML = entries.map((s, i) => `
+          <div class="service-card">
+            <div class="service-card-poster">
+              ${i === 0 ? '<span class="service-badge">⭐ Most Requested</span>' : ''}
+              <svg width="54" height="54" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">${s.icon}</svg>
+            </div>
+            <div class="service-card-body">
+              <h3>${s.title}</h3>
+              <p>${s.desc}</p>
+              <a href="#hero" class="service-link" data-service="${s.val}">Book Your Free Estimate →</a>
+            </div>
+          </div>`).join('');
+        if (CLIENT.features.commercial) {
+          grid.innerHTML += `
+          <div class="service-card" id="service-commercial">
+            <div class="service-card-poster">
+              <svg width="54" height="54" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">${COMMERCIAL.icon}</svg>
+            </div>
+            <div class="service-card-body">
+              <h3>${COMMERCIAL.title}</h3>
+              <p>${COMMERCIAL.desc}</p>
+              <a href="#hero" class="service-link" data-service="${COMMERCIAL.val}">Book Your Free Estimate →</a>
+            </div>
+          </div>`;
+        }
+      }
+
+      // Lead form select
+      const sel = document.getElementById('h-service');
+      if (sel) {
+        entries.forEach(s => {
+          const o = document.createElement('option');
+          o.value = s.val; o.textContent = s.title;
+          sel.appendChild(o);
+        });
+        if (CLIENT.features.commercial) {
+          const o = document.createElement('option');
+          o.value = COMMERCIAL.val; o.textContent = COMMERCIAL.title;
+          sel.appendChild(o);
+        }
+        const other = document.createElement('option');
+        other.value = 'other'; other.textContent = 'Other / Not Sure';
+        sel.appendChild(other);
+      }
+
+      // Footer services list
+      const ul = document.getElementById('footer-services-list');
+      if (ul) {
+        ul.innerHTML = entries.map(s => `<li><a href="#services">${s.title}</a></li>`).join('');
+        if (CLIENT.features.commercial) ul.innerHTML += `<li><a href="#services">${COMMERCIAL.title}</a></li>`;
+        ul.innerHTML += '<li><a href="#hero" style="color:var(--primary); font-weight:700;">Book Free Estimate →</a></li>';
+      }
+    })();
+
     if (!CLIENT.features.financing) {
       hide('financing');
       hide('nav-financing-li');

@@ -889,15 +889,13 @@ async function sendOnboardingNudge(contractor, completedSteps) {
 // { name, email, company, siteUrl, portalUrl, loginEmail, password }
 async function sendContractorWelcomeEmail({ name, email, company, siteUrl, portalUrl, loginEmail, password }) {
   const html = emailBase({
-    label:    'You\'re Live on Tractify',
-    headline: `${esc(company)} is ready to take bookings!`,
-    sub:      'Your site is live. Log in to complete your setup and activate all 6 booking channels.',
+    label:    'Welcome to Tractify',
+    headline: 'Your booking pipeline is live.',
+    sub:      'Log in, complete your setup, and booked jobs start coming in.',
     bodyContent: `
       <tr><td style="padding:0 0 20px;">
         <p style="margin:0;font-size:15px;color:#374151;line-height:1.6;">
-          Hi ${esc(name)},<br><br>
-          Your Tractify site is live at:<br>
-          <a href="${esc(siteUrl)}" style="color:#6366f1;font-weight:700;">${esc(siteUrl)}</a>
+          Hi ${esc(name)}, welcome to Tractify. Your pipeline is active and your booking site is live. Log in below to complete your 6-step setup — it takes about 10 minutes and activates all your booking channels.
         </p>
       </td></tr>
 
@@ -915,9 +913,9 @@ async function sendContractorWelcomeEmail({ name, email, company, siteUrl, porta
 
       <tr><td style="padding:0 0 8px;">
         <p style="margin:0 0 12px;font-size:15px;font-weight:700;color:#1a1a2e;">What to do next:</p>
-        ${stepCard(1, 'Log into your portal', `Go to <a href="${esc(portalUrl)}" style="color:#6366f1;">${esc(portalUrl)}</a> and change your password`)}
-        ${stepCard(2, 'Complete your setup checklist', 'Activate all 6 booking channels — takes about 10 minutes. Instructions are right inside the portal.')}
-        ${stepCard(3, 'Watch jobs come in', 'Once setup is complete, Tractify starts delivering booked appointments automatically.')}
+        ${stepCard(1, 'Log into your portal', `Go to <a href="${esc(portalUrl)}" style="color:#6366f1;">${esc(portalUrl)}</a> and log in with the credentials above`)}
+        ${stepCard(2, 'Complete your 6-step setup', 'Activates all your booking channels — instructions are right inside the portal. Takes about 10 minutes.')}
+        ${stepCard(3, 'Watch jobs come in', 'Most contractors see their first booking within the first week. You\'ll be notified the moment one lands.')}
       </td></tr>
 
       <tr><td style="padding:12px 0 0;">
@@ -928,7 +926,7 @@ async function sendContractorWelcomeEmail({ name, email, company, siteUrl, porta
       </td></tr>
     `,
   });
-  await sendEmail(email, `Your Tractify site is live — ${esc(company)}`, html);
+  await sendEmail(email, `Welcome to Tractify — your booking pipeline is live`, html);
 }
 
 // ── Admin alert after auto-deploy ─────────────────────────────────────────────
