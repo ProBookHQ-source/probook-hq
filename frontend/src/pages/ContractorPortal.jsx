@@ -1576,7 +1576,11 @@ export default function ContractorPortal() {
         {/* ════════════════ SETUP CHECKLIST ════════════════ */}
         {tab === 'setup' && (
           <div className="flex-1 overflow-y-auto overflow-x-hidden pb-16 md:pb-0">
-            <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 md:py-8">
+            <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 md:py-8">
+              <div className="flex flex-col md:flex-row gap-6 items-start">
+
+              {/* ── Left: checklist ── */}
+              <div className="flex-1 min-w-0">
 
               {/* Header */}
               <div className="mb-6">
@@ -1704,6 +1708,94 @@ export default function ContractorPortal() {
                   );
                 })}
               </div>
+
+              </div> {/* end left column */}
+
+              {/* ── Right: AI assistant panel ── */}
+              <div className="w-full md:w-80 shrink-0 md:sticky md:top-6">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col" style={{ height: '520px' }}>
+                  {/* Panel header */}
+                  <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2.5 shrink-0">
+                    <div className="w-7 h-7 rounded-lg bg-brand-500 flex items-center justify-center shrink-0">
+                      <MessageSquare className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-900 leading-tight">Setup Assistant</p>
+                      <p className="text-xs text-gray-400">Ask me anything — I'll walk you through it</p>
+                    </div>
+                    {chatMessages.length > 0 && (
+                      <button onClick={() => setChatMessages([])} className="text-xs text-gray-400 hover:text-gray-600">Clear</button>
+                    )}
+                  </div>
+
+                  {/* Messages */}
+                  <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
+                    {chatMessages.length === 0 && (
+                      <div className="space-y-2 pt-1">
+                        {[
+                          'Help me set up my account',
+                          'How do I forward my calls?',
+                          'What should I do first?',
+                        ].map(s => (
+                          <button
+                            key={s}
+                            onClick={() => sendChatMessage(s)}
+                            className="w-full text-left text-xs bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-gray-600 hover:border-brand-400 hover:text-brand-600 transition-colors"
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {chatMessages.map((msg, i) => (
+                      <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
+                          msg.role === 'user'
+                            ? 'bg-brand-500 text-white rounded-br-sm'
+                            : 'bg-gray-100 text-gray-800 rounded-bl-sm'
+                        }`}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    ))}
+                    {chatLoading && (
+                      <div className="flex justify-start">
+                        <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-3 py-2">
+                          <div className="flex gap-1 items-center">
+                            <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatBottomRef} />
+                  </div>
+
+                  {/* Input */}
+                  <div className="shrink-0 border-t border-gray-100 px-3 py-2.5">
+                    <form onSubmit={(e) => { e.preventDefault(); sendChatMessage(); }} className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        value={chatInput}
+                        onChange={e => setChatInput(e.target.value)}
+                        placeholder="Ask a question…"
+                        className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
+                        disabled={chatLoading}
+                      />
+                      <button
+                        type="submit"
+                        disabled={!chatInput.trim() || chatLoading}
+                        className="w-8 h-8 rounded-xl bg-brand-500 flex items-center justify-center text-white disabled:opacity-40 shrink-0"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+
+              </div> {/* end flex row */}
             </div>
           </div>
         )}
