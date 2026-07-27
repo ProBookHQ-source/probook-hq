@@ -903,10 +903,13 @@ async function sendContractorWelcomeEmail({ name, email, company, siteUrl, porta
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
                style="background:#f5f3ff;border-radius:10px;border-left:4px solid #6366f1;">
           <tr><td style="padding:18px 22px;">
-            <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:1px;">Your Portal Login</p>
-            <p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>URL:</strong> <a href="${esc(portalUrl)}" style="color:#6366f1;">${esc(portalUrl)}</a></p>
-            <p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>Email:</strong> ${esc(loginEmail)}</p>
-            <p style="margin:0;font-size:14px;color:#374151;"><strong>Password:</strong> <code style="background:#ede9fe;padding:2px 6px;border-radius:4px;font-size:13px;">${esc(password)}</code></p>
+            <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:1px;">Your Portal Login</p>
+            <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">URL</p>
+            <p style="margin:0 0 12px;"><a href="${esc(portalUrl)}" style="color:#6366f1;font-size:14px;">${esc(portalUrl)}</a></p>
+            <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Email</p>
+            <div style="margin:0 0 12px;background:#fff;border:1px solid #ddd6fe;border-radius:6px;padding:10px 14px;font-family:monospace;font-size:14px;color:#1a1a2e;letter-spacing:0.3px;">${esc(loginEmail)}</div>
+            <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Password</p>
+            <div style="margin:0;background:#fff;border:1px solid #ddd6fe;border-radius:6px;padding:10px 14px;font-family:monospace;font-size:14px;color:#1a1a2e;letter-spacing:0.3px;">${esc(password)}</div>
           </td></tr>
         </table>
       </td></tr>
@@ -920,8 +923,7 @@ async function sendContractorWelcomeEmail({ name, email, company, siteUrl, porta
 
       <tr><td style="padding:12px 0 0;">
         <p style="margin:0;font-size:14px;color:#6b7280;line-height:1.6;">
-          Questions? Reply to this email — we respond same day.<br>
-          <strong>Jose &amp; Daniel — Tractify</strong>
+          Questions? Reply to this email — we respond same day.
         </p>
       </td></tr>
     `,
