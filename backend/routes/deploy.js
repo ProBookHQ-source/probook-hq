@@ -25,10 +25,9 @@ const https  = require('https');
 const router = express.Router();
 
 // ── Fetch top Google reviews for a contractor via Places API ──────────────────
-const PLACES_API_KEY = 'AIzaSyAbRXd2xYGaBMVkZV_qvi2B3Funw3-grRk';
-
 async function fetchGoogleReviews(placeId) {
-  if (!placeId) return [];
+  const PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
+  if (!placeId || !PLACES_API_KEY) return [];
   return new Promise((resolve) => {
     const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=reviews&key=${PLACES_API_KEY}`;
     https.get(url, (res) => {
