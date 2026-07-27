@@ -4,6 +4,8 @@ const db = require('../database/db');
 const { requireContractor } = require('../middleware/auth');
 const Anthropic = require('@anthropic-ai/sdk');
 const { v4: uuidv4 } = require('uuid');
+const notifications = require('../services/notifications');
+const { logEvent } = require('../services/auditLog');
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -93,7 +95,8 @@ WHAT YOU CAN DO:
 RULES:
   - Be short. Contractors are usually on job sites. 1–3 sentences max unless they ask for more detail.
   - After blocking time, confirm clearly: "Done — [day] [date] from [time] to [time] is blocked."
-  - After cancelling, confirm: "Done — [name]'s appointment on [date] at [time] has been cancelled. They'll get an automatic text to rebook."
+  - After cancelling a REAL_APPOINTMENT: "Done — [name]'s appointment on [date] at [time] is cancelled. They'll get a rebook link automatically."
+  - After clearing an EXTERNAL_BLOCK: "Done — [time] on [date] is now open." Do NOT mention homeowners or rebook links — there's no customer involved.
   - Never guess at appointment IDs. Only cancel appointments that appear in the list above.
   - If the date is ambiguous (e.g. "Tuesday" could be this Tuesday or next), confirm which one before acting.
   - If someone asks something you can't do, say so plainly and suggest what they can do in the portal instead.`;
@@ -210,7 +213,8 @@ RULES:
     } else if (name === 'cancel_appointment') {
       try {
         const apptCheck = await db.query(
-          `SELECT a.*, l.name as lead_name FROM appointments a
+          `SELECT a.*, l.name as lead_name, l.email as lead_email, l.phone as lead_phone
+           FROM appointments a
            LEFT JOIN leads l ON a.lead_id = l.id
            WHERE a.id = $1 AND a.contractor_id = $2`,
           [input.appointment_id, contractorId]
@@ -218,14 +222,44 @@ RULES:
         if (!apptCheck.rows.length) {
           toolResult = 'Appointment not found or does not belong to this contractor.';
         } else {
+          const appt = apptCheck.rows[0];
           await db.query(
             `UPDATE appointments SET status = 'cancelled', updated_at = NOW() WHERE id = $1`,
             [input.appointment_id]
           );
-          const appt = apptCheck.rows[0];
-          toolResult = `Cancelled appointment ${input.appointment_id} (${appt.lead_name || 'manual block'} on ${appt.scheduled_date} at ${appt.scheduled_time}).`;
+
+          const isExternalBlock = !appt.lead_id;
+
+          if (!isExternalBlock) {
+            // Real customer appointment — reset lead status and send rebook link
+            await db.query(`UPDATE leads SET status = 'matched' WHERE id = $1`, [appt.lead_id]);
+            logEvent(appt.lead_id, 'cancelled', 'contractor', `Appointment ${input.appointment_id} cancelled via AI assistant`).catch(() => {});
+
+            const contractorRow = await db.query('SELECT * FROM contractors WHERE id = $1', [contractorId]);
+            const lead = { id: appt.lead_id, name: appt.lead_name, email: appt.lead_email, phone: appt.lead_phone };
+            const contractorData = contractorRow.rows[0];
+
+            if (lead.email && contractorData) {
+              // Invalidate old tokens, issue a new rebook token
+              await db.query(`UPDATE booking_tokens SET used = 1 WHERE lead_id = $1 AND used = 0`, [lead.id]);
+              const newToken = uuidv4();
+              const expiresAt = new Date(Date.now() + 24 * 3600 * 1000);
+              await db.query(
+                `INSERT INTO booking_tokens (id, lead_id, token, expires_at) VALUES ($1, $2, $3, $4)`,
+                [uuidv4(), lead.id, newToken, expiresAt]
+              );
+              const bookingUrl = `${process.env.FRONTEND_URL || 'https://tractifyhq.com'}/book/${newToken}`;
+              notifications.sendCancellationAndRebook(lead, contractorData, bookingUrl).catch(console.error);
+            }
+
+            toolResult = `REAL_APPOINTMENT_CANCELLED: ${appt.lead_name} on ${appt.scheduled_date} at ${appt.scheduled_time}. Rebook link sent to homeowner.`;
+          } else {
+            // External block — just cleared, no customer involved
+            toolResult = `EXTERNAL_BLOCK_CLEARED: ${appt.scheduled_date} at ${appt.scheduled_time} is now open.`;
+          }
+
           actionTaken = { type: 'cancel_appointment', appointment_id: input.appointment_id };
-          console.log(`[AI-CHAT] Cancelled appointment ${input.appointment_id} for contractor ${contractorId}`);
+          console.log(`[AI-CHAT] Cancelled ${isExternalBlock ? 'block' : 'appointment'} ${input.appointment_id} for contractor ${contractorId}`);
         }
       } catch (err) {
         toolResult = `Error cancelling appointment: ${err.message}`;
