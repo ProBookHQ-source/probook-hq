@@ -21,7 +21,40 @@ const db           = require('../database/db');
 const { sendContractorWelcomeEmail, sendDeployAlertToAdmin } = require('../services/notifications');
 const { deployToPages, addPagesDomain } = require('../services/cloudflare');
 
+const https  = require('https');
 const router = express.Router();
+
+// ── Fetch top Google reviews for a contractor via Places API ──────────────────
+const PLACES_API_KEY = 'AIzaSyAbRXd2xYGaBMVkZV_qvi2B3Funw3-grRk';
+
+async function fetchGoogleReviews(placeId) {
+  if (!placeId) return [];
+  return new Promise((resolve) => {
+    const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=reviews&key=${PLACES_API_KEY}`;
+    https.get(url, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(body);
+          const raw  = (json.result && json.result.reviews) || [];
+          const top3 = raw
+            .filter(r => r.rating >= 4)
+            .slice(0, 3)
+            .map(r => ({
+              name: r.author_name || 'Google Reviewer',
+              text: r.text       || '',
+              rating: r.rating   || 5,
+              date: r.relative_time_description || 'Recently',
+            }));
+          resolve(top3);
+        } catch(e) {
+          resolve([]);
+        }
+      });
+    }).on('error', () => resolve([]));
+  });
+}
 
 // ── Auth middleware — shared secret set in Railway env ────────────────────────
 function requireDeploySecret(req, res, next) {
@@ -136,7 +169,7 @@ ${zipChunks.join(',\n')}
 
       // ── GOOGLE REVIEWS ───────────────────────────────────────
       googleBusinessUrl: "${esc(data.googleUrl || '')}",
-      reviews: [],
+      reviews: ${JSON.stringify(data.reviews || [])},
 
       // ── TRACTIFY INTEGRATION ─────────────────────────────────
       tractifyKey:      "${esc(apiKey)}",
@@ -314,6 +347,11 @@ router.post('/', requireDeploySecret, async (req, res) => {
   // ── Step 4: Build template HTML with injected CLIENT config ───────────────
   const templatePath = path.join(__dirname, '../templates/hvac-template.html');
   let templateHtml   = fs.readFileSync(templatePath, 'utf-8');
+
+  // Pull top 3 Google reviews if placeId was captured on intake form.
+  // Never blocks deploy — falls back to [] silently on any error.
+  data.reviews = await fetchGoogleReviews(data.placeId || '');
+  log(`Google reviews fetched: ${data.reviews.length} (placeId: ${data.placeId || 'none'})`);
 
   const configBlock = buildClientConfig(data, apiKey, slug);
 

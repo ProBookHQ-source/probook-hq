@@ -2777,6 +2777,12 @@
       `;
     }).join('');
 
+    // Hide entire reviews section if no reviews pulled from Google
+    if (!CLIENT.reviews || CLIENT.reviews.length === 0) {
+      const sec = document.getElementById('reviews');
+      if (sec) sec.style.display = 'none';
+    }
+
     // Wire reviews CTA
     document.getElementById('reviews-cta-count').textContent = CLIENT.reviewCount;
     document.getElementById('reviews-cta-name').textContent  = CLIENT.name;

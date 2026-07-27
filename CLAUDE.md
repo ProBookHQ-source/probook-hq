@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 25, 2026 (session 7 — comprehensive field audit complete, all data now transfers correctly from intake form → deploy.js → deployed site. probooklogo.png embedded as base64 in template — no more missing file issues on Pages deploys).*
+*Last updated: July 25, 2026 (session 8 — feature flag transfer pipeline fully debugged and confirmed working end-to-end. Root cause was Cloudflare Pages production vs. main branch confusion + CDN caching. Financing section made generic across both templates. Google Reviews pull set as next build target.)*
 
 ---
 
@@ -25,6 +25,19 @@
 Tractify is software that fills HVAC contractors' calendars with booked jobs automatically. It is not a website company. It is not a lead gen service. It is a pipeline — contractors set their available hours, Tractify does the rest. When a customer needs HVAC work, they find the contractor, pick a time that works, and it goes straight on the calendar. No missed calls. No back and forth. No chasing leads. Just booked jobs showing up while the contractor is on the job site.
 
 **The three-word brand position: "Tractify fills your calendar."**
+
+**The long game — how Tractify competes with and beats ServiceTitan and GoHighLevel:**
+Everyone else is slapping AI on their front end as a marketing feature — "AI-powered booking," "smart scheduling." It's noise contractors don't care about. Tractify does the opposite: the AI is invisible on the surface but running everything on the backend. Contractors don't know it's AI, don't need to know, don't care. They just see results — jobs on the calendar, a monthly message that knows their exact numbers, insights that feel like they came from a business partner who's been watching them grow.
+
+The competitive moat builds itself automatically and compounds every month a contractor stays:
+- Month 1: the system knows their basic numbers
+- Month 6: it knows their seasonal patterns, best channels, close rate
+- Month 12: it's predicting slow periods before they happen and suggesting campaigns automatically
+- The booking data, channel data, revenue history, and behavioral patterns all live inside Tractify — a competitor starting from zero with that contractor has none of it
+
+ServiceTitan is bloated, expensive, built for enterprise, and requires dedicated staff to operate. GoHighLevel is a tool that still requires the contractor to do the work. Tractify does the work for them, learns their business over time, and gets more valuable every single month. No contractor with 12 months of history inside Tractify has a rational reason to leave — not because they're trapped, but because leaving means losing the only system that actually understands their business.
+
+This is the path to unicorn exit numbers. Not by chasing features or marketing AI for the sake of it — but by quietly building the deepest data moat in the home services industry one booked job at a time. The machine has to work and deliver jobs first. Everything else compounds from there.
 
 **The website is invisible infrastructure.** Contractors aren't buying a website — they're buying a pipeline of booked jobs. The website is just how it works, the same way nobody buys Shopify because they want a website. They buy it because they want to sell things. Never lead with website, system, or technology. Lead with the outcome.
 
@@ -266,7 +279,14 @@ Tractify automatically texts each contractor's past customer list when seasons c
 
 ## Sales Strategy (Pivoted July 18, 2026)
 
-**Current phase:** Content + paid ads — both Jose and Daniel heads down creating content and running paid ads targeting HVAC contractors. Cold calling is retired. The offer is strong enough to convert at scale without it. The goal is to get the offer in front of as many contractors as possible and let the product sell itself.
+**Current phase:** Finishing infrastructure first — all remaining build items (Google Reviews pull, Twilio unblock, debug log removal, pipeline polish) must be complete before shifting focus. Once infrastructure is done, full attention moves to ads and execution. Cold calling is retired permanently.
+
+**August execution focus — ads + job delivery:** Two-track ad strategy once infrastructure is complete:
+- **Track 1 (wide net):** Any HVAC contractor, lower targeting specificity. Purpose is data — fill the funnel, learn what the self-selecting contractor looks like, identify which intake form signals predict fast job delivery.
+- **Track 2 (sniper):** Hyper-targeted ideal profile — contractors with strong Google presence (4.5+ rating, 50+ reviews), active call volume, established local business. Behind these contractors, spend real ad money. These are the first case studies and the first Stripe conversions. Jobs deliver fast, conversion is close to guaranteed.
+- Track 1 teaches you which signals predict success. That makes Track 2 targeting sharper over time. Run both simultaneously but Track 2 is where August revenue lives.
+
+**Where the business lives and dies:** Delivering 5 jobs fast. Not the auto-deploy, not the checklist, not the channels — the actual booked jobs appearing on a contractor's calendar in the first 7-10 days. Everything else is infrastructure for that moment. August execution is about finding out if the machine produces what we think it does.
 
 **Why this is the right move:** Cold calling is 1:1. An ad runs 24/7 and reaches thousands simultaneously. Contractors who respond to an ad are already interested — they're already half sold. The free trial offer (5 booked jobs, zero risk) is strong enough to stop the scroll and convert. This is how you build a company at scale, not a local service business.
 
@@ -304,6 +324,8 @@ Ad or organic content → contractor fills out intake form at `intake.tractifyhq
 Every month a contractor stays, leaving gets more expensive for them. Their booking history, customer data, availability patterns, and ad performance data all live in Tractify. That compounding lock-in justifies aggressive price increases after the proof phase — not as punishment, but as accurate pricing of a product that's delivering more value over time.
 
 **Document everything from client one.** Every booked job, every missed call that converted, every text blast result. Screenshots, numbers, before/after. This documentation is the entire sales pitch for every client after the first three.
+
+**Document every result obsessively from day one.** Job delivered, channel it came from, how fast, revenue logged. When the data is clean and the numbers are real, the product sells itself to the next contractor without saying a word. The case study becomes the ad. The machine feeds itself.
 
 **The math at scale:** 10 clients at $1,500/month = $180,000/year. 10 clients at $2,500/month = $300,000/year. With broadcast SMS added as a retainer-justified feature, $3,000+/month per client is realistic for established contractors in large markets.
 
@@ -574,6 +596,14 @@ Cold calling served its purpose — it proved the pitch, sharpened the script, a
 - **Daniel** — co-founder and equal partner (50/50 ownership). Content creation, distribution, community engagement in contractor groups.
 - Both heads down on content and ads all of August. This is the do-or-die month — generate revenue or go back to jobs. The product is real, the offer is real, the funnel is real. August is about getting it in front of as many contractors as possible.
 - **North star for all decisions:** take Jose and Daniel out of the picture. Every system, every feature, every process should move toward full automation. If something requires one of them to do it manually at scale, it needs to eventually be automated or eliminated.
+
+**The three-person company that scales to exit:** Tractify is intentionally built to run with three people permanently — Jose, Daniel, and AI. Jose handles product, strategy, and execution decisions. Daniel handles content and distribution. The AI layer handles everything that would normally require a customer success team, operations manager, analyst, and marketing coordinator. This isn't a temporary startup phase — it's the permanent structure. Most companies hire people to compensate for broken systems. Tractify builds the systems first so the people never become necessary.
+
+**The long-term AI compounding play — why this becomes unstoppable:** The AI brain starts learning the moment the first contractor goes live. Month 1 it knows basic numbers. Month 6 it knows which markets convert fastest, which channels deliver jobs quickest, which contractor profiles predict Stripe conversions. Month 12 it's making recommendations backed by data from hundreds of deployments that no competitor can replicate. Every dollar of ad spend, every contractor acceleration decision, every channel investment — all backed by real pattern data that gets sharper automatically just by the business running. The AI is invisible to contractors but running everything on the backend. They don't know it's AI, don't need to know, don't care — they just see results. This is the opposite of every competitor who is slapping AI on their front end as a marketing gimmick. Tractify's AI is the infrastructure, not the pitch. That distinction is what makes this ahead of its time and what compounds into unicorn exit numbers.
+
+**Company positioning — results only, hands off:** Tractify is a results-driven software company. The only thing Tractify does is hand contractors booked appointments. We are not a marketing consultant, not a website company, not a customer success team. We do not get involved in questions about how to grow their business, how to get more homeowners, or how to use their tools. The product delivers results or it doesn't — that's the entire relationship. This is a power position, not a limitation. It's what allows Tractify to scale without getting tied down by individual clients.
+
+**Every inbound contractor question is a bug report, not a support ticket.** If a contractor is reaching out to ask something, it means the product or portal failed to answer it first. The fix is always the product, never a conversation. The onboarding checklist and portal help section must be airtight enough that a contractor can set up every channel, understand what's happening, and know what to expect — without ever contacting Jose or Daniel. A contractor with jobs on their calendar doesn't ask questions. The goal is a calendar full enough that there's nothing to ask.
 
 ---
 
@@ -1191,6 +1221,34 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 **Inline booking shows "No openings in the next 2 weeks"**
 → API key IS linked to a contractor but the open-slots fetch is failing. Check: (1) CORS headers in server.js, (2) contractor has weekly availability set in the portal, (3) fetch URL uses `TRACTIFY_API = 'https://tractifyhq.com'` (not the old Railway URL).
 
+**intake.tractifyhq.com shows old content after deploying the intake form**
+→ Two separate causes that can stack:
+1. **Wrong branch:** The `probook-intake` Cloudflare Pages project has two environments — `production` (what intake.tractifyhq.com serves) and `main` (preview). `wrangler pages deploy` WITHOUT `--branch=production` deploys to the `main` preview — the live custom domain never sees it. ALWAYS use `--branch=production`.
+2. **CDN cache:** Even after a correct production deploy, Cloudflare CDN may serve the old HTML for minutes. Fix: Cloudflare dashboard → tractifyhq.com zone → Caching → Purge Cache → Purge Everything.
+→ To verify which version is live: `view-source:https://intake.tractifyhq.com` and look for your marker comment (e.g. `<!-- v3-flags -->`).
+
+**"0 files (1 already uploaded)" from wrangler deploy — did it fail?**
+→ NOT a failure. This means the file's content hash already exists in Cloudflare's blob store (from a previous upload with identical content). Wrangler still creates a new deployment pointing to that blob — the production deployment IS updated. You can confirm by checking the Cloudflare Pages dashboard and looking for a new deployment timestamp.
+
+**Feature flags (emergency, warranty, financing, nate, commercial) showing as `undefined` in Railway debug log**
+→ The intake form was sending the correct fields but the old version of the form was live on intake.tractifyhq.com due to Cloudflare Pages branch confusion (see above). Root cause was every wrangler deploy going to the `main` preview branch, not `production`. Fix: always deploy with `--branch=production` and purge CDN cache after. Confirmed working as of July 25 session 8.
+
+**How the feature flags pipeline works end-to-end (for debugging)**
+1. Intake form `submitForm()` (lines ~2252-2260 of intake-form.html) sends boolean flags:
+   `emergency`, `warranty`, `financing`, `nate`, `commercial` (true/false)
+   Plus value fields: `warrantyYears`, `financingFrom`, `emergencyAvail`
+2. Worker receives payload → saves to R2 → calls `POST /api/deploy` on Tractify backend
+3. `deploy.js` `buildClientConfig()` reads `data.emergency`, `data.warranty`, etc. → injects into `<!-- TRACTIFY_CONFIG_START/END -->` markers in hvac-template HTML
+4. `deploy.js` has a debug log at line ~251: `log('DEBUG fields — emergency:${data.emergency} warranty:${data.warranty}...')` — visible in Railway logs. Use this to verify fields are arriving.
+5. Deployed site reads `CLIENT.emergency`, `CLIENT.warrantyYears`, etc. from the injected config
+→ If debug log shows `undefined`: the intake form version live on intake.tractifyhq.com is old. Fix the branch + purge cache and redeploy.
+→ If debug log shows correct values but site still shows wrong content: clear browser cache or check for hardcoded HTML in the template that doesn't check the CLIENT flag.
+
+**`$ sign missing from financing amount (shows "55/mo" instead of "$55/mo")**
+→ Contractor entered "55" without the $ prefix. deploy.js auto-prepends it:
+`financingFrom: "${esc(data.financingFrom ? (String(data.financingFrom).startsWith('$') ? data.financingFrom : '$' + data.financingFrom) : '')}"`
+This is already in production — no action needed. But if it ever breaks: the logic is in `buildClientConfig()` in `backend/routes/deploy.js`.
+
 ---
 
 ## Launch Status (as of July 25, 2026)
@@ -1222,17 +1280,46 @@ Note: `contractor_id` must be TEXT (not INTEGER) because `contractors.id` is a U
 - ✅ Feature flags fully wired — `emergency`, `financing`, `warranty`, `nate`, `commercial` all sent in payload and read correctly in `buildClientConfig()`. `warrantyYears` and `financingFrom` also transfer correctly.
 - ✅ probooklogo.png — embedded as base64 data URL directly in both `backend/templates/hvac-template.html` and `hvac-template/index.html`. No longer a separate file that can go missing on Cloudflare Pages deploys. Cover photo (`Coverphoto.jpg`) continues to deploy as a file (hardcoded in CSS, not via CLIENT config).
 - ✅ Intake form redeployed to `intake.tractifyhq.com` with licenseNumber + serviceArea fix.
+- ✅ Feature flag pipeline fully debugged (July 25, session 8) — root cause was wrangler deploying to `main` preview branch instead of `production`. Fixed deploy command in hvac-template/CLAUDE.md + added CDN purge step. All flags (emergency, warranty, financing, nate, commercial) confirmed transferring correctly.
+- ✅ Financing section made generic (July 25, session 8) — removed hardcoded terms ("12-month 0% APR", "60-month low payment", "Same-day approval", military discount, no-money-down). Both `hvac-template/index.html` AND `backend/templates/hvac-template.html` updated with generic copy that works for any contractor.
+- ✅ `$` auto-prepend for financingFrom in deploy.js — contractor entering "55" now correctly injects "$55" into the template.
+- ✅ Full end-to-end retest passed (July 25, session 8) — emergency toggle OFF removes all 24/7 sections, warranty years transfer correctly, financing amount shows with $ sign, NATE toggle off removes NATE badge, years in business transfers correctly.
 
 **Remaining — fine-tuning before first real contractor (do in order):**
+- [ ] **Google Reviews Pull (NEXT — build tonight)** — pull top 3 Google reviews from Places API and display on contractor sites. Plan: (1) capture `placeId` from Google Places autocomplete in intake form (it's already returned by the autocomplete — just need to store it), (2) pass `placeId` in Worker payload, (3) `deploy.js` calls Places API → gets top 3 reviews sorted by rating, (4) inject as `CLIENT.reviews = [{author, text, rating, date}, ...]`, (5) template renders reviews section from `CLIENT.reviews`. Google Places API key: `AIzaSyAbRXd2xYGaBMVkZV_qvi2B3Funw3-grRk` (already in intake form for autocomplete). Places Details endpoint: `GET https://maps.googleapis.com/maps/api/place/details/json?place_id={id}&fields=reviews&key={key}`. Returns up to 5 reviews sorted by `most_relevant` by default — take top 3 with rating ≥ 4.
+- [ ] **Remove debug log from deploy.js** — the `DEBUG fields —` log at line ~251 of `backend/routes/deploy.js` is intentionally left in while building. Remove before first real contractor goes live.
 - [ ] **Retest full pipeline** — delete test contractor, submit fresh intake form at `intake.tractifyhq.com`, verify: (1) "Powered by Tractify" badge shows logo correctly at bottom right, (2) cover photo is the HVAC image (not Unsplash), (3) feature flags match what was entered on form (test emergency off, financing on), (4) both emails arrive (contractor welcome + admin alert), (5) check `CLIENT.licenseNumber` and `CLIENT.serviceArea` in browser console match form inputs.
 - [ ] **Onboarding checklist polish pass** — ⚠️ flagged for review before August 3rd. Go through all 6 steps as if you're a new contractor. Fix any confusing copy, broken links, or missing Twilio number display issues.
 - [ ] **Twilio compliance approval** — pending (emailed trusthub-verify@twilio.com with CP 575B on July 23). Once approved: buy local number, set webhook to `https://tractifyhq.com/api/twilio/missed-call`, set on contractor in admin, test end-to-end.
 - [ ] **Service agreement** — simple 1-page terms on intake form. Defines: free trial = 5 booked appointments (not 5 closed jobs), what retainer covers, cancellation terms. Add acceptance checkbox, store timestamp in DB.
+- [ ] **Intake form success screen update** — currently shows inline booking for Jose's calendar (onboarding call flow that no longer exists). Needs to reflect the real automated flow. Exact copy TBD — defer until ready to focus on it.
+- [ ] **Training videos for contractors** — short screen recordings showing: (1) how to block time slots for jobs booked outside Tractify (phone calls, word of mouth, walk-ins) so double bookings don't happen, (2) how to use the portal day-to-day. Embed in the onboarding checklist or portal help section. Critical before first real contractor — this is their main support resource.
+- [ ] **Empty availability alert** — if a contractor's calendar still has zero availability slots set 24 hours after deploy, send an automated nudge email/SMS. Dead calendar = no bookings possible = silent failure. Add to the cron job in `cron.js`.
+- [ ] **Real-time booking alert to Jose** — when a homeowner actually books through a contractor's Tractify site, Jose needs to know immediately (not by checking the dashboard). Add a push notification or email alert to `notifications.js` that fires on every new booking during the trial period. This is how Jose monitors whether the machine is working in real time during August.
+- [ ] **Contractor portal first-login experience polish** — beyond the checklist, audit what a brand new contractor actually sees on first login. Does it feel like a professional product? Fix anything that looks like a dev tool or feels unfinished. First impression affects checklist completion rate.
+- [ ] **Portal help section / FAQ** — every question a contractor might think to ask Jose should be answered inside the portal. This is non-negotiable for keeping Tractify hands-off at scale. Topics to cover: what happens after setup, how long until jobs appear, how to block time for jobs booked outside Tractify, what the channels are and how they work, what happens at job 5, how to contact support. If a contractor is emailing Jose, the portal failed — treat every question as a product gap to close.
+- [ ] **AI chat assistant inside contractor portal (post first 3 clients)** — instead of a direct text/chat line to Jose, embed an AI-powered chat widget in the portal. Contractor types a question, gets an instant answer. Claude with full Tractify context injected handles 95% of what contractors ever ask — checklist steps, how channels work, what to do when something isn't working, what happens at job 5. The 5% it can't handle escalates to Jose on his terms, not reactively. This keeps Tractify fully hands-off at scale while contractors still feel supported. Build after first contractors are live so real questions shape what the assistant is trained on.
+- [ ] **Unified AI brain across the entire pipeline (Phase 3 — long game)** — right now each piece of the system operates in isolation. The intake form collects, the worker deploys, the template serves homeowners, the backend runs bookings. Phase 3 connects all of them with shared intelligence. The intake form qualifies contractors in real time before they submit. The worker makes intelligent deployment decisions based on contractor profile — urban contractor with 80 reviews gets different channel prioritization than rural contractor with 10. The template dynamically serves what's converting best across all active sites. Booking data feeds back into intake form prioritization. One continuous learning loop across the entire pipeline — every part talking to every other part, getting smarter as data flows through. Build after the admin brain is live and real data exists to learn from. You can't train a system on data you don't have yet.
+
+**How to build the brain properly as the business grows — the layered approach:**
+The brain can't be built all at once. It has to be layered in the right order as real data accumulates:
+- **Layer 1 (now — August):** Clean data infrastructure. Booking source tracking, revenue logging, checklist completion status all flowing into the database consistently. This is the training data for everything that comes after. No shortcuts here — bad data makes a dumb brain.
+- **Layer 2 (after first 5 contractors):** Admin brain goes live. AI chat in the admin dashboard with full CLAUDE.md context + live database access. Jose starts asking questions and getting answers. Every decision Jose makes gets logged — which contractors got ad spend, what the result was, which channels underperformed. The brain starts building memory.
+- **Layer 3 (after 10-15 contractors):** Pattern recognition kicks in. Enough data exists to spot things no human would catch manually — zip code densities converting faster, review counts predicting close rates, checklist completion order correlating with job delivery speed. Brain goes from reactive (answering questions) to proactive (surfacing insights unprompted). "Three contractors haven't had a booking in 5 days — here's what's different about them."
+- **Layer 4 (after 25+ contractors):** Predictions replace suggestions. "Last time you put $20/day behind a contractor with this profile in this market, they hit 5 jobs in 6 days." The brain stops learning from individual decisions and starts learning from patterns across the entire portfolio. Intake form qualification becomes automated. Deployment decisions become intelligent. The unified pipeline brain comes online.
+- **The north star:** Jose feels like he has a world-class operations team, growth team, and analyst team working 24/7 without hiring a single person. Every hard decision — which contractors to accelerate, where to spend money, what's broken, what's working — gets made faster and smarter because the brain has seen it before.
+
+- [ ] **Unified AI brain across the entire pipeline (Phase 3 — long game)** — right now each piece of the system operates in isolation. The intake form collects, the worker deploys, the template serves homeowners, the backend runs bookings. Phase 3 connects all of them with shared intelligence. The intake form qualifies contractors in real time before they submit. The worker makes intelligent deployment decisions based on contractor profile — urban contractor with 80 reviews gets different channel prioritization than rural contractor with 10. The template dynamically serves what's converting best across all active sites. Booking data feeds back into intake form prioritization. One continuous learning loop across the entire pipeline — every part talking to every other part, getting smarter as data flows through. Build after the admin brain is live and real data exists to learn from. You can't train a system on data you don't have yet.
+- [ ] **AI business brain embedded in admin dashboard (Phase 2 — most important feature)** — plug the full Tractify context + live database data into an AI chat interface on the admin side. This is Jose's command center. Instead of manually analyzing contractor performance, Jose asks plain questions and gets instant answers backed by real data: "Which contractors should I put ad spend behind this week?" "Why is this contractor getting zero bookings?" "Which channels are converting best across all active trials?" The AI sees every contractor, every booking, every checklist step, every channel, every job — and helps Jose make every hard decision fast. Which trials to accelerate, which to deprioritize, what's working vs. what needs fixing, where to spend money and where to pull back. Implementation: AI chat widget in the admin dashboard with full CLAUDE.md context injected plus live query access to the PostgreSQL database — contractors, appointments, availability, checklist status, booking sources all fed in real time. This transforms Jose from someone managing a dashboard into someone running a business with an always-on partner that knows every number cold and never sleeps. Build after first contractors are live so real data shapes what questions actually matter.
+- [ ] **AI-personalized monthly business report (Phase 2 — major feature)** — replace the generic cron report with an AI that knows each contractor's specific numbers, channels, history, and patterns. Instead of a generic email, the contractor gets a message that reads like a business partner who's been watching their growth: "Hey Mike — July was your best month. 8 jobs booked, 6 closed, $9,400 in revenue. Your missed call text-back recovered 3 that would have been gone forever. You have 12 past reviewers who haven't been re-engaged — want us to reach out?" Completely automated, completely personal, zero Jose involvement. The AI gets smarter about each contractor every month — slow seasons, best channels, close rate patterns. This transforms the monthly report from a retention tool into a genuine business intelligence service. Leaving Tractify stops meaning "losing a booking tool" and starts meaning "losing the only thing that understands my business." That's when churn becomes functionally zero — not because they're locked in technically, but because the relationship has real value they can't replicate anywhere else. This is the long game version of what Tractify becomes at scale.
+- [ ] **No-availability fallback on contractor site** — if a homeowner submits the lead form but the contractor has no available slots in the next 2 weeks, they hit a dead end. Need a graceful fallback: "We'll be in touch within 24 hours to schedule your appointment" + capture their info. Currently shows "No openings" with nothing else.
+- [ ] **Admin checklist completion visibility** — can Jose see from the admin dashboard which contractors have completed which checklist steps? If not, add it. In August Jose needs to know at a glance who is set up properly and who has stalled.
 - [ ] Jose expand availability in contractor portal (for /schedule/book — not blocking client onboarding)
 - [ ] Railway database backups — requires Pro plan ($20/month). Do NOT upgrade until first paying client.
 
-**Remaining — must do before first client converts:**
-- [ ] Stripe integration — self-serve conversion at job 5. Job 5 milestone trigger → Stripe payment page → $2,000 setup fee → system flips them to paid. No manual invoicing.
+**Remaining — must do before first client converts (Aug 4 with Daniel):**
+- [ ] **Open business bank account** — EIN in hand (42-4017025, issued July 23). Do this first.
+- [ ] **Stripe integration** — self-serve conversion at job 5. Job 5 milestone trigger → Stripe payment page → $2,000 setup fee + $800/month retainer → system flips them to paid. No manual invoicing. Set up with Daniel on August 4th — this is the crowning piece of the whole business model.
 - [ ] Job milestone trigger (job 3 + job 5) — portal notification + email, data-aware messaging (see Planned Features)
 - [ ] Revenue + outcome logging — "Did this job close? How much?" after each completed appointment
 
