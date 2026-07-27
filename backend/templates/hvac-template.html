@@ -1097,10 +1097,6 @@
       display: flex; align-items: center; gap: 7px;
       font-size: .8rem; font-weight: 700; color: var(--gray);
       margin-top: 8px;
-      background: #f8fafc;
-      border: 1px solid #e5e7eb;
-      border-radius: 50px;
-      padding: 6px 16px;
     }
 
     .reviews-grid {
@@ -2082,10 +2078,6 @@
             Same-Day Service
           </div>
           <div class="trust-item">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            100% Satisfaction Guarantee
-          </div>
-          <div class="trust-item">
             <svg width="18" height="18" fill="#f59e0b" viewBox="0 0 24 24"><path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.9L12 18l-6.2 3.1 1.2-6.9-5-4.9 6.9-1z"/></svg>
             5-Star Rated
           </div>
@@ -2220,9 +2212,9 @@
       <div class="why-grid">
 
         <div class="why-card">
-          <div class="why-big-stat">&lt;<span id="why-stat-response">1</span><span class="why-big-unit">hr</span></div>
-          <h3>Same-Day Response</h3>
-          <p>Most calls answered within 60 minutes. Emergency service available 24/7, 365 days a year — because breakdowns don't keep business hours.</p>
+          <div class="why-big-stat">24<span class="why-big-unit">/7</span></div>
+          <h3>Book Online Anytime</h3>
+          <p>Skip the phone tag. Request your appointment online any time of day or night and get instant confirmation — no waiting, no back and forth.</p>
         </div>
 
         <div class="why-card">
@@ -2238,9 +2230,9 @@
         </div>
 
         <div class="why-card">
-          <div class="why-big-stat">100<span class="why-big-unit">%</span></div>
-          <h3>Satisfaction Guaranteed</h3>
-          <p>If you're not completely happy, we make it right — no arguments, no hassle, no fine print. Your comfort is the only job that matters.</p>
+          <div class="why-big-stat">$0</div>
+          <h3>No Hidden Fees</h3>
+          <p>We price the job before we start. No surprise charges, no inflated invoices — just honest work at the number we agreed on.</p>
         </div>
 
       </div>
@@ -2527,7 +2519,7 @@
           <!-- Brand -->
           <div class="footer-brand">
             <a href="#" id="footer-logo-link" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;"></a>
-            <p id="footer-tagline">Licensed, insured, and backed by a satisfaction guarantee. We treat every home like our own.</p>
+            <p id="footer-tagline">Licensed, insured, and dedicated to doing the job right. We treat every home like our own.</p>
             <p class="footer-service-area">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
               <span id="footer-area-text">Serving Denver Metro & Front Range</span>
@@ -2710,11 +2702,6 @@
     // Why us
     document.getElementById('why-name').textContent = CLIENT.name.split(' ')[0];
     // Big stat cards — pull from CLIENT config
-    const responseMatch = CLIENT.responseTime.match(/\d+/);
-    document.getElementById('why-stat-response').textContent = responseMatch ? responseMatch[0] : '1';
-    // Set the unit dynamically — 'min' if minutes, 'hr' if hours
-    const responseUnit = /min/i.test(CLIENT.responseTime) ? 'min' : 'hr';
-    document.querySelector('#why .why-big-unit').textContent = responseUnit;
     document.getElementById('why-stat-warranty').textContent = CLIENT.warrantyYears;
     document.getElementById('why-stat-score').textContent    = CLIENT.reviewScore;
     document.getElementById('why-stat-count').textContent    = CLIENT.reviewCount;

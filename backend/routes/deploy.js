@@ -185,7 +185,7 @@ ${zipChunks.join(',\n')}
       },
 
       // ── FOOTER TAGLINE ───────────────────────────────────────
-      footerTagline:   "Licensed, insured, and backed by a satisfaction guarantee. We treat every home like our own.",
+      footerTagline:   "Licensed, insured, and dedicated to doing the job right. We treat every home like our own.",
 
       // ── LICENSE & COMPLIANCE ─────────────────────────────────
       licenseNumber:   "${esc(data.licenseNumber || '')}",
