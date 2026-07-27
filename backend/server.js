@@ -156,6 +156,7 @@ app.use('/api/apikeys',      require('./routes/apikeys'));
 app.use('/api/intake',       require('./routes/intake'));
 app.use('/api/twilio',       require('./routes/twilio'));
 app.use('/api/deploy',       require('./routes/deploy'));   // ← Cloudflare Worker calls this after intake form submit
+app.use('/api/contractor/ai-chat', require('./routes/aiChat'));
 
 // ── Google Calendar OAuth ─────────────────────────────────────────────────────
 const googleCalendar = require('./services/googleCalendar');

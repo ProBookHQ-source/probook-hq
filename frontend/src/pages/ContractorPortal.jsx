@@ -13,6 +13,7 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, Phone, Mail,
   Link as LinkIcon, Settings, Lock, User, Ban, CalendarPlus, Trash2,
   Home, Plus, X, Eye, EyeOff, ListChecks, ExternalLink, Copy,
+  MessageSquare, Send,
 } from 'lucide-react';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -253,6 +254,45 @@ export default function ContractorPortal() {
   const [onboardingSteps, setOnboardingSteps] = useState({});
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [expandedStep, setExpandedStep] = useState(null);
+
+  // ── AI assistant chat state ────────────────────────────────────────────────
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatBottomRef = useRef(null);
+
+  const sendChatMessage = async (text) => {
+    const msg = text?.trim() || chatInput.trim();
+    if (!msg || chatLoading) return;
+    setChatInput('');
+
+    const userMsg = { role: 'user', content: msg };
+    setChatMessages(prev => [...prev, userMsg]);
+    setChatLoading(true);
+
+    // Build history for the API (exclude the message we just added — it's in the payload)
+    const history = chatMessages.map(m => ({ role: m.role, content: m.content }));
+
+    try {
+      const { data } = await api.post('/contractor/ai-chat', { message: msg, history });
+      setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+      if (data.action) {
+        // Refresh calendar data after a calendar action
+        qc.invalidateQueries({ queryKey: ['appts'] });
+        qc.invalidateQueries({ queryKey: ['homeAppts'] });
+      }
+    } catch (err) {
+      const errMsg = err.response?.data?.error || 'Something went wrong. Try again.';
+      setChatMessages(prev => [...prev, { role: 'assistant', content: errMsg }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, chatLoading]);
 
   const from     = format(weekStart, 'yyyy-MM-dd');
   const to       = format(addDays(weekStart, 6), 'yyyy-MM-dd');
@@ -629,11 +669,12 @@ export default function ContractorPortal() {
 
   // ── Sidebar nav items ──────────────────────────────────────────────────────
   const NAV = [
-    { id: 'home',         label: 'Home',        icon: Home,       badge: todayCount || null },
-    { id: 'calendar',     label: 'Calendar',    icon: Calendar,   badge: null },
-    { id: 'availability', label: 'My Schedule', icon: Clock,      badge: null },
-    { id: 'setup',        label: 'Setup',       icon: ListChecks, badge: allStepsDone ? null : `${completedStepCount}/6` },
-    { id: 'settings',     label: 'Settings',    icon: Settings,   badge: null },
+    { id: 'home',         label: 'Home',        icon: Home,           badge: todayCount || null },
+    { id: 'calendar',     label: 'Calendar',    icon: Calendar,       badge: null },
+    { id: 'availability', label: 'My Schedule', icon: Clock,          badge: null },
+    { id: 'assistant',    label: 'Assistant',   icon: MessageSquare,  badge: null },
+    { id: 'setup',        label: 'Setup',       icon: ListChecks,     badge: allStepsDone ? null : `${completedStepCount}/6` },
+    { id: 'settings',     label: 'Settings',    icon: Settings,       badge: null },
   ];
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -1812,6 +1853,111 @@ export default function ContractorPortal() {
                 </div>}
 
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════ AI ASSISTANT ════════════════ */}
+        {tab === 'assistant' && (
+          <div className="flex-1 flex flex-col overflow-hidden pb-16 md:pb-0">
+            {/* Header */}
+            <div className="px-4 md:px-8 py-4 border-b border-gray-100 bg-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-brand-500 flex items-center justify-center shrink-0">
+                  <MessageSquare className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-base font-bold text-gray-900 leading-tight">Tractify Assistant</h1>
+                  <p className="text-xs text-gray-400">Block time, check your schedule, manage bookings</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Message thread */}
+            <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4 space-y-3">
+              {chatMessages.length === 0 && (
+                <div className="pt-4">
+                  <p className="text-sm font-semibold text-gray-700 mb-3">Try saying:</p>
+                  <div className="space-y-2">
+                    {[
+                      'What\'s on my calendar tomorrow?',
+                      'Block Thursday 2pm to 5pm',
+                      'What jobs do I have this week?',
+                    ].map(s => (
+                      <button
+                        key={s}
+                        onClick={() => sendChatMessage(s)}
+                        className="w-full text-left text-sm bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-600 hover:border-brand-400 hover:text-brand-600 transition-colors"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {chatMessages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  {msg.role === 'assistant' && (
+                    <div className="w-7 h-7 rounded-full bg-brand-500 flex items-center justify-center shrink-0 mr-2 mt-0.5">
+                      <MessageSquare className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  )}
+                  <div
+                    className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                      msg.role === 'user'
+                        ? 'bg-brand-500 text-white rounded-br-sm'
+                        : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm'
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+
+              {chatLoading && (
+                <div className="flex justify-start">
+                  <div className="w-7 h-7 rounded-full bg-brand-500 flex items-center justify-center shrink-0 mr-2 mt-0.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-white" />
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+                    <div className="flex gap-1.5 items-center">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div ref={chatBottomRef} />
+            </div>
+
+            {/* Input bar */}
+            <div className="shrink-0 border-t border-gray-100 bg-white px-4 md:px-8 py-3">
+              <form
+                onSubmit={(e) => { e.preventDefault(); sendChatMessage(); }}
+                className="flex gap-2 items-center"
+              >
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  placeholder="Block time, check schedule, cancel a job…"
+                  className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
+                  disabled={chatLoading}
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim() || chatLoading}
+                  className="w-10 h-10 rounded-xl bg-brand-500 flex items-center justify-center text-white disabled:opacity-40 transition-opacity shrink-0"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </form>
             </div>
           </div>
         )}
