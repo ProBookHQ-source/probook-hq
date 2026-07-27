@@ -256,7 +256,12 @@ export default function ContractorPortal() {
   const [expandedStep, setExpandedStep] = useState(null);
 
   // ── AI assistant chat state ────────────────────────────────────────────────
-  const [chatMessages, setChatMessages] = useState([]);
+  const [chatMessages, setChatMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`tractify_chat_${user?.id}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const chatBottomRef = useRef(null);
@@ -288,6 +293,15 @@ export default function ContractorPortal() {
       setChatLoading(false);
     }
   };
+
+  // Persist chat messages to localStorage
+  useEffect(() => {
+    try {
+      // Keep last 50 messages only
+      const toSave = chatMessages.slice(-50);
+      localStorage.setItem(`tractify_chat_${user?.id}`, JSON.stringify(toSave));
+    } catch {}
+  }, [chatMessages]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -1866,10 +1880,18 @@ export default function ContractorPortal() {
                 <div className="w-9 h-9 rounded-xl bg-brand-500 flex items-center justify-center shrink-0">
                   <MessageSquare className="w-5 h-5 text-white" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <h1 className="text-base font-bold text-gray-900 leading-tight">Tractify Assistant</h1>
                   <p className="text-xs text-gray-400">Block time, check your schedule, manage bookings</p>
                 </div>
+                {chatMessages.length > 0 && (
+                  <button
+                    onClick={() => setChatMessages([])}
+                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
               </div>
             </div>
 

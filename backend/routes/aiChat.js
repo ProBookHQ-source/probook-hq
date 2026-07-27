@@ -167,17 +167,42 @@ RULES:
 
     if (name === 'block_time') {
       try {
-        const durationMinutes = Math.round(input.duration_hours * 60);
-        const blockId = uuidv4();
-        await db.query(
-          `INSERT INTO appointments
-             (id, contractor_id, lead_id, scheduled_date, scheduled_time, duration_minutes, status, notes)
-           VALUES ($1, $2, NULL, $3, $4, $5, 'external', 'Blocked via AI assistant')`,
-          [blockId, contractorId, input.date, input.start_time, durationMinutes]
-        );
-        toolResult = `Blocked: ${input.date} starting at ${input.start_time} for ${input.duration_hours} hours.`;
+        // Build one slot per hour (calendar renders per-hour blocks)
+        const [startH, startM] = input.start_time.split(':').map(Number);
+        const totalSlots = Math.ceil(input.duration_hours);
+        const slots = [];
+        for (let i = 0; i < totalSlots; i++) {
+          const h = startH + i;
+          if (h > 23) break;
+          slots.push(`${String(h).padStart(2, '0')}:${String(startM).padStart(2, '0')}`);
+        }
+
+        const inserted = [];
+        const conflicts = [];
+        for (const slotTime of slots) {
+          try {
+            const blockId = uuidv4();
+            await db.query(
+              `INSERT INTO appointments
+                 (id, contractor_id, lead_id, scheduled_date, scheduled_time, duration_minutes, status, notes)
+               VALUES ($1, $2, NULL, $3, $4, 60, 'external', 'Blocked via AI assistant')`,
+              [blockId, contractorId, input.date, slotTime]
+            );
+            inserted.push(slotTime);
+          } catch (e) {
+            if (e.code === '23505' || (e.message && e.message.includes('UNIQUE'))) {
+              conflicts.push(slotTime);
+            } else {
+              throw e;
+            }
+          }
+        }
+
+        const endH = startH + totalSlots;
+        const endTime = `${String(endH).padStart(2, '0')}:${String(startM).padStart(2, '0')}`;
+        toolResult = `Blocked ${inserted.length} slots on ${input.date}: ${input.start_time} to ${endTime}. ${conflicts.length > 0 ? `${conflicts.length} already blocked.` : ''}`;
         actionTaken = { type: 'block_time', date: input.date, start_time: input.start_time, duration_hours: input.duration_hours };
-        console.log(`[AI-CHAT] Blocked time for contractor ${contractorId}: ${input.date} ${input.start_time} (${input.duration_hours}h)`);
+        console.log(`[AI-CHAT] Blocked ${inserted.length} slots for contractor ${contractorId}: ${input.date} ${input.start_time}–${endTime}`);
       } catch (err) {
         toolResult = `Error blocking time: ${err.message}`;
         console.error('[AI-CHAT] block_time error:', err.message);
