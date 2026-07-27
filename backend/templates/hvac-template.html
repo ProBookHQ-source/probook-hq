@@ -3073,8 +3073,30 @@
       const address = document.getElementById(prefix + 'address') ? document.getElementById(prefix + 'address').value.trim() : '';
       const service = document.getElementById(prefix + 'service').value;
 
-      if (!name || !email || !phone || !zip || !address || !service) {
-        msg.className = 'error'; msg.style.display = ''; msg.textContent = 'Please fill in all required fields.'; return;
+      // Field-level validation — highlight each empty field individually
+      const _requiredFields = [
+        { id: prefix + 'name',    val: name },
+        { id: prefix + 'phone',   val: phone },
+        { id: prefix + 'email',   val: email },
+        { id: prefix + 'zip',     val: zip },
+        { id: prefix + 'address', val: address },
+        { id: prefix + 'service', val: service },
+      ];
+      const _emptyFields = _requiredFields.filter(f => { const el = document.getElementById(f.id); return el && !f.val; });
+      if (_emptyFields.length) {
+        _emptyFields.forEach(f => {
+          const el = document.getElementById(f.id);
+          if (!el) return;
+          el.style.borderColor = 'rgba(239,68,68,0.9)';
+          el.style.boxShadow = '0 0 0 3px rgba(239,68,68,0.25)';
+          el.addEventListener('input', function() { this.style.borderColor = ''; this.style.boxShadow = ''; }, { once: true });
+          el.addEventListener('change', function() { this.style.borderColor = ''; this.style.boxShadow = ''; }, { once: true });
+        });
+        msg.className = 'error'; msg.style.display = '';
+        msg.textContent = 'Please fill in all highlighted fields before submitting.';
+        const firstEl = document.getElementById(_emptyFields[0].id);
+        if (firstEl) { firstEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); firstEl.focus(); }
+        return;
       }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
         msg.className = 'error'; msg.style.display = ''; msg.textContent = 'Please enter a valid email address.'; return;
