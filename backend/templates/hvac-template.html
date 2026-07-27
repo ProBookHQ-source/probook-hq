@@ -2208,7 +2208,7 @@
           <p>Skip the phone tag. Request your appointment online any time of day or night and get instant confirmation — no waiting, no back and forth.</p>
         </div>
 
-        <div class="why-card">
+        <div class="why-card" id="why-card-warranty">
           <div class="why-big-stat"><span id="why-stat-warranty">10</span><span class="why-big-unit">yr</span></div>
           <h3>Parts &amp; Labor Warranty</h3>
           <p>Full coverage on every installation — parts and labor. The strongest warranty in the region, backed by manufacturers we trust.</p>
@@ -2643,6 +2643,9 @@
       hide('cred-emergency');
       hide('cred-emergency-div');
       hide('footer-emergency-bar');
+    }
+    if (!CLIENT.warranty) {
+      hide('why-card-warranty');
     }
     // ── Dynamic service rendering ─────────────────────────────────────────
     (function renderServices() {
