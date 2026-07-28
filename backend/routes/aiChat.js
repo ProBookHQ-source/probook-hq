@@ -209,7 +209,7 @@ RULES:
         properties: {
           step_key: {
             type: 'string',
-            enum: ['availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers'],
+            enum: ['availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers', 'messenger'],
             description: 'The step key to mark complete',
           },
         },

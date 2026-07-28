@@ -159,6 +159,10 @@ router.put('/:id', requireContractor, async (req, res) => {
   if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
 
   const { name, phone, company_name, service_zip_codes, is_active, service_radius_miles, max_appointments_per_day, twilio_number } = req.body;
+
+  // Capture previous twilio_number to detect first-time assignment
+  const prevTwilioNumber = contractor.twilio_number;
+
   await db.prepare(`
     UPDATE contractors SET
       name = COALESCE($1, name),
@@ -181,6 +185,31 @@ router.put('/:id', requireContractor, async (req, res) => {
     id,
     twilio_number || null
   );
+
+  // ── Welcome SMS — fires when Twilio number is first assigned ─────────────────
+  // Twilio number was just assigned (null → value) and contractor has a phone number
+  // and hasn't already received a welcome text.
+  const newTwilioNumber = twilio_number || null;
+  const contractorPhone = phone || contractor.phone;
+  const welcomeAlreadySent = contractor.sms_welcome_sent;
+
+  if (!prevTwilioNumber && newTwilioNumber && contractorPhone && !welcomeAlreadySent
+      && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+    try {
+      const { sendWelcomeText } = require('../services/smsAI');
+      const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+      // Load fresh contractor row so smsAI has full context (booking_slug etc.)
+      const fresh = await db.prepare(`SELECT * FROM contractors WHERE id = $1`).get(id);
+      if (fresh) {
+        await sendWelcomeText(fresh, twilioClient);
+        console.log(`[CONTRACTORS] Welcome SMS sent to ${fresh.name} (${id}) at ${contractorPhone}`);
+      }
+    } catch (err) {
+      // Non-fatal — contractor was still updated successfully
+      console.error('[CONTRACTORS] Welcome SMS failed:', err.message);
+    }
+  }
+
   res.json({ message: 'Contractor updated' });
 });
 

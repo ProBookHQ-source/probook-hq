@@ -197,6 +197,11 @@ async function initialize() {
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS twilio_test_call_at TIMESTAMPTZ`).catch(() => {});
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS city TEXT`).catch(() => {});
 
+  // Migration: two-way AI SMS — conversation history + drip tracking
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS sms_conversation JSONB DEFAULT '[]'`).catch(() => {});
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS last_setup_sms_at TIMESTAMPTZ`).catch(() => {});
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS sms_welcome_sent INTEGER DEFAULT 0`).catch(() => {});
+
   // Migration: add metadata + source_site to leads for inbound bridge support
   await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'`).catch(() => {});
   await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS source_site TEXT`).catch(() => {});

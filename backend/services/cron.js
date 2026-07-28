@@ -119,4 +119,58 @@ cron.schedule('0 10 * * *', async () => {
   }
 });
 
-console.log('✅ Cron jobs started (appointment reminders every hour, onboarding nudge daily at 10am)');
+// ── SMS setup drip ────────────────────────────────────────────────────────────
+// Runs hourly. Finds contractors with a Twilio number assigned but with incomplete
+// setup steps who haven't received an SMS in the last 24 hours.
+// Sends one step-specific text guiding them to the next incomplete action.
+// Only fires if TWILIO credentials are set (Twilio compliance approved).
+cron.schedule('30 * * * *', async () => {
+  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return;
+
+  try {
+    const { rows: candidates } = await db.query(`
+      SELECT id, name, email, phone, company_name, booking_slug,
+             twilio_number, onboarding_steps, sms_welcome_sent,
+             last_setup_sms_at
+      FROM contractors
+      WHERE is_active = 1
+        AND twilio_number IS NOT NULL
+        AND phone IS NOT NULL
+        AND sms_welcome_sent = 1
+        AND (
+          last_setup_sms_at IS NULL
+          OR last_setup_sms_at < NOW() - INTERVAL '23 hours'
+        )
+        AND NOT (
+          COALESCE((onboarding_steps->>'availability')::boolean, false) = true AND
+          COALESCE((onboarding_steps->>'twilio')::boolean, false) = true AND
+          COALESCE((onboarding_steps->>'gbp')::boolean, false) = true AND
+          COALESCE((onboarding_steps->>'nextdoor')::boolean, false) = true AND
+          COALESCE((onboarding_steps->>'facebook')::boolean, false) = true AND
+          COALESCE((onboarding_steps->>'reviewers')::boolean, false) = true AND
+          COALESCE((onboarding_steps->>'messenger')::boolean, false) = true
+        )
+    `);
+
+    if (!candidates.length) return;
+
+    const twilio = require('twilio');
+    const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    const { sendSetupStepText } = require('./smsAI');
+
+    for (const contractor of candidates) {
+      try {
+        const stepSent = await sendSetupStepText(contractor, twilioClient);
+        if (stepSent) {
+          console.log(`⏰ [cron] Setup drip sent to ${contractor.name} — step: ${stepSent}`);
+        }
+      } catch (err) {
+        console.error(`⏰ [cron] Setup drip failed for ${contractor.id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('⏰ [cron] Setup drip job error:', err.message);
+  }
+});
+
+console.log('✅ Cron jobs started (appointment reminders every hour, onboarding nudge daily at 10am, SMS drip hourly at :30)');

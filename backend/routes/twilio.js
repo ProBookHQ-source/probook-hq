@@ -87,4 +87,103 @@ router.post('/missed-call', async (req, res) => {
 </Response>`);
 });
 
+// ── POST /api/twilio/inbound-sms ─────────────────────────────────────────────
+// Twilio webhook — fires when someone TEXTS the contractor's Twilio number.
+//
+// Routing logic:
+//   1. If the sender's phone matches the contractor's own registered phone → they're
+//      the contractor. Route to AI assistant (smsAI.js) for full two-way chat.
+//   2. Otherwise → homeowner. Send them the booking link (same as missed-call flow).
+//
+// Twilio console setup: set "A message comes in" webhook on the Twilio number to
+//   https://tractifyhq.com/api/twilio/inbound-sms
+// (separate from the voice webhook on the same number at /api/twilio/missed-call)
+router.post('/inbound-sms', async (req, res) => {
+  const { To, From, Body } = req.body;
+
+  console.log(`[TWILIO-SMS] Incoming — To: ${To}, From: ${From}, Body: ${Body?.substring(0, 60)}`);
+
+  // ── Signature validation ─────────────────────────────────────────────────────
+  if (process.env.TWILIO_AUTH_TOKEN) {
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const signature = req.headers['x-twilio-signature'];
+    const url       = `${process.env.FRONTEND_URL}/api/twilio/inbound-sms`;
+    const isValid   = twilio.validateRequest(authToken, signature, url, req.body);
+    if (!isValid) {
+      console.warn('[TWILIO-SMS] Invalid signature — ignoring');
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response/>`);
+    }
+  }
+
+  // ── Look up contractor by Twilio number ──────────────────────────────────────
+  const contractor = await db.prepare(`
+    SELECT id, name, company_name, phone, booking_slug, twilio_number,
+           onboarding_steps, sms_conversation, sms_welcome_sent,
+           sms_welcome_sent
+    FROM contractors
+    WHERE twilio_number = ? AND is_active = 1
+  `).get(To);
+
+  if (!contractor) {
+    console.warn(`[TWILIO-SMS] No active contractor for number: ${To}`);
+    res.type('text/xml');
+    return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response/>`);
+  }
+
+  // ── Phone number normalization (last 10 digits) ──────────────────────────────
+  const normalize = (num) => (num || '').replace(/\D/g, '').slice(-10);
+  const fromDigits = normalize(From);
+  const contractorDigits = normalize(contractor.phone);
+  const isContractor = contractorDigits && contractorDigits === fromDigits;
+
+  const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
+    ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+    : null;
+
+  if (!twilioClient) {
+    console.warn('[TWILIO-SMS] No Twilio credentials — cannot send reply');
+    res.type('text/xml');
+    return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response/>`);
+  }
+
+  if (isContractor) {
+    // ── Contractor texting in → AI assistant ──────────────────────────────────
+    console.log(`[TWILIO-SMS] Contractor recognized — routing to AI assistant`);
+    try {
+      const { handleContractorSms } = require('../services/smsAI');
+      const reply = await handleContractorSms(contractor, Body || '');
+      await twilioClient.messages.create({ to: From, from: To, body: reply });
+      console.log(`[TWILIO-SMS] AI reply sent to contractor ${contractor.name}: ${reply.substring(0, 80)}`);
+    } catch (err) {
+      console.error('[TWILIO-SMS] AI handler error:', err.message);
+      await twilioClient.messages.create({
+        to: From, from: To,
+        body: `Got your message. Log in at tractifyhq.com/contractor for full access.`,
+      }).catch(() => {});
+    }
+  } else {
+    // ── Homeowner texting in → send booking link ───────────────────────────────
+    console.log(`[TWILIO-SMS] Homeowner (${From}) — sending booking link`);
+    const businessName = contractor.company_name || contractor.name || 'us';
+    const bookingLink = contractor.booking_slug
+      ? `${process.env.FRONTEND_URL}/schedule/${contractor.booking_slug}`
+      : process.env.FRONTEND_URL;
+    try {
+      await twilioClient.messages.create({
+        to: From,
+        from: To,
+        body: `Hey! This is ${businessName}. Book a time online here: ${bookingLink} — takes 60 seconds and we'll confirm right away.`,
+      });
+      console.log(`[TWILIO-SMS] Booking link sent to homeowner ${From}`);
+    } catch (err) {
+      console.error('[TWILIO-SMS] Failed to send homeowner reply:', err.message);
+    }
+  }
+
+  // Always return empty TwiML — we already sent via REST API above
+  res.type('text/xml');
+  res.send(`<?xml version="1.0" encoding="UTF-8"?><Response/>`);
+});
+
 module.exports = router;
