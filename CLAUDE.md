@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 27, 2026 (session 9 — template fully dynamic: services, feature flags, warranty card all smart. Intake form conversion-optimized and trimmed to essentials. Welcome email rewritten to pipeline language with copy-paste credential blocks. Automated pipeline confirmed live and working end-to-end. Ready for first real contractor.)*
+*Last updated: July 28, 2026 (session 10 — two-way AI SMS system fully built and deployed. Contractor texts their Tractify number, AI guides setup step by step, executes calendar actions, persists conversation. Portal "why" callouts added to each setup step. TDZ crash fixed. The entire contractor experience now runs through a text message from day one. Ready to run ads.)*
 
 ---
 
@@ -55,6 +55,8 @@ The two-way AI SMS interface means a contractor who has been doing this for 30 y
 This is Apple-level thinking. The 80-year-old grandfather and the middle school kid using the same interface. "It just works." No competitor can copy it fast enough to matter because by the time they try, Tractify has 12 months of behavioral data on every contractor — what they text, when they text it, what campaigns they respond to, what their busiest weeks look like. That context is uncopiable. A competitor starting from zero with that contractor would be starting over.
 
 Tractify is pulling from two extremes simultaneously: the most powerful AI technology available today, delivered through a text message interface contractors have been using since 2008. That intersection — cutting-edge capability with zero learning curve — is almost impossible to find. This is it. Unicorn confirmed.
+
+**✅ BUILT July 28, 2026 (session 10) — the north star is live.** The two-way AI SMS system is fully deployed. The moment a contractor's Twilio number is assigned, they get a welcome text. Every day after that, the AI texts them the next incomplete setup step. When they text back, the AI responds — guides them through setup, blocks time on their calendar, cancels appointments, looks up their schedule. All from a text message. No app, no login, no learning curve. This was the last major infrastructure piece. Tractify is now fully built end-to-end.
 
 **The website is invisible infrastructure.** Contractors aren't buying a website — they're buying a pipeline of booked jobs. The website is just how it works, the same way nobody buys Shopify because they want a website. They buy it because they want to sell things. Never lead with website, system, or technology. Lead with the outcome.
 
@@ -240,7 +242,7 @@ The result: a contractor goes live on a Friday. By Monday, jobs are appearing on
 - ⬜ Facebook Messenger + Instagram DM auto-reply — no Tractify code needed; set up in Meta Business Suite per contractor. Add as Step 7 to onboarding checklist UI.
 - ⬜ Facebook Pixel + retargeting — small template + deploy.js change. Add `fbPixelId` to CLIENT config. Jose runs retargeting campaign from his Business Manager.
 - ⬜ Missed call follow-up text at 2 hours (if no booking) — backend change in `backend/routes/twilio.js`
-- ⬜ Facebook Lead Ads webhook — new route `backend/routes/facebook.js`. Receive lead webhook, call Graph API to get name/phone/email, create lead, send booking link SMS. Needs `FB_PAGE_ACCESS_TOKEN` in Railway env vars.
+- ✅ Facebook Lead Ads webhook — `backend/routes/facebook.js`. Webhook verification (GET), lead receiver (POST), Graph API call to get name/phone/email, lead created in DB, booking token generated, instant SMS from contractor's Twilio number + email backup. Hidden field `contractor_slug` in each Lead Ad form routes lead to correct contractor. Needs `FB_PAGE_ACCESS_TOKEN` + `FB_VERIFY_TOKEN` in Railway env vars.
 - ⬜ SMS keyword / inbound SMS handler — add inbound SMS webhook to `backend/routes/twilio.js`. Anyone who texts contractor's Twilio number gets auto-reply with their booking link. Powers all physical touchpoints (van, business card, fridge magnet, door hanger).
 
 ### Idea 5: One Template Per Niche — The Automation Backbone (July 21, 2026)
@@ -689,7 +691,9 @@ GOOGLE_CLIENT_ID     → not set yet
 GOOGLE_CLIENT_SECRET → not set yet
 GOOGLE_REDIRECT_URI  → not set yet
 SENTRY_DSN           → not set yet (optional — add to enable error monitoring)
-FB_PAGE_ACCESS_TOKEN → not set yet (needed for Facebook Lead Ads webhook — Channel 9)
+FB_PAGE_ACCESS_TOKEN → not set yet (needed for Facebook Lead Ads webhook — get from Business Manager → App → Page token)
+FB_VERIFY_TOKEN      → not set yet (any secret string Jose picks — used only for webhook verification setup)
+FB_APP_SECRET        → not set yet (optional — enables X-Hub-Signature-256 validation on webhook posts)
 ```
 
 ---
@@ -734,7 +738,8 @@ lead-booking-app/
 │   │   ├── notifications.js  ← All Resend email templates (HTML-escaped, branded)
 │   │   ├── googleCalendar.js ← OAuth2 Google Calendar sync
 │   │   ├── auditLog.js       ← Lead event logging (lead_events table)
-│   │   └── cron.js           ← node-cron: 24hr appointment reminders
+│   │   ├── smsAI.js          ← Two-way AI SMS brain: handleContractorSms, sendSetupStepText, sendWelcomeText
+│   │   └── cron.js           ← node-cron: 24hr reminders, onboarding nudge, SMS setup drip (hourly :30)
 │   ├── middleware/
 │   │   └── auth.js           ← JWT verify, requireAdmin, requireContractor
 │   └── tests/
@@ -789,6 +794,9 @@ google_refresh_token, google_calendar_id,
 reset_token TEXT,                ← for forgot-password flow
 reset_token_expires TIMESTAMPTZ,
 booking_slug TEXT UNIQUE,        ← e.g. 'book' → tractifyhq.com/schedule/book (Jose's slug is 'book', display = 'The Tractify Team')
+sms_conversation JSONB DEFAULT '[]', ← last 20 messages with AI (10 exchanges), persisted across texts
+last_setup_sms_at TIMESTAMPTZ,   ← when drip cron last texted this contractor (throttle: 23h)
+sms_welcome_sent INTEGER DEFAULT 0, ← 1 after welcome text fires on first Twilio number assignment
 created_at
 ```
 
@@ -1046,9 +1054,11 @@ Built July 21, 2026. Every missed call a contractor gets becomes a booked appoin
 **The voice message (read by Twilio's Alice voice):**
 > "Thanks for calling [Business Name]. We're out on a job right now but we just texted you a link to book a time that works for you. Check your messages!"
 
-**Twilio webhook URL to paste in Twilio console:**
-`https://tractifyhq.com/api/twilio/missed-call`
-(Paste this in the Twilio number's "A call comes in" → Webhook URL field)
+**Twilio webhook URLs to set in Twilio console (two separate webhooks, same number):**
+- **Voice (missed call):** `https://tractifyhq.com/api/twilio/missed-call` → set on "A call comes in"
+- **SMS (two-way AI):** `https://tractifyhq.com/api/twilio/inbound-sms` → set on "A message comes in"
+
+Both run on the same Twilio number. Voice webhook fires on missed calls → sends homeowner booking link. SMS webhook fires on any inbound text → routes by phone number: contractor's own number goes to AI assistant, homeowner number gets booking link.
 
 **Railway env vars needed:**
 - `TWILIO_ACCOUNT_SID` — from Twilio console (Account SID)
@@ -1309,28 +1319,33 @@ This is already in production — no action needed. But if it ever breaks: the l
 - ✅ **24/7 spacing fix** (July 27, session 9) — changed `24/7` to `24 / 7` on the why-card stat in both templates. Better visual breathing room between slash and 7. Applies to new contractor deploys going forward (live Evergreen site needs redeploy to see it).
 - ✅ **Form validation field highlighting** (July 27, session 9) — lead form on HVAC template now highlights empty required fields with red glow border on submit attempt. Auto-scrolls to and focuses the first empty field. Each field self-clears the highlight on input/change. Error message updated: "Please fill in all highlighted fields before submitting." Applied to both `hvac-template/index.html` and `backend/templates/hvac-template.html`.
 - ✅ **Warranty why-card hides when warranty is off** (July 27, session 9) — added `id="why-card-warranty"` to the warranty stat card in both templates. Added `if (!CLIENT.warranty) { hide('why-card-warranty'); }` to the feature flag hide block alongside the emergency247 logic. When a contractor doesn't offer a warranty, the card disappears — the remaining 3 why-cards fill the grid cleanly. Same pattern as all other feature flags.
+- ✅ **TDZ crash fix in ContractorPortal.jsx** (July 28, session 10) — two `useEffect` hooks were referencing variables (`slots`, `contractorProfile`, `markStep`) in their dependency arrays before those variables were declared via `useQuery`/`useMutation`. `const` has a Temporal Dead Zone — synchronous dep array evaluation threw `ReferenceError` on every render, causing a blank white page. Fix: moved both effects (`autoCompletedAvailabilityRef` and `greetingFiredRef`) to after all their dependencies are declared. Left a comment at the original location explaining the move so future Claude sessions don't re-introduce the same bug.
+- ✅ **"Why" callouts on each setup step** (July 28, session 10) — each of the 7 setup step cards in ContractorPortal.jsx now has a `why` field. When a step is expanded, a amber-50 callout box with a 💡 icon shows one punchy sentence explaining the cost of skipping it. Builds trust, drives completion. Examples: "HVAC contractors miss calls constantly — you're on rooftops, under houses, can't pick up. Every one of those calls used to be a lost job. This catches them automatically." / "Homeowners searching 'HVAC near me' right now can book directly from your Google listing. This is the highest-intent traffic that exists, and it costs nothing."
+- ✅ **'messenger' step added to complete_setup_step enum** (July 28, session 10) — the 7th onboarding step was missing from the AI tool enum in `aiChat.js`. Fixed. AI can now mark all 7 steps complete via tool use.
+- ✅ **Two-way AI SMS system — FULLY BUILT** (July 28, session 10) — the entire north star vision is live in production. Full details below.
+
+**Two-way AI SMS — what was built (session 10):**
+- `backend/services/smsAI.js` — new service. `handleContractorSms(contractor, incomingText)`: loads full contractor context (appointments, availability, checklist), calls Claude Haiku with SMS-optimized prompt (≤320 chars, no markdown, one thing at a time), runs same tool-use loop as aiChat.js (block_time, cancel_appointment, complete_setup_step for all 7 steps), persists last 20 messages to `sms_conversation` JSONB column, returns plain text reply for Twilio. `sendSetupStepText(contractor, twilioClient)`: finds next incomplete step, sends targeted drip text, updates `last_setup_sms_at`. `sendWelcomeText(contractor, twilioClient)`: one-time welcome on first Twilio number assignment, sets `sms_welcome_sent = 1`.
+- `POST /api/twilio/inbound-sms` added to `backend/routes/twilio.js` — routing: normalize last 10 digits of sender vs `contractor.phone`. Contractor's own number → AI assistant. Any other number → homeowner booking link reply. Twilio signature validation included.
+- Welcome SMS trigger in `backend/routes/contractors.js` PUT /:id — fires when `twilio_number` changes from null to a value and `sms_welcome_sent = 0`. Non-fatal — contractor update always succeeds even if SMS fails.
+- Setup drip cron added to `backend/services/cron.js` — runs hourly at :30. Finds contractors with Twilio assigned + welcome sent + incomplete steps + no SMS in 23 hours → sends next step text. Only fires if Twilio credentials are set (safe while compliance pending).
+- DB migrations in `backend/database/db.js`: `sms_conversation JSONB DEFAULT '[]'`, `last_setup_sms_at TIMESTAMPTZ`, `sms_welcome_sent INTEGER DEFAULT 0`.
+- **Twilio console setup (do when compliance approved):** On each contractor's Twilio number, set BOTH webhooks: "A call comes in" → `https://tractifyhq.com/api/twilio/missed-call`, "A message comes in" → `https://tractifyhq.com/api/twilio/inbound-sms`.
 
 **Remaining — fine-tuning before first real contractor (do in order):**
 - [ ] **Remove debug log from deploy.js** — the `DEBUG fields —` log at line ~251 of `backend/routes/deploy.js` is intentionally left in while building. Remove before first real contractor goes live.
 - [ ] **Retest full pipeline** — delete test contractor, submit fresh intake form at `intake.tractifyhq.com`, verify: (1) "Powered by Tractify" badge shows logo correctly at bottom right, (2) cover photo is the HVAC image (not Unsplash), (3) feature flags match what was entered on form (test emergency off, financing on, warranty off), (4) both emails arrive (contractor welcome + admin alert), (5) services on deployed site match what was selected on intake form, (6) warranty card absent when warranty toggled off.
 - [ ] **Onboarding checklist polish pass** — ⚠️ flagged for review before August 3rd. Go through all 6 steps as if you're a new contractor. Fix any confusing copy, broken links, or missing Twilio number display issues.
-- [ ] **Twilio compliance approval** — pending (emailed trusthub-verify@twilio.com with CP 575B on July 23). Once approved: buy local number, set webhook to `https://tractifyhq.com/api/twilio/missed-call`, set on contractor in admin, test end-to-end.
+- [ ] **Twilio compliance approval** — pending (emailed trusthub-verify@twilio.com with CP 575B on July 23). Once approved: buy local number for contractor, set BOTH webhooks in Twilio console ("A call comes in" → `/api/twilio/missed-call`, "A message comes in" → `/api/twilio/inbound-sms`), set number on contractor in admin dashboard, test end-to-end. All code is already live — zero build work remaining once compliance clears.
 - [ ] **Service agreement** — simple 1-page terms on intake form. Defines: free trial = 5 booked appointments (not 5 closed jobs), what retainer covers, cancellation terms. Add acceptance checkbox, store timestamp in DB.
 - [ ] **Training videos for contractors** — short screen recordings showing: (1) how to block time slots for jobs booked outside Tractify (phone calls, word of mouth, walk-ins) so double bookings don't happen, (2) how to use the portal day-to-day. Embed in the onboarding checklist or portal help section. Critical before first real contractor — this is their main support resource.
 - [ ] **Empty availability alert** — if a contractor's calendar still has zero availability slots set 24 hours after deploy, send an automated nudge email/SMS. Dead calendar = no bookings possible = silent failure. Add to the cron job in `cron.js`.
 - [ ] **Real-time booking alert to Jose** — when a homeowner actually books through a contractor's Tractify site, Jose needs to know immediately (not by checking the dashboard). Add a push notification or email alert to `notifications.js` that fires on every new booking during the trial period. This is how Jose monitors whether the machine is working in real time during August.
 - [ ] **Contractor portal first-login experience polish** — beyond the checklist, audit what a brand new contractor actually sees on first login. Does it feel like a professional product? Fix anything that looks like a dev tool or feels unfinished. First impression affects checklist completion rate.
 - [ ] **Portal help section / FAQ** — every question a contractor might think to ask Jose should be answered inside the portal. This is non-negotiable for keeping Tractify hands-off at scale. Topics to cover: what happens after setup, how long until jobs appear, how to block time for jobs booked outside Tractify, what the channels are and how they work, what happens at job 5, how to contact support. If a contractor is emailing Jose, the portal failed — treat every question as a product gap to close.
-- [ ] **AI chat assistant inside contractor portal — NEXT BUILD (session 10)** — embed an AI-powered chat widget directly in `ContractorPortal.jsx`. Contractor types naturally: "block Tuesday 2pm to 5pm", "what's on my calendar tomorrow", "cancel my Thursday morning", "how do I set up my Google Business Profile." The AI handles all of it — calendar operations, checklist guidance, general questions — without the contractor ever navigating the portal UI. This is Phase 1 of the SMS vision (see below). Build the portal chat first because: (1) no new infrastructure needed — widget lives inside the existing React app, (2) backend API routes for availability/bookings already exist, (3) fastest path to eliminating double bookings and checklist drop-off simultaneously. Implementation: chat widget component in ContractorPortal.jsx → `POST /api/contractor/ai-chat` backend route → Claude API call with contractor context (name, company, upcoming appointments, availability, checklist status) injected as system prompt → AI decides whether to answer in text or call an internal action (block time, look up appointments, etc.) → returns response + any action taken. No portal navigation needed for day-to-day operations.
+- ✅ **AI chat assistant inside contractor portal — BUILT (session ~8)** — live at `POST /api/contractor/ai-chat`. Chat widget in ContractorPortal.jsx → Claude Haiku with full contractor context → tool-use loop (block_time, complete_setup_step, cancel_appointment) → returns reply + action. Proactive greeting on setup tab open. Auto-completes step 1 if availability already set.
 
-- [ ] **Two-way AI SMS interface — Phase 2 of contractor AI (major upgrade, post portal chat)** — the same Twilio number already assigned to each contractor for missed call text-back becomes a full two-way AI conversation channel. Right now it only fires outbound. Flip it to two-way and the contractor never needs to open a browser again for daily operations. **How it works:** contractor texts their Tractify Twilio number (the same number homeowners call) → Tractify receives the inbound SMS → AI processes the message with full contractor context → takes action and replies by text. Same capabilities as the portal chat but no app, no login, no screen — just a text message from wherever they are. **The vision: contractor never logs in after initial setup.** Portal = setup tool + dashboard for when they want to look at numbers. Everything operational happens over SMS. **What the AI handles over SMS:**
-  - Calendar blocking: "block Tuesday 2pm to 5pm" → AI blocks it, confirms "Done — Tuesday 2–5pm blocked."
-  - Calendar lookup: "what's on my calendar tomorrow" → "2 jobs: AC repair 9am, furnace install 1pm."
-  - Cancellations: "cancel my Thursday morning job" → AI finds it, cancels it, triggers homeowner rebook flow.
-  - Booking confirmations: "New booking: Sarah Johnson, AC repair, Thursday 10am. Reply CANCEL to cancel."
-  - Campaign activation: "Hey Mike — spring is here. Want us to send a tune-up offer to your past customers? Reply YES." → contractor replies YES → campaign fires automatically.
-  - Checklist help: "how do I set up call forwarding on iPhone" → AI walks them through it step by step over text.
-  **Implementation:** Add inbound SMS handler to `backend/routes/twilio.js` at `POST /api/twilio/inbound-sms` (separate from the existing missed-call voice webhook). When a text comes in from a number NOT in the system as a homeowner, identify it as the contractor by their registered phone number → route to AI handler with contractor context → Claude API processes intent → calls internal action APIs → replies via Twilio SMS. **Requires:** contractor's personal cell phone number stored on their profile (add field to contractors table) so Tractify knows incoming texts from that number are from the contractor, not a homeowner. **Build order:** portal chat first (simpler, no new Twilio routing), SMS second (same AI logic, different delivery channel).
+- ✅ **Two-way AI SMS interface — BUILT (session 10)** — fully deployed. See "Two-way AI SMS — what was built" in the Launch Status section above. The portal chat and SMS brain share the same tool logic. North star is live.
 - [ ] **Unified AI brain across the entire pipeline (Phase 3 — long game)** — right now each piece of the system operates in isolation. The intake form collects, the worker deploys, the template serves homeowners, the backend runs bookings. Phase 3 connects all of them with shared intelligence. The intake form qualifies contractors in real time before they submit. The worker makes intelligent deployment decisions based on contractor profile — urban contractor with 80 reviews gets different channel prioritization than rural contractor with 10. The template dynamically serves what's converting best across all active sites. Booking data feeds back into intake form prioritization. One continuous learning loop across the entire pipeline — every part talking to every other part, getting smarter as data flows through. Build after the admin brain is live and real data exists to learn from. You can't train a system on data you don't have yet.
 
 **How to build the brain properly as the business grows — the layered approach:**
@@ -1379,7 +1394,7 @@ The brain can't be built all at once. It has to be layered in the right order as
 7. Tractify pre-populates availability slots from their intake form hours
 8. Contractor receives welcome email: portal URL + login email + temp password
 9. Jose receives admin alert email: contractor info + site URL
-10. Contractor logs in → first-login modal → completes 6-step self-serve checklist
+10. Contractor logs in → first-login modal → completes 7-step self-serve checklist
 
 **CONFIRMED LIVE July 25, 2026** — `evergreenhomeheatingandenergy.tractifyhq.com` deployed end-to-end with zero manual steps.
 

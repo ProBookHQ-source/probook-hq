@@ -80,7 +80,8 @@ app.use((req, res, next) => {
     req.path.startsWith('/api/availability') ||
     req.path.startsWith('/api/bookings/book') ||
     req.path.startsWith('/api/contractors/public') ||
-    req.path.startsWith('/api/twilio') // Twilio webhooks are server-to-server — no CORS needed
+    req.path.startsWith('/api/twilio') ||      // Twilio webhooks — server-to-server
+    req.path.startsWith('/api/leads/facebook') // Facebook webhooks — server-to-server
   ) return next();
   cors({
     origin: process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app',
@@ -155,6 +156,7 @@ app.use('/api/niches',       require('./routes/niches'));
 app.use('/api/apikeys',      require('./routes/apikeys'));
 app.use('/api/intake',       require('./routes/intake'));
 app.use('/api/twilio',       require('./routes/twilio'));
+app.use('/api/leads/facebook', require('./routes/facebook')); // Facebook Lead Ads webhook
 app.use('/api/deploy',       require('./routes/deploy'));   // ← Cloudflare Worker calls this after intake form submit
 app.use('/api/contractor/ai-chat', require('./routes/aiChat'));
 
