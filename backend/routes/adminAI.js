@@ -170,13 +170,16 @@ router.post('/', requireAdmin, async (req, res) => {
     console.warn('[ADMIN-AI] Could not read CLAUDE.md:', e.message);
   }
 
-  const systemPrompt = `You are the Tractify admin brain — Jose's command center. You have full context of the entire business (strategy, build history, decisions, priorities) from the master context document below, PLUS live real-time data from the database. You can BOTH answer questions AND take real actions in the system.
+  // Split into two parts for prompt caching:
+  // Part 1 (static — cached): CLAUDE.md rarely changes → 90% cost reduction on repeat reads
+  // Part 2 (dynamic — not cached): live DB data changes every query
+  const staticSystemPrompt = `You are the Tractify admin brain — Jose's command center. You have full context of the entire business (strategy, build history, decisions, priorities) from the master context document below, PLUS live real-time data from the database. You can BOTH answer questions AND take real actions in the system.
 
 === TRACTIFY MASTER CONTEXT (CLAUDE.md — full business context) ===
 ${claudeMd}
-=== END MASTER CONTEXT ===
+=== END MASTER CONTEXT ===`;
 
-=== LIVE DATABASE SNAPSHOT (pulled now, always current) ===
+  const dynamicSystemPrompt = `=== LIVE DATABASE SNAPSHOT (pulled now, always current) ===
 TODAY: ${today}
 ACTIVE CONTRACTORS: ${activeContractors.length} | PENDING: ${pendingContractors.length} | TOTAL BOOKINGS: ${totalBookings}
 
@@ -225,6 +228,14 @@ IMPORTANT: Use log_decision proactively. Any time a real decision is made, a pat
 When Jose asks you to do something, confirm what you did with the exact result.
 When identifying contractors by name, use the IDs from the list above.
 Be direct. No fluff. Jose is running a business.`;
+
+  // Build system prompt array for prompt caching
+  // Anthropic caches the static part (CLAUDE.md) at 90% discount after first read
+  // Cache TTL is 5 minutes — within any active session, most reads hit cache
+  const systemBlocks = [
+    { type: 'text', text: staticSystemPrompt, cache_control: { type: 'ephemeral' } },
+    { type: 'text', text: dynamicSystemPrompt },
+  ];
 
   // ── Tool definitions ──────────────────────────────────────────────────────
   const tools = [
@@ -347,10 +358,10 @@ Be direct. No fluff. Jose is running a business.`;
   let response = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 2048,
-    system: systemPrompt,
+    system: systemBlocks,
     tools,
     messages,
-  });
+  }, { headers: { 'anthropic-beta': 'prompt-caching-2024-07-31' } });
 
   // ── Tool execution loop ───────────────────────────────────────────────────
   let actionTaken = null;
@@ -498,10 +509,10 @@ Be direct. No fluff. Jose is running a business.`;
     response = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 2048,
-      system: systemPrompt,
+      system: systemBlocks,
       tools,
       messages: toolMessages,
-    });
+    }, { headers: { 'anthropic-beta': 'prompt-caching-2024-07-31' } });
   }
 
   const reply = response.content.find(b => b.type === 'text')?.text || "Couldn't process that. Try rephrasing.";
