@@ -76,6 +76,19 @@ export default function AdminDashboard() {
       const history = brainMessages.map(m => ({ role: m.role, content: m.content }));
       const { data } = await api.post('/admin/ai-chat', { message: msg, history });
       setBrainMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+      // If brain took an action, refresh affected data automatically
+      if (data.action) {
+        const t = data.action.type;
+        if (t === 'approve_contractor' || t === 'decline_contractor' || t === 'update_contractor' || t === 'set_twilio_number') {
+          qc.invalidateQueries({ queryKey: ['admin-contractors'] });
+        }
+        if (t === 'assign_lead' || t === 'delete_lead') {
+          qc.invalidateQueries({ queryKey: ['admin-leads'] });
+        }
+        if (t === 'cancel_appointment' || t === 'delete_appointment') {
+          qc.invalidateQueries({ queryKey: ['admin-appointments'] });
+        }
+      }
     } catch (err) {
       setBrainMessages(prev => [...prev, { role: 'assistant', content: 'Error reaching the brain. Check Railway logs.' }]);
     } finally {
@@ -1354,7 +1367,7 @@ export default function AdminDashboard() {
             <span style={{ fontSize: '20px' }}>🧠</span>
             <div>
               <div style={{ fontWeight: 600, fontSize: '14px' }}>Tractify Brain</div>
-              <div style={{ fontSize: '11px', opacity: 0.75 }}>Live business data</div>
+              <div style={{ fontSize: '11px', opacity: 0.75 }}>Ask questions · Take actions</div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1409,16 +1422,26 @@ export default function AdminDashboard() {
 
         {/* Quick prompts */}
         {brainMessages.length === 1 && (
-          <div style={{ padding: '0 16px 12px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            {['What should I do today?', 'Which contractors are stalled?', 'Which channels convert fastest?', 'How close am I to first Stripe?'].map(s => (
-              <button key={s} onClick={() => sendBrainMessage(s)} style={{
-                fontSize: '12px', padding: '6px 12px', borderRadius: '20px',
-                background: '#eef2ff', color: '#4338ca', border: '1px solid #c7d2fe',
-                cursor: 'pointer',
-              }}>
-                {s}
-              </button>
-            ))}
+          <div style={{ padding: '0 16px 12px' }}>
+            <p style={{ fontSize: '10px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Ask or command</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {[
+                'What should I do today?',
+                'Which contractors are stalled?',
+                'Which channels convert fastest?',
+                'How close am I to first Stripe?',
+                'Delete all test leads',
+                'Approve all pending contractors',
+              ].map(s => (
+                <button key={s} onClick={() => sendBrainMessage(s)} style={{
+                  fontSize: '12px', padding: '5px 11px', borderRadius: '20px',
+                  background: '#eef2ff', color: '#4338ca', border: '1px solid #c7d2fe',
+                  cursor: 'pointer', lineHeight: 1.4,
+                }}>
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -1431,7 +1454,7 @@ export default function AdminDashboard() {
             type="text"
             value={brainInput}
             onChange={e => setBrainInput(e.target.value)}
-            placeholder="Ask anything…"
+            placeholder="Ask anything or give a command…"
             disabled={brainLoading}
             style={{
               flex: 1, fontSize: '13px', border: '1px solid #d1d5db',

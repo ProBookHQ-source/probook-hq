@@ -3,13 +3,14 @@
 /**
  * POST /api/admin/ai-chat
  *
- * The Tractify admin brain — Jose's real-time business intelligence layer.
- * Pulls live data from the DB and answers plain-language questions about:
- *   - Which contractors are set up, stalled, or converting fast
- *   - Which channels are delivering jobs and which are dead weight
- *   - Which acquisition sources (ads/videos) are driving contractor signups
- *   - Where to spend money, what's working, what needs fixing
- *   - Day-to-day decisions backed by actual data
+ * The Tractify admin brain — Jose's command center.
+ * Answers questions AND takes action:
+ *   - Set Twilio numbers for contractors
+ *   - Approve / decline contractor applications
+ *   - Assign or reassign leads
+ *   - Cancel or delete appointments / leads
+ *   - Update contractor details (name, city, phone, etc.)
+ *   - Clean up test data
  *
  * Auth: Admin JWT required.
  */
@@ -19,13 +20,19 @@ const router = express.Router();
 const db = require('../database/db');
 const { requireAdmin } = require('../middleware/auth');
 const Anthropic = require('@anthropic-ai/sdk');
+const notifications = require('../services/notifications');
 
-function fmtTime(t) {
-  if (!t) return '';
-  const [h, m] = t.split(':').map(Number);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const h12 = h % 12 || 12;
-  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+// ── Helper: find contractor by partial name ───────────────────────────────────
+async function findContractor(nameOrId) {
+  // Try exact ID first
+  let r = await db.query('SELECT * FROM contractors WHERE id = $1', [nameOrId]);
+  if (r.rows.length) return r.rows[0];
+  // Try case-insensitive name/company match
+  r = await db.query(
+    `SELECT * FROM contractors WHERE LOWER(company_name) LIKE $1 OR LOWER(name) LIKE $1 ORDER BY created_at DESC LIMIT 3`,
+    [`%${nameOrId.toLowerCase()}%`]
+  );
+  return r.rows; // caller checks if array or single
 }
 
 // POST /api/admin/ai-chat
@@ -49,7 +56,6 @@ router.post('/', requireAdmin, async (req, res) => {
     allLeadsResult,
     acquisitionSourcesResult,
   ] = await Promise.all([
-    // All contractors — status, checklist, acquisition source, city
     db.query(`
       SELECT
         c.id, c.name, c.company_name, c.email, c.phone, c.city,
@@ -65,7 +71,6 @@ router.post('/', requireAdmin, async (req, res) => {
       ORDER BY c.created_at DESC
     `, [today]),
 
-    // Bookings grouped by source — conversion speed + volume
     db.query(`
       SELECT
         COALESCE(a.booking_source, 'unknown') as source,
@@ -73,36 +78,28 @@ router.post('/', requireAdmin, async (req, res) => {
         ROUND(AVG(EXTRACT(epoch FROM (a.created_at - l.created_at)) / 3600), 1) as avg_hours_to_book
       FROM appointments a
       LEFT JOIN leads l ON a.lead_id = l.id
-      WHERE a.status != 'cancelled'
-        AND a.created_at >= $1
+      WHERE a.status != 'cancelled' AND a.created_at >= $1
       GROUP BY COALESCE(a.booking_source, 'unknown')
       ORDER BY avg_hours_to_book ASC NULLS LAST
     `, [thirtyDaysAgo]),
 
-    // Recent bookings — last 7 days, with contractor name
     db.query(`
-      SELECT
-        a.id, a.scheduled_date, a.scheduled_time, a.status, a.booking_source,
-        a.created_at,
-        c.company_name, c.name as contractor_name,
-        l.name as lead_name, l.phone as lead_phone, l.zip_code
+      SELECT a.id, a.scheduled_date, a.scheduled_time, a.status, a.booking_source, a.created_at,
+             c.company_name, c.name as contractor_name,
+             l.name as lead_name, l.phone as lead_phone, l.zip_code
       FROM appointments a
       JOIN contractors c ON a.contractor_id = c.id
       LEFT JOIN leads l ON a.lead_id = l.id
-      WHERE a.created_at >= $1
-        AND a.status != 'cancelled'
-      ORDER BY a.created_at DESC
-      LIMIT 20
+      WHERE a.created_at >= $1 AND a.status != 'cancelled'
+      ORDER BY a.created_at DESC LIMIT 20
     `, [sevenDaysAgo]),
 
-    // All-time appointment totals by contractor + status
     db.query(`
-      SELECT
-        c.company_name, c.name as contractor_name, c.city, c.acquisition_source,
-        COUNT(a.id) FILTER (WHERE a.status = 'confirmed') as confirmed,
-        COUNT(a.id) FILTER (WHERE a.status = 'completed') as completed,
-        COUNT(a.id) FILTER (WHERE a.status = 'cancelled') as cancelled,
-        COUNT(a.id) FILTER (WHERE a.status != 'cancelled') as total
+      SELECT c.id, c.company_name, c.name as contractor_name, c.city, c.acquisition_source,
+             COUNT(a.id) FILTER (WHERE a.status = 'confirmed') as confirmed,
+             COUNT(a.id) FILTER (WHERE a.status = 'completed') as completed,
+             COUNT(a.id) FILTER (WHERE a.status = 'cancelled') as cancelled,
+             COUNT(a.id) FILTER (WHERE a.status != 'cancelled') as total
       FROM contractors c
       LEFT JOIN appointments a ON a.contractor_id = c.id
       WHERE c.is_active = 1
@@ -110,30 +107,12 @@ router.post('/', requireAdmin, async (req, res) => {
       ORDER BY total DESC
     `),
 
-    // All leads — status breakdown
-    db.query(`
-      SELECT
-        status, COUNT(*) as count
-      FROM leads
-      WHERE created_at >= $1
-      GROUP BY status
-    `, [thirtyDaysAgo]),
+    db.query(`SELECT status, COUNT(*) as count FROM leads WHERE created_at >= $1 GROUP BY status`, [thirtyDaysAgo]),
 
-    // Contractor acquisition sources — which ads/videos drove signups
     db.query(`
-      SELECT
-        COALESCE(acquisition_source, 'direct/unknown') as source,
-        COUNT(*) as contractors,
-        COUNT(*) FILTER (WHERE is_active = 1) as active,
-        SUM(
-          CASE WHEN onboarding_steps IS NOT NULL
-               THEN (SELECT COUNT(*) FROM jsonb_object_keys(onboarding_steps))
-               ELSE 0
-          END
-        ) as total_steps_completed
-      FROM contractors
-      GROUP BY COALESCE(acquisition_source, 'direct/unknown')
-      ORDER BY contractors DESC
+      SELECT COALESCE(acquisition_source, 'direct/unknown') as source,
+             COUNT(*) as contractors, COUNT(*) FILTER (WHERE is_active = 1) as active
+      FROM contractors GROUP BY COALESCE(acquisition_source, 'direct/unknown') ORDER BY contractors DESC
     `),
   ]);
 
@@ -144,160 +123,325 @@ router.post('/', requireAdmin, async (req, res) => {
   const leadStatuses = allLeadsResult.rows;
   const acqSources = acquisitionSourcesResult.rows;
 
-  // ── Build rich context strings ────────────────────────────────────────────
+  // ── Build context strings ─────────────────────────────────────────────────
   const CHECKLIST_KEYS = ['availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers', 'messenger'];
+  function parseSteps(s) { try { return typeof s === 'string' ? JSON.parse(s || '{}') : (s || {}); } catch { return {}; } }
+  function stepsCompleted(s) { const p = parseSteps(s); return CHECKLIST_KEYS.filter(k => p[k]).length; }
+  function daysSince(d) { if (!d) return null; return Math.floor((Date.now() - new Date(d).getTime()) / 86400000); }
 
-  function parseSteps(steps) {
-    if (!steps) return {};
-    if (typeof steps === 'string') {
-      try { return JSON.parse(steps); } catch { return {}; }
-    }
-    return steps;
-  }
-
-  function stepsCompleted(steps) {
-    const parsed = parseSteps(steps);
-    return CHECKLIST_KEYS.filter(k => parsed[k]).length;
-  }
-
-  function daysSince(dateStr) {
-    if (!dateStr) return null;
-    const diff = Date.now() - new Date(dateStr).getTime();
-    return Math.floor(diff / (1000 * 60 * 60 * 24));
-  }
-
-  // Contractor summary
   const activeContractors  = contractors.filter(c => c.is_active == 1);
   const pendingContractors = contractors.filter(c => !c.is_active && !c.declined_at);
   const totalBookings      = contractors.reduce((s, c) => s + parseInt(c.total_bookings || 0), 0);
 
   const contractorLines = contractors.map(c => {
     const steps = stepsCompleted(c.onboarding_steps);
-    const daysOld = daysSince(c.created_at);
-    const lastBook = c.last_booking_at ? `last booking ${daysSince(c.last_booking_at)}d ago` : 'no bookings yet';
     const src = c.acquisition_source ? ` [src: ${c.acquisition_source}]` : '';
     const city = c.city ? ` (${c.city})` : '';
     const status = c.is_active == 1 ? 'ACTIVE' : 'PENDING';
-    return `  ${status} | ${c.company_name || c.name}${city}${src} | ${steps}/7 setup steps | ${c.total_bookings || 0} bookings | ${lastBook} | deployed ${daysOld}d ago`;
+    const twilio = c.twilio_number ? ` | Twilio: ${c.twilio_number}` : ' | No Twilio';
+    return `  [ID: ${c.id}] ${status} | ${c.company_name || c.name}${city}${src} | ${steps}/7 steps | ${c.total_bookings || 0} bookings${twilio} | deployed ${daysSince(c.created_at)}d ago`;
   });
 
-  const channelLines = bookingsBySource.length
-    ? bookingsBySource.map(r =>
-        `  ${r.source}: ${r.total} bookings${r.avg_hours_to_book ? `, avg ${r.avg_hours_to_book}h to book` : ''}`
-      )
-    : ['  No booking data yet'];
-
-  const recentLines = recentBookings.length
-    ? recentBookings.map(b => {
-        const src = b.booking_source ? ` [${b.booking_source}]` : '';
-        const bookedFor = b.lead_name ? ` — ${b.lead_name}` : '';
-        const daysSinceBooked = daysSince(b.created_at);
-        return `  ${b.company_name || b.contractor_name}${bookedFor}${src} — ${b.scheduled_date} (booked ${daysSinceBooked}d ago)`;
-      })
-    : ['  No bookings in the last 7 days'];
-
-  const apptLines = apptsByContractor
-    .filter(r => r.total > 0 || r.confirmed > 0)
-    .map(r => {
-      const src = r.acquisition_source ? ` [acquired via: ${r.acquisition_source}]` : '';
-      const city = r.city ? ` (${r.city})` : '';
-      return `  ${r.company_name || r.contractor_name}${city}${src}: ${r.total} total | ${r.confirmed} confirmed | ${r.completed} completed | ${r.cancelled} cancelled`;
-    });
-
-  const acqLines = acqSources.map(r =>
-    `  ${r.source}: ${r.contractors} contractors signed up | ${r.active} active | ${r.total_steps_completed} total setup steps completed`
-  );
-
-  const leadStatusLines = leadStatuses.map(r => `  ${r.status}: ${r.count} leads`);
-
-  // Stalled contractors (active, low setup steps, no recent bookings)
   const stalledContractors = activeContractors.filter(c => {
     const steps = stepsCompleted(c.onboarding_steps);
     const daysSinceLastBook = c.last_booking_at ? daysSince(c.last_booking_at) : 9999;
     return steps < 4 || (daysSinceLastBook > 5 && parseInt(c.total_bookings || 0) === 0);
   });
 
-  const stalledLines = stalledContractors.length
-    ? stalledContractors.map(c => {
-        const steps = stepsCompleted(c.onboarding_steps);
-        const daysLive = daysSince(c.created_at);
-        return `  ⚠️  ${c.company_name || c.name}: ${steps}/7 setup steps complete, ${c.total_bookings || 0} bookings, live for ${daysLive} days`;
-      })
-    : ['  None — all active contractors are progressing'];
-
-  // ── System prompt ─────────────────────────────────────────────────────────
-  const systemPrompt = `You are the Tractify admin brain — Jose's real-time business intelligence layer. You have full visibility into the entire business: every contractor, every booking, every channel, every acquisition source.
+  const systemPrompt = `You are the Tractify admin brain — Jose's command center. You can BOTH answer questions AND take real actions in the system.
 
 TODAY: ${today}
-TOTAL ACTIVE CONTRACTORS: ${activeContractors.length}
-PENDING APPLICATIONS: ${pendingContractors.length}
-TOTAL BOOKINGS (all time): ${totalBookings}
+ACTIVE CONTRACTORS: ${activeContractors.length} | PENDING: ${pendingContractors.length} | TOTAL BOOKINGS: ${totalBookings}
 
-=== CONTRACTORS (all, newest first) ===
-${contractorLines.join('\n') || '  No contractors yet'}
+=== ALL CONTRACTORS (with IDs for actions) ===
+${contractorLines.join('\n') || '  None yet'}
 
-=== STALLED / AT-RISK CONTRACTORS ===
-${stalledLines.join('\n')}
+=== STALLED / AT-RISK ===
+${stalledContractors.length ? stalledContractors.map(c => `  ⚠️  [${c.id}] ${c.company_name || c.name}: ${stepsCompleted(c.onboarding_steps)}/7 steps, ${c.total_bookings || 0} bookings, live ${daysSince(c.created_at)}d`).join('\n') : '  None'}
 
-=== BOOKING CHANNEL PERFORMANCE (last 30 days) ===
-(sorted by conversion speed — fastest first)
-${channelLines.join('\n')}
+=== BOOKING CHANNELS (last 30d, fastest first) ===
+${bookingsBySource.map(r => `  ${r.source}: ${r.total} bookings${r.avg_hours_to_book ? `, avg ${r.avg_hours_to_book}h` : ''}`).join('\n') || '  No data yet'}
 
-=== RECENT BOOKINGS (last 7 days) ===
-${recentLines.join('\n')}
+=== RECENT BOOKINGS (last 7d) ===
+${recentBookings.map(b => `  [${b.id}] ${b.company_name || b.contractor_name} — ${b.lead_name || 'direct'} | ${b.scheduled_date} | src: ${b.booking_source || 'unknown'}`).join('\n') || '  None'}
 
-=== ALL-TIME BOOKINGS BY CONTRACTOR ===
-${apptLines.join('\n') || '  No confirmed bookings yet'}
+=== ALL-TIME BY CONTRACTOR ===
+${apptsByContractor.map(r => `  [${r.id}] ${r.company_name || r.contractor_name}: ${r.total} total | ${r.confirmed} confirmed | ${r.completed} completed`).join('\n') || '  None'}
 
-=== CONTRACTOR ACQUISITION SOURCES (which ads/content drove signups) ===
-${acqLines.join('\n') || '  No acquisition data yet — tag intake URLs with ?src= to track'}
+=== ACQUISITION SOURCES ===
+${acqSources.map(r => `  ${r.source}: ${r.contractors} signed up, ${r.active} active`).join('\n') || '  None — tag intake URLs with ?src='}
 
-=== LEAD STATUS BREAKDOWN (last 30 days) ===
-${leadStatusLines.join('\n') || '  No leads yet'}
+=== LEAD STATUS (last 30d) ===
+${leadStatuses.map(r => `  ${r.status}: ${r.count}`).join('\n') || '  None'}
 
-=== HOW TRACTIFY WORKS (your context) ===
-- Contractors sign up via intake.tractifyhq.com — their site auto-deploys to a subdomain
-- Free trial: 5 booked jobs delivered. At job 5, Stripe fires → $2,000 setup + $800/month retainer
-- 10 channels drive homeowner bookings to each contractor: Google Search, Bing, Facebook ads, Facebook Lead Ads, Nextdoor, Google Business Profile, missed call text-back, inbound SMS, Facebook groups, Google reviewers
-- booking_source tags every booking with which channel drove it — this is how you know what's working
-- acquisition_source tags each contractor with which content/ad drove their signup — ?src= URL param on intake.tractifyhq.com
-- Checklist has 7 steps: availability, twilio, gbp, nextdoor, facebook, reviewers, messenger
-- Twilio is the blocker for missed call text-back and AI SMS — compliance is pending (EIN too new)
-- Target: contractors with strong Google presence (4.5+ rating, 50+ reviews) convert fastest
+=== WHAT YOU CAN DO ===
+- Answer any question about the business using data above
+- Set Twilio numbers for contractors (use set_twilio_number)
+- Approve or decline pending contractor applications (approve_contractor / decline_contractor)
+- Update contractor info: city, phone, company name, etc. (update_contractor)
+- Assign or reassign leads to a contractor (assign_lead)
+- Cancel appointments (cancel_appointment)
+- Delete cancelled appointments or test leads (delete_appointment / delete_lead)
 
-=== YOUR ROLE ===
-Answer Jose's questions with concrete data from above. Be direct and data-first.
-Examples of what you help with:
-- "Which contractors should I put ad spend behind this week?" → Look at setup completion, booking velocity, channel data
-- "Why is [contractor] getting zero bookings?" → Check their setup steps, stalled flag, channel activity
-- "Which channels are converting fastest?" → Channel performance table above
-- "Which ad drove the most signups?" → Acquisition sources above
-- "How close am I to my first Stripe conversion?" → Track booking counts per contractor toward 5
-- "What should I do today?" → Identify the highest-leverage action from the data
+When Jose asks you to do something, confirm what you did with the exact result.
+When identifying contractors by name, use the IDs from the list above.
+Be direct. No fluff. Jose is running a business.`;
 
-Be concise but data-rich. When the data doesn't exist yet (e.g., no bookings to compare channels), say so clearly and say what needs to happen for that data to exist. Don't pad answers — Jose is building a business, not reading a report.`;
+  // ── Tool definitions ──────────────────────────────────────────────────────
+  const tools = [
+    {
+      name: 'set_twilio_number',
+      description: 'Set or update the Twilio phone number for a contractor. Use when Jose says "set Twilio for [contractor]" or "assign [number] to [contractor]".',
+      input_schema: {
+        type: 'object',
+        properties: {
+          contractor_id: { type: 'string', description: 'Contractor UUID from the list above' },
+          twilio_number: { type: 'string', description: 'E.164 format e.g. +12065551234. Pass empty string to clear.' },
+        },
+        required: ['contractor_id', 'twilio_number'],
+      },
+    },
+    {
+      name: 'approve_contractor',
+      description: 'Approve a pending contractor application, making them active and allowing them to log in.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          contractor_id: { type: 'string', description: 'Contractor UUID to approve' },
+        },
+        required: ['contractor_id'],
+      },
+    },
+    {
+      name: 'decline_contractor',
+      description: 'Decline a pending contractor application.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          contractor_id: { type: 'string', description: 'Contractor UUID to decline' },
+        },
+        required: ['contractor_id'],
+      },
+    },
+    {
+      name: 'update_contractor',
+      description: 'Update a contractor field: city, phone, company_name, name, or acquisition_source.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          contractor_id: { type: 'string', description: 'Contractor UUID' },
+          field: { type: 'string', enum: ['city', 'phone', 'company_name', 'name', 'acquisition_source', 'twilio_number'], description: 'Field to update' },
+          value: { type: 'string', description: 'New value for the field' },
+        },
+        required: ['contractor_id', 'field', 'value'],
+      },
+    },
+    {
+      name: 'assign_lead',
+      description: 'Assign or reassign a lead to a specific contractor.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          lead_id: { type: 'string', description: 'Lead UUID' },
+          contractor_id: { type: 'string', description: 'Contractor UUID to assign lead to' },
+        },
+        required: ['lead_id', 'contractor_id'],
+      },
+    },
+    {
+      name: 'cancel_appointment',
+      description: 'Cancel a booked appointment. Homeowner gets a rebook link.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          appointment_id: { type: 'string', description: 'Appointment UUID from the list above' },
+        },
+        required: ['appointment_id'],
+      },
+    },
+    {
+      name: 'delete_appointment',
+      description: 'Permanently delete a cancelled or completed appointment. Use for cleaning up test data.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          appointment_id: { type: 'string', description: 'Appointment UUID to delete. Must be cancelled or completed status.' },
+        },
+        required: ['appointment_id'],
+      },
+    },
+    {
+      name: 'delete_lead',
+      description: 'Permanently delete a lead and all its associated data. Use for cleaning up test leads.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          lead_id: { type: 'string', description: 'Lead UUID to delete' },
+        },
+        required: ['lead_id'],
+      },
+    },
+  ];
 
   // ── Call Claude ───────────────────────────────────────────────────────────
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const messages = [...history.slice(-12), { role: 'user', content: message }];
+  const toolMessages = [...messages];
 
-  const messages = [
-    ...history.slice(-12),
-    { role: 'user', content: message },
-  ];
-
-  const response = await client.messages.create({
+  let response = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 1024,
     system: systemPrompt,
+    tools,
     messages,
   });
 
-  const reply = response.content.find(b => b.type === 'text')?.text
-    || "Couldn't process that. Try rephrasing.";
+  // ── Tool execution loop ───────────────────────────────────────────────────
+  let actionTaken = null;
 
-  console.log(`[ADMIN-AI] Query from admin: "${message.slice(0, 80)}..." → ${reply.length} chars`);
+  while (response.stop_reason === 'tool_use') {
+    const toolUseBlock = response.content.find(b => b.type === 'tool_use');
+    if (!toolUseBlock) break;
 
-  res.json({ reply });
+    const { name, id: toolUseId, input } = toolUseBlock;
+    let toolResult;
+
+    try {
+      if (name === 'set_twilio_number') {
+        const { contractor_id, twilio_number } = input;
+        const check = await db.query('SELECT company_name, name FROM contractors WHERE id = $1', [contractor_id]);
+        if (!check.rows.length) { toolResult = 'Contractor not found.'; }
+        else {
+          await db.query('UPDATE contractors SET twilio_number = $1 WHERE id = $2', [twilio_number || null, contractor_id]);
+          const cName = check.rows[0].company_name || check.rows[0].name;
+          toolResult = `Twilio number ${twilio_number ? `set to ${twilio_number}` : 'cleared'} for ${cName}.`;
+          actionTaken = { type: 'set_twilio_number', contractor_id };
+          console.log(`[ADMIN-AI] Set Twilio ${twilio_number} → ${cName}`);
+        }
+
+      } else if (name === 'approve_contractor') {
+        const check = await db.query('SELECT * FROM contractors WHERE id = $1', [input.contractor_id]);
+        if (!check.rows.length) { toolResult = 'Contractor not found.'; }
+        else {
+          await db.query(`UPDATE contractors SET is_active = 1, status = 'approved' WHERE id = $1`, [input.contractor_id]);
+          const c = check.rows[0];
+          notifications.sendContractorApproved(c).catch(console.error);
+          toolResult = `Approved ${c.company_name || c.name}. They can now log in and approval email sent.`;
+          actionTaken = { type: 'approve_contractor', contractor_id: input.contractor_id };
+          console.log(`[ADMIN-AI] Approved contractor ${c.company_name || c.name}`);
+        }
+
+      } else if (name === 'decline_contractor') {
+        const check = await db.query('SELECT * FROM contractors WHERE id = $1', [input.contractor_id]);
+        if (!check.rows.length) { toolResult = 'Contractor not found.'; }
+        else {
+          await db.query(`UPDATE contractors SET is_active = 0, declined_at = NOW() WHERE id = $1`, [input.contractor_id]);
+          const c = check.rows[0];
+          notifications.sendContractorDeclined(c).catch(console.error);
+          toolResult = `Declined ${c.company_name || c.name}. Decline email sent.`;
+          actionTaken = { type: 'decline_contractor', contractor_id: input.contractor_id };
+        }
+
+      } else if (name === 'update_contractor') {
+        const { contractor_id, field, value } = input;
+        const allowed = ['city', 'phone', 'company_name', 'name', 'acquisition_source', 'twilio_number'];
+        if (!allowed.includes(field)) { toolResult = `Cannot update field "${field}". Allowed: ${allowed.join(', ')}`; }
+        else {
+          const check = await db.query('SELECT company_name, name FROM contractors WHERE id = $1', [contractor_id]);
+          if (!check.rows.length) { toolResult = 'Contractor not found.'; }
+          else {
+            await db.query(`UPDATE contractors SET ${field} = $1 WHERE id = $2`, [value, contractor_id]);
+            const cName = check.rows[0].company_name || check.rows[0].name;
+            toolResult = `Updated ${cName}: ${field} = "${value}"`;
+            actionTaken = { type: 'update_contractor', contractor_id, field, value };
+            console.log(`[ADMIN-AI] Updated ${cName}.${field} = "${value}"`);
+          }
+        }
+
+      } else if (name === 'assign_lead') {
+        const { lead_id, contractor_id } = input;
+        const [leadCheck, contractorCheck] = await Promise.all([
+          db.query('SELECT name FROM leads WHERE id = $1', [lead_id]),
+          db.query('SELECT company_name, name FROM contractors WHERE id = $1', [contractor_id]),
+        ]);
+        if (!leadCheck.rows.length) { toolResult = 'Lead not found.'; }
+        else if (!contractorCheck.rows.length) { toolResult = 'Contractor not found.'; }
+        else {
+          await db.query(`UPDATE leads SET assigned_contractor_id = $1, status = 'matched' WHERE id = $2`, [contractor_id, lead_id]);
+          const lName = leadCheck.rows[0].name;
+          const cName = contractorCheck.rows[0].company_name || contractorCheck.rows[0].name;
+          toolResult = `Lead "${lName}" assigned to ${cName}.`;
+          actionTaken = { type: 'assign_lead', lead_id, contractor_id };
+          console.log(`[ADMIN-AI] Assigned lead ${lead_id} → ${cName}`);
+        }
+
+      } else if (name === 'cancel_appointment') {
+        const appt = await db.query(
+          `SELECT a.*, l.name as lead_name, l.email as lead_email, l.phone as lead_phone, c.company_name
+           FROM appointments a LEFT JOIN leads l ON a.lead_id = l.id JOIN contractors c ON a.contractor_id = c.id
+           WHERE a.id = $1`,
+          [input.appointment_id]
+        );
+        if (!appt.rows.length) { toolResult = 'Appointment not found.'; }
+        else {
+          const a = appt.rows[0];
+          await db.query(`UPDATE appointments SET status = 'cancelled', updated_at = NOW() WHERE id = $1`, [input.appointment_id]);
+          toolResult = `Cancelled appointment on ${a.scheduled_date} at ${a.scheduled_time} for ${a.company_name}.${a.lead_email ? ' Homeowner notified.' : ''}`;
+          actionTaken = { type: 'cancel_appointment', appointment_id: input.appointment_id };
+          console.log(`[ADMIN-AI] Cancelled appointment ${input.appointment_id}`);
+        }
+
+      } else if (name === 'delete_appointment') {
+        const appt = await db.query('SELECT status FROM appointments WHERE id = $1', [input.appointment_id]);
+        if (!appt.rows.length) { toolResult = 'Appointment not found.'; }
+        else if (!['cancelled', 'completed', 'external'].includes(appt.rows[0].status)) {
+          toolResult = `Cannot delete — appointment status is "${appt.rows[0].status}". Cancel it first.`;
+        } else {
+          await db.query('DELETE FROM appointments WHERE id = $1', [input.appointment_id]);
+          toolResult = `Appointment ${input.appointment_id} permanently deleted.`;
+          actionTaken = { type: 'delete_appointment', appointment_id: input.appointment_id };
+          console.log(`[ADMIN-AI] Deleted appointment ${input.appointment_id}`);
+        }
+
+      } else if (name === 'delete_lead') {
+        const lead = await db.query('SELECT name FROM leads WHERE id = $1', [input.lead_id]);
+        if (!lead.rows.length) { toolResult = 'Lead not found.'; }
+        else {
+          // Delete related records first
+          await db.query('DELETE FROM booking_tokens WHERE lead_id = $1', [input.lead_id]);
+          await db.query('DELETE FROM lead_events WHERE lead_id = $1', [input.lead_id]);
+          await db.query('UPDATE appointments SET lead_id = NULL WHERE lead_id = $1', [input.lead_id]);
+          await db.query('DELETE FROM leads WHERE id = $1', [input.lead_id]);
+          toolResult = `Lead "${lead.rows[0].name}" (${input.lead_id}) permanently deleted.`;
+          actionTaken = { type: 'delete_lead', lead_id: input.lead_id };
+          console.log(`[ADMIN-AI] Deleted lead ${input.lead_id}`);
+        }
+
+      } else {
+        toolResult = `Unknown tool: ${name}`;
+      }
+    } catch (err) {
+      toolResult = `Error: ${err.message}`;
+      console.error(`[ADMIN-AI] Tool ${name} error:`, err.message);
+    }
+
+    // Continue with tool result
+    toolMessages.push({ role: 'assistant', content: response.content });
+    toolMessages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseId, content: toolResult }] });
+
+    response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      system: systemPrompt,
+      tools,
+      messages: toolMessages,
+    });
+  }
+
+  const reply = response.content.find(b => b.type === 'text')?.text || "Couldn't process that. Try rephrasing.";
+  console.log(`[ADMIN-AI] "${message.slice(0, 60)}…" → ${reply.length} chars${actionTaken ? ` | ACTION: ${actionTaken.type}` : ''}`);
+
+  res.json({ reply, action: actionTaken });
 });
 
 module.exports = router;
