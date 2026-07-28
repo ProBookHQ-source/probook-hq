@@ -1565,6 +1565,12 @@ The 🧠 tab on the right edge of the admin dashboard opens a slide-out panel ba
 - `backend/server.js` — `app.use('/api/admin/ai-chat', require('./routes/adminAI'));`
 - `frontend/src/pages/AdminDashboard.jsx` — right-side drawer (slides from right edge, pinned 🧠 tab trigger). Subtitle "Ask questions · Take actions". Auto-invalidates queries after actions.
 
+**Brain cost architecture (decided session 12):**
+- Full CLAUDE.md injected on every query — complete business context always available
+- Prompt caching enabled (`anthropic-beta: prompt-caching-2024-07-31`) — CLAUDE.md marked as `cache_control: ephemeral`. First message in a session ~$0.08, subsequent messages in same 5-min window ~$0.01 (90% discount on cache hits)
+- Estimated cost: ~$7-15/month at normal usage. Acceptable for internal admin tool.
+- **Deferred: smart model routing (build when bill hits $50/month).** Route operational commands (set Twilio, delete, approve, assign) to Haiku ($0.25/MTok — 20x cheaper). Route strategic questions ("should I", "recommend", "best move") to Sonnet. Simple keyword classifier on message content. Would reduce costs another 80%. Not worth the complexity until usage is heavy enough to matter.
+
 ### Acquisition source tracking — how it works (built session 11-12)
 
 **Goal:** Know which specific video, ad, or content piece drove each contractor to sign up.
