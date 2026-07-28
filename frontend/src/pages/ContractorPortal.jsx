@@ -369,55 +369,8 @@ export default function ContractorPortal() {
     return () => { if (twilioTestTimerRef.current) clearInterval(twilioTestTimerRef.current); };
   }, []);
 
-  // Auto-complete step 1 if availability slots are already seeded from the intake form
-  const autoCompletedAvailabilityRef = useRef(false);
-  useEffect(() => {
-    if (
-      slots.length > 0 &&
-      !onboardingSteps.availability &&
-      !autoCompletedAvailabilityRef.current
-    ) {
-      autoCompletedAvailabilityRef.current = true;
-      markStep.mutate('availability');
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slots.length, onboardingSteps.availability]);
-
-  // Proactive greeting — fires when setup tab opens if chat is empty
-  const greetingFiredRef = useRef(false);
-  useEffect(() => {
-    if (tab !== 'setup') return;
-    if (chatMessages.length > 0) return;
-    if (!contractorProfile) return;
-    if (greetingFiredRef.current) return;
-    greetingFiredRef.current = true;
-
-    const STEP_ORDER = ['availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers', 'messenger'];
-    const STEP_LABELS = {
-      availability: 'confirm your schedule',
-      twilio: 'set up missed call forwarding',
-      gbp: 'add your booking link to Google',
-      nextdoor: 'post on Nextdoor',
-      facebook: 'post in a Facebook group',
-      reviewers: 'message your Google reviewers',
-      messenger: 'set up Messenger + Instagram auto-reply',
-    };
-    const firstName = (contractorProfile.name || '').split(' ')[0] || 'there';
-    const completedCount = STEP_ORDER.filter(k => onboardingSteps[k]).length;
-    const firstIncomplete = STEP_ORDER.find(k => !onboardingSteps[k]);
-
-    let greeting;
-    if (completedCount === 0) {
-      greeting = `Hey ${firstName}! 👋 Let's get your booking channels live.\n\nYour availability is already set — I'll mark that done now. The most important next step is **${STEP_LABELS.twilio}** — that's the one that catches missed calls automatically. Want me to walk you through it?`;
-    } else if (completedCount < STEP_ORDER.length) {
-      greeting = `Welcome back, ${firstName}! You're ${completedCount}/${STEP_ORDER.length} done. Up next: **${STEP_LABELS[firstIncomplete] || firstIncomplete}**.\n\nSay "let's do it" and I'll walk you through it step by step.`;
-    } else {
-      greeting = `All channels are live, ${firstName} — nice work! 🎉\n\nJobs should start coming in. I'm here if anything comes up — you can ask me to block time, cancel an appointment, or check your calendar anytime.`;
-    }
-
-    setChatMessages([{ role: 'assistant', content: greeting }]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, contractorProfile?.id]);
+  // NOTE: autoCompletedAvailabilityRef and greetingFiredRef effects are declared
+  // AFTER their dependencies (slots, contractorProfile, markStep) to avoid TDZ crashes.
 
   const from     = format(weekStart, 'yyyy-MM-dd');
   const to       = format(addDays(weekStart, 6), 'yyyy-MM-dd');
@@ -665,6 +618,58 @@ export default function ContractorPortal() {
     onError: () => toast.error('Failed to save step'),
   });
 
+  // Auto-complete step 1 if availability slots are already seeded from the intake form
+  // (declared here — AFTER slots and markStep are initialized, to avoid TDZ crash)
+  const autoCompletedAvailabilityRef = useRef(false);
+  useEffect(() => {
+    if (
+      slots.length > 0 &&
+      !onboardingSteps.availability &&
+      !autoCompletedAvailabilityRef.current
+    ) {
+      autoCompletedAvailabilityRef.current = true;
+      markStep.mutate('availability');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slots.length, onboardingSteps.availability]);
+
+  // Proactive greeting — fires when setup tab opens if chat is empty
+  // (declared here — AFTER contractorProfile and markStep are initialized, to avoid TDZ crash)
+  const greetingFiredRef = useRef(false);
+  useEffect(() => {
+    if (tab !== 'setup') return;
+    if (chatMessages.length > 0) return;
+    if (!contractorProfile) return;
+    if (greetingFiredRef.current) return;
+    greetingFiredRef.current = true;
+
+    const STEP_ORDER = ['availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers', 'messenger'];
+    const STEP_LABELS = {
+      availability: 'confirm your schedule',
+      twilio: 'set up missed call forwarding',
+      gbp: 'add your booking link to Google',
+      nextdoor: 'post on Nextdoor',
+      facebook: 'post in a Facebook group',
+      reviewers: 'message your Google reviewers',
+      messenger: 'set up Messenger + Instagram auto-reply',
+    };
+    const firstName = (contractorProfile.name || '').split(' ')[0] || 'there';
+    const completedCount = STEP_ORDER.filter(k => onboardingSteps[k]).length;
+    const firstIncomplete = STEP_ORDER.find(k => !onboardingSteps[k]);
+
+    let greetMsg;
+    if (completedCount === 0) {
+      greetMsg = `Hey ${firstName}! 👋 Let's get your booking channels live.\n\nThe most important first step is **missed call forwarding** — that's the one that catches every call you miss while you're on a job and sends them a booking link automatically. Want me to walk you through it?`;
+    } else if (completedCount < STEP_ORDER.length) {
+      greetMsg = `Welcome back, ${firstName}! You're ${completedCount}/${STEP_ORDER.length} done. Up next: **${STEP_LABELS[firstIncomplete] || firstIncomplete}**.\n\nSay "let's do it" and I'll walk you through it step by step.`;
+    } else {
+      greetMsg = `All channels are live, ${firstName} — nice work! 🎉\n\nJobs should start coming in. I'm here if anything comes up — you can ask me to block time, cancel an appointment, or check your calendar anytime.`;
+    }
+
+    setChatMessages([{ role: 'assistant', content: greetMsg }]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, contractorProfile?.id]);
+
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleAddOverride = () => {
     if (!computedOverrideDate) return toast.error('Please select a month and day');
@@ -737,6 +742,7 @@ export default function ContractorPortal() {
       key: 'availability',
       label: 'Confirm your availability',
       icon: '📅',
+      why: 'No availability = no bookings. Your hours are pre-set from your intake form — this just confirms everything looks right before we start sending people your way.',
       description: 'Your hours have been pre-set based on your intake form. Tap below to confirm they look right — you can adjust anytime.',
       action: { label: 'Go to My Schedule →', onClick: () => setTab('availability') },
     },
@@ -744,6 +750,7 @@ export default function ContractorPortal() {
       key: 'twilio',
       label: 'Set up missed call forwarding',
       icon: '📞',
+      why: 'HVAC contractors miss calls constantly — you\'re on rooftops, under houses, can\'t pick up. Every one of those calls used to be a lost job. This catches them automatically and sends a booking link while you\'re still on the job.',
       description: contractorProfile?.twilio_number
         ? `Forward unanswered calls to your Tractify number: ${contractorProfile.twilio_number}. This turns every missed call into an automatic booking text.`
         : 'Your dedicated Tractify number is being set up. You\'ll get an email with it shortly — then come back here to complete this step.',
@@ -757,7 +764,8 @@ export default function ContractorPortal() {
       key: 'gbp',
       label: 'Add booking link to Google Business Profile',
       icon: '🔍',
-      description: 'Add your Tractify booking link under "Appointments" in your Google Business Profile. This lets customers searching "HVAC near me" book directly from your Google listing — free, zero ad spend.',
+      why: 'Homeowners searching "HVAC near me" right now can book directly from your Google listing — without ever clicking to a website. This is the highest-intent traffic that exists, and it costs nothing.',
+      description: 'Add your Tractify booking link under "Appointments" in your Google Business Profile. This lets customers searching "HVAC near me" book directly from your Google listing.',
       instructions: [
         { platform: 'Steps', steps: 'Go to business.google.com → click your business → Edit Profile → scroll to "Appointments" → paste your booking link → Save' },
       ],
@@ -770,7 +778,8 @@ export default function ContractorPortal() {
       key: 'nextdoor',
       label: 'Post in a local Nextdoor neighborhood',
       icon: '🏘️',
-      description: 'HVAC is the #1 requested service on Nextdoor. One post in your neighborhood puts your booking link in front of homeowners already asking for recommendations.',
+      why: 'HVAC is the most requested service on Nextdoor. One post takes 2 minutes and puts your booking link in front of homeowners already asking neighbors for recommendations — trust level is extremely high.',
+      description: 'Post once in your neighborhood. We\'ve written the copy for you below — just paste and post.',
       copyText: contractorProfile
         ? `Hey neighbors! ${contractorProfile.company_name || contractorProfile.name} now has online booking — pick a time that works for you right here: ${contractorProfile.booking_slug ? `https://tractifyhq.com/schedule/${contractorProfile.booking_slug}` : 'your booking link'}. Happy to help with any HVAC needs!`
         : null,
@@ -782,7 +791,8 @@ export default function ContractorPortal() {
       key: 'facebook',
       label: 'Post in a local Facebook community group',
       icon: '👥',
-      description: 'Find a local Facebook group and post once. People asking for HVAC recommendations are mid-search — they convert immediately.',
+      description: 'Find a local community group and post once. Copy below is ready to go.',
+      why: 'Local Facebook groups have homeowners asking for HVAC recommendations every single day. Your post shows up exactly when someone is mid-search with a broken AC — they convert immediately because the need is already there.',
       copyText: contractorProfile
         ? `Hi everyone! I run ${contractorProfile.company_name || contractorProfile.name} and we just launched online booking — no more phone tag, just pick a time that works for you: ${contractorProfile.booking_slug ? `https://tractifyhq.com/schedule/${contractorProfile.booking_slug}` : 'your booking link'}. Happy to help with any heating or cooling needs!`
         : null,
@@ -794,7 +804,8 @@ export default function ContractorPortal() {
       key: 'reviewers',
       label: 'Message your top Google reviewers',
       icon: '⭐',
-      description: 'Your past happy customers already trust you. A quick message to your top reviewers can book 2-3 jobs before anything else kicks in.',
+      why: 'Your past happy customers are the warmest leads that exist — they already paid you, they already trust you. You\'re just giving them a frictionless way to book again. Copy below takes 30 seconds to send.',
+      description: 'A quick message to your top reviewers. Copy is pre-written below — personalize the name and send.',
       instructions: [
         { platform: 'How to reach them', steps: 'Go to business.google.com → Reviews → click "Reply" next to each review — this opens a direct message to that reviewer' },
       ],
@@ -809,12 +820,13 @@ export default function ContractorPortal() {
       key: 'messenger',
       label: 'Set up Messenger + Instagram auto-reply',
       icon: '💬',
-      description: 'Every homeowner who DMs you on Facebook or Instagram automatically gets your booking link back in seconds. Set it up once — runs forever, 24/7, while you\'re on job sites.',
+      why: 'Most contractors don\'t respond to DMs for 12-24 hours — that lead is gone by then. This sends your booking link back in seconds, automatically, while you\'re asleep or on a job. Set it up once, runs forever.',
+      description: 'Set up an instant auto-reply to every Facebook and Instagram DM. Copy below is ready to paste.',
       instructions: [
         { platform: 'Setup (5 min)', steps: 'Go to Meta Business Suite (business.facebook.com) → Inbox → Automation → Instant Replies → toggle on → paste the message below → Save' },
       ],
       copyText: contractorProfile
-        ? `Thanks for reaching out to ${contractorProfile.company_name || contractorProfile.name}! You can book a time here: ${contractorProfile.booking_slug ? `https://tractifyhq.com/schedule/${contractorProfile.booking_slug}` : 'your booking link'} — takes 60 seconds and we\'ll confirm right away.`
+        ? `Thanks for reaching out to ${contractorProfile.company_name || contractorProfile.name}! You can book a time here: ${contractorProfile.booking_slug ? `https://tractifyhq.com/schedule/${contractorProfile.booking_slug}` : 'your booking link'} — takes 60 seconds and we'll confirm right away.`
         : null,
       link: { label: 'Open Meta Business Suite →', url: 'https://business.facebook.com' },
     },
@@ -1774,6 +1786,15 @@ export default function ContractorPortal() {
                       {/* Expanded content */}
                       {isOpen && (
                         <div className="px-5 pb-5 border-t border-gray-50 pt-4 space-y-4">
+
+                          {/* Why this step matters */}
+                          {step.why && (
+                            <div className="flex gap-3 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+                              <span className="text-amber-500 shrink-0 mt-0.5">💡</span>
+                              <p className="text-sm text-amber-900 leading-relaxed font-medium">{step.why}</p>
+                            </div>
+                          )}
+
                           <p className="text-sm text-gray-600 leading-relaxed">{step.description}</p>
 
                           {/* Platform instructions */}
