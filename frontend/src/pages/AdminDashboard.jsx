@@ -1316,161 +1316,170 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ── Admin AI Brain — floating chat ─────────────────────────────────── */}
-      {/* Backdrop */}
+      {/* ── Admin AI Brain — right-side drawer ──────────────────────────────── */}
+
+      {/* Backdrop (mobile only) */}
       {brainOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/20 md:bg-transparent"
+          style={{ position: 'fixed', inset: 0, zIndex: 9998, background: 'rgba(0,0,0,0.3)' }}
+          className="md:hidden"
           onClick={() => setBrainOpen(false)}
         />
       )}
 
-      {/* Chat panel */}
-      {brainOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            zIndex: 9999,
-            width: '384px',
-            maxWidth: 'calc(100vw - 32px)',
-            maxHeight: 'min(520px, calc(100vh - 120px))',
-            background: '#fff',
-            borderRadius: '16px',
-            boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
-            border: '1px solid #f3f4f6',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-          onClick={e => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">🧠</span>
-              <div>
-                <div className="font-semibold text-sm">Tractify Brain</div>
-                <div className="text-xs text-indigo-200">Live business data</div>
-              </div>
+      {/* Slide-out panel */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        right: brainOpen ? 0 : '-380px',
+        width: '360px',
+        height: '100vh',
+        zIndex: 9999,
+        background: '#fff',
+        boxShadow: brainOpen ? '-4px 0 32px rgba(0,0,0,0.15)' : 'none',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'right 0.25s cubic-bezier(0.4,0,0.2,1)',
+        borderLeft: '1px solid #e5e7eb',
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 20px',
+          background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+          color: '#fff',
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '20px' }}>🧠</span>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '14px' }}>Tractify Brain</div>
+              <div style={{ fontSize: '11px', opacity: 0.75 }}>Live business data</div>
             </div>
-            <div className="flex items-center gap-2">
-              {brainMessages.length > 1 && (
-                <button
-                  onClick={() => setBrainMessages([{ role: 'assistant', content: "Hey Jose — I have full visibility into the business. What do you want to know?" }])}
-                  className="text-xs text-indigo-200 hover:text-white transition-colors"
-                >
-                  Clear
-                </button>
-              )}
-              <button onClick={() => setBrainOpen(false)} className="text-indigo-200 hover:text-white transition-colors">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {brainMessages.length > 1 && (
+              <button
+                onClick={() => setBrainMessages([{ role: 'assistant', content: "Hey Jose — I have full visibility into the business. What do you want to know? Ask me anything: which contractors are stalled, which channels are converting, which ads drove signups, where to spend today." }])}
+                style={{ fontSize: '12px', opacity: 0.75, background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}
+              >
+                Clear
               </button>
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3" style={{ minHeight: 0 }}>
-            {brainMessages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap ${
-                  msg.role === 'user'
-                    ? 'bg-indigo-600 text-white rounded-br-sm'
-                    : 'bg-gray-50 text-gray-800 border border-gray-100 rounded-bl-sm'
-                }`}>
-                  {msg.content}
-                </div>
-              </div>
-            ))}
-            {brainLoading && (
-              <div className="flex justify-start">
-                <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-bl-sm px-3 py-2">
-                  <div className="flex gap-1 items-center h-4">
-                    <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
-                </div>
-              </div>
             )}
-            <div ref={brainBottomRef} />
-          </div>
-
-          {/* Quick prompts — only shown on first open */}
-          {brainMessages.length === 1 && (
-            <div className="px-4 pb-2 flex flex-wrap gap-1.5">
-              {[
-                'What should I do today?',
-                'Which contractors are stalled?',
-                'Which channels convert fastest?',
-                'How close am I to first Stripe?',
-              ].map(s => (
-                <button
-                  key={s}
-                  onClick={() => sendBrainMessage(s)}
-                  className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full px-3 py-1 hover:bg-indigo-100 transition-colors"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Input */}
-          <form
-            onSubmit={e => { e.preventDefault(); sendBrainMessage(); }}
-            className="flex gap-2 items-center px-4 py-3 border-t border-gray-100"
-          >
-            <input
-              type="text"
-              value={brainInput}
-              onChange={e => setBrainInput(e.target.value)}
-              placeholder="Ask anything…"
-              disabled={brainLoading}
-              className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50"
-            />
-            <button
-              type="submit"
-              disabled={!brainInput.trim() || brainLoading}
-              className="w-9 h-9 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-xl flex items-center justify-center transition-colors flex-shrink-0"
-            >
-              <svg className="w-4 h-4 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9-7-9-7v14z" />
+            <button onClick={() => setBrainOpen(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', opacity: 0.75 }}>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-          </form>
+          </div>
         </div>
-      )}
 
-      {/* Brain toggle button — always visible, inline styles to guarantee render */}
-      {!brainOpen && (
-        <button
-          onClick={() => setBrainOpen(true)}
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            zIndex: 9999,
-            width: '56px',
-            height: '56px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-            boxShadow: '0 4px 24px rgba(79,70,229,0.5)',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          title="Open Tractify Brain"
-        >
-          🧠
-        </button>
-      )}
+        {/* Messages */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {brainMessages.map((msg, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+              <div style={{
+                maxWidth: '88%',
+                padding: '10px 14px',
+                borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                fontSize: '13px',
+                lineHeight: '1.5',
+                whiteSpace: 'pre-wrap',
+                background: msg.role === 'user' ? '#4f46e5' : '#f9fafb',
+                color: msg.role === 'user' ? '#fff' : '#1f2937',
+                border: msg.role === 'user' ? 'none' : '1px solid #e5e7eb',
+              }}>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {brainLoading && (
+            <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+              <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '18px 18px 18px 4px', padding: '10px 14px' }}>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  {[0, 150, 300].map(delay => (
+                    <div key={delay} className="animate-bounce" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#6366f1', animationDelay: `${delay}ms` }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={brainBottomRef} />
+        </div>
+
+        {/* Quick prompts */}
+        {brainMessages.length === 1 && (
+          <div style={{ padding: '0 16px 12px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {['What should I do today?', 'Which contractors are stalled?', 'Which channels convert fastest?', 'How close am I to first Stripe?'].map(s => (
+              <button key={s} onClick={() => sendBrainMessage(s)} style={{
+                fontSize: '12px', padding: '6px 12px', borderRadius: '20px',
+                background: '#eef2ff', color: '#4338ca', border: '1px solid #c7d2fe',
+                cursor: 'pointer',
+              }}>
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Input */}
+        <form onSubmit={e => { e.preventDefault(); sendBrainMessage(); }} style={{
+          display: 'flex', gap: '8px', padding: '12px 16px',
+          borderTop: '1px solid #e5e7eb', flexShrink: 0,
+        }}>
+          <input
+            type="text"
+            value={brainInput}
+            onChange={e => setBrainInput(e.target.value)}
+            placeholder="Ask anything…"
+            disabled={brainLoading}
+            style={{
+              flex: 1, fontSize: '13px', border: '1px solid #d1d5db',
+              borderRadius: '10px', padding: '8px 12px',
+              outline: 'none', fontFamily: 'inherit',
+            }}
+          />
+          <button type="submit" disabled={!brainInput.trim() || brainLoading} style={{
+            width: '36px', height: '36px', borderRadius: '10px',
+            background: '#4f46e5', border: 'none', color: '#fff',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            opacity: !brainInput.trim() || brainLoading ? 0.4 : 1,
+          }}>
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ transform: 'rotate(90deg)' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9-7-9-7v14z" />
+            </svg>
+          </button>
+        </form>
+      </div>
+
+      {/* Right-edge tab trigger */}
+      <button
+        onClick={() => setBrainOpen(v => !v)}
+        style={{
+          position: 'fixed',
+          top: '50%',
+          right: brainOpen ? '360px' : 0,
+          transform: 'translateY(-50%)',
+          zIndex: 9999,
+          background: 'linear-gradient(180deg, #4f46e5, #7c3aed)',
+          color: '#fff',
+          border: 'none',
+          borderRadius: '8px 0 0 8px',
+          padding: '14px 8px',
+          cursor: 'pointer',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '6px',
+          boxShadow: '-2px 2px 12px rgba(79,70,229,0.4)',
+          transition: 'right 0.25s cubic-bezier(0.4,0,0.2,1)',
+          fontSize: '18px',
+          lineHeight: 1,
+        }}
+        title="Tractify Brain"
+      >
+        🧠
+      </button>
 
       {/* Bottom tab bar — 4 primary tabs + More */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50 shadow-lg">
