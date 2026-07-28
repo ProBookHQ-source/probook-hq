@@ -226,6 +226,11 @@ db._ready.then(async () => {
   await db.query(`ALTER TABLE appointments ALTER COLUMN lead_id DROP NOT NULL`).catch(() => {});
   // Twilio missed call text-back — each contractor gets their own Twilio number
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS twilio_number TEXT`);
+  // Booking source tracking — which ad channel drove each booking
+  // Values: google_search, bing_search, facebook_ad, facebook_lead_ad, nextdoor_ad,
+  //         nextdoor_organic, facebook_group, gbp, missed_call, sms_keyword,
+  //         google_reviewer, direct, unknown
+  await db.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS booking_source TEXT`);
   // Self-serve onboarding checklist — tracks which setup steps each contractor has completed
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS onboarding_steps JSONB DEFAULT '{}'`);
   // Track when contractor first logged in — used to detect 48hr nudge window

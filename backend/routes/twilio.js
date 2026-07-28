@@ -50,8 +50,9 @@ router.post('/missed-call', async (req, res) => {
 
   const businessName = contractor.company_name || contractor.name || 'us';
   const bookingSlug  = contractor.booking_slug;
+  // ?src=missed_call tags this booking so the AI brain knows which channel drove it
   const bookingLink  = bookingSlug
-    ? `${process.env.FRONTEND_URL}/schedule/${bookingSlug}`
+    ? `${process.env.FRONTEND_URL}/schedule/${bookingSlug}?src=missed_call`
     : process.env.FRONTEND_URL;
 
   // ── Send SMS to the caller ───────────────────────────────────────────────────
@@ -164,10 +165,12 @@ router.post('/inbound-sms', async (req, res) => {
     }
   } else {
     // ── Homeowner texting in → send booking link ───────────────────────────────
+    // Tagged ?src=sms_keyword — covers all physical touchpoints (van wrap, business card,
+    // fridge magnet, door hanger, invoice) that have "Text us" on them.
     console.log(`[TWILIO-SMS] Homeowner (${From}) — sending booking link`);
     const businessName = contractor.company_name || contractor.name || 'us';
     const bookingLink = contractor.booking_slug
-      ? `${process.env.FRONTEND_URL}/schedule/${contractor.booking_slug}`
+      ? `${process.env.FRONTEND_URL}/schedule/${contractor.booking_slug}?src=sms_keyword`
       : process.env.FRONTEND_URL;
     try {
       await twilioClient.messages.create({

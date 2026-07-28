@@ -85,7 +85,7 @@ router.get('/', requireAdmin, async (req, res) => {
 
 // ── Book a slot ───────────────────────────────────────────────────────────────
 router.post('/book', async (req, res) => {
-  const { token, date, time } = req.body;
+  const { token, date, time, booking_source } = req.body;
   if (!token || !date || !time) {
     return res.status(400).json({ error: 'token, date, and time are required' });
   }
@@ -175,12 +175,14 @@ router.post('/book', async (req, res) => {
   const appointmentId  = uuidv4();
   const cancelToken    = uuidv4();
   const rescheduleToken = uuidv4();
+  // Resolve booking source: explicit param wins, then lead source_site, then unknown
+  const resolvedSource = booking_source || lead.source_site || 'unknown';
   try {
     await db.transaction(async (client) => {
       await client.query(
-        `INSERT INTO appointments (id, lead_id, contractor_id, scheduled_date, scheduled_time, status, cancel_token, reschedule_token)
-         VALUES ($1, $2, $3, $4, $5, 'confirmed', $6, $7)`,
-        [appointmentId, lead.id, lead.assigned_contractor_id, date, time, cancelToken, rescheduleToken]
+        `INSERT INTO appointments (id, lead_id, contractor_id, scheduled_date, scheduled_time, status, cancel_token, reschedule_token, booking_source)
+         VALUES ($1, $2, $3, $4, $5, 'confirmed', $6, $7, $8)`,
+        [appointmentId, lead.id, lead.assigned_contractor_id, date, time, cancelToken, rescheduleToken, resolvedSource]
       );
       await client.query('UPDATE booking_tokens SET used = 1 WHERE id = $1', [bookingToken.id]);
       await client.query("UPDATE leads SET status = 'booked' WHERE id = $1", [lead.id]);
@@ -215,8 +217,9 @@ router.post('/book', async (req, res) => {
 
 // ── Direct booking (personal booking pages — no lead/token required) ─────────
 // Used by tractifyhq.com/schedule/:slug — prospect books a call directly with a contractor.
+// Also used by the HVAC template inline slot picker — passes booking_source from ?src= URL param.
 router.post('/book-direct', async (req, res) => {
-  const { contractor_id, name, email, phone, date, time, notes } = req.body;
+  const { contractor_id, name, email, phone, date, time, notes, booking_source } = req.body;
   if (!contractor_id || !name || !email || !date || !time) {
     return res.status(400).json({ error: 'contractor_id, name, email, date, and time are required' });
   }
@@ -287,9 +290,9 @@ router.post('/book-direct', async (req, res) => {
   const contactInfo = JSON.stringify({ name, email, phone: phone || '', notes: notes || '' });
   try {
     await db.query(
-      `INSERT INTO appointments (id, lead_id, contractor_id, scheduled_date, scheduled_time, status, notes)
-       VALUES ($1, NULL, $2, $3, $4, 'confirmed', $5)`,
-      [appointmentId, contractor_id, date, time, contactInfo]
+      `INSERT INTO appointments (id, lead_id, contractor_id, scheduled_date, scheduled_time, status, notes, booking_source)
+       VALUES ($1, NULL, $2, $3, $4, 'confirmed', $5, $6)`,
+      [appointmentId, contractor_id, date, time, contactInfo, booking_source || 'direct']
     );
   } catch (err) {
     if (err.code === '23505') {

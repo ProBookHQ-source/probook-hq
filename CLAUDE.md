@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 28, 2026 (session 10 — two-way AI SMS system fully built and deployed. Contractor texts their Tractify number, AI guides setup step by step, executes calendar actions, persists conversation. Portal "why" callouts added to each setup step. TDZ crash fixed. The entire contractor experience now runs through a text message from day one. Ready to run ads.)*
+*Last updated: July 28, 2026 (session 11 — booking source tracking fully built. Every booking now tagged with which ad channel drove it: google_search, bing_search, facebook_ad, facebook_lead_ad, nextdoor_ad, missed_call, sms_keyword, gbp, direct, etc. HVAC template reads ?src= URL param and passes it through to the booking INSERT. Missed-call and SMS keyword links auto-appended with ?src=. Token-based bookings fall back to lead.source_site. AI brain can now see which channels convert fastest and at what speed. Multi-channel ad test ready to run.)*
 
 ---
 
@@ -455,24 +455,36 @@ New route `backend/routes/facebook.js`. Facebook fires a webhook when a homeowne
 **H. SMS Keyword / Inbound SMS Handler (Channel 10)**
 Add inbound SMS handling to `backend/routes/twilio.js`. When anyone texts the contractor's Twilio number (any message), Tractify looks up the contractor by Twilio number and auto-replies with their booking link: *"Book online with [Business Name]: tractifyhq.com/schedule/[slug] — takes 60 seconds."* In Twilio console, set the "A message comes in" webhook on the contractor's number to `https://tractifyhq.com/api/twilio/inbound-sms` (separate from the voice webhook at `/api/twilio/missed-call`). Powers every physical touchpoint — truck wrap, business cards, invoices, fridge magnets left at completed jobs, door hangers. The truck becomes a rolling lead generation machine. The fridge magnet becomes a permanent re-booking channel from every past customer's home forever.
 
-### 1. Booking Source Tracking
-Add a `booking_source` field to the `appointments` table. Every booking gets tagged with which channel drove it:
-- `"paid_ad"` — came from Facebook/Instagram ad
-- `"missed_call"` — Twilio missed call text-back converted
-- `"google_biz"` — came from Google Business Profile booking button
-- `"nextdoor"` — came from Nextdoor post/ad
-- `"google_reviewer"` — past reviewer re-engaged
-- `"facebook_group"` — came from Facebook community group
-- `"direct"` — came from the contractor sharing their link directly
+### 1. Booking Source Tracking — ✅ BUILT (session 11)
+Every booking is tagged with which ad channel drove it. The AI brain can now see conversion speed and volume per channel in real time.
 
-**Why this is a weapon:** You'll know exactly which channels perform best per market and per contractor type. Double down on what works, fix or cut what doesn't. The channel breakdown also becomes the most compelling part of the case study ad: "2 Google Business Profile, 2 paid ads, 1 missed call recovered" shows the machine working on multiple fronts simultaneously.
+**Source taxonomy:**
+- `google_search` — Google Search ad (homeowner searched "AC repair near me")
+- `bing_search` — Bing/Microsoft Search ad
+- `facebook_ad` — Facebook/Instagram click-to-website ad
+- `facebook_lead_ad` — Facebook Lead Ad (zero-friction, never left Facebook) — auto-set from `lead.source_site`
+- `nextdoor_ad` — Nextdoor paid ad
+- `nextdoor_organic` — Nextdoor organic post
+- `facebook_group` — Facebook community group post
+- `gbp` — Google Business Profile booking button
+- `missed_call` — Twilio missed call text-back — auto-appended as `?src=missed_call` in the SMS link
+- `sms_keyword` — Physical touchpoint inbound SMS (van wrap, business card, fridge magnet) — auto-appended as `?src=sms_keyword`
+- `google_reviewer` — Past Google reviewer re-engaged
+- `direct` — Direct booking (personal /schedule/:slug page with no ad source)
+- `unknown` — Token-based booking with no source tracked
 
-**Implementation when ready:**
-- Add `booking_source TEXT` column to `appointments` via startup migration
-- Pass source as optional param through `POST /api/bookings/book` and `POST /api/bookings/book-direct`
-- HVAC template can pass the source based on how the homeowner arrived (URL param `?src=ad` etc.)
-- Twilio webhook always passes `booking_source: 'missed_call'` when it creates/converts a booking
-- Contractor portal stats bar shows breakdown by channel
+**How it flows end-to-end:**
+1. Jose runs Google Search ad → homeowner clicks → lands on `contractor.tractifyhq.com?src=google_search`
+2. HVAC template reads `?src=` from URL on page load → `_ibookSource = 'google_search'`
+3. Homeowner books → `POST /api/bookings/book` with `booking_source: 'google_search'`
+4. Backend saves to `appointments.booking_source` column
+5. Query: `SELECT booking_source, COUNT(*), AVG(extract(epoch from (created_at - l.created_at))/3600) as avg_hours_to_book FROM appointments JOIN leads l ON ... GROUP BY booking_source ORDER BY avg_hours_to_book` → tells you exactly which channels convert fastest
+
+**Files changed:**
+- `backend/server.js` — startup migration adds `booking_source TEXT` column
+- `backend/routes/bookings.js` — both `/book` and `/book-direct` accept + save `booking_source`. Token bookings fall back to `lead.source_site` if no explicit source passed.
+- `backend/routes/twilio.js` — missed-call SMS link gets `?src=missed_call`, inbound SMS homeowner reply gets `?src=sms_keyword`
+- `hvac-template/index.html` + `backend/templates/hvac-template.html` — both read `?src=` URL param into `_ibookSource`, pass it in the booking confirm POST body
 
 ### 2. Contractor Dashboard — Live Stats
 The contractor portal homepage should show the machine running every time they log in. This is the primary churn-prevention tool — contractors who see their own numbers don't leave.
@@ -1096,6 +1108,139 @@ The webhook validates Twilio's `X-Twilio-Signature` header using `TWILIO_AUTH_TO
 
 ---
 
+## Facebook Lead Ads — Full Setup Guide
+
+**What this does:** Homeowner sees a Facebook ad → pre-filled form opens inside Facebook → two taps to submit → Tractify receives the lead via webhook → instant SMS with booking link sent from the contractor's Twilio number within seconds. Homeowner never leaves Facebook for the lead capture step. Sub-60-second response while intent is still hot.
+
+**Backend is fully built and deployed.** Route: `backend/routes/facebook.js`. Registered at `POST /api/leads/facebook` and `GET /api/leads/facebook`. The only things left are the one-time Business Manager setup (below) and per-contractor campaign creation.
+
+---
+
+### Part 1 — One-Time Facebook App + Webhook Setup
+
+Do this once. Takes ~15 minutes.
+
+**Step 1: Create a Facebook App**
+1. Go to developers.facebook.com → My Apps → Create App
+2. Choose "Business" as the app type
+3. App name: "Tractify" — connect it to your Business Manager
+4. Once created, go to the app dashboard → note your **App ID** and **App Secret** (Settings → Basic)
+5. Add `FB_APP_SECRET` to Railway env vars (optional but recommended for security)
+
+**Step 2: Add the Lead Ads product**
+1. In your app dashboard → Add Product → "Lead Ads Retrieval" → Set Up
+2. This enables the leadgen webhook subscription
+
+**Step 3: Set your Verify Token in Railway**
+1. Go to Railway → your project → Variables
+2. Add: `FB_VERIFY_TOKEN` = any secret string you choose (e.g. `tractify-fb-webhook-2026`)
+3. Keep a copy — you'll paste it into Facebook in Step 4
+
+**Step 4: Connect the webhook**
+1. In your Facebook App → Products → Webhooks → New Subscription → choose "Page"
+2. Callback URL: `https://tractifyhq.com/api/leads/facebook`
+3. Verify Token: paste the same string you just added to Railway
+4. Click Verify and Save — Facebook sends a GET request with a challenge, Tractify echoes it back. If this succeeds, you'll see "Verified" in the Facebook dashboard.
+5. Under Subscription Fields, check `leadgen` → Save
+
+**Step 5: Get a Page Access Token**
+1. In your Facebook App → Tools → Graph API Explorer
+2. Select your App from the dropdown
+3. Select your Business Page from the "User or Page" dropdown (the page you'll run Lead Ads from)
+4. Click "Generate Access Token" → approve permissions (leads_retrieval, pages_read_engagement)
+5. Copy the token — this expires. For a never-expiring token:
+   - Take the short-lived token from above
+   - Call: `GET https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id={APP_ID}&client_secret={APP_SECRET}&fb_exchange_token={SHORT_TOKEN}`
+   - This gives you a long-lived page token (60 days, but Page tokens often don't expire)
+6. Add `FB_PAGE_ACCESS_TOKEN` = the token to Railway env vars
+
+**Step 6: Subscribe your Page to leadgen events**
+1. In Graph API Explorer, make a POST request:
+   `POST /{page-id}/subscribed_apps?subscribed_fields=leadgen&access_token={PAGE_ACCESS_TOKEN}`
+2. Response should be `{ "success": true }`
+3. Your Page is now subscribed — any Lead Ad submission on this Page fires your webhook
+
+**Verify it's all working:**
+- Facebook App → Webhooks → your Page subscription → click "Test" next to leadgen
+- This fires a test event to Tractify
+- Check Railway logs for `[FACEBOOK] Lead received — leadgen_id: ...`
+- If you see it, the webhook is live
+
+---
+
+### Part 2 — Per-Contractor Lead Ad Campaign
+
+Do this for each contractor. Takes ~10 minutes per contractor in Ads Manager.
+
+**Step 1: Create the campaign**
+1. Facebook Ads Manager → Create Campaign
+2. Objective: **Leads** (not Traffic — Leads gives you the native Lead Ad form)
+3. Campaign name: `[Contractor Name] — Homeowner Delivery`
+4. Budget: $10-15/day at the campaign level
+
+**Step 2: Create the ad set**
+1. Conversion location: **Instant Forms**
+2. Targeting:
+   - Location: enter the contractor's service zip codes one by one (you have these in the DB)
+   - Age: 30-65
+   - Homeowner behavior (under Detailed Targeting → Demographics → Home → Homeownership → Homeowners)
+   - No other interest targeting — everyone in those zips is a potential HVAC customer
+3. Placement: Facebook Feed + Instagram Feed only (remove Audience Network and Messenger)
+4. Budget: set at campaign level, leave this as "Use Campaign Budget"
+
+**Step 3: Create the Lead Ad form (critical — this is where routing happens)**
+1. In the ad creative step → Lead Form → Create New Form
+2. Form type: **More Volume** (fewer fields = higher completion)
+3. Intro: headline "Need HVAC help in [City]?" — keep it simple
+4. Questions — keep ONLY:
+   - Full Name (pre-filled from Facebook)
+   - Email (pre-filled from Facebook)
+   - Phone Number (pre-filled from Facebook)
+5. **Add a hidden field** — this is what routes the lead to the right contractor:
+   - Field label: `contractor_slug`
+   - Pre-filled value: the contractor's booking slug exactly as it appears in the DB (e.g. `premiercomforthvac`)
+   - This field is invisible to the homeowner — they never see it
+6. Privacy policy URL: `https://tractifyhq.com` (add a privacy policy page before running ads)
+7. Thank you screen: "Thanks! We'll text you a link to pick a time in the next few minutes."
+8. Save the form
+
+**Step 4: Create the ad creative**
+- Simple image or short video
+- Headline: "Book HVAC service online in [City] — no phone call needed"
+- Body: "Pick a time that works for you. We confirm instantly."
+- CTA button: **Get Quote** or **Sign Up**
+
+**Step 5: Publish and monitor**
+- Publish the campaign
+- When a homeowner submits: Facebook fires webhook → Tractify retrieves name/phone/email → creates lead in DB → sends SMS from contractor's Twilio number within 60 seconds
+- Check Railway logs for `[FACEBOOK] Instant SMS sent to...` to confirm the flow is working
+- Pause the campaign the moment the contractor hits 5 confirmed bookings
+
+---
+
+### What to check in Railway logs per lead
+When a lead comes in, you should see this sequence in Railway logs:
+```
+[FACEBOOK] Lead received — leadgen_id: 123456, page_id: 789
+[FACEBOOK] Lead fields: {"full_name":"Sarah Johnson","email":"sarah@...","phone":"206...","contractor_slug":"premiercomforthvac"}
+[FACEBOOK] Lead created — Sarah Johnson → contractor Premier Comfort HVAC (lead: uuid)
+[FACEBOOK] Instant SMS sent to +1206... (lead uuid)
+[FACEBOOK] Booking link email sent to sarah@... (lead uuid)
+```
+If you see the first two lines but not the SMS line — Twilio number isn't assigned to that contractor. Set it in Admin Dashboard → Contractors.
+If you see nothing after "Lead received" — check that `FB_PAGE_ACCESS_TOKEN` is set in Railway and hasn't expired.
+
+---
+
+### The routing system in plain English
+- One webhook URL handles all contractors: `https://tractifyhq.com/api/leads/facebook`
+- Routing is done by the hidden `contractor_slug` field in each Lead Ad form
+- Jose creates one Lead Ad campaign per contractor in Ads Manager, each with a different slug in the hidden field
+- Tractify looks up the contractor by that slug and sends the lead + SMS to them
+- At 20 contractors: 20 ad sets, 20 different hidden field values, one webhook, zero extra infrastructure
+
+---
+
 ## The Bridge (OilToHeatRebate.com → Tractify)
 Automatically sends leads from the quiz site into Tractify's matching engine.
 
@@ -1371,12 +1516,58 @@ The brain can't be built all at once. It has to be layered in the right order as
 - [ ] Revenue + outcome logging — "Did this job close? How much?" after each completed appointment
 
 **Remaining — makes the business smarter (build in parallel):**
-- [ ] Booking source tracking — `booking_source` field on appointments. Know which channels perform. (see Planned Features)
+- ✅ Booking source tracking — BUILT (session 11). `booking_source` on every appointment. See Planned Features → Section 1 for full details.
 - [ ] Contractor dashboard live stats — jobs this month, revenue this month, total all time, next appointment (see Planned Features)
 - [ ] Automatic review request — SMS to homeowner 3 hours after appointment completed (see Planned Features)
 - [ ] Intake funnel view in admin dashboard (data collecting, UI not built)
 - [ ] Flip bridge ON once first contractor is onboarded (script properties only — no code changes)
 - [ ] Google Calendar credentials (deferred — add to Railway when ready)
+
+---
+
+## ⚡ PICK UP HERE — Multi-Channel Ad Test (Next Session)
+
+**Context:** Booking source tracking is now live. The data layer is ready. The next move is launching the multi-channel homeowner delivery ad test to figure out which channels produce booked jobs fastest per contractor.
+
+**The strategy:** Run all channels simultaneously from day one, at low spend per channel. Let data pick the winners fast. Double down on what converts in under 24 hours. Kill what doesn't move in 5 days.
+
+**Channel setup — what URL to use for each ad:**
+
+| Channel | Ad Platform | Landing URL | ?src= tag |
+|---------|-------------|-------------|-----------|
+| Google Search | Google Ads | `{slug}.tractifyhq.com?src=google_search` | `google_search` |
+| Bing Search | Microsoft Ads | `{slug}.tractifyhq.com?src=bing_search` | `bing_search` |
+| Facebook/Instagram ad | Meta Ads Manager | `{slug}.tractifyhq.com?src=facebook_ad` | `facebook_ad` |
+| Facebook Lead Ad | Meta Ads Manager | (no URL — Lead Ad form, routed by `contractor_slug` hidden field) | auto from `lead.source_site` |
+| Nextdoor paid | Nextdoor Ads | `{slug}.tractifyhq.com?src=nextdoor_ad` | `nextdoor_ad` |
+| GBP booking button | Google Business Profile | `{slug}.tractifyhq.com?src=gbp` | `gbp` |
+| Missed call text-back | Twilio (auto) | auto-appended `?src=missed_call` | `missed_call` |
+| Inbound SMS / van wrap | Twilio (auto) | auto-appended `?src=sms_keyword` | `sms_keyword` |
+
+**Suggested starting budget per contractor (trial period only):**
+- Google Search: $10/day
+- Bing Search: $5/day
+- Facebook/Instagram ad: $10/day
+- Facebook Lead Ad: $10/day
+- Nextdoor paid: $5/day
+- Total: ~$40/day per contractor. Run 7-10 days max per trial. $280-400 per contractor trial. Budget well spent if it proves which 1-2 channels deliver jobs in under 48 hours.
+
+**The query to run after 5-10 bookings exist:**
+```sql
+SELECT booking_source, COUNT(*) as bookings,
+  ROUND(AVG(EXTRACT(epoch FROM (a.created_at - l.created_at))/3600), 1) as avg_hours_to_book
+FROM appointments a
+LEFT JOIN leads l ON a.lead_id = l.id
+WHERE a.status != 'cancelled'
+GROUP BY booking_source
+ORDER BY avg_hours_to_book ASC;
+```
+Run via: `railway run psql $DATABASE_URL` then paste the query at the `=#` prompt. (Pasting SQL directly into zsh breaks on `*` and parentheses — always connect to psql first.)
+
+**What to build next (when ready):**
+- Contractor dashboard live stats (jobs by source, jobs this month, conversion speed per channel)
+- Admin checklist completion visibility (can Jose see at a glance who stalled on setup?)
+- Real-time booking alert to Jose (email/SMS when any booking lands during trial period)
 
 ---
 

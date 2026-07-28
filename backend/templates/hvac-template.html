@@ -2909,6 +2909,9 @@
     // ── Inline booking state ─────────────────────────────────────────────
     let _ibookToken = null, _ibookContractorId = null, _ibookSlotsByDate = {};
     let _ibookSelectedDate = null, _ibookSelectedTime = null;
+    // Read ?src= URL param on load — tracks which ad channel drove this homeowner
+    // e.g. ?src=google_search, ?src=facebook_ad, ?src=nextdoor_ad, ?src=missed_call
+    const _ibookSource = new URLSearchParams(window.location.search).get('src') || null;
 
     function fmtTime12(t) {
       const [h, m] = t.split(':').map(Number);
@@ -3031,7 +3034,7 @@
           const r = await fetch(`${TRACTIFY_API}/api/bookings/book`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: _ibookToken, date: _ibookSelectedDate, time: _ibookSelectedTime }),
+            body: JSON.stringify({ token: _ibookToken, date: _ibookSelectedDate, time: _ibookSelectedTime, booking_source: _ibookSource }),
           });
           if (!r.ok) {
             const e = await r.json().catch(() => ({}));
