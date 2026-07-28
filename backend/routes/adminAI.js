@@ -60,6 +60,7 @@ router.post('/', requireAdmin, async (req, res) => {
     allAppointmentsResult,
     allLeadsResult,
     acquisitionSourcesResult,
+    brainContextResult,
   ] = await Promise.all([
     db.query(`
       SELECT
@@ -119,6 +120,13 @@ router.post('/', requireAdmin, async (req, res) => {
              COUNT(*) as contractors, COUNT(*) FILTER (WHERE is_active = 1) as active
       FROM contractors GROUP BY COALESCE(acquisition_source, 'direct/unknown') ORDER BY contractors DESC
     `),
+
+    db.query(`
+      SELECT id, type, summary, detail, created_at
+      FROM brain_context
+      ORDER BY created_at DESC
+      LIMIT 100
+    `),
   ]);
 
   const contractors = contractorsResult.rows;
@@ -127,6 +135,7 @@ router.post('/', requireAdmin, async (req, res) => {
   const apptsByContractor = allAppointmentsResult.rows;
   const leadStatuses = allLeadsResult.rows;
   const acqSources = acquisitionSourcesResult.rows;
+  const brainLog = brainContextResult.rows;
 
   // ── Build context strings ─────────────────────────────────────────────────
   const CHECKLIST_KEYS = ['availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers', 'messenger'];
@@ -192,14 +201,26 @@ ${acqSources.map(r => `  ${r.source}: ${r.contractors} signed up, ${r.active} ac
 === LEAD STATUS (last 30d) ===
 ${leadStatuses.map(r => `  ${r.status}: ${r.count}`).join('\n') || '  None'}
 
+=== BRAIN MEMORY LOG (decisions + insights you or Jose recorded) ===
+${brainLog.length
+  ? brainLog.map(r => `  [${new Date(r.created_at).toISOString().slice(0,10)}] [${r.type.toUpperCase()}] ${r.summary}${r.detail ? '\n    → ' + r.detail : ''}`).join('\n')
+  : '  Empty — log decisions with log_decision tool so they persist across sessions'}
+=== END BRAIN MEMORY LOG ===
+
 === WHAT YOU CAN DO ===
-- Answer any question about the business using data above
+- Answer any question about the business using all context above
 - Set Twilio numbers for contractors (use set_twilio_number)
 - Approve or decline pending contractor applications (approve_contractor / decline_contractor)
 - Update contractor info: city, phone, company name, etc. (update_contractor)
 - Assign or reassign leads to a contractor (assign_lead)
 - Cancel appointments (cancel_appointment)
 - Delete cancelled appointments or test leads (delete_appointment / delete_lead)
+- Log a decision, insight, or note to persistent memory (log_decision) — use this proactively whenever something important is decided or learned
+
+IMPORTANT: Use log_decision proactively. Any time a real decision is made, a pattern is noticed, or a strategic call is confirmed — log it. This is how the brain builds memory across sessions. Examples:
+- "Approved Evergreen for $20/day ad spend — 4.8 stars, 90 reviews, strong Seattle market"
+- "Decided to prioritize contractors with 50+ Google reviews for ad spend"
+- "Missed call text-back converting at ~40% — highest of all channels so far"
 
 When Jose asks you to do something, confirm what you did with the exact result.
 When identifying contractors by name, use the IDs from the list above.
@@ -297,6 +318,23 @@ Be direct. No fluff. Jose is running a business.`;
           lead_id: { type: 'string', description: 'Lead UUID to delete' },
         },
         required: ['lead_id'],
+      },
+    },
+    {
+      name: 'log_decision',
+      description: 'Write a decision, insight, or important note to persistent brain memory. This survives across sessions and is injected into every future brain query. Use proactively whenever a real decision is made or a pattern is noticed.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          type: {
+            type: 'string',
+            enum: ['decision', 'insight', 'strategy', 'note', 'result'],
+            description: 'Type of entry. decision = a call that was made. insight = a pattern noticed. strategy = a strategic direction set. result = outcome of an action. note = anything else worth remembering.',
+          },
+          summary: { type: 'string', description: 'One-line summary (shown in the log). Keep it tight and specific — e.g. "Approved Evergreen for $20/day ad spend — 4.8 stars, strong Seattle market"' },
+          detail: { type: 'string', description: 'Optional extra context, reasoning, or data behind the entry.' },
+        },
+        required: ['type', 'summary'],
       },
     },
   ];
@@ -434,6 +472,16 @@ Be direct. No fluff. Jose is running a business.`;
           actionTaken = { type: 'delete_lead', lead_id: input.lead_id };
           console.log(`[ADMIN-AI] Deleted lead ${input.lead_id}`);
         }
+
+      } else if (name === 'log_decision') {
+        const { type: entryType, summary, detail } = input;
+        await db.query(
+          'INSERT INTO brain_context (type, summary, detail) VALUES ($1, $2, $3)',
+          [entryType, summary, detail || null]
+        );
+        toolResult = `Logged to brain memory: [${entryType.toUpperCase()}] ${summary}`;
+        actionTaken = { type: 'log_decision', entry_type: entryType };
+        console.log(`[ADMIN-AI] Brain memory logged: [${entryType}] ${summary}`);
 
       } else {
         toolResult = `Unknown tool: ${name}`;

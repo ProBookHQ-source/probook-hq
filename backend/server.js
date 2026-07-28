@@ -259,6 +259,18 @@ db._ready.then(async () => {
     )
   `);
 
+  // Brain context log — machine-written decisions and insights from the admin brain
+  // Persists in Postgres so it survives every Railway deploy
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS brain_context (
+      id SERIAL PRIMARY KEY,
+      type TEXT NOT NULL DEFAULT 'decision',
+      summary TEXT NOT NULL,
+      detail TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
   // Start scheduled jobs (appointment reminders, etc.)
   require('./services/cron');
 
