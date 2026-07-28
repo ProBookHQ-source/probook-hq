@@ -369,6 +369,56 @@ export default function ContractorPortal() {
     return () => { if (twilioTestTimerRef.current) clearInterval(twilioTestTimerRef.current); };
   }, []);
 
+  // Auto-complete step 1 if availability slots are already seeded from the intake form
+  const autoCompletedAvailabilityRef = useRef(false);
+  useEffect(() => {
+    if (
+      slots.length > 0 &&
+      !onboardingSteps.availability &&
+      !autoCompletedAvailabilityRef.current
+    ) {
+      autoCompletedAvailabilityRef.current = true;
+      markStep.mutate('availability');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slots.length, onboardingSteps.availability]);
+
+  // Proactive greeting — fires when setup tab opens if chat is empty
+  const greetingFiredRef = useRef(false);
+  useEffect(() => {
+    if (tab !== 'setup') return;
+    if (chatMessages.length > 0) return;
+    if (!contractorProfile) return;
+    if (greetingFiredRef.current) return;
+    greetingFiredRef.current = true;
+
+    const STEP_ORDER = ['availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers', 'messenger'];
+    const STEP_LABELS = {
+      availability: 'confirm your schedule',
+      twilio: 'set up missed call forwarding',
+      gbp: 'add your booking link to Google',
+      nextdoor: 'post on Nextdoor',
+      facebook: 'post in a Facebook group',
+      reviewers: 'message your Google reviewers',
+      messenger: 'set up Messenger + Instagram auto-reply',
+    };
+    const firstName = (contractorProfile.name || '').split(' ')[0] || 'there';
+    const completedCount = STEP_ORDER.filter(k => onboardingSteps[k]).length;
+    const firstIncomplete = STEP_ORDER.find(k => !onboardingSteps[k]);
+
+    let greeting;
+    if (completedCount === 0) {
+      greeting = `Hey ${firstName}! 👋 Let's get your booking channels live.\n\nYour availability is already set — I'll mark that done now. The most important next step is **${STEP_LABELS.twilio}** — that's the one that catches missed calls automatically. Want me to walk you through it?`;
+    } else if (completedCount < STEP_ORDER.length) {
+      greeting = `Welcome back, ${firstName}! You're ${completedCount}/${STEP_ORDER.length} done. Up next: **${STEP_LABELS[firstIncomplete] || firstIncomplete}**.\n\nSay "let's do it" and I'll walk you through it step by step.`;
+    } else {
+      greeting = `All channels are live, ${firstName} — nice work! 🎉\n\nJobs should start coming in. I'm here if anything comes up — you can ask me to block time, cancel an appointment, or check your calendar anytime.`;
+    }
+
+    setChatMessages([{ role: 'assistant', content: greeting }]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, contractorProfile?.id]);
+
   const from     = format(weekStart, 'yyyy-MM-dd');
   const to       = format(addDays(weekStart, 6), 'yyyy-MM-dd');
   const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -597,12 +647,20 @@ export default function ContractorPortal() {
 
   const markStep = useMutation({
     mutationFn: (step) => api.put(`/contractors/${user.id}/onboarding-step`, { step }),
-    onSuccess: (res) => {
+    onSuccess: (res, variables) => {
       const steps = typeof res.data.onboarding_steps === 'string'
         ? JSON.parse(res.data.onboarding_steps || '{}')
         : (res.data.onboarding_steps || {});
       setOnboardingSteps(steps);
-      toast.success('Step marked complete!');
+      toast.success('✓ Done! Opening the next step…');
+      // Auto-advance: open the next incomplete step automatically
+      const STEP_ORDER = ['availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers', 'messenger'];
+      const nextStep = STEP_ORDER.find(k => !steps[k] && k !== variables);
+      if (nextStep) {
+        setTimeout(() => setExpandedStep(nextStep), 400);
+      } else {
+        setExpandedStep(null); // all done
+      }
     },
     onError: () => toast.error('Failed to save step'),
   });
@@ -712,33 +770,53 @@ export default function ContractorPortal() {
       key: 'nextdoor',
       label: 'Post in a local Nextdoor neighborhood',
       icon: '🏘️',
-      description: 'HVAC is the #1 requested service on Nextdoor. One post in your neighborhood puts your booking link in front of homeowners who are already asking for recommendations.',
+      description: 'HVAC is the #1 requested service on Nextdoor. One post in your neighborhood puts your booking link in front of homeowners already asking for recommendations.',
       copyText: contractorProfile
         ? `Hey neighbors! ${contractorProfile.company_name || contractorProfile.name} now has online booking — pick a time that works for you right here: ${contractorProfile.booking_slug ? `https://tractifyhq.com/schedule/${contractorProfile.booking_slug}` : 'your booking link'}. Happy to help with any HVAC needs!`
         : null,
-      link: { label: 'Open Nextdoor →', url: 'https://nextdoor.com' },
+      link: contractorProfile?.city
+        ? { label: `Search Nextdoor for ${contractorProfile.city} →`, url: `https://nextdoor.com/search/posts/?q=${encodeURIComponent('hvac ' + contractorProfile.city)}` }
+        : { label: 'Open Nextdoor →', url: 'https://nextdoor.com' },
     },
     {
       key: 'facebook',
       label: 'Post in a local Facebook community group',
       icon: '👥',
-      description: 'Find a local Facebook group like "[Your City] Neighbors" or "[Your City] Community Board" and post once. People asking for HVAC recommendations are mid-search — they convert immediately.',
+      description: 'Find a local Facebook group and post once. People asking for HVAC recommendations are mid-search — they convert immediately.',
       copyText: contractorProfile
         ? `Hi everyone! I run ${contractorProfile.company_name || contractorProfile.name} and we just launched online booking — no more phone tag, just pick a time that works for you: ${contractorProfile.booking_slug ? `https://tractifyhq.com/schedule/${contractorProfile.booking_slug}` : 'your booking link'}. Happy to help with any heating or cooling needs!`
         : null,
-      link: { label: 'Open Facebook →', url: 'https://facebook.com/groups' },
+      link: contractorProfile?.city
+        ? { label: `Search Facebook groups for ${contractorProfile.city} →`, url: `https://www.facebook.com/groups/search/?q=${encodeURIComponent(contractorProfile.city + ' neighbors')}` }
+        : { label: 'Search Facebook groups →', url: 'https://www.facebook.com/groups/search/?q=neighbors' },
     },
     {
       key: 'reviewers',
       label: 'Message your top Google reviewers',
       icon: '⭐',
-      description: 'Your past happy customers already trust you. A quick message to your top Google reviewers can book 2-3 jobs before anything else kicks in.',
+      description: 'Your past happy customers already trust you. A quick message to your top reviewers can book 2-3 jobs before anything else kicks in.',
       instructions: [
-        { platform: 'Find reviewers', steps: 'Go to business.google.com → Reviews → click "Reply" next to each review to send them a message' },
+        { platform: 'How to reach them', steps: 'Go to business.google.com → Reviews → click "Reply" next to each review — this opens a direct message to that reviewer' },
       ],
       copyText: contractorProfile
         ? `Hi [Name]! Thanks again for the kind review — it means a lot. We just launched online booking so you can schedule service anytime without the phone tag: ${contractorProfile.booking_slug ? `https://tractifyhq.com/schedule/${contractorProfile.booking_slug}` : 'your booking link'}. Hope we can help again soon!`
         : null,
+      link: contractorProfile?.place_id
+        ? { label: 'View your Google listing + reviews →', url: `https://www.google.com/maps/place/?q=place_id:${contractorProfile.place_id}` }
+        : { label: 'Open Google Business →', url: 'https://business.google.com' },
+    },
+    {
+      key: 'messenger',
+      label: 'Set up Messenger + Instagram auto-reply',
+      icon: '💬',
+      description: 'Every homeowner who DMs you on Facebook or Instagram automatically gets your booking link back in seconds. Set it up once — runs forever, 24/7, while you\'re on job sites.',
+      instructions: [
+        { platform: 'Setup (5 min)', steps: 'Go to Meta Business Suite (business.facebook.com) → Inbox → Automation → Instant Replies → toggle on → paste the message below → Save' },
+      ],
+      copyText: contractorProfile
+        ? `Thanks for reaching out to ${contractorProfile.company_name || contractorProfile.name}! You can book a time here: ${contractorProfile.booking_slug ? `https://tractifyhq.com/schedule/${contractorProfile.booking_slug}` : 'your booking link'} — takes 60 seconds and we\'ll confirm right away.`
+        : null,
+      link: { label: 'Open Meta Business Suite →', url: 'https://business.facebook.com' },
     },
   ];
 
@@ -751,7 +829,7 @@ export default function ContractorPortal() {
     { id: 'calendar',     label: 'Calendar',    icon: Calendar,       badge: null },
     { id: 'availability', label: 'My Schedule', icon: Clock,          badge: null },
     { id: 'assistant',    label: 'Assistant',   icon: MessageSquare,  badge: null },
-    { id: 'setup',        label: 'Setup',       icon: ListChecks,     badge: allStepsDone ? null : `${completedStepCount}/6` },
+    { id: 'setup',        label: 'Setup',       icon: ListChecks,     badge: allStepsDone ? null : `${completedStepCount}/${ONBOARDING_STEPS.length}` },
     { id: 'settings',     label: 'Settings',    icon: Settings,       badge: null },
   ];
 
@@ -1606,7 +1684,7 @@ export default function ContractorPortal() {
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">You're almost live!</h2>
               <p className="text-gray-500 mb-6 leading-relaxed">
-                Complete 6 quick setup steps to activate all your booking channels.
+                Complete {ONBOARDING_STEPS.length} quick setup steps to activate all your booking channels.
               </p>
               <div className="space-y-2 text-left mb-8">
                 {ONBOARDING_STEPS.map((s, i) => (
@@ -1643,14 +1721,14 @@ export default function ContractorPortal() {
               <div className="mb-6">
                 <h1 className="text-2xl font-bold text-gray-900">Setup Checklist</h1>
                 <p className="text-gray-400 text-sm mt-1">
-                  Complete all 6 steps to activate your booking channels and start getting jobs.
+                  Complete all {ONBOARDING_STEPS.length} steps to activate your booking channels and start getting jobs.
                 </p>
               </div>
 
               {/* Progress bar */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-semibold text-gray-700">{completedStepCount} of 6 steps complete</span>
+                  <span className="text-sm font-semibold text-gray-700">{completedStepCount} of {ONBOARDING_STEPS.length} steps complete</span>
                   {allStepsDone && (
                     <span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">All done! 🎉</span>
                   )}
@@ -1658,7 +1736,7 @@ export default function ContractorPortal() {
                 <div className="w-full bg-gray-100 rounded-full h-2.5">
                   <div
                     className="bg-brand-500 h-2.5 rounded-full transition-all duration-500"
-                    style={{ width: `${(completedStepCount / 6) * 100}%` }}
+                    style={{ width: `${(completedStepCount / ONBOARDING_STEPS.length) * 100}%` }}
                   />
                 </div>
                 {allStepsDone && (

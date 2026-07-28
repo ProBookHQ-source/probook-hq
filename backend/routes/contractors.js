@@ -74,7 +74,7 @@ router.get('/:id', requireContractor, async (req, res) => {
            c.service_zip_codes, c.google_calendar_id, c.is_active, c.created_at,
            c.service_radius_miles, c.max_appointments_per_day,
            c.twilio_number, c.onboarding_steps, c.booking_slug,
-           c.place_id, c.twilio_test_call_at,
+           c.place_id, c.twilio_test_call_at, c.city,
            n.name as niche_name
     FROM contractors c
     LEFT JOIN niches n ON c.niche_id = n.id

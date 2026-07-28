@@ -332,11 +332,12 @@ router.post('/', requireDeploySecret, async (req, res) => {
 
   log(`Contractor created: ${contractorId}`);
 
-  // Save Google Places ID if provided — used for GBP deep link and review display
-  if (data.placeId) {
-    await db.query(`UPDATE contractors SET place_id = $1 WHERE id = $2`, [data.placeId, contractorId]).catch(e => {
-      log(`place_id save warning: ${e.message}`);
-    });
+  // Save Google Places ID + city if provided
+  if (data.placeId || data.city) {
+    await db.query(
+      `UPDATE contractors SET place_id = COALESCE($1, place_id), city = COALESCE($2, city) WHERE id = $3`,
+      [data.placeId || null, data.city || null, contractorId]
+    ).catch(e => log(`place_id/city save warning: ${e.message}`));
   }
 
   // ── Step 3: Create API key linked to contractor ────────────────────────────
