@@ -45,6 +45,27 @@ function fmtTime(t) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+// ── Simple markdown renderer for AI messages ──────────────────────────────────
+// Handles: line breaks, **bold**, and preserves copy-paste text blocks cleanly.
+function renderMsg(text) {
+  if (!text) return null;
+  const lines = text.split('\n');
+  return lines.map((line, i) => {
+    const parts = line.split(/(\*\*[^*]+\*\*)/g).map((part, j) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={j}>{part.slice(2, -2)}</strong>;
+      }
+      return <span key={j}>{part}</span>;
+    });
+    return (
+      <span key={i}>
+        {parts}
+        {i < lines.length - 1 && <br />}
+      </span>
+    );
+  });
+}
+
 // ── Toggle Switch ─────────────────────────────────────────────────────────────
 function Toggle({ checked, onChange }) {
   return (
@@ -266,6 +287,11 @@ export default function ContractorPortal() {
   const [chatLoading, setChatLoading] = useState(false);
   const chatBottomRef = useRef(null);
 
+  // ── Twilio call-forwarding live test ───────────────────────────────────────
+  const [twilioTestActive, setTwilioTestActive] = useState(false);
+  const [twilioTestResult, setTwilioTestResult] = useState(null); // null | 'success' | 'timeout'
+  const twilioTestTimerRef = useRef(null);
+
   const sendChatMessage = async (text) => {
     const msg = text?.trim() || chatInput.trim();
     if (!msg || chatLoading) return;
@@ -302,7 +328,6 @@ export default function ContractorPortal() {
   // Persist chat messages to localStorage
   useEffect(() => {
     try {
-      // Keep last 50 messages only
       const toSave = chatMessages.slice(-50);
       localStorage.setItem(`tractify_chat_${user?.id}`, JSON.stringify(toSave));
     } catch {}
@@ -312,6 +337,37 @@ export default function ContractorPortal() {
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages, chatLoading]);
+
+  // ── Start live call-forwarding test — polls for inbound call every 3s ──────
+  const startTwilioTest = () => {
+    if (twilioTestTimerRef.current) clearInterval(twilioTestTimerRef.current);
+    setTwilioTestActive(true);
+    setTwilioTestResult(null);
+    let elapsed = 0;
+    twilioTestTimerRef.current = setInterval(async () => {
+      elapsed += 3;
+      if (elapsed > 90) {
+        clearInterval(twilioTestTimerRef.current);
+        setTwilioTestActive(false);
+        setTwilioTestResult('timeout');
+        return;
+      }
+      try {
+        const { data } = await api.get(`/contractors/${user.id}/twilio-test-status`);
+        if (data.received) {
+          clearInterval(twilioTestTimerRef.current);
+          setTwilioTestActive(false);
+          setTwilioTestResult('success');
+          markStep.mutate('twilio');
+        }
+      } catch { /* ignore poll errors */ }
+    }, 3000);
+  };
+
+  // Cleanup Twilio test timer on unmount
+  useEffect(() => {
+    return () => { if (twilioTestTimerRef.current) clearInterval(twilioTestTimerRef.current); };
+  }, []);
 
   const from     = format(weekStart, 'yyyy-MM-dd');
   const to       = format(addDays(weekStart, 6), 'yyyy-MM-dd');
@@ -648,6 +704,9 @@ export default function ContractorPortal() {
         { platform: 'Steps', steps: 'Go to business.google.com → click your business → Edit Profile → scroll to "Appointments" → paste your booking link → Save' },
       ],
       copyText: contractorProfile?.booking_slug ? `https://tractifyhq.com/schedule/${contractorProfile.booking_slug}` : null,
+      link: contractorProfile?.place_id
+        ? { label: 'View your Google listing →', url: `https://www.google.com/maps/place/?q=place_id:${contractorProfile.place_id}` }
+        : { label: 'Open Google Business →', url: 'https://business.google.com' },
     },
     {
       key: 'nextdoor',
@@ -1685,6 +1744,46 @@ export default function ContractorPortal() {
                             </button>
                           )}
 
+                          {/* Twilio live call-forwarding test (step 2 only) */}
+                          {step.key === 'twilio' && contractorProfile?.twilio_number && !done && (
+                            <div className="border border-dashed border-brand-200 bg-brand-50 rounded-xl px-4 py-3 space-y-2">
+                              <p className="text-xs font-bold text-brand-700 uppercase tracking-wide">Verify it's working</p>
+                              {!twilioTestActive && twilioTestResult === null && (
+                                <>
+                                  <p className="text-sm text-gray-600">Once you've turned on call forwarding, click below. Call your Tractify number and hang up — we'll detect it automatically.</p>
+                                  <button
+                                    onClick={startTwilioTest}
+                                    className="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-2.5 rounded-xl text-sm transition-all"
+                                  >
+                                    📞 Start live test
+                                  </button>
+                                </>
+                              )}
+                              {twilioTestActive && (
+                                <div className="flex items-center gap-3 py-1">
+                                  <div className="w-5 h-5 rounded-full border-2 border-brand-500 border-t-transparent animate-spin shrink-0" />
+                                  <p className="text-sm text-brand-700 font-medium">Waiting for your test call… (up to 90 sec)</p>
+                                </div>
+                              )}
+                              {twilioTestResult === 'success' && (
+                                <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
+                                  <CheckCircle className="w-4 h-4" /> Call forwarding is working! Step marked complete.
+                                </div>
+                              )}
+                              {twilioTestResult === 'timeout' && (
+                                <div className="space-y-2">
+                                  <p className="text-sm text-red-600">We didn't detect a call. Make sure forwarding is enabled and try again.</p>
+                                  <button
+                                    onClick={startTwilioTest}
+                                    className="text-sm font-semibold text-brand-600 hover:text-brand-700"
+                                  >
+                                    Try again →
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           {/* Mark done */}
                           {!done && (
                             <button
@@ -1752,7 +1851,7 @@ export default function ContractorPortal() {
                             ? 'bg-brand-500 text-white rounded-br-sm'
                             : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm'
                         }`}>
-                          {msg.content}
+                          {renderMsg(msg.content)}
                         </div>
                       </div>
                     ))}
@@ -2028,7 +2127,7 @@ export default function ContractorPortal() {
                         : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm'
                     }`}
                   >
-                    {msg.content}
+                    {renderMsg(msg.content)}
                   </div>
                 </div>
               ))}

@@ -31,7 +31,7 @@ router.post('/', requireContractor, async (req, res) => {
   const twoWeeksOut = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   const [contractorResult, appointmentsResult, slotsResult] = await Promise.all([
-    db.query('SELECT id, name, company_name, phone, booking_slug, twilio_number, onboarding_steps FROM contractors WHERE id = $1', [contractorId]),
+    db.query('SELECT id, name, company_name, phone, booking_slug, twilio_number, onboarding_steps, place_id FROM contractors WHERE id = $1', [contractorId]),
     db.query(
       `SELECT a.id, a.scheduled_date, a.scheduled_time, a.duration_minutes, a.status, a.notes,
               l.name as lead_name, l.phone as lead_phone, l.email as lead_email
@@ -98,7 +98,7 @@ router.post('/', requireContractor, async (req, res) => {
     gbp: {
       label: 'Add booking link to Google Business Profile',
       done: !!completedSteps.gbp,
-      guide: `Their booking link is: ${bookingLink}\n\nSteps: Go to business.google.com → click their business name → Edit Profile → scroll down to "Appointments" → paste the booking link → Save.\n\nThis lets homeowners searching "HVAC near me" on Google book directly from the listing — free, zero ad spend. Once they confirm it's added, mark this step complete.`,
+      guide: `Their booking link is: ${bookingLink}\n\n${contractor.place_id ? `Direct link to their Google listing: https://www.google.com/maps/place/?q=place_id:${contractor.place_id} — tell them to click this, then look for the "Edit listing" or "Manage" button once signed in to Google.\n\n` : ''}Steps: Go to business.google.com → click their business name → Edit Profile → scroll down to "Appointments" → paste the booking link → Save.\n\nThis lets homeowners searching "HVAC near me" on Google book directly from the listing — free, zero ad spend. Once they confirm it's added, mark this step complete.`,
     },
     nextdoor: {
       label: 'Post in a local Nextdoor neighborhood',
@@ -117,7 +117,18 @@ router.post('/', requireContractor, async (req, res) => {
     },
   };
 
-  const incompleteSteps = Object.entries(STEP_DETAILS).filter(([, s]) => !s.done);
+  // Personalize step order — skip Twilio if no number assigned, it's blocked on Jose
+  const hasTwilioNumber = !!contractor.twilio_number;
+  const incompleteSteps = Object.entries(STEP_DETAILS)
+    .filter(([, s]) => !s.done)
+    .sort(([keyA], [keyB]) => {
+      // Move twilio to the end if no number is assigned yet
+      if (!hasTwilioNumber) {
+        if (keyA === 'twilio') return 1;
+        if (keyB === 'twilio') return -1;
+      }
+      return 0;
+    });
   const completedCount = Object.values(STEP_DETAILS).filter(s => s.done).length;
 
   const checklistSummary = Object.entries(STEP_DETAILS).map(([key, s]) =>
@@ -144,6 +155,8 @@ ${apptText}
 
 REGULAR WEEKLY SCHEDULE:
 ${scheduleText}
+
+${!hasTwilioNumber ? `⚠️ TWILIO NUMBER NOT ASSIGNED YET: Their Tractify phone number (step 2) hasn't been set up yet — this is Jose's job on the backend. If they ask about step 2, tell them "Your Tractify number is being set up — it'll be in your welcome email shortly. Let's get the other steps done in the meantime." Then guide them to step 3 (GBP), 4 (Nextdoor), 5 (Facebook), or 6 (Reviewers) instead.` : ''}
 
 WHAT YOU CAN DO:
   - Guide them through setup steps one at a time, with exact copy-paste text and step-by-step instructions

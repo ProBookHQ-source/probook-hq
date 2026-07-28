@@ -192,6 +192,10 @@ async function initialize() {
     ALTER TABLE appointments ALTER COLUMN lead_id DROP NOT NULL
   `).catch(() => {}); // ignore if already nullable
 
+  // Migration: store Google Places ID + Twilio test call timestamp on contractors
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS place_id TEXT`).catch(() => {});
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS twilio_test_call_at TIMESTAMPTZ`).catch(() => {});
+
   // Migration: add metadata + source_site to leads for inbound bridge support
   await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'`).catch(() => {});
   await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS source_site TEXT`).catch(() => {});

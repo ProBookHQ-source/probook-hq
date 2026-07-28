@@ -74,6 +74,7 @@ router.get('/:id', requireContractor, async (req, res) => {
            c.service_zip_codes, c.google_calendar_id, c.is_active, c.created_at,
            c.service_radius_miles, c.max_appointments_per_day,
            c.twilio_number, c.onboarding_steps, c.booking_slug,
+           c.place_id, c.twilio_test_call_at,
            n.name as niche_name
     FROM contractors c
     LEFT JOIN niches n ON c.niche_id = n.id
@@ -81,6 +82,24 @@ router.get('/:id', requireContractor, async (req, res) => {
   `).get(id);
   if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
   res.json(contractor);
+});
+
+// ── Twilio test call status — was a call received in the last 10 min? ─────────
+router.get('/:id/twilio-test-status', requireContractor, async (req, res) => {
+  const { id } = req.params;
+  if (req.user.role !== 'admin' && req.user.id !== id) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  const row = await db.prepare(`
+    SELECT twilio_test_call_at
+    FROM contractors
+    WHERE id = $1
+  `).get(id);
+  if (!row) return res.status(404).json({ error: 'Contractor not found' });
+
+  const receivedAt = row.twilio_test_call_at;
+  const received = !!receivedAt && (Date.now() - new Date(receivedAt).getTime()) < 10 * 60 * 1000;
+  res.json({ received, receivedAt: received ? receivedAt : null });
 });
 
 // ── Mark onboarding step complete ─────────────────────────────────────────────

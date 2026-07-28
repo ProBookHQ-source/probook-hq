@@ -44,6 +44,10 @@ router.post('/missed-call', async (req, res) => {
     return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
   }
 
+  // Stamp test call timestamp — used by the portal's live call-forwarding test
+  db.query(`UPDATE contractors SET twilio_test_call_at = NOW() WHERE id = $1`, [contractor.id])
+    .catch(e => console.warn('[TWILIO] Failed to stamp test call timestamp:', e.message));
+
   const businessName = contractor.company_name || contractor.name || 'us';
   const bookingSlug  = contractor.booking_slug;
   const bookingLink  = bookingSlug
