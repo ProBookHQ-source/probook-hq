@@ -353,7 +353,10 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── Main content ─────────────────────────────────────────────────────── */}
-      <div className="md:ml-56 p-4 md:p-6 pb-24 md:pb-6 min-w-0 overflow-x-hidden">
+      <div
+        className="md:ml-56 p-4 md:p-6 pb-24 md:pb-6 min-w-0 overflow-x-hidden"
+        style={{ marginRight: brainOpen ? '364px' : '0', transition: 'margin-right 0.25s cubic-bezier(0.4,0,0.2,1)' }}
+      >
 
         {/* ── OVERVIEW ── */}
         {tab === 'overview' && (
