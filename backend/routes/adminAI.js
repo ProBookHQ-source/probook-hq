@@ -17,10 +17,15 @@
 
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const fs = require('fs');
 const db = require('../database/db');
 const { requireAdmin } = require('../middleware/auth');
 const Anthropic = require('@anthropic-ai/sdk');
 const notifications = require('../services/notifications');
+
+// Read CLAUDE.md once at startup (re-read on each request so it's always current)
+const CLAUDE_MD_PATH = path.join(__dirname, '../../CLAUDE.md');
 
 // ── Helper: find contractor by partial name ───────────────────────────────────
 async function findContractor(nameOrId) {
@@ -148,8 +153,21 @@ router.post('/', requireAdmin, async (req, res) => {
     return steps < 4 || (daysSinceLastBook > 5 && parseInt(c.total_bookings || 0) === 0);
   });
 
-  const systemPrompt = `You are the Tractify admin brain — Jose's command center. You can BOTH answer questions AND take real actions in the system.
+  // Load full CLAUDE.md on every request so the brain always has the latest context
+  let claudeMd = '';
+  try {
+    claudeMd = fs.readFileSync(CLAUDE_MD_PATH, 'utf8');
+  } catch (e) {
+    console.warn('[ADMIN-AI] Could not read CLAUDE.md:', e.message);
+  }
 
+  const systemPrompt = `You are the Tractify admin brain — Jose's command center. You have full context of the entire business (strategy, build history, decisions, priorities) from the master context document below, PLUS live real-time data from the database. You can BOTH answer questions AND take real actions in the system.
+
+=== TRACTIFY MASTER CONTEXT (CLAUDE.md — full business context) ===
+${claudeMd}
+=== END MASTER CONTEXT ===
+
+=== LIVE DATABASE SNAPSHOT (pulled now, always current) ===
 TODAY: ${today}
 ACTIVE CONTRACTORS: ${activeContractors.length} | PENDING: ${pendingContractors.length} | TOTAL BOOKINGS: ${totalBookings}
 
@@ -290,7 +308,7 @@ Be direct. No fluff. Jose is running a business.`;
 
   let response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 1024,
+    max_tokens: 2048,
     system: systemPrompt,
     tools,
     messages,
@@ -431,7 +449,7 @@ Be direct. No fluff. Jose is running a business.`;
 
     response = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
+      max_tokens: 2048,
       system: systemPrompt,
       tools,
       messages: toolMessages,
