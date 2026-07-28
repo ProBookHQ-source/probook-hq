@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 28, 2026 (session 11 — booking source tracking fully built. Every booking now tagged with which ad channel drove it: google_search, bing_search, facebook_ad, facebook_lead_ad, nextdoor_ad, missed_call, sms_keyword, gbp, direct, etc. HVAC template reads ?src= URL param and passes it through to the booking INSERT. Missed-call and SMS keyword links auto-appended with ?src=. Token-based bookings fall back to lead.source_site. AI brain can now see which channels convert fastest and at what speed. Multi-channel ad test ready to run.)*
+*Last updated: July 28, 2026 (session 12 — admin brain fully built. Jose now has a floating 🧠 chat on the admin dashboard with live DB access: all contractors, booking channel performance, acquisition sources, stalled contractor alerts, Stripe conversion progress. Also built: contractor acquisition_source tracking — intake.tractifyhq.com?src=facebook_video_roof tags each contractor at signup, flows to contractors table, visible to admin brain. The brain answers plain-language questions: "which channels convert fastest?", "which contractors are stalled?", "where should I spend today?". All data is live from Railway DB, updated on every query.)*
 
 ---
 
@@ -1502,7 +1502,7 @@ The brain can't be built all at once. It has to be layered in the right order as
 - **The north star:** Jose feels like he has a world-class operations team, growth team, and analyst team working 24/7 without hiring a single person. Every hard decision — which contractors to accelerate, where to spend money, what's broken, what's working — gets made faster and smarter because the brain has seen it before.
 
 - [ ] **Unified AI brain across the entire pipeline (Phase 3 — long game)** — right now each piece of the system operates in isolation. The intake form collects, the worker deploys, the template serves homeowners, the backend runs bookings. Phase 3 connects all of them with shared intelligence. The intake form qualifies contractors in real time before they submit. The worker makes intelligent deployment decisions based on contractor profile — urban contractor with 80 reviews gets different channel prioritization than rural contractor with 10. The template dynamically serves what's converting best across all active sites. Booking data feeds back into intake form prioritization. One continuous learning loop across the entire pipeline — every part talking to every other part, getting smarter as data flows through. Build after the admin brain is live and real data exists to learn from. You can't train a system on data you don't have yet.
-- [ ] **AI business brain embedded in admin dashboard (Phase 2 — most important feature)** — plug the full Tractify context + live database data into an AI chat interface on the admin side. This is Jose's command center. Instead of manually analyzing contractor performance, Jose asks plain questions and gets instant answers backed by real data: "Which contractors should I put ad spend behind this week?" "Why is this contractor getting zero bookings?" "Which channels are converting best across all active trials?" The AI sees every contractor, every booking, every checklist step, every channel, every job — and helps Jose make every hard decision fast. Which trials to accelerate, which to deprioritize, what's working vs. what needs fixing, where to spend money and where to pull back. Implementation: AI chat widget in the admin dashboard with full CLAUDE.md context injected plus live query access to the PostgreSQL database — contractors, appointments, availability, checklist status, booking sources all fed in real time. This transforms Jose from someone managing a dashboard into someone running a business with an always-on partner that knows every number cold and never sleeps. Build after first contractors are live so real data shapes what questions actually matter.
+- ✅ **AI business brain embedded in admin dashboard — BUILT (session 12).** Floating 🧠 button on the admin dashboard. Live DB context pulled on every query: all contractors + status, booking channel performance (avg hours to book per source), acquisition sources, stalled contractor detection, all-time booking counts by contractor. Calls claude-sonnet-4-6 with the full context. Quick prompts: "What should I do today?", "Which contractors are stalled?", "Which channels convert fastest?", "How close am I to first Stripe?". Jose types any question, gets data-backed answers in plain English. Files: `backend/routes/adminAI.js` + floating widget in `AdminDashboard.jsx`.
 - [ ] **AI-personalized monthly business report (Phase 2 — major feature)** — replace the generic cron report with an AI that knows each contractor's specific numbers, channels, history, and patterns. Instead of a generic email, the contractor gets a message that reads like a business partner who's been watching their growth: "Hey Mike — July was your best month. 8 jobs booked, 6 closed, $9,400 in revenue. Your missed call text-back recovered 3 that would have been gone forever. You have 12 past reviewers who haven't been re-engaged — want us to reach out?" Completely automated, completely personal, zero Jose involvement. The AI gets smarter about each contractor every month — slow seasons, best channels, close rate patterns. This transforms the monthly report from a retention tool into a genuine business intelligence service. Leaving Tractify stops meaning "losing a booking tool" and starts meaning "losing the only thing that understands my business." That's when churn becomes functionally zero — not because they're locked in technically, but because the relationship has real value they can't replicate anywhere else. This is the long game version of what Tractify becomes at scale.
 - [ ] **No-availability fallback on contractor site** — if a homeowner submits the lead form but the contractor has no available slots in the next 2 weeks, they hit a dead end. Need a graceful fallback: "We'll be in touch within 24 hours to schedule your appointment" + capture their info. Currently shows "No openings" with nothing else.
 - [ ] **Admin checklist completion visibility** — can Jose see from the admin dashboard which contractors have completed which checklist steps? If not, add it. In August Jose needs to know at a glance who is set up properly and who has stalled.
@@ -1517,6 +1517,8 @@ The brain can't be built all at once. It has to be layered in the right order as
 
 **Remaining — makes the business smarter (build in parallel):**
 - ✅ Booking source tracking — BUILT (session 11). `booking_source` on every appointment. See Planned Features → Section 1 for full details.
+- ✅ Contractor acquisition source tracking — BUILT (session 12). `acquisition_source` on contractors table. Intake form reads `?src=` URL param, passes through Worker to deploy.js INSERT. Admin brain reports which content/ads drove contractor signups. ⚠️ Worker still needs one-line change (see "PICK UP HERE").
+- ✅ Admin AI brain — BUILT (session 12). Floating 🧠 on admin dashboard. Live DB queries: contractor status, channel performance, acquisition sources, stalled alerts, Stripe conversion progress. Ask plain-language questions, get data-backed answers. Files: `backend/routes/adminAI.js`, `frontend/src/pages/AdminDashboard.jsx`.
 - [ ] Contractor dashboard live stats — jobs this month, revenue this month, total all time, next appointment (see Planned Features)
 - [ ] Automatic review request — SMS to homeowner 3 hours after appointment completed (see Planned Features)
 - [ ] Intake funnel view in admin dashboard (data collecting, UI not built)
@@ -1525,13 +1527,48 @@ The brain can't be built all at once. It has to be layered in the right order as
 
 ---
 
-## ⚡ PICK UP HERE — Multi-Channel Ad Test (Next Session)
+## ⚡ PICK UP HERE — Multi-Channel Ad Test + First Contractor
 
-**Context:** Booking source tracking is now live. The data layer is ready. The next move is launching the multi-channel homeowner delivery ad test to figure out which channels produce booked jobs fastest per contractor.
+**Context:** The full data + intelligence layer is now live. Booking source tracking tags every homeowner booking with which channel drove it. Acquisition source tracking tags every contractor signup with which ad/video drove them. The admin brain (🧠 button on the admin dashboard) queries all of it in real time and answers plain-language questions. The machine is ready to run.
 
-**The strategy:** Run all channels simultaneously from day one, at low spend per channel. Let data pick the winners fast. Double down on what converts in under 24 hours. Kill what doesn't move in 5 days.
+**The only remaining technical blocker is Twilio compliance** — everything else is built. Once approved: buy local number → set two webhooks → assign in admin dashboard. Two-way AI SMS and missed call text-back go live instantly.
 
-**Channel setup — what URL to use for each ad:**
+### The admin brain — what it knows (built session 12)
+
+The 🧠 floating button on the admin dashboard opens a chat panel backed by Claude Sonnet with live DB access. It sees:
+- Every contractor: setup completion %, bookings, acquisition source, city, days live, last booking
+- Stalled contractors (active but <4 steps done or zero bookings after 5+ days)
+- Channel performance: which ad source produces bookings fastest (avg hours to book, volume)
+- Acquisition source breakdown: which intake URL tags drove contractor signups
+- All-time bookings by contractor: confirmed, completed, cancelled
+- Lead status breakdown (last 30 days)
+
+Quick prompts built into the panel: "What should I do today?" / "Which contractors are stalled?" / "Which channels convert fastest?" / "How close am I to first Stripe?"
+
+**Admin brain files:**
+- `backend/routes/adminAI.js` — new. POST /api/admin/ai-chat. Requires admin JWT. Pulls 6 parallel DB queries on every request, builds rich context string, calls claude-sonnet-4-6.
+- `backend/server.js` — added: `app.use('/api/admin/ai-chat', require('./routes/adminAI'));`
+- `frontend/src/pages/AdminDashboard.jsx` — added: floating 🧠 button (bottom-right), chat panel, state + send function. Uses `/admin/ai-chat` endpoint.
+
+### Acquisition source tracking — how it works (built session 11-12)
+
+**Goal:** Know which specific video, ad, or content piece drove each contractor to sign up.
+
+**How Jose tags a campaign:**
+- Run Facebook video ad → use intake URL: `intake.tractifyhq.com?src=fb_video_hvac_roof`
+- Run Google Search ad → use intake URL: `intake.tractifyhq.com?src=google_search_hvac`
+- Post organic content → use intake URL: `intake.tractifyhq.com?src=fb_organic_jul28`
+
+**Flow end-to-end:**
+1. Intake form reads `?src=` from URL → stores in `ACQUISITION_SOURCE` JS constant
+2. `submitForm()` payload includes `acquisitionSource: ACQUISITION_SOURCE`
+3. Cloudflare Worker passes `acquisitionSource` through to `POST /api/deploy` body
+4. `deploy.js` saves to `contractors.acquisition_source` column at INSERT time
+5. Admin brain reports: "fb_video_hvac_roof: 3 contractors signed up, 2 active, 11 setup steps completed"
+
+**⚠️ Worker still needs one manual change:** In `probook-upload-worker/src/index.js`, in the `/submit` handler, add `acquisitionSource: body.acquisitionSource || null` to the JSON body sent to `POST /api/deploy`. This is the only thing not in lead-booking-app. Make this change and `npx wrangler deploy` from that folder.
+
+### Channel setup — what URL to use for each ad
 
 | Channel | Ad Platform | Landing URL | ?src= tag |
 |---------|-------------|-------------|-----------|
@@ -1544,15 +1581,13 @@ The brain can't be built all at once. It has to be layered in the right order as
 | Missed call text-back | Twilio (auto) | auto-appended `?src=missed_call` | `missed_call` |
 | Inbound SMS / van wrap | Twilio (auto) | auto-appended `?src=sms_keyword` | `sms_keyword` |
 
-**Suggested starting budget per contractor (trial period only):**
-- Google Search: $10/day
-- Bing Search: $5/day
-- Facebook/Instagram ad: $10/day
-- Facebook Lead Ad: $10/day
-- Nextdoor paid: $5/day
-- Total: ~$40/day per contractor. Run 7-10 days max per trial. $280-400 per contractor trial. Budget well spent if it proves which 1-2 channels deliver jobs in under 48 hours.
+**Within-platform attribution (within Google or Facebook):** Use different `?src=` values per creative — e.g. `?src=fb_video_roof` vs `?src=fb_image_offer`. The admin brain sees which specific creative is producing bookings, not just which platform. You're optimizing on booked appointments, not clicks — a better signal than what Facebook/Google optimize for natively.
 
-**The query to run after 5-10 bookings exist:**
+**Suggested starting budget per contractor (trial period only):**
+- Google Search: $10/day, Bing Search: $5/day, Facebook/Instagram: $10/day, Facebook Lead Ad: $10/day, Nextdoor: $5/day
+- Total: ~$40/day per contractor. Run 7-10 days. $280-400 per contractor trial.
+
+**The booking source query** (run from psql — don't paste in zsh):
 ```sql
 SELECT booking_source, COUNT(*) as bookings,
   ROUND(AVG(EXTRACT(epoch FROM (a.created_at - l.created_at))/3600), 1) as avg_hours_to_book
@@ -1562,12 +1597,16 @@ WHERE a.status != 'cancelled'
 GROUP BY booking_source
 ORDER BY avg_hours_to_book ASC;
 ```
-Run via: `railway run psql $DATABASE_URL` then paste the query at the `=#` prompt. (Pasting SQL directly into zsh breaks on `*` and parentheses — always connect to psql first.)
+Connect to psql first: `railway run psql $DATABASE_URL` then paste at `=#`. (Pasting SQL directly in zsh breaks on `*` and parentheses.)
 
-**What to build next (when ready):**
-- Contractor dashboard live stats (jobs by source, jobs this month, conversion speed per channel)
-- Admin checklist completion visibility (can Jose see at a glance who stalled on setup?)
-- Real-time booking alert to Jose (email/SMS when any booking lands during trial period)
+**Ask the brain instead** — open 🧠 on the admin dashboard and ask "which channels are converting fastest?" — it runs the same query and answers in plain English.
+
+### What to build next (in order)
+1. **Real-time booking alert to Jose** — email/SMS when any booking lands during trial. Critical for monitoring August without babysitting dashboard. Add to `notifications.js` + trigger from `bookings.js`.
+2. **Worker acquisitionSource fix** — one line in `probook-upload-worker/src/index.js`, then `npx wrangler deploy`
+3. **Contractor dashboard live stats** — jobs by source, jobs this month, upcoming. Primary churn prevention.
+4. **Stripe integration** — August 4 with Daniel. Self-serve conversion at job 5.
+5. **Admin checklist completion visibility** — currently the brain answers this via chat; building it as a column in the Contractors tab is a polish item.
 
 ---
 

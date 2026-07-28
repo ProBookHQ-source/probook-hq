@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { formatPhone } from '../utils/formatPhone';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -51,6 +51,38 @@ export default function AdminDashboard() {
   const [createdKey, setCreatedKey] = useState(null);
   const [confirmDeleteKey, setConfirmDeleteKey] = useState(null);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  // ── Admin AI brain chat ──────────────────────────────────────────────────
+  const [brainOpen, setBrainOpen] = useState(false);
+  const [brainMessages, setBrainMessages] = useState([
+    { role: 'assistant', content: "Hey Jose — I have full visibility into the business. What do you want to know? Ask me anything: which contractors are stalled, which channels are converting, which ads drove signups, where to spend today." }
+  ]);
+  const [brainInput, setBrainInput] = useState('');
+  const [brainLoading, setBrainLoading] = useState(false);
+  const brainBottomRef = useRef(null);
+
+  useEffect(() => {
+    if (brainOpen) brainBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [brainMessages, brainLoading, brainOpen]);
+
+  const sendBrainMessage = async (text) => {
+    const msg = (text || brainInput).trim();
+    if (!msg || brainLoading) return;
+    setBrainInput('');
+    const userMsg = { role: 'user', content: msg };
+    setBrainMessages(prev => [...prev, userMsg]);
+    setBrainLoading(true);
+    try {
+      const history = brainMessages.map(m => ({ role: m.role, content: m.content }));
+      const { data } = await api.post('/admin/ai-chat', { message: msg, history });
+      setBrainMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+    } catch (err) {
+      setBrainMessages(prev => [...prev, { role: 'assistant', content: 'Error reaching the brain. Check Railway logs.' }]);
+    } finally {
+      setBrainLoading(false);
+    }
+  };
+
   const qc = useQueryClient();
 
   const { data: leads = [] } = useQuery({
@@ -1283,6 +1315,133 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* ── Admin AI Brain — floating chat ─────────────────────────────────── */}
+      {/* Backdrop */}
+      {brainOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/20 md:bg-transparent"
+          onClick={() => setBrainOpen(false)}
+        />
+      )}
+
+      {/* Chat panel */}
+      {brainOpen && (
+        <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-50 w-[calc(100vw-2rem)] md:w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden"
+          style={{ maxHeight: 'min(520px, calc(100vh - 120px))' }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🧠</span>
+              <div>
+                <div className="font-semibold text-sm">Tractify Brain</div>
+                <div className="text-xs text-indigo-200">Live business data</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {brainMessages.length > 1 && (
+                <button
+                  onClick={() => setBrainMessages([{ role: 'assistant', content: "Hey Jose — I have full visibility into the business. What do you want to know?" }])}
+                  className="text-xs text-indigo-200 hover:text-white transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+              <button onClick={() => setBrainOpen(false)} className="text-indigo-200 hover:text-white transition-colors">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3" style={{ minHeight: 0 }}>
+            {brainMessages.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap ${
+                  msg.role === 'user'
+                    ? 'bg-indigo-600 text-white rounded-br-sm'
+                    : 'bg-gray-50 text-gray-800 border border-gray-100 rounded-bl-sm'
+                }`}>
+                  {msg.content}
+                </div>
+              </div>
+            ))}
+            {brainLoading && (
+              <div className="flex justify-start">
+                <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-bl-sm px-3 py-2">
+                  <div className="flex gap-1 items-center h-4">
+                    <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={brainBottomRef} />
+          </div>
+
+          {/* Quick prompts — only shown on first open */}
+          {brainMessages.length === 1 && (
+            <div className="px-4 pb-2 flex flex-wrap gap-1.5">
+              {[
+                'What should I do today?',
+                'Which contractors are stalled?',
+                'Which channels convert fastest?',
+                'How close am I to first Stripe?',
+              ].map(s => (
+                <button
+                  key={s}
+                  onClick={() => sendBrainMessage(s)}
+                  className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full px-3 py-1 hover:bg-indigo-100 transition-colors"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Input */}
+          <form
+            onSubmit={e => { e.preventDefault(); sendBrainMessage(); }}
+            className="flex gap-2 items-center px-4 py-3 border-t border-gray-100"
+          >
+            <input
+              type="text"
+              value={brainInput}
+              onChange={e => setBrainInput(e.target.value)}
+              placeholder="Ask anything…"
+              disabled={brainLoading}
+              className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50"
+            />
+            <button
+              type="submit"
+              disabled={!brainInput.trim() || brainLoading}
+              className="w-9 h-9 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-xl flex items-center justify-center transition-colors flex-shrink-0"
+            >
+              <svg className="w-4 h-4 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9-7-9-7v14z" />
+              </svg>
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Brain toggle button */}
+      <button
+        onClick={() => setBrainOpen(v => !v)}
+        className={`fixed bottom-20 md:bottom-6 right-4 md:right-6 z-50 w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-2xl transition-all ${
+          brainOpen
+            ? 'bg-gray-700 scale-90'
+            : 'bg-gradient-to-br from-indigo-600 to-violet-600 hover:scale-105'
+        } ${brainOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        title="Open Tractify Brain"
+      >
+        🧠
+      </button>
 
       {/* Bottom tab bar — 4 primary tabs + More */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50 shadow-lg">

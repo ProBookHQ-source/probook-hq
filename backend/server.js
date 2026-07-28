@@ -159,6 +159,7 @@ app.use('/api/twilio',       require('./routes/twilio'));
 app.use('/api/leads/facebook', require('./routes/facebook')); // Facebook Lead Ads webhook
 app.use('/api/deploy',       require('./routes/deploy'));   // ← Cloudflare Worker calls this after intake form submit
 app.use('/api/contractor/ai-chat', require('./routes/aiChat'));
+app.use('/api/admin/ai-chat',     require('./routes/adminAI')); // Jose's business intelligence brain
 
 // ── Google Calendar OAuth ─────────────────────────────────────────────────────
 const googleCalendar = require('./services/googleCalendar');
@@ -231,6 +232,11 @@ db._ready.then(async () => {
   //         nextdoor_organic, facebook_group, gbp, missed_call, sms_keyword,
   //         google_reviewer, direct, unknown
   await db.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS booking_source TEXT`);
+  // Contractor acquisition source — which content/ad drove each contractor to the intake form
+  // Jose tags intake URLs: intake.tractifyhq.com?src=facebook_video_roof
+  // Values: facebook_ad, facebook_organic, facebook_video, instagram, tiktok,
+  //         google_ad, nextdoor, referral, direct, etc.
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS acquisition_source TEXT`);
   // Self-serve onboarding checklist — tracks which setup steps each contractor has completed
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS onboarding_steps JSONB DEFAULT '{}'`);
   // Track when contractor first logged in — used to detect 48hr nudge window

@@ -315,8 +315,9 @@ router.post('/', requireDeploySecret, async (req, res) => {
   await db.query(`
     INSERT INTO contractors
       (id, email, password_hash, name, phone, company_name, niche_id,
-       service_zip_codes, is_active, status, booking_slug, onboarding_started_at)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,1,'approved',$9,NOW())
+       service_zip_codes, is_active, status, booking_slug, onboarding_started_at,
+       acquisition_source, city)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,1,'approved',$9,NOW(),$10,$11)
   `, [
     contractorId,
     email,
@@ -327,6 +328,8 @@ router.post('/', requireDeploySecret, async (req, res) => {
     nicheId,
     zips,
     slug,
+    data.acquisitionSource || null,  // e.g. 'facebook_video_roof', 'google_ad', 'tiktok'
+    data.city || null,
   ]);
 
   log(`Contractor created: ${contractorId}`);
