@@ -1327,8 +1327,23 @@ export default function AdminDashboard() {
 
       {/* Chat panel */}
       {brainOpen && (
-        <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-50 w-[calc(100vw-2rem)] md:w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden"
-          style={{ maxHeight: 'min(520px, calc(100vh - 120px))' }}
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 9999,
+            width: '384px',
+            maxWidth: 'calc(100vw - 32px)',
+            maxHeight: 'min(520px, calc(100vh - 120px))',
+            background: '#fff',
+            borderRadius: '16px',
+            boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+            border: '1px solid #f3f4f6',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
@@ -1430,18 +1445,32 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Brain toggle button */}
-      <button
-        onClick={() => setBrainOpen(v => !v)}
-        className={`fixed bottom-20 md:bottom-6 right-4 md:right-6 z-50 w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-2xl transition-all ${
-          brainOpen
-            ? 'bg-gray-700 scale-90'
-            : 'bg-gradient-to-br from-indigo-600 to-violet-600 hover:scale-105'
-        } ${brainOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-        title="Open Tractify Brain"
-      >
-        🧠
-      </button>
+      {/* Brain toggle button — always visible, inline styles to guarantee render */}
+      {!brainOpen && (
+        <button
+          onClick={() => setBrainOpen(true)}
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 9999,
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+            boxShadow: '0 4px 24px rgba(79,70,229,0.5)',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          title="Open Tractify Brain"
+        >
+          🧠
+        </button>
+      )}
 
       {/* Bottom tab bar — 4 primary tabs + More */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50 shadow-lg">
