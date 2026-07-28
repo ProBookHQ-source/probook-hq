@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 28, 2026 (session 12 — admin brain fully built. Jose now has a floating 🧠 chat on the admin dashboard with live DB access: all contractors, booking channel performance, acquisition sources, stalled contractor alerts, Stripe conversion progress. Also built: contractor acquisition_source tracking — intake.tractifyhq.com?src=facebook_video_roof tags each contractor at signup, flows to contractors table, visible to admin brain. The brain answers plain-language questions: "which channels convert fastest?", "which contractors are stalled?", "where should I spend today?". All data is live from Railway DB, updated on every query.)*
+*Last updated: July 28, 2026 (session 12 continued — admin brain upgraded to full tool use. Brain now takes actions, not just answers questions: set Twilio numbers, approve/decline contractors, update contractor fields, assign leads, cancel appointments, delete test data — all from plain-English commands in the brain panel. Dashboard auto-refreshes after every action via React Query cache invalidation. Also in this session: admin brain right-side drawer UI (slides in from right edge, pinned 🧠 tab trigger). Subtitle: "Ask questions · Take actions". Quick prompts include action shortcuts. All agentic tool use follows same loop pattern as aiChat.js for contractors.)*
 
 ---
 
@@ -1502,7 +1502,7 @@ The brain can't be built all at once. It has to be layered in the right order as
 - **The north star:** Jose feels like he has a world-class operations team, growth team, and analyst team working 24/7 without hiring a single person. Every hard decision — which contractors to accelerate, where to spend money, what's broken, what's working — gets made faster and smarter because the brain has seen it before.
 
 - [ ] **Unified AI brain across the entire pipeline (Phase 3 — long game)** — right now each piece of the system operates in isolation. The intake form collects, the worker deploys, the template serves homeowners, the backend runs bookings. Phase 3 connects all of them with shared intelligence. The intake form qualifies contractors in real time before they submit. The worker makes intelligent deployment decisions based on contractor profile — urban contractor with 80 reviews gets different channel prioritization than rural contractor with 10. The template dynamically serves what's converting best across all active sites. Booking data feeds back into intake form prioritization. One continuous learning loop across the entire pipeline — every part talking to every other part, getting smarter as data flows through. Build after the admin brain is live and real data exists to learn from. You can't train a system on data you don't have yet.
-- ✅ **AI business brain embedded in admin dashboard — BUILT (session 12).** Floating 🧠 button on the admin dashboard. Live DB context pulled on every query: all contractors + status, booking channel performance (avg hours to book per source), acquisition sources, stalled contractor detection, all-time booking counts by contractor. Calls claude-sonnet-4-6 with the full context. Quick prompts: "What should I do today?", "Which contractors are stalled?", "Which channels convert fastest?", "How close am I to first Stripe?". Jose types any question, gets data-backed answers in plain English. Files: `backend/routes/adminAI.js` + floating widget in `AdminDashboard.jsx`.
+- ✅ **AI business brain embedded in admin dashboard — BUILT + UPGRADED TO FULL TOOL USE (session 12).** Right-side drawer panel (pinned 🧠 tab trigger, slides in from right edge). Live DB context pulled on every query. Brain now TAKES ACTIONS via tool-use agentic loop (same pattern as aiChat.js): `set_twilio_number`, `approve_contractor`, `decline_contractor`, `update_contractor` (city/phone/company/etc), `assign_lead`, `cancel_appointment`, `delete_appointment`, `delete_lead`. After any action, `AdminDashboard.jsx` auto-invalidates the affected React Query cache so the dashboard refreshes instantly. Quick prompts include action shortcuts ("Delete all test leads", "Approve all pending contractors"). Subtitle: "Ask questions · Take actions". Files: `backend/routes/adminAI.js` + right-side drawer widget in `AdminDashboard.jsx`.
 - [ ] **AI-personalized monthly business report (Phase 2 — major feature)** — replace the generic cron report with an AI that knows each contractor's specific numbers, channels, history, and patterns. Instead of a generic email, the contractor gets a message that reads like a business partner who's been watching their growth: "Hey Mike — July was your best month. 8 jobs booked, 6 closed, $9,400 in revenue. Your missed call text-back recovered 3 that would have been gone forever. You have 12 past reviewers who haven't been re-engaged — want us to reach out?" Completely automated, completely personal, zero Jose involvement. The AI gets smarter about each contractor every month — slow seasons, best channels, close rate patterns. This transforms the monthly report from a retention tool into a genuine business intelligence service. Leaving Tractify stops meaning "losing a booking tool" and starts meaning "losing the only thing that understands my business." That's when churn becomes functionally zero — not because they're locked in technically, but because the relationship has real value they can't replicate anywhere else. This is the long game version of what Tractify becomes at scale.
 - [ ] **No-availability fallback on contractor site** — if a homeowner submits the lead form but the contractor has no available slots in the next 2 weeks, they hit a dead end. Need a graceful fallback: "We'll be in touch within 24 hours to schedule your appointment" + capture their info. Currently shows "No openings" with nothing else.
 - [ ] **Admin checklist completion visibility** — can Jose see from the admin dashboard which contractors have completed which checklist steps? If not, add it. In August Jose needs to know at a glance who is set up properly and who has stalled.
@@ -1527,15 +1527,23 @@ The brain can't be built all at once. It has to be layered in the right order as
 
 ---
 
-## ⚡ PICK UP HERE — Multi-Channel Ad Test + First Contractor
+## ⚡ PICK UP HERE — First Contractor + Stripe
 
-**Context:** The full data + intelligence layer is now live. Booking source tracking tags every homeowner booking with which channel drove it. Acquisition source tracking tags every contractor signup with which ad/video drove them. The admin brain (🧠 button on the admin dashboard) queries all of it in real time and answers plain-language questions. The machine is ready to run.
+**Context:** The full data + intelligence layer is live. The admin brain takes actions. The machine is built end-to-end. Focus is now on getting first real contractor live and converting to paid.
 
-**The only remaining technical blocker is Twilio compliance** — everything else is built. Once approved: buy local number → set two webhooks → assign in admin dashboard. Two-way AI SMS and missed call text-back go live instantly.
+**Waiting on external:** Twilio compliance approval — code is 100% built, zero work left. Once approved: buy local number → set two webhooks in Twilio console → assign in admin dashboard.
 
-### The admin brain — what it knows (built session 12)
+**Next builds in order:**
+1. **Real-time booking alert to Jose** — email when any homeowner books during a trial. Add to `notifications.js` + trigger from `bookings.js`. Quick build, critical for monitoring August.
+2. **Worker acquisitionSource fix** — one line in `probook-upload-worker/src/index.js` (not in connected folder — Jose does it manually + `npx wrangler deploy`)
+3. **Stripe + job milestone trigger** — August 4 with Daniel. Job 5 fires → Stripe payment page → system marks paid.
+4. **Contractor dashboard live stats** — jobs by source, this month, upcoming. Churn prevention.
 
-The 🧠 floating button on the admin dashboard opens a chat panel backed by Claude Sonnet with live DB access. It sees:
+### The admin brain — what it knows + what it can do (built session 12)
+
+The 🧠 tab on the right edge of the admin dashboard opens a slide-out panel backed by Claude Sonnet. It pulls live DB data on every query and can take real actions via tool use.
+
+**Data it sees:**
 - Every contractor: setup completion %, bookings, acquisition source, city, days live, last booking
 - Stalled contractors (active but <4 steps done or zero bookings after 5+ days)
 - Channel performance: which ad source produces bookings fastest (avg hours to book, volume)
@@ -1543,12 +1551,19 @@ The 🧠 floating button on the admin dashboard opens a chat panel backed by Cla
 - All-time bookings by contractor: confirmed, completed, cancelled
 - Lead status breakdown (last 30 days)
 
-Quick prompts built into the panel: "What should I do today?" / "Which contractors are stalled?" / "Which channels convert fastest?" / "How close am I to first Stripe?"
+**Actions it can take (tool use — agentic loop):**
+- `set_twilio_number` — "Set Twilio to +12065551234 for Evergreen" → done
+- `approve_contractor` / `decline_contractor` — fires approval/decline email automatically
+- `update_contractor` — update city, phone, company_name, name, acquisition_source, twilio_number
+- `assign_lead` — reassign a lead to a different contractor
+- `cancel_appointment` — cancel a booking
+- `delete_appointment` / `delete_lead` — clean up test data
+- After any action: React Query cache invalidated → affected dashboard tab refreshes instantly
 
 **Admin brain files:**
-- `backend/routes/adminAI.js` — new. POST /api/admin/ai-chat. Requires admin JWT. Pulls 6 parallel DB queries on every request, builds rich context string, calls claude-sonnet-4-6.
-- `backend/server.js` — added: `app.use('/api/admin/ai-chat', require('./routes/adminAI'));`
-- `frontend/src/pages/AdminDashboard.jsx` — added: floating 🧠 button (bottom-right), chat panel, state + send function. Uses `/admin/ai-chat` endpoint.
+- `backend/routes/adminAI.js` — POST /api/admin/ai-chat. Requires admin JWT. 6 parallel DB queries, rich context, full tool-use agentic loop, calls claude-sonnet-4-6.
+- `backend/server.js` — `app.use('/api/admin/ai-chat', require('./routes/adminAI'));`
+- `frontend/src/pages/AdminDashboard.jsx` — right-side drawer (slides from right edge, pinned 🧠 tab trigger). Subtitle "Ask questions · Take actions". Auto-invalidates queries after actions.
 
 ### Acquisition source tracking — how it works (built session 11-12)
 
