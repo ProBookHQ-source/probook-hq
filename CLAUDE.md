@@ -387,6 +387,9 @@ HVAC business owners are 35-55. They're in Facebook contractor groups. They chec
 **Instagram (secondary — repurpose only, no separate creation)**
 Repost everything from Facebook. Reels from Facebook video. Don't create separate Instagram content — redistribute what's already performing. Audience skews 30-45, significant overlap with Facebook.
 
+**Google Search Ads (secondary paid channel — start after Facebook has conversion data)**
+Highest-intent traffic that exists — homeowner is actively typing "AC repair near me" right now. Do NOT use Google Local Service Ads (LSAs/Google Guaranteed): they require the contractor to set up their own account, get Google-verified, pass background checks, and grant Jose access. That's 2-3 weeks of back-and-forth per contractor minimum — needs a dedicated ops team at scale. Regular Google Search Ads have none of that friction. Jose controls the account, the campaign, and the spend. See full Google strategy section below.
+
 **TikTok (future — after first 3 case studies exist)**
 Younger contractors, organic reach still massive, authenticity-first format. Don't start here. Once case study data exists, TikTok becomes a raw behind-the-scenes storytelling channel showing the machine working in real time. The platform rewards showing real numbers and real outcomes.
 
@@ -439,7 +442,86 @@ Anyone who visited `intake.tractifyhq.com` but didn't complete the form. Copy: "
 
 ---
 
-#### URL Tagging System (Every Piece Gets a Tag)
+#### Google Search Ads — The Scale Play (filed July 28, 2026)
+
+**The core insight — turning a limitation into a competitive advantage:**
+Every competitor assumes Google Local Service Ads (LSAs) are the only way to reach homeowners actively searching. They're wrong. LSAs require contractor account setup, Google verification, background checks, and ongoing access management — a dedicated team per 20 contractors. Regular Google Search Ads have none of that. Jose controls everything from one account. The limitation becomes the moat: no competitor doing LSA management at scale can do what Tractify does here because they're locked into the contractor-dependent setup model.
+
+**Why Tractify's landing page beats LSA at conversion:**
+- LSA flow: homeowner searches → Google's card → submits contact form → contractor notified → contractor calls back → homeowner may be cold → maybe books
+- Tractify flow: homeowner searches → clicks ad → contractor subdomain → short form → live calendar → books in 60 seconds
+- LSA hands the contractor a name and phone number. Tractify hands them a booked appointment. The conversion path is 3x shorter and Tractify controls the entire experience — LSA sends traffic to Google's interface, not Jose's.
+
+**The MCC architecture — infinite scale, zero contractor involvement:**
+Jose creates one Google Ads Manager Account (MCC). Each contractor = one campaign. New contractor signs up → zip codes already in the DB from intake form → clone template campaign → swap company name + zip codes → point destination URL to their subdomain → set budget → launch. ~20 minutes per contractor. No contractor involvement, ever.
+
+```
+Jose's Google Ads MCC
+├── Campaign: Evergreen Home Heating [ZIPs: 98101, 98102, 98103]
+│     ├── Ad Group: AC Repair → evergreenhomeheatingandenergy.tractifyhq.com?src=google_search
+│     ├── Ad Group: Furnace Repair
+│     ├── Ad Group: Emergency HVAC
+│     └── Ad Group: General HVAC
+├── Campaign: Premier Comfort HVAC [ZIPs: 98004, 98005, 98006]
+│     └── [same structure, different subdomain + zips]
+└── [next contractor — clone template, update 3 fields, launch]
+```
+
+**Keyword strategy — high-intent, ready-to-hire only:**
+Use Exact Match and Phrase Match only. No broad match ever — it burns budget on garbage traffic.
+
+High-intent keywords per ad group:
+- AC Repair: `"AC repair [city]"`, `"air conditioner repair near me"`, `"[brand] AC repair"` (Carrier, Trane, Lennox — brand-specific = they already have the unit and need it fixed)
+- Furnace Repair: `"furnace repair [city]"`, `"heat not working"`, `"furnace not turning on"`
+- Emergency: `"emergency HVAC"`, `"emergency AC repair"`, `"AC broke down"`, `"no heat emergency"`
+- General: `"HVAC near me"`, `"HVAC contractor [city]"`, `"licensed HVAC contractor"`, `"best HVAC [city]"`
+
+Negative keywords (kill all non-buyer traffic immediately, add these on day 1):
+`DIY, how to, parts, school, training, certification, salary, jobs, careers, YouTube, Reddit, free, manual, diagram, troubleshoot yourself`
+
+**Ad formats — two types running simultaneously:**
+
+*Responsive Search Ads (RSA) — primary:*
+Google tests all combinations of headlines and descriptions, shows best performers automatically. One master template per contractor, swap `[Company Name]` and `[City]`:
+- Headlines: "[Company Name] HVAC — [City]" / "Book Online in 60 Seconds" / "Same-Day Service Available" / "★★★★★ [X]+ Reviews" / "Licensed & Insured"
+- Descriptions: "Licensed HVAC contractor serving [City]. Pick a time that works for you — appointments confirmed instantly." / "No phone tag. No waiting. Book online and we'll be there. [X]+ happy customers."
+- Callout extensions: "Licensed & Insured" — "Book Online 24/7" — "Same-Day Available" — "5-Star Rated"
+- Sitelinks: "Book Now" / "Emergency Service" / "Our Services" / "About Us"
+
+*Call-Only Ads + Twilio = the breakthrough combination:*
+Call-Only ads → when a homeowner clicks on mobile, their phone calls the number in the ad directly. That number is the contractor's Twilio number. Contractor is on a roof, misses the call. Twilio auto-texts the homeowner a booking link within seconds. The Call-Only ad feeds directly into Tractify's missed call text-back system. You're converting a high-intent Google click that would have been lost into an automatic booking — something no LSA can replicate because LSAs don't control what happens after they hand you the lead.
+- Run Call-Only ads as a separate campaign at $5-10/day per contractor
+- Use contractor's Twilio number as the call destination
+- Tag the booking source as `google_call` when a booking follows within 2 hours of a call
+
+**Smart Bidding toward actual bookings — this is where it becomes unfair:**
+Install Google Tag Manager on each contractor subdomain. Fire a conversion event when a homeowner completes a booking (appointment confirmed). Tell Google to optimize for "Maximize Conversions" or "Target CPA" toward that event — not clicks, not form views, actual booked appointments. Google's algorithm learns which search queries → which clicks → actual bookings. Spend automatically concentrates on what converts. LSAs can only track contact form submits — a weaker signal. Tractify optimizes toward a better metric than LSA does natively. This advantage compounds every week the campaign runs.
+
+**Performance Max — Maps exposure without LSA setup:**
+Google's newest campaign type runs across Search, Display, YouTube, Maps, Gmail, and Discover automatically from one asset set. Relevant because it can serve on Google Maps — where LSAs live — without the contractor needing Google verification. Worth testing per contractor once search campaigns have 30+ conversions and Smart Bidding is fully unlocked. Provide Google headlines, descriptions, the contractor's logo (from their subdomain), and HVAC stock photos. Google handles placement.
+
+**Budget architecture:**
+- RSA campaigns: $10-15/day per contractor during trial
+- Call-Only campaigns: $5-10/day per contractor during trial
+- Do NOT start Google until Facebook has at least 2 weeks of data — Facebook's learning phase produces cheaper leads early, and Google conversion data needs a foundation
+- Smart Bidding "learning phase" = ~2 weeks and 30+ conversions. Don't adjust campaigns or judge performance before day 14.
+- Once Smart Bidding exits learning phase, CPA typically drops 30-50%. This is when Google becomes the primary channel if Facebook is plateauing.
+
+**?src= tagging for Google campaigns:**
+
+| Campaign type | Tag |
+|---|---|
+| Google Search RSA | `google_search_aug` |
+| Google Call-Only | `google_call_aug` |
+| Google Performance Max | `google_pmax_aug` |
+| Google Display retargeting | `google_display_aug` |
+
+**The compounding advantage — why this gets better with more contractors:**
+Each contractor's conversion data (which keywords → bookings) feeds Jose's MCC account history. Google's algorithm gets smarter across all campaigns simultaneously. By contractor 10, Jose knows which keywords convert at the highest rate in the HVAC vertical across Washington state. By contractor 25, Smart Bidding has seen enough data to predict winning queries before they're proven. A single LSA manager never builds this kind of cross-contractor intelligence — their data lives in each contractor's separate account. Jose's MCC sees everything.
+
+---
+
+#### Google Search Ads — URL Tags
 
 Every ad, post, story, group comment, and DM uses a unique `?src=` tag. The brain queries `contractors.acquisition_source` to show exactly which content piece drove each signup. This is already fully wired end-to-end: intake form reads the param → Worker passes it → deploy.js saves it to `contractors.acquisition_source`.
 
@@ -456,7 +538,11 @@ Every ad, post, story, group comment, and DM uses a unique `?src=` tag. The brai
 | Case study post | `fb_casestudy_aug` |
 | TikTok video | `tiktok_vid_aug` |
 | Direct DM / outreach | `dm_aug` |
-| Retargeting ad | `fb_retarget_aug` |
+| Facebook retargeting | `fb_retarget_aug` |
+| Google Search RSA | `google_search_aug` |
+| Google Call-Only ad | `google_call_aug` |
+| Google Performance Max | `google_pmax_aug` |
+| Google Display retargeting | `google_display_aug` |
 
 Add the month suffix so you can compare Aug vs Sep performance. When a new creative runs, give it a unique tag. The brain will tell you which tags are producing active contractors with bookings vs which are producing signups who ghost.
 
@@ -634,6 +720,9 @@ The brain can't see Facebook Ads Manager directly (that data doesn't live in Tra
 
 **July 28, 2026 — Department initialized.**
 Content/ads brain built from scratch. No ad spend deployed yet. First contractor (Evergreen Home Heating and Energy) live via auto-deploy July 25. Awaiting Twilio compliance approval before missed call channel activates. Scripts 1-4 written, ready to film. Facebook group not yet created. Week 1 content calendar mapped. Next action: film Script 3 (15-sec offer), post and run as paid ad Day 1.
+
+**July 28, 2026 — Google Search Ads strategy locked.**
+Decision: skip Google Local Service Ads entirely. LSA requires per-contractor account setup, Google verification, background checks, access grants — ops-team-level work that doesn't scale. Regular Google Search Ads (MCC architecture) give equal or better reach with zero contractor involvement. Key insight: Tractify's inline booking landing page converts better than Google's own LSA interface because the booking happens in one session on our page. LSA just hands you a name and phone number — we hand a booked appointment. Call-Only ads + Twilio missed call text-back = breakthrough combination that LSA can't replicate. Smart Bidding toward actual booked appointments = better optimization signal than LSA tracks. Start Google after Facebook has 2 weeks of data. Build MCC, clone template per contractor, use contractor zip codes from DB.
 
 *[Add entries here every time something is tested, a result comes in, a decision is made, or a pattern is spotted. Format: Date — what was tested — what happened — what changed as a result.]*
 
