@@ -61,6 +61,7 @@ router.post('/', requireAdmin, async (req, res) => {
     allLeadsResult,
     acquisitionSourcesResult,
     brainContextResult,
+    contentPerfResult,
   ] = await Promise.all([
     db.query(`
       SELECT
@@ -127,6 +128,26 @@ router.post('/', requireAdmin, async (req, res) => {
       ORDER BY created_at DESC
       LIMIT 100
     `),
+
+    // Content performance: which ?src= tag drove signups that actually produced bookings?
+    // Cross-references acquisition_source (how contractor found us) with their booking results.
+    db.query(`
+      SELECT
+        COALESCE(c.acquisition_source, 'direct/unknown') as source,
+        COUNT(DISTINCT c.id) as signups,
+        COUNT(DISTINCT c.id) FILTER (WHERE c.is_active = 1) as active,
+        COALESCE(SUM(a.bookings), 0) as total_bookings,
+        ROUND(AVG(COALESCE(a.bookings, 0)), 1) as avg_bookings_per_contractor,
+        MIN(c.created_at::date) as first_signup_date,
+        MAX(c.created_at::date) as last_signup_date
+      FROM contractors c
+      LEFT JOIN (
+        SELECT contractor_id, COUNT(*) FILTER (WHERE status != 'cancelled') as bookings
+        FROM appointments GROUP BY contractor_id
+      ) a ON a.contractor_id = c.id
+      GROUP BY COALESCE(c.acquisition_source, 'direct/unknown')
+      ORDER BY total_bookings DESC, signups DESC
+    `),
   ]);
 
   const contractors = contractorsResult.rows;
@@ -136,6 +157,7 @@ router.post('/', requireAdmin, async (req, res) => {
   const leadStatuses = allLeadsResult.rows;
   const acqSources = acquisitionSourcesResult.rows;
   const brainLog = brainContextResult.rows;
+  const contentPerf = contentPerfResult.rows;
 
   // ── Build context strings ─────────────────────────────────────────────────
   const CHECKLIST_KEYS = ['availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers', 'messenger'];
@@ -200,6 +222,15 @@ ${apptsByContractor.map(r => `  [${r.id}] ${r.company_name || r.contractor_name}
 
 === ACQUISITION SOURCES ===
 ${acqSources.map(r => `  ${r.source}: ${r.contractors} signed up, ${r.active} active`).join('\n') || '  None — tag intake URLs with ?src='}
+
+=== CONTENT PERFORMANCE (which ?src= tag produced actual bookings, not just signups) ===
+${contentPerf.length
+  ? contentPerf.map(r => {
+      const convRate = r.signups > 0 ? Math.round((r.active / r.signups) * 100) : 0;
+      return `  ${r.source}: ${r.signups} signups → ${r.active} active (${convRate}% conv) | ${r.total_bookings} total bookings | avg ${r.avg_bookings_per_contractor} bookings/contractor | ${r.first_signup_date}–${r.last_signup_date}`;
+    }).join('\n')
+  : '  No data yet — start tagging intake URLs with ?src=[platform]_[format]_[hook]_[month] per the Content Brain playbook'}
+NOTE: "signups" = filled intake form. "active" = is_active=1 contractors. "total_bookings" = confirmed+completed appointments. High signup/low booking = creative attracts the wrong contractors. High booking/low signup = your best creative — scale it.
 
 === LEAD STATUS (last 30d) ===
 ${leadStatuses.map(r => `  ${r.status}: ${r.count}`).join('\n') || '  None'}

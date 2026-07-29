@@ -350,51 +350,292 @@ Every month a contractor stays, leaving gets more expensive for them. Their book
 
 ---
 
-### Content + Ads Strategy (August 2026)
+### Content, Ads & Distribution Brain (August 2026)
 
-**Both Jose and Daniel are on camera.** Faces convert better than faceless content. Real people building a real product for real contractors.
+*Built July 28, 2026. This is a full department-level knowledge base. The admin brain reads this on every query and cross-references it with live `acquisition_source` data from the database to answer attribution questions and make real spend recommendations. Update the Playbook Log at the bottom every time something is proven, disproven, or discovered.*
 
-**Platforms in order of priority:**
-- Facebook — HVAC owners are 35-55, they're in contractor groups, this is the primary channel
-- Instagram — secondary, repurpose Facebook content
-- TikTok — younger contractors, organic reach still massive
+---
 
-**The content formula that converts:**
-Hook with a pain point the contractor feels daily → show the solution working → end with the offer. Example: "You're on a roof right now and your phone is ringing. You can't answer. That customer is already calling someone else. Here's what Tractify does about that." 30 seconds. Shot on an iPhone. No production needed. That video as a paid ad targeting HVAC contractors on Facebook will outperform anything polished because it's real.
+#### The Iron Rules (Never Break These)
+1. Never mention website, system, or technology — only booked jobs and outcomes
+2. The offer is always "5 free booked jobs, no strings"
+3. Every piece of content drives to `intake.tractifyhq.com` with a unique `?src=` tag
+4. Both Jose and Daniel are on camera — faces convert better than faceless content
+5. Raw and real beats polished every time — shot on iPhone is the format, not a limitation
+6. Cost per completed intake form is the only metric that matters, not clicks or views or impressions
 
-**Content types that work:**
-- Short video: Jose or Daniel talking directly to camera. Hook in first 2 seconds. Show the booking flow. Real, raw, no production needed.
-- Screen recordings: show what it looks like when a job lands on a contractor's calendar automatically
-- Case study content: auto-generated from system data — no chasing contractors needed (see Case Studies section below)
-- Behind the scenes: building the company, the vision, the mission. People root for founders they can see.
+---
 
-**The hook that works:** *"HVAC contractors — we're giving away 5 free booked jobs."* That's the scroll-stopper. Everything else follows.
+#### The Two Ad Tracks
 
-**Paid ads:**
-- Run the best-performing organic video as a paid ad
-- Target: HVAC business owners, Washington state to start, expand nationally as it proves out
-- Budget: $20/day to start. Scale what converts, kill what doesn't.
-- Drive directly to `intake.tractifyhq.com` — form first, inline slot picker shown on success screen
-- Track cost per completed form — that's the conversion metric that matters
+**Track 1 — Wide Net (data collection, $5-10/day)**
+Any HVAC contractor, lower targeting specificity. Purpose: fill the funnel, learn what the self-selecting contractor looks like, identify which intake form signals predict fast job delivery. Track 1 builds the dataset that makes Track 2 targeting sharper over time. Don't put heavy ad spend behind Track 1 contractors unless they show strong signals after deploying.
 
-**The compounding flywheel:**
-Content → inbound contractor fills intake form → pipeline auto-deploys → 10 channels activate → 5 jobs delivered → Stripe conversion at job 5 → case study auto-generated from system data → better content → more contractors → repeat. Every case study makes the next ad more powerful. The 5 free trial clients aren't just the first clients — they are the ad creative for every client after them.
+**Track 2 — Sniper (August revenue, $20-40/day per contractor in trial)**
+Hyper-targeted ideal profile: 4.5+ Google rating, 50+ reviews, 5+ years in business, active GBP listing, established local market. These are the first case studies and first Stripe conversions. Jobs deliver fast, conversion is near certain. This is where August revenue comes from.
 
-**The Facebook group runs alongside content from day one:**
-Start building "Home Service Contractors — More Booked Jobs" (or similar non-niche-specific name) aggressively in August alongside content creation. Not HVAC-specific — applies to all home service niches as Tractify expands. The group is a long play: build it with genuine value (tactical posts, win posts, question posts, behind-the-scenes), let trust compound over weeks, contractors self-convert to the intake form after seeing real results. Group members convert at higher rates than cold ad traffic because the trust is already built. The group becomes the best sales channel over time — an audience Tractify owns permanently.
+**The signal that separates Track 2 from Track 1:**
+When a contractor fills the intake form, check: Google rating (4.5+), review count (50+), years in business (5+), GBP listing present. Contractors matching all four → Track 2, put real ad spend behind them immediately. Missing two or more → Track 1, let organic channels work, minimal spend. Ask the brain: "which active contractors are Track 2 material?" — it can cross-reference their place_id data and booking velocity to answer.
 
-**The warm traffic funnel:**
-Facebook ad (HomeAdvisor targeting) → join the group → weeks of value content + win posts → contractor self-selects to intake form → form → onboarding → 5 free jobs → conversion. This path produces better-quality clients than cold-to-form because they already know and trust the brand.
+---
 
-**Ads Playbook:** All targeting strategy, audience breakdowns, creative formulas, what works, what to test, and cost tracking lives in `ads-playbook.md`. That document is the living marketing brain — update it every time something is proven, disproven, or discovered. The goal is for it to become smart enough that ads eventually run on autopilot with minimal human oversight.
+#### Platform Strategy
 
-**AI automation (future):** Once the creative formula is proven, train AI to generate ad variations, test hooks, and distribute at scale. Cold calling can never be automated this way. Content can.
+**Facebook (primary — 80% of effort and all paid spend to start)**
+HVAC business owners are 35-55. They're in Facebook contractor groups. They check Facebook on their phone between jobs. All paid spend goes here first. Every piece of organic content posts here first. Facebook also unlocks Lead Ads (zero-friction form inside Facebook, 3-5x better conversion than click-to-website) and the most mature contractor targeting of any platform.
 
-**Rules that never change:**
-- Never mention website, system, or technology — only booked jobs and outcomes
-- The offer is always 5 free booked jobs, no strings, we want the case study
-- Every piece of content drives to `intake.tractifyhq.com`
-- The funnel is fully automated — no personal sales calls, no demo close, no onboarding call. Stripe handles conversion at job 5.
+**Instagram (secondary — repurpose only, no separate creation)**
+Repost everything from Facebook. Reels from Facebook video. Don't create separate Instagram content — redistribute what's already performing. Audience skews 30-45, significant overlap with Facebook.
+
+**TikTok (future — after first 3 case studies exist)**
+Younger contractors, organic reach still massive, authenticity-first format. Don't start here. Once case study data exists, TikTok becomes a raw behind-the-scenes storytelling channel showing the machine working in real time. The platform rewards showing real numbers and real outcomes.
+
+**Facebook Group — "Home Service Contractors: More Booked Jobs"**
+Start Day 1. Non-niche-specific name (scales as Tractify expands to plumbing, electrical, roofing). Post 3x/week: one value post (tactical, no pitch), one win post (contractor result when live), one question post to drive engagement. Group members convert at 3-5x the rate of cold ad traffic because the trust is already established before they see the offer. This is the owned audience that compounds forever — unlike ad spend which stops the moment you pause.
+
+---
+
+#### Facebook Ad Campaign Structure
+
+**Campaign objective:** Leads — not Traffic, not Awareness. Leads objective unlocks Lead Ads and optimizes Facebook's algorithm toward form completions, not clicks.
+
+**Campaign naming convention:** `[Track]-[Hook]-[Month]`
+Example: `T2-MissedCall-Aug26`, `T1-Calendar-Aug26`
+
+**Budget approach:** CBO (Campaign Budget Optimization) at the campaign level — Facebook allocates across ad sets automatically toward what's converting. Start $20/day per campaign. Scale winners to $40-60/day once cost per completed form is under $30. Kill any ad set where cost per form exceeds $60 after 7 days.
+
+**Campaign structure:**
+```
+Campaign: T2-MissedCall-Aug26 ($20/day CBO)
+  Ad Set 1: WA State — HVAC Business Owners (core targeting)
+    Ad A: Missed call video, Script 1 (Jose on camera)
+    Ad B: Same video, different hook caption in copy
+  Ad Set 2: WA State — Contractor Interests (broader)
+    Ad A: Calendar video, Script 2 (Daniel on camera)
+    Ad B: Case study static image (when available)
+```
+
+**Placements:** Facebook Feed + Instagram Feed only. Remove Audience Network, Messenger, Reels to start. Feed = highest intent. Test Reels separately after Feed has proven data.
+
+**Conversion optimization:** Drive to `intake.tractifyhq.com?src=[tag]`. Once 50+ contractors have hit the form, create a Facebook Custom Conversion on the intake success screen URL so Facebook can optimize toward completed forms instead of page visits — this is when targeting becomes dramatically more efficient.
+
+---
+
+#### Targeting Breakdown
+
+**Core audience (Track 2):**
+- Location: Washington state → radius around Seattle / Bellevue / Tacoma / Spokane
+- Age: 35-55
+- Job titles: HVAC Technician, HVAC Contractor, Heating and Cooling Contractor, Small Business Owner
+- Interests: HVAC, Heating ventilation and air conditioning, Small business, Home improvement
+- Behaviors: Small business owners (Facebook-verified)
+- Exclusion: Anyone who visited `intake.tractifyhq.com` already (retargeting handles them separately)
+
+**Lookalike audience (build after 50+ contractor signups):**
+Upload email list of all contractors who completed the intake form → create 1% lookalike → this outperforms manual targeting because Facebook finds people who behave like your actual signups. Becomes the primary targeting at scale.
+
+**Retargeting (always-on, $5/day):**
+Anyone who visited `intake.tractifyhq.com` but didn't complete the form. Copy: "Still thinking about it? Your first 5 jobs are still free — takes 5 minutes." These people already showed intent — retargeting CPCs are 50-70% cheaper than cold and convert at a much higher rate.
+
+---
+
+#### URL Tagging System (Every Piece Gets a Tag)
+
+Every ad, post, story, group comment, and DM uses a unique `?src=` tag. The brain queries `contractors.acquisition_source` to show exactly which content piece drove each signup. This is already fully wired end-to-end: intake form reads the param → Worker passes it → deploy.js saves it to `contractors.acquisition_source`.
+
+**Tag naming convention:** `[platform]_[format]_[hook]_[month]`
+
+| Content piece | Tag to use |
+|---|---|
+| Facebook video ad — missed call | `fb_vid_missedcall_aug` |
+| Facebook video ad — calendar | `fb_vid_calendar_aug` |
+| Facebook video ad — direct offer | `fb_vid_offer_aug` |
+| Facebook organic post | `fb_organic_aug` |
+| Facebook group post | `fb_group_aug` |
+| Instagram Reel | `ig_reel_aug` |
+| Case study post | `fb_casestudy_aug` |
+| TikTok video | `tiktok_vid_aug` |
+| Direct DM / outreach | `dm_aug` |
+| Retargeting ad | `fb_retarget_aug` |
+
+Add the month suffix so you can compare Aug vs Sep performance. When a new creative runs, give it a unique tag. The brain will tell you which tags are producing active contractors with bookings vs which are producing signups who ghost.
+
+---
+
+#### Budget Allocation (August)
+
+| Line | Amount | Purpose |
+|---|---|---|
+| Facebook ads — Track 1 wide net | $150/mo ($5/day) | Data collection, funnel filling |
+| Facebook ads — Track 2 sniper (2-3 contractors) | $300/mo ($10/day each) | August revenue |
+| Retargeting (always-on) | $150/mo ($5/day) | Recapture intent visitors |
+| Boost best organic post | $100-200 one-time | Amplify proven creative |
+| **Total** | **$700-800/mo** | Keep tight until first Stripe conversion |
+
+**Scale rule:** cost per completed form under $30 → double the budget on that campaign. Over $60 after 7 days → kill it and test new creative. Never let a failing ad set run longer than 7 days without data-backed reason to keep it alive.
+
+---
+
+#### Video Script Templates (Word-for-Word — Film These)
+
+**Script 1: The Missed Call — 30 seconds (Jose on camera)**
+```
+Hook (0-3s):
+"HVAC contractors — every missed call is a lost job. Here's what Tractify does about it."
+
+Problem (3-12s):
+"You're on a rooftop right now. Your phone rings. You can't answer.
+That homeowner is already calling the next guy. That job is gone.
+It happens ten times a week and you never even know."
+
+Solution (12-22s):
+"The second you miss that call, Tractify auto-texts them.
+'Hey, sorry we missed you — here's a link to book a time.'
+They book right there. Job's on your calendar before you climb down."
+
+Offer (22-30s):
+"First 5 jobs are free. No strings. Fill out our setup form — link in bio."
+```
+
+**Script 2: The Empty Calendar — 30 seconds (Daniel on camera)**
+```
+Hook (0-3s):
+"What does an HVAC contractor's calendar look like before Tractify versus after?"
+
+Before (3-12s):
+[show phone with empty calendar app]
+"This is what most HVAC contractors are dealing with right now.
+Slow week. Waiting for the phone to ring. Hoping Google sends someone."
+
+After (12-22s):
+[show calendar with multiple bookings]
+"This is what our contractors see 7 days after going live.
+Jobs from Google. Jobs from missed calls. Jobs from Facebook.
+All booked directly on the calendar. They didn't do anything. The system did."
+
+Offer (22-30s):
+"We'll get your first 5 jobs on your calendar free. Five minutes to set up. Link in bio."
+```
+
+**Script 3: The Direct Offer — 15 seconds (either, for rapid creative testing)**
+```
+Hook (0-2s):
+"HVAC contractors — we'll book your first 5 jobs for free."
+
+Proof (2-10s):
+"We set up your entire booking pipeline — missed calls, Google, Facebook.
+Jobs go straight to your calendar. No missed calls. No chasing leads."
+
+CTA (10-15s):
+"Fill out our quick form. Link in bio. Takes 5 minutes."
+```
+
+**Script 4: The Real Problem — 60 seconds (Jose on camera, organic deep dive)**
+```
+Hook (0-3s):
+"HVAC contractors — the real reason you're not as busy as you should be
+has nothing to do with your skill."
+
+Problem (3-25s):
+"You're incredible at the work. But you miss calls because you're doing the work.
+Your Google listing doesn't have a book button.
+Your Facebook page doesn't respond to DMs.
+Your website — if you have one — doesn't let anyone book online.
+So homeowners who want to hire you right now literally can't.
+They move on. Not because they chose someone better. Because someone else made it easier."
+
+Solution (25-45s):
+"That's the entire problem Tractify solves.
+We plug in everywhere a homeowner might try to reach you —
+phone, Google, Facebook, missed calls —
+and every single one of those touchpoints turns into a booked job on your calendar automatically."
+
+Offer (45-60s):
+"We're handing 5 contractors this month their first 5 jobs completely free.
+No commitment. We just want the case study.
+Link in bio — setup takes 5 minutes."
+```
+
+**Filming notes:** No tripod. Phone propped against something stable. Natural light near a window or outside. Know the beats, talk naturally — don't script-read. Imperfection is authenticity. One good take beats ten polished ones. The goal is a contractor watching this on his phone between jobs feeling like you're talking directly to him.
+
+---
+
+#### Content Calendar — Week 1 (Start Here)
+
+| Day | Action |
+|---|---|
+| Day 1 | Film Script 3 (15-sec direct offer). Post to Facebook + Instagram. Set as paid ad at $20/day immediately. Tag: `fb_vid_offer_aug` |
+| Day 2 | Film Script 1 (missed call). Post organically to Facebook. Post in 3 HVAC contractor Facebook groups. Tag: `fb_group_aug` |
+| Day 3 | Screen recording: show admin dashboard, live booking coming in, calendar updating. 30-sec with voiceover. Post organically. Tag: `fb_organic_aug` |
+| Day 4 | Repurpose Day 2 video to Instagram Reel. Tag: `ig_reel_aug` |
+| Day 5 | Post value content in Facebook group (no pitch) — tactical tip about missed call text-back |
+| Day 6 | Film Script 2 (calendar before/after). Post to Facebook. Tag: `fb_vid_calendar_aug` |
+| Day 7 | Review data. Take best-performing organic video, run it as a paid ad at $20/day. Scale what's working. |
+
+**Ongoing cadence:** 1 new video per week minimum. 3-5 group posts per week (value, not pitch). 1 paid ad running at all times. Case study post the moment first contractor hits 5 jobs — this becomes the highest-converting ad creative you'll ever run.
+
+---
+
+#### Organic Distribution
+
+**Facebook contractor groups:**
+Search "HVAC contractors [city]", "Home service contractors [state]", "Contractors [state]". Target groups with 1,000+ members and active recent posting. Don't drop the offer link immediately — comment on 3-4 other posts first, then post value content. Drop the intake link naturally after establishing presence. Groups that allow business posts: post once per week. Groups with strict rules: comment only, never post offers.
+
+**Facebook group — "Home Service Contractors: More Booked Jobs":**
+Post 3x/week: (1) value — tactical post, no mention of Tractify, (2) win — contractor result numbers when live, (3) question — drive engagement, get contractors talking. Goal: 100 engaged members by end of August. Every win post that shows real job numbers becomes a conversion event for lurking contractors.
+
+**Nextdoor (homeowner-facing, drives jobs to trial contractors):**
+Post in neighborhoods in each trial contractor's service area. "Need HVAC in [city]? [Contractor name] does online booking — no phone tag: [their subdomain]." This is not contractor acquisition — it's job delivery for the free trial, which is what makes the case study.
+
+---
+
+#### The Case Study Machine
+
+The system already logs everything needed. No contractor involvement, no filming, no chasing.
+
+**When a contractor hits 5 jobs, the case study pulls from live data:**
+```
+[Contractor name], [City]
+Went live: [deploy date]
+First booking: Day [X] — Channel: [booking_source]
+All 5 jobs: Day [Y] — [X] days total
+Channel breakdown: [X] Google, [X] missed call, [X] paid ads, [X] direct
+[If revenue logged]: Estimated revenue: $[X]
+```
+
+**The visual:** Screenshot of their portal with 5 confirmed appointments. Real contractor name. Real dates. Real channel attribution. Impossible to fake. Instantly credible to other contractors because it looks exactly like something they'd recognize from their own calendar.
+
+**Where it goes:**
+- Facebook post: "Day [X] update — [Name] just hit 5 jobs." Tag: `fb_casestudy_aug`
+- Run the portal screenshot as a paid ad creative — test it against Script 1 and Script 3, data wins
+- Email to contractor at the job 3 milestone — shows them their own numbers, primes the Stripe conversion
+- Add to the Facebook group as a win post — drives organic contractor signups from group members
+
+---
+
+#### How the Admin Brain Uses This Department
+
+The brain cross-references this section with live database data on every query:
+
+- **"Which content piece is driving the most signups?"** → queries `acquisition_source` breakdown, shows which `?src=` tags produced the most contractor accounts
+- **"Which content is producing active contractors vs ghosters?"** → cross-references acquisition_source with onboarding step completion and booking count — tells you which creative attracted contractors who actually showed up vs signed up and disappeared
+- **"What should I put the next $20 behind?"** → brain looks at highest signup-to-active-contractor conversion by source tag, recommends scaling that creative
+- **"Who are the best case study candidates?"** → queries contractors by booking count, days live, source — surfaces whoever is closest to 5 jobs
+- **"How much is each contractor costing us in ad spend?"** → Jose inputs spend amount, brain divides by contractor count from that source tag to give cost per acquisition
+- **"Which track is performing better?"** → compares T1 vs T2 source tags against booking velocity and checklist completion speed
+
+The brain can't see Facebook Ads Manager directly (that data doesn't live in Tractify's DB) but Jose can tell it ad spend and the brain calculates cost per acquisition from signup counts. Once acquisition_source is fully populated (Worker one-line fix pending), this becomes automatic on every query.
+
+---
+
+#### Living Playbook Log
+
+*This section is the running record of everything tested, proven, disproven, and learned. The brain reads this log and factors it into every recommendation. Date every entry. Be specific — vague entries are useless to the brain.*
+
+**July 28, 2026 — Department initialized.**
+Content/ads brain built from scratch. No ad spend deployed yet. First contractor (Evergreen Home Heating and Energy) live via auto-deploy July 25. Awaiting Twilio compliance approval before missed call channel activates. Scripts 1-4 written, ready to film. Facebook group not yet created. Week 1 content calendar mapped. Next action: film Script 3 (15-sec offer), post and run as paid ad Day 1.
+
+*[Add entries here every time something is tested, a result comes in, a decision is made, or a pattern is spotted. Format: Date — what was tested — what happened — what changed as a result.]*
 
 ---
 
