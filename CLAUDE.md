@@ -724,6 +724,14 @@ Content/ads brain built from scratch. No ad spend deployed yet. First contractor
 **July 28, 2026 — Google Search Ads strategy locked.**
 Decision: skip Google Local Service Ads entirely. LSA requires per-contractor account setup, Google verification, background checks, access grants — ops-team-level work that doesn't scale. Regular Google Search Ads (MCC architecture) give equal or better reach with zero contractor involvement. Key insight: Tractify's inline booking landing page converts better than Google's own LSA interface because the booking happens in one session on our page. LSA just hands you a name and phone number — we hand a booked appointment. Call-Only ads + Twilio missed call text-back = breakthrough combination that LSA can't replicate. Smart Bidding toward actual booked appointments = better optimization signal than LSA tracks. Start Google after Facebook has 2 weeks of data. Build MCC, clone template per contractor, use contractor zip codes from DB.
 
+**July 28, 2026 — Full ad automation arc locked (the endgame).**
+The compounding effect on Google's algorithm leads directly to full automation. Every contractor's conversion data makes the next campaign cheaper and faster. The automation arc:
+- Phase 1 (now): Brain answers questions. Jose executes manually.
+- Phase 2 (5-10 contractors): Brain surfaces patterns from acquisition_source + booking_source cross-reference. Jose still executes but the brain makes the call. Example: "fb_vid_missedcall_aug averaging 3.1 bookings/contractor. fb_vid_offer_aug averaging 0.6. Pause offer, double missed call budget."
+- Phase 3 (15-20 contractors, Google Ads API + Meta Marketing API connected): Brain pulls live campaign data — keyword-level CPA, converting queries, burning ad groups. Makes specific recommendations. Jose approves or ignores. 10 min/week instead of hours.
+- Phase 4 (25+ contractors, guardrails pre-approved): Brain executes automatically within monthly budget cap + CPA threshold Jose sets. Contractor at 4 jobs gets budget spike to close job 5 before Stripe fires. Contractor with dead calendar gets budget pulled + alert to Jose. Google and Facebook budgets rebalanced automatically based on which channel is converting that week.
+Key advantage over Google's own Smart Bidding: brain has context Google doesn't — contractor job count, proximity to Stripe conversion, market profile, channel mix. Brain can say "contractor 8 is 2 jobs from $2,000 setup fee — pour gas on this for 48 hours." Google's algorithm can't make that call. Build Google Ads API integration after Phase 2 data exists to prove the patterns. Connect Meta Marketing API at same time.
+
 *[Add entries here every time something is tested, a result comes in, a decision is made, or a pattern is spotted. Format: Date — what was tested — what happened — what changed as a result.]*
 
 ---
