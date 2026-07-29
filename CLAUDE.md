@@ -932,6 +932,9 @@ Key distinction: not everything should be automated immediately. Automate only w
 
 **The principle:** Automate the mechanical. Stay manual on the things you're still learning. Jose's time and focus belongs on content, ads, and distribution — not repetitive per-contractor grunt work that an API call can handle in 2 seconds.
 
+**July 28, 2026 — Four critical gaps identified before first ad spend. Do not run ads until all four are closed.**
+Gap 1: Checklist mismatch — portal shows 7-step checklist but real model is 2 things. Direct contradiction of the pitch. Any contractor logging in today sees conflicting information. Fix the checklist UI first, fast. Gap 2: No visibility into trial failure — no alert when job 1 lands, no alert when 72 hours pass with zero bookings. Flying blind in August without these. Build both alerts before ads run. Gap 3: Post-access channel automation not built — the new model depends on system auto-activating GBP (booking button + review replies) and Facebook (Messenger auto-reply) the moment access is granted. Neither API integration is built yet. This is 2-3 sessions of work and must be done before the first contractor who triggers it. Gap 4: Track 1 contractor economics — if a weak-profile contractor slips through the intake form and jobs take 2-3 weeks, burst ad spend ($150-200/day) becomes $2,000-3,000 before a single conversion. Pre-qualification is not optional. Brain should flag any contractor who doesn't meet Track 2 criteria before real ad spend is authorized. Correct sequence: fix checklist → build booking alerts → build post-access automation → then run ads.
+
 *[Add entries here every time something is tested, a result comes in, a decision is made, or a pattern is spotted. Format: Date — what was tested — what happened — what changed as a result.]*
 
 ---
@@ -2089,11 +2092,39 @@ Full audit passed. Summary of what was verified:
 
 **Waiting on external:** Twilio compliance approval — code is 100% built, zero work left. Once approved: buy local number → set two webhooks in Twilio console → assign in admin dashboard.
 
+---
+
+### ⚠️ CRITICAL GAPS — Must close BEFORE spending first dollar on ads (filed session 13)
+
+These are not nice-to-haves. A real contractor going through the funnel right now would hit all four of these gaps. Do not run ads into a funnel that isn't ready.
+
+**Gap 1 — Checklist mismatch (highest priority, quick fix)**
+The contractor portal checklist currently shows 7 steps and asks contractors to do all of them. The real model (decided session 13) is: contractor does 2 things (confirm availability + call forwarding), Tractify handles everything else. This is a direct contradiction. Any contractor who logs in tomorrow sees a 7-step checklist that conflicts with the pitch. Fix: update the checklist UI to reflect the 2-thing model for trial contractors. The other steps (GBP button, Messenger, etc.) should be framed as "Tractify will handle this for you" — not tasks for the contractor. This is the fastest gap to close and the most dangerous one to leave open.
+
+**Gap 2 — No visibility into trial failure (critical for August)**
+The real-time booking alert to Jose is on the build list but is being underestimated. If a trial contractor's calendar stays empty for 5 days, right now Jose won't know unless he checks the dashboard. That silence is a failed trial that could have been caught and course-corrected. Two alerts are needed: (1) instant email/SMS to Jose the moment any homeowner books during a trial — proof the machine is working, (2) automated alert if a trial contractor has zero bookings after 72 hours — something is broken, investigate immediately. Without these two alerts, August is flying blind. Build this before the first ad runs.
+
+**Gap 3 — Post-access channel automation not built yet (2-3 sessions)**
+The new model depends on: contractor grants GBP Manager access → system automatically sets booking button + replies to all 4+ star reviews with booking link. Contractor grants Facebook Page Editor access → system automatically sets Messenger instant reply. Neither of these is built. The APIs exist (Google Business Profile API, Facebook Graph API). The contractor's place_id is already in the DB. This is the automation that saves Jose from doing manual grunt work for every contractor. It must be built before the first contractor who needs it — not after. Build sequence: (1) Admin dashboard toggle for "GBP access granted" + "Facebook access granted", (2) GBP API calls fire on toggle (booking button + review replies), (3) Facebook Graph API call fires on toggle (Messenger instant reply). This is what allows Jose to spend all his time on content and ads instead of per-contractor manual setup.
+
+**Gap 4 — Track 1 contractor economics risk**
+The burst ad spend model ($150-200/day) assumes a fast trial (5 jobs in 5 days). This works for Track 2 contractors. If a Track 1 contractor slips through the intake form — lower reviews, weaker GBP, softer market — job 1 might take 2-3 weeks. At $150/day that's $2,000-3,000 in ad spend before a single conversion. The intake form pre-qualification check (50+ reviews, 4.5+ stars, active GBP) is not optional — it's what protects the economics. The brain should flag any contractor who doesn't meet Track 2 criteria before Jose puts real ad spend behind them. If a contractor fails the check, slow-burn or organic-only approach only — no burst spend.
+
+**The correct sequence before running ads:**
+1. Fix checklist mismatch (Gap 1) — can be done in one session
+2. Build real-time booking alert — both alerts, both triggers (Gap 2)
+3. Build post-access channel automation — GBP API + Facebook Graph API (Gap 3)
+4. Then run ads — with confidence that what comes through the funnel will be handled correctly
+
+---
+
 **Next builds in order:**
-1. **Real-time booking alert to Jose** — email when any homeowner books during a trial. Add to `notifications.js` + trigger from `bookings.js`. Quick build, critical for monitoring August.
-2. **Worker acquisitionSource fix** — one line in `probook-upload-worker/src/index.js` (not in connected folder — Jose does it manually + `npx wrangler deploy`)
-3. **Stripe + job milestone trigger** — August 4 with Daniel. Job 5 fires → Stripe payment page → system marks paid.
-4. **Contractor dashboard live stats** — jobs by source, this month, upcoming. Churn prevention.
+1. **Checklist mismatch fix** — update contractor portal to reflect 2-thing model for trial phase. Other steps reframed as "Tractify handles this."
+2. **Real-time booking alert to Jose** — instant email when booking lands during trial. 72-hour silence alert if no bookings. Add to `notifications.js` + trigger from `bookings.js`. Non-negotiable before ads run.
+3. **Post-access channel automation** — admin dashboard toggles + GBP API (booking button + review replies) + Facebook Graph API (Messenger auto-reply). Saves Jose from per-contractor manual grunt work forever.
+4. **Worker acquisitionSource fix** — one line in `probook-upload-worker/src/index.js` (not in connected folder — Jose does it manually + `npx wrangler deploy`)
+5. **Stripe + job milestone trigger** — August 4 with Daniel. Job 5 fires → Stripe payment page → system marks paid.
+6. **Contractor dashboard live stats** — jobs by source, this month, upcoming. Churn prevention.
 
 ### The admin brain — what it knows + what it can do (built session 12)
 
