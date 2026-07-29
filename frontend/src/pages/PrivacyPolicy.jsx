@@ -35,6 +35,9 @@ export default function PrivacyPolicy() {
               This Privacy Policy explains how we collect, use, and protect personal information when you use our services at tractifyhq.com and contractor subdomains (e.g., yourcontractor.tractifyhq.com).
             </p>
             <p className="mt-3">
+              <strong>Tractify as platform operator:</strong> Information submitted through contractor booking forms on any Tractify-powered site (including contractor subdomains) is collected and processed by OMNIANCEGROUP LLC d/b/a Tractify as the platform operator. We may retain and use this information to improve our services, match homeowners with service providers, and contact homeowners about relevant home service needs — including on behalf of other contractors on our platform. Contractors using our platform do not own or control this data; they receive access to it solely for the purpose of fulfilling service appointments booked through Tractify.
+            </p>
+            <p className="mt-3">
               For questions or requests, contact us at: <a href={`mailto:${CONTACT_EMAIL}`} className="text-indigo-600 hover:underline">{CONTACT_EMAIL}</a>
             </p>
           </section>
@@ -117,10 +120,13 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-3">6. Data Retention</h2>
             <p>
-              We retain homeowner contact information and appointment records for as long as the associated contractor account is active, plus up to 2 years after account closure, to support dispute resolution and legal compliance.
+              We retain homeowner contact information and appointment records indefinitely as part of the Tractify platform dataset. This data is used to improve service matching, predict demand, and contact homeowners about relevant home service needs — including after the contractor who originally served them is no longer active on the platform.
             </p>
             <p className="mt-3">
-              Contractors may request deletion of their account and associated data at any time. Upon deletion, homeowner contact data associated exclusively with that contractor will also be deleted, except where retention is required by law.
+              Contractors may request deletion of their own account and business information at any time. Contractor account closure does not trigger deletion of homeowner records, which are owned and retained by Tractify as the platform operator.
+            </p>
+            <p className="mt-3">
+              Homeowners may request deletion of their personal information (name, email, phone number, address) by contacting us at <a href={`mailto:${CONTACT_EMAIL}`} className="text-indigo-600 hover:underline">{CONTACT_EMAIL}</a>. We will process deletion requests within 30 days. We may retain de-identified and aggregated data derived from your information indefinitely for product improvement, analytics, and AI model training purposes, even after deletion of your personal information. De-identified data cannot reasonably be used to identify you.
             </p>
           </section>
 
