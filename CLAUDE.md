@@ -896,6 +896,42 @@ Channels ranked by reliability (no contractor involvement needed):
 
 Burst spend ($150-200/day across the three paid channels for days 1-3) compresses the trial into 3-5 days instead of 10. Get data fast, optimize fast, close the trial fast. Slow burn is the wrong strategy — speed is what makes the product feel magical.
 
+**July 28, 2026 — Trust gap model + access-first channel strategy locked.**
+The original checklist asked contractors to set up 7 channels themselves. Problem: ad-sourced contractors are low-commitment and most won't follow through. The new model flips who does the work: contractor grants access, Tractify does the setup.
+
+Key insight on trust gap: it's not filled by disclaimers, contracts, or explanations. It's filled by the first job on their calendar. A contractor who just watched a real appointment appear from a stranger they've never met is not skeptical anymore. They're impressed. That's the moment to ask for account access — not at signup.
+
+**The sequencing:**
+1. Contractor does 2 things (confirm availability + call forwarding). Jose runs paid ads. First job appears. Zero access required.
+2. After job 1 lands: Jose asks for GBP Manager access and Facebook Page Editor access. Frame: "We've already built your auto-reply, your reviewer outreach, your group post copy — just add us and we'll have 4 more channels live in 5 minutes."
+3. Jose pushes everything live. Channels 6 and 7 activate. Jobs 2-5 come faster.
+
+**What shrinks the access ask further — AI SMS handles low-friction channels:**
+GBP booking button = one URL paste, 60 seconds. Messenger auto-reply = copy-paste text. Both handled by the AI SMS walking contractor through it step by step. No account access needed for either. The only things that genuinely require access are: GBP Manager for reviewer outreach, and Facebook Page Editor for posting as their page in community groups. Everything else is handled by paid ads or AI-assisted instructions.
+
+**How the access request is made:**
+- Request access as Tractify (Tractify Business Manager account), not Jose personally — it's a business relationship, not giving your login to a stranger
+- Show the revoke instruction BEFORE the setup instruction every time — "you can remove us in one click: here's how. Now here's how to add us." Showing the exit before the entrance kills skepticism faster than any reassurance
+- The "already done" close: by the time access is requested, the reviewer outreach templates are written, the group post copy is drafted, the Messenger message is ready. "We've already built everything — add us and we'll push it live in 5 minutes." Work done before the ask completely flips the psychology
+
+**The access ask in one sentence:** "Add Tractify as manager on your Google listing and page editor on your Facebook — takes 2 minutes each. We'll set up 4 more channels using that access, and you can remove us anytime with one click."
+
+**What this means for the pitch:** "Set your hours, forward your calls. We handle everything else." Literally true. The contractor does 2 things. Every channel activation from that point is Tractify.
+
+**July 28, 2026 — Automation scope decision locked. What gets automated now vs what stays manual.**
+Key distinction: not everything should be automated immediately. Automate only what provides zero learning value when done manually.
+
+**Ads stay manual — intentionally.** Running Facebook, Google, and Nextdoor ads manually for the first 5-10 contractors is how the skill gets built — which copy converts, which targeting produces the right contractors, what budget levels make sense, what the real cost per job is. Automating ads before learning them means automating something you don't understand yet. When it underperforms you won't know why. The manual phase is the learning phase. Ad automation comes after the patterns are proven — not before.
+
+**Post-access channel activation gets built now.** Once a contractor grants GBP Manager access or Facebook Page Editor access, the system should fire immediately and automatically. This is pure mechanical work — the same 3 API calls every time, no judgment involved. Doing this manually for every contractor is wasted time that should be building content and running ads.
+
+**The build:**
+- When GBP Manager access is granted → system automatically: (1) sets booking button on their GBP listing using contractor's place_id already in DB, (2) replies to every 4+ star review with their booking link. Uses Google Business Profile API.
+- When Facebook Page Editor access is granted → system automatically sets Messenger instant reply with their booking link. Uses Facebook Graph API (infrastructure already half-built from Lead Ads webhook).
+- Both triggered from admin dashboard — Jose marks "GBP access granted" or "Facebook access granted" → system fires immediately. No manual follow-through required.
+
+**The principle:** Automate the mechanical. Stay manual on the things you're still learning. Jose's time and focus belongs on content, ads, and distribution — not repetitive per-contractor grunt work that an API call can handle in 2 seconds.
+
 *[Add entries here every time something is tested, a result comes in, a decision is made, or a pattern is spotted. Format: Date — what was tested — what happened — what changed as a result.]*
 
 ---
