@@ -10,6 +10,8 @@ import LeadIntakeWidget from './pages/LeadIntakeWidget';
 import LandingPage from './pages/LandingPage';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 
 function ProtectedRoute({ children, role }) {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -48,6 +50,8 @@ export default function App() {
       <Route path="/apply" element={<ContractorApply />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<TermsOfService />} />
 
       <Route path="/admin/*" element={
         <ProtectedRoute role="admin">

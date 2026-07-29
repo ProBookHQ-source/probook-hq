@@ -413,7 +413,7 @@ async function sendWelcomeText(contractor, twilioClient) {
     ? `https://${contractor.booking_slug.replace(/[^a-z0-9]/g, '')}.tractifyhq.com`
     : 'tractifyhq.com';
 
-  const body = `Hey ${firstName}! Your Tractify booking site is live. I'll text you one quick step per day to get all your channels running. Text me anytime with questions or to tell me when you've finished a step. — Jose, Tractify`;
+  const body = `Hey ${firstName}! Your Tractify booking site is live. I'll text you one setup tip per day. Text me anytime with questions or to tell me when you finish a step. Reply STOP to opt out of texts. — Tractify`;
 
   await twilioClient.messages.create({
     to: contractor.phone,

@@ -65,7 +65,7 @@ router.post('/missed-call', async (req, res) => {
       await client.messages.create({
         to:   From,
         from: To, // reply from the contractor's Twilio number
-        body: `Hey! This is ${businessName} — sorry we missed your call, we're out on a job. Book a time that works for you here: ${bookingLink} — takes 60 seconds and we'll confirm right away.`,
+        body: `Hey! This is ${businessName} — sorry we missed your call, we're out on a job. Book a time that works for you here: ${bookingLink} — takes 60 seconds and we'll confirm right away. Reply STOP to opt out.`,
       });
       console.log(`[TWILIO] SMS sent to ${From} for contractor ${contractor.id} (${businessName})`);
     } catch (err) {
@@ -176,7 +176,7 @@ router.post('/inbound-sms', async (req, res) => {
       await twilioClient.messages.create({
         to: From,
         from: To,
-        body: `Hey! This is ${businessName}. Book a time online here: ${bookingLink} — takes 60 seconds and we'll confirm right away.`,
+        body: `Hey! This is ${businessName}. Book a time online here: ${bookingLink} — takes 60 seconds and we'll confirm right away. Reply STOP to opt out.`,
       });
       console.log(`[TWILIO-SMS] Booking link sent to homeowner ${From}`);
     } catch (err) {

@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 28, 2026 (session 12 continued — admin brain upgraded to full tool use. Brain now takes actions, not just answers questions: set Twilio numbers, approve/decline contractors, update contractor fields, assign leads, cancel appointments, delete test data — all from plain-English commands in the brain panel. Dashboard auto-refreshes after every action via React Query cache invalidation. Also in this session: admin brain right-side drawer UI (slides in from right edge, pinned 🧠 tab trigger). Subtitle: "Ask questions · Take actions". Quick prompts include action shortcuts. All agentic tool use follows same loop pattern as aiChat.js for contractors.)*
+*Last updated: July 28, 2026 (session 12 final — legal + security hardening complete. Privacy Policy + Terms of Service live at /privacy and /terms. SMS consent disclosure added to both HVAC templates. STOP opt-out added to all homeowner-facing Twilio SMS. Terms acceptance checkbox added to intake-form.html (blocks submit if unchecked). /privacy and /terms routes added to App.jsx. Footer links added to LandingPage.jsx. Rate limiter added to both AI chat endpoints (20 req/15min protects Anthropic bill). Contractor AI chat rate limiter added alongside admin AI. Full security audit passed — no hardcoded secrets, all SQL uses parameterized queries or allowlist validation, Helmet active, Twilio + Facebook webhook signature validation in place, bcrypt on all passwords. Google Places API key in intake-form.html is public by design — restrict to intake.tractifyhq.com in Google Cloud Console as manual step.)*
 
 ---
 
@@ -1482,7 +1482,7 @@ This is already in production — no action needed. But if it ever breaks: the l
 - [ ] **Retest full pipeline** — delete test contractor, submit fresh intake form at `intake.tractifyhq.com`, verify: (1) "Powered by Tractify" badge shows logo correctly at bottom right, (2) cover photo is the HVAC image (not Unsplash), (3) feature flags match what was entered on form (test emergency off, financing on, warranty off), (4) both emails arrive (contractor welcome + admin alert), (5) services on deployed site match what was selected on intake form, (6) warranty card absent when warranty toggled off.
 - [ ] **Onboarding checklist polish pass** — ⚠️ flagged for review before August 3rd. Go through all 6 steps as if you're a new contractor. Fix any confusing copy, broken links, or missing Twilio number display issues.
 - [ ] **Twilio compliance approval** — pending (emailed trusthub-verify@twilio.com with CP 575B on July 23). Once approved: buy local number for contractor, set BOTH webhooks in Twilio console ("A call comes in" → `/api/twilio/missed-call`, "A message comes in" → `/api/twilio/inbound-sms`), set number on contractor in admin dashboard, test end-to-end. All code is already live — zero build work remaining once compliance clears.
-- [ ] **Service agreement** — simple 1-page terms on intake form. Defines: free trial = 5 booked appointments (not 5 closed jobs), what retainer covers, cancellation terms. Add acceptance checkbox, store timestamp in DB.
+- ✅ **Legal + compliance (session 12 final)** — Privacy Policy live at `/privacy`, Terms of Service live at `/terms`. Both route to React pages (PrivacyPolicy.jsx, TermsOfService.jsx) registered in App.jsx. Footer links on LandingPage.jsx. SMS consent + STOP opt-out disclosure added to both HVAC templates (index.html + backend/templates/hvac-template.html) below the form submit button. STOP reply added to all outbound homeowner Twilio SMS (missed-call + inbound-sms handlers). Welcome text to contractors updated with STOP opt-out. Terms acceptance checkbox on intake-form.html Step 4 — blocks submission if unchecked, links to /terms and /privacy. Rate limiter on both AI chat endpoints (20 req/15min) — admin brain + contractor chat. Security audit passed (see Security section below).
 - [ ] **Training videos for contractors** — short screen recordings showing: (1) how to block time slots for jobs booked outside Tractify (phone calls, word of mouth, walk-ins) so double bookings don't happen, (2) how to use the portal day-to-day. Embed in the onboarding checklist or portal help section. Critical before first real contractor — this is their main support resource.
 - [ ] **Empty availability alert** — if a contractor's calendar still has zero availability slots set 24 hours after deploy, send an automated nudge email/SMS. Dead calendar = no bookings possible = silent failure. Add to the cron job in `cron.js`.
 - [ ] **Real-time booking alert to Jose** — when a homeowner actually books through a contractor's Tractify site, Jose needs to know immediately (not by checking the dashboard). Add a push notification or email alert to `notifications.js` that fires on every new booking during the trial period. This is how Jose monitors whether the machine is working in real time during August.
@@ -1527,9 +1527,27 @@ The brain can't be built all at once. It has to be layered in the right order as
 
 ---
 
+## Security Audit — Completed July 28, 2026
+
+Full audit passed. Summary of what was verified:
+
+- **No hardcoded secrets** — all credentials read from Railway env vars. `.env` only used locally.
+- **SQL injection** — 220+ parameterized queries (`$1, $2` style). One dynamic field in adminAI.js (`update_contractor`) is safe: `field` is validated against a strict allowlist before the query runs.
+- **CORS** — wildcard only on 5 external-client paths (inbound, availability, book, book-direct, public contractor). All other routes restricted to FRONTEND_URL. Wildcard paths secured by API key or booking token at route level.
+- **Auth** — JWT required on all admin and contractor routes. bcryptjs (cost 10) on all password storage and comparison.
+- **Webhooks** — Twilio signature validation on both missed-call and inbound-sms. Facebook X-Hub-Signature-256 validation when FB_APP_SECRET is set.
+- **Headers** — Helmet.js active on all responses. CSP, X-Frame-Options, HSTS all configured.
+- **Rate limiting** — 8 rate limiters covering all abuse-prone surfaces: public leads, bookings, auth login, contractor apply, inbound API, intake tracking, self-service cancel/reschedule, and AI chat (admin + contractor, 20/15min to protect Anthropic bill).
+- **Logs** — No passwords, tokens, or secrets logged anywhere in backend source.
+
+**One manual action required (not blocking launch):**
+- **Google Places API key** (`AIzaSyAbRXd2xYGaBMVkZV_qvi2B3Funw3-grRk`) is publicly visible in `intake-form.html` client-side JS — this is expected and unavoidable for browser-based Places Autocomplete. Restrict it to `intake.tractifyhq.com` in Google Cloud Console → APIs & Services → Credentials → Edit key → Restrict by HTTP referrer. This prevents abuse from external sites using the key. Won't affect the intake form.
+
+---
+
 ## ⚡ PICK UP HERE — First Contractor + Stripe
 
-**Context:** The full data + intelligence layer is live. The admin brain takes actions. The machine is built end-to-end. Focus is now on getting first real contractor live and converting to paid.
+**Context:** The full data + intelligence layer is live. The admin brain takes actions. Legal and security is airtight. The machine is built end-to-end. Focus is now on getting first real contractor live and converting to paid.
 
 **Waiting on external:** Twilio compliance approval — code is 100% built, zero work left. Once approved: buy local number → set two webhooks in Twilio console → assign in admin dashboard.
 

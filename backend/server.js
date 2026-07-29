@@ -146,6 +146,15 @@ const selfServiceLimiter = rateLimit({
 app.use('/api/bookings/cancel-token',     selfServiceLimiter);
 app.use('/api/bookings/reschedule-token', selfServiceLimiter);
 
+// Rate limiting — AI chat endpoints (20 per 15 min — protects Anthropic bill from runaway usage)
+const aiChatLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many AI requests. Please wait a few minutes before asking again.' },
+});
+app.use('/api/admin/ai-chat',      aiChatLimiter);
+app.use('/api/contractor/ai-chat', aiChatLimiter);
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth',         require('./routes/auth'));
 app.use('/api/contractors',  require('./routes/contractors'));

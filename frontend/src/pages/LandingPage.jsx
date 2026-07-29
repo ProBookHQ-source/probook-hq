@@ -242,7 +242,8 @@ export default function LandingPage() {
           <div className="flex gap-5 text-sm text-gray-500">
             <a href="/get-quote" className="hover:text-white transition-colors">Get a Quote</a>
             <a href="/apply" className="hover:text-white transition-colors">Join as Contractor</a>
-            <a href="/login" className="hover:text-white transition-colors">Login</a>
+            <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
+            <a href="/terms" className="hover:text-white transition-colors">Terms</a>
           </div>
         </div>
       </footer>
