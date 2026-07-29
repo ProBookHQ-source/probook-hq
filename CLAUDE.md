@@ -932,6 +932,40 @@ Key distinction: not everything should be automated immediately. Automate only w
 
 **The principle:** Automate the mechanical. Stay manual on the things you're still learning. Jose's time and focus belongs on content, ads, and distribution — not repetitive per-contractor grunt work that an API call can handle in 2 seconds.
 
+**July 28, 2026 — Capital-efficient trial model locked. Free organic starts the fire, signal-gated paid finishes it.**
+The burst-spend-for-everyone model was wrong. Spending $150-200/day on every trial contractor before proving the market responds burns capital needed for the contractors who are guaranteed to convert. The corrected model:
+
+Free organic channels do the heavy lifting first. Paid ads are the finisher, not the starter. This only works if access is granted early — which means the access ask moves to the success screen (immediately after intake form submit, when excitement is highest), not after job 1.
+
+**Two paths, both handled:**
+
+Path A — contractor grants access at success screen (goal: maximize this path):
+- Post-access automation fires immediately: GBP booking button live, review replies sent with booking link, Messenger auto-reply set
+- Jose posts in Nextdoor + Facebook group once (free, 20 minutes)
+- Missed call text-back running automatically
+- Organic channels run for 5-7 days
+- If 2-3 organic jobs appear → small burst ($50-100/day) to close the remaining jobs
+- Total ad spend: $100-300 per trial
+
+Path B — contractor skips access at success screen:
+- Signal test only: $10-20/day Facebook test ad for 3 days
+- If a homeowner submits or a missed call converts → ask for access again, activate channels, burst to close
+- If no signal after 72 hours → diagnose before spending more. Stop at $30-60.
+- Total ad spend: $30-400 depending on signal
+
+Path A is dramatically cheaper. Maximizing Path A uptake is the capital lever — which means the access ask framing has to be perfect.
+
+**How the access ask is framed (this is everything):**
+The ask lives on the success screen right after form submit. It is optional. It is bounded. It is transparent.
+- Ask is under the Tractify Business Manager account — not Jose personally. Business relationship, not "give your login to a stranger."
+- Revoke instructions shown FIRST, before the setup instructions. "You can remove our access anytime in one click — here's how." Then: "Here's how to add us." Showing the exit before the entrance is counterintuitive but it's the fastest trust-builder that exists. It signals confidence and zero pressure.
+- Exact permissions spelled out: "As GBP Manager: we add your booking button and reply to your reviews with your booking link. We cannot change your business name, phone number, or delete your listing. You remain the owner." Specificity kills vague fear.
+- The ask is framed around what activates, not what's granted: "Want us to activate 4 more channels right now?" not "Can you give us access to your accounts?"
+
+Key insight: showing revoke instructions front and center doesn't undermine trust — it actively builds it. A company confident enough to lead with "here's how to remove us" is not a company trying to trap you. That transparency is the signal. Most contractors will read that and relax.
+
+**The one thing that makes this whole model work: post-access automation must be built first.** If a contractor grants access on the success screen and Jose has to manually set up their channels, Path A doesn't scale. The automation fires the moment access is granted — no Jose involvement. Build the automation, then run the ads. Not the other way around.
+
 **July 28, 2026 — Four critical gaps identified before first ad spend. Do not run ads until all four are closed.**
 Gap 1: Checklist mismatch — portal shows 7-step checklist but real model is 2 things. Direct contradiction of the pitch. Any contractor logging in today sees conflicting information. Fix the checklist UI first, fast. Gap 2: No visibility into trial failure — no alert when job 1 lands, no alert when 72 hours pass with zero bookings. Flying blind in August without these. Build both alerts before ads run. Gap 3: Post-access channel automation not built — the new model depends on system auto-activating GBP (booking button + review replies) and Facebook (Messenger auto-reply) the moment access is granted. Neither API integration is built yet. This is 2-3 sessions of work and must be done before the first contractor who triggers it. Gap 4: Track 1 contractor economics — if a weak-profile contractor slips through the intake form and jobs take 2-3 weeks, burst ad spend ($150-200/day) becomes $2,000-3,000 before a single conversion. Pre-qualification is not optional. Brain should flag any contractor who doesn't meet Track 2 criteria before real ad spend is authorized. Correct sequence: fix checklist → build booking alerts → build post-access automation → then run ads.
 
