@@ -969,6 +969,21 @@ Key insight: showing revoke instructions front and center doesn't undermine trus
 **July 28, 2026 — Four critical gaps identified before first ad spend. Do not run ads until all four are closed.**
 Gap 1: Checklist mismatch — portal shows 7-step checklist but real model is 2 things. Direct contradiction of the pitch. Any contractor logging in today sees conflicting information. Fix the checklist UI first, fast. Gap 2: No visibility into trial failure — no alert when job 1 lands, no alert when 72 hours pass with zero bookings. Flying blind in August without these. Build both alerts before ads run. Gap 3: Post-access channel automation not built — the new model depends on system auto-activating GBP (booking button + review replies) and Facebook (Messenger auto-reply) the moment access is granted. Neither API integration is built yet. This is 2-3 sessions of work and must be done before the first contractor who triggers it. Gap 4: Track 1 contractor economics — if a weak-profile contractor slips through the intake form and jobs take 2-3 weeks, burst ad spend ($150-200/day) becomes $2,000-3,000 before a single conversion. Pre-qualification is not optional. Brain should flag any contractor who doesn't meet Track 2 criteria before real ad spend is authorized. Correct sequence: fix checklist → build booking alerts → build post-access automation → then run ads.
 
+**July 28, 2026 — Stripe conversion page framing locked. Honest structure, no misleading language.**
+The revoke-first principle applies to the payment page the same way it applies to the access ask. Lead with the freedom, not the commitment. "No contract. Month-to-month. If the jobs stop coming, you stop paying." That line goes at the top — before the price — because it removes the biggest psychological barrier to clicking confirm.
+
+Critical correction: do NOT frame the $2,000 setup fee as "covering things the contractor owns." They own nothing. The site runs on Tractify's domain. The Twilio number is Tractify's. The campaigns run from Jose's accounts. The channels are set up through Tractify's access. If they leave, all of it stops. Saying "it's yours" is misleading and destroys trust the moment they find out.
+
+The honest framing is more powerful than the misleading one. Tractify is a service, not a product. Like electricity — when you're a customer it runs, when you leave it stops. That's not a trap, it's how services work. The no-contract line is what makes it honest: "we have to earn your business every single month because the moment results stop, you can walk."
+
+**The $2,000 setup fee:** "covers the 5 jobs we already delivered, the ad spend we ran during your trial, and the full pipeline we built for you." Not "things you own" — results already received.
+
+**The $800/month retainer:** "keeps the jobs flowing. No contract — we run your booking pipeline as long as we're delivering results. The moment we're not, you walk."
+
+**The Stripe page in one paragraph:** "The $2,000 setup fee covers the 5 jobs we already delivered, the ad spend we ran during your trial, and the full pipeline we built for you. The $800/month keeps the jobs flowing. No contract — we run your booking pipeline as long as we're delivering results. The moment we're not, you walk. That's the deal."
+
+This framing does two things simultaneously: it's completely honest about how the service works (everything stops if they leave), and it converts better because the confidence behind it is undeniable. A company that says "you can walk anytime" is a company that believes in its own results. Contractors who've already watched 5 jobs appear on their calendar will feel that immediately.
+
 *[Add entries here every time something is tested, a result comes in, a decision is made, or a pattern is spotted. Format: Date — what was tested — what happened — what changed as a result.]*
 
 ---
