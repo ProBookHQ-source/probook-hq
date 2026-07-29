@@ -984,6 +984,20 @@ The honest framing is more powerful than the misleading one. Tractify is a servi
 
 This framing does two things simultaneously: it's completely honest about how the service works (everything stops if they leave), and it converts better because the confidence behind it is undeniable. A company that says "you can walk anytime" is a company that believes in its own results. Contractors who've already watched 5 jobs appear on their calendar will feel that immediately.
 
+**July 28, 2026 — Guerrilla marketing channels evaluated. Three ideas, one winner, one combination play.**
+
+**Cold DM on Facebook/Instagram — yes, but done right.**
+The concept is correct. The execution needs guardrails. Meta aggressively flags new accounts sending high-volume identical messages. The fixes: (1) warm the account for 3-4 weeks with genuine content before any DM goes out — the account needs to look real and established first. (2) Don't go cold — go warm through groups. Jose joins 5-10 HVAC contractor Facebook groups, spends two weeks commenting and adding value, then DMs people who engaged with his comments. That's a warm DM with a prior touchpoint, not a cold one. Conversion rate dramatically higher, spam risk dramatically lower. (3) Volume on a new account: 10-15/day max, not 50-100. Build up slowly. (4) Personalize every message — contractor's name, their city, their review count. Never copy-paste. Never include a link in the first message — start a conversation, send the link when they respond. Best role: parallel track to content, not the primary channel. Groups plus 10-15 warm DMs per day is the right dose for this stage.
+
+**Fortune cookie — concept sound, logistics kill it.**
+Fragile item requiring special packaging. Food shipping complexity. Custom fortune insert printing. Cost lands at $6-10 per contractor minimum once cookie + insert + protective packaging + shipping is calculated. With low conversion rates that's an expensive acquisition channel. The core concept (surprising physical object that demands interaction) is right — the vehicle is wrong. Don't pursue.
+
+**Scratch ticket — the winner.**
+Same concept as the fortune cookie, better on every dimension. Everyone scratches a scratch ticket — it's involuntary. Custom scratch tickets print for $0.50-1.50 each in bulk. Envelope + first class stamp = $2-3 total per contractor. 3-5x cheaper than fortune cookies with higher engagement because of the physical interaction mechanic. Design: "YOU WON: 5 Free Booked Jobs Are In Your Future." QR code underneath. ?src=scratch_mail tracking tag. Intake form URL. Clean, memorable, trackable. NOT nationwide — start with the top 100-150 HVAC contractors in Seattle/Bellevue/Tacoma area. Pull mailing addresses from Google Maps (2-3 hours, free). 150 scratch tickets under $400 total. Validate the concept locally before scaling.
+
+**The combination play — scratch ticket + DM follow-up.**
+Scratch ticket arrives Tuesday. Jose DMs them Thursday: "Hey — did you get the scratch card we sent? The 5 free jobs offer is real." The DM is no longer cold — they've already held something physical from Tractify, scratched it, read the offer. It's a warm follow-up to a physical touchpoint. Response rate jumps from ~2% cold to potentially 15-20% warm. Two-touch sequence: physical → digital, both tracked. The scratch ticket makes the DM warm. The DM makes the scratch ticket actionable. Neither works as well alone as both do together. Tag: ?src=scratch_mail on the QR code, ?src=scratch_dm_followup on any link sent in the DM response.
+
 *[Add entries here every time something is tested, a result comes in, a decision is made, or a pattern is spotted. Format: Date — what was tested — what happened — what changed as a result.]*
 
 ---
