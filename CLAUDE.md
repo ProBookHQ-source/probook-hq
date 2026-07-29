@@ -590,6 +590,98 @@ This homeowner has now encountered the same contractor with real reviews across 
 
 ---
 
+#### Trial Delivery Optimization — 5 Jobs Fast at Minimum Cost
+
+The core insight: the cheapest path to 5 jobs isn't optimizing ad spend — it's qualifying contractors so well that organic channels deliver 3-4 jobs for free, and ads only close the last 1-2. This reframes the whole problem. You're not minimizing cost-per-click. You're selecting contractors where the organic machine does the heavy lifting before you touch the budget. Target to work toward once case study data exists: 5 jobs in 7 days for under $500 total spend. At that number the $2,000 setup fee is 4x the cost of delivery and the business is obviously profitable at any scale.
+
+---
+
+**Layer 1 — Filter before deploying (biggest cost lever, costs nothing)**
+
+Before deploying any contractor, run a 3-minute pre-qualification check on Google Maps:
+- 50+ reviews ✓
+- 4.5+ star rating ✓
+- Photos present, GBP listing active with service area set ✓
+- Showing up in top 3 results for "HVAC [city]" ✓
+- Add to intake form: "Roughly how many calls do you miss per week?" — contractor missing 8+/week means missed call text-back alone could produce 2-3 jobs at zero cost
+
+A contractor passing all five: expected organic output is 3-4 jobs free. Ads only need to close 1-2. Total paid spend: $150-300 instead of $1,500. The difference between a $300 trial and a $1,500 trial is entirely determined by who you let in — not how you run the ads.
+
+---
+
+**Layer 2 — Sequence organic channels before ads launch (24-48hr approval window is free time)**
+
+Facebook and Google ads take 24-48 hours to approve. Use that window.
+
+Day 1, first 2 hours — before any ad is live:
+- Activate GBP booking button → highest-intent free traffic starts immediately
+- Google reviewer outreach NOW — message every past reviewer on their Google listing: "Thanks again for the kind review — we now have online booking if you ever need service again: [link]." 20-30 messages. These people already paid them and left 5 stars. Trust is fully established. Could produce 2-3 bookings before a single ad impression runs.
+- Submit Facebook and Google ads for approval simultaneously
+
+Day 1, same day:
+- Missed call text-back live and catching every missed call in real time
+- Nextdoor organic post done (part of checklist)
+- Messenger + Instagram DM auto-reply active
+
+By the time ads approve on Day 2-3, you might already have 2-3 bookings from free channels. Ads only need to close the remaining jobs.
+
+---
+
+**Layer 3 — Ads as finishers, not starters**
+
+Don't open at $300/day. Start at $50-100/day total, let organic run 72 hours, count jobs, then decide how much gas to add:
+- 3 jobs by Day 3 from organic → $50/day closes 2 more
+- 1 job by Day 3 → add $150/day, tighten targeting
+- 0 jobs by Day 3 → contractor profile is the problem, not the ads — reassess before spending more
+
+**Channel priority for job delivery paid ads:**
+
+*Nextdoor first.* Criminally underrated for HVAC. Homeowners on Nextdoor are literally posting "anyone know a good AC guy?" right now. Context is neighbor recommendation, not internet ad. CPCs run $0.50-2.00 vs $5-15 on Google. Conversion rate is higher because trust context is already there. For a suburban contractor in a dense service area, Nextdoor is likely the single cheapest cost-per-booking paid channel available.
+
+*Facebook Lead Ads second.* Not click-to-website — Lead Ads specifically. Form opens inside Facebook, name/email/phone pre-filled from their account, two taps to submit, Tractify texts booking link within 60 seconds. Conversion rate 3-5x higher than landing page because no friction — no page to load, no form to fill. Already built. This is the default homeowner acquisition ad format for job delivery.
+
+*Google Call-Only third.* Captures homeowners at peak intent (actively searching, ready to call). Call goes to contractor's Twilio number → if missed, auto-text fires immediately. The Call-Only ad + missed call text-back is a closed loop that converts even when the contractor doesn't answer.
+
+---
+
+**Layer 4 — Ad creative that costs nothing to produce**
+
+Pull the contractor's actual Google review text into the ad copy. "★★★★★ 'Best HVAC in [City] — showed up same day, AC fixed in an hour.' — Sarah M. | Book online in 60 seconds." Real neighbor social proof in the ad outperforms any copy Jose or Daniel writes. The reviews already exist — this is free creative that converts better than anything you'd pay to produce. On Nextdoor specifically this lands even harder because the homeowner knows Sarah M. might actually be their neighbor.
+
+---
+
+**Layer 5 — Speed up checklist completion = speed up organic output**
+
+Every day a contractor delays completing the checklist is a day the organic channels don't fire. GBP booking button not set up = GBP traffic not converting. Call forwarding not set up = missed call text-back dead.
+
+Two things accelerate completion:
+1. Reframe each step with a concrete expected outcome: "GBP booking button: most contractors get their first booking within 48 hours of completing this step." Make the value of each step undeniable before they read the instructions.
+2. The AI SMS drip calls out the specific stalled step by name: "You haven't set up call forwarding yet — you're probably missing calls right now that are going to your competitors." Not generic nudging — specific, urgent, true.
+
+---
+
+**Layer 6 — Warm outreach parallel track (zero cost, runs alongside ads)**
+
+While ads warm up in Month 1, do targeted direct outreach simultaneously. This is not cold calling — it's pre-qualified warm outreach to contractors already identified as Track 2 material. Search Google Maps for "HVAC [city]," filter for 50+ reviews and 4.5+ stars, reach out to the top 10 with a specific message referencing their actual business:
+
+*"Found you on Google — 70 reviews and 4.8 stars tells me you're already the real deal. I want to get 5 more booked jobs on your calendar this week for free to prove what Tractify does."*
+
+Message is specific to them. Cost is zero. Conversion rate is much higher than cold ad traffic because you're referencing their real business and their actual results. Run this alongside paid ads every week — it finds the best contractors faster than any ad algorithm.
+
+---
+
+**The number to optimize toward**
+
+Cost per delivered trial under $500. At that number:
+- $2,000 setup fee = 4x cost of delivery
+- Every trial is profitable even before the retainer starts
+- The business scales as fast as you can find qualified contractors
+- Case studies from each win reduce contractor acquisition cost going forward
+
+Ask the brain at any time: "Which active contractors are closest to 5 jobs?" and "Which channels are producing bookings fastest?" — it has live data on both.
+
+---
+
 #### Budget Allocation (August)
 
 | Line | Amount | Purpose |
@@ -773,6 +865,9 @@ The compounding effect on Google's algorithm leads directly to full automation. 
 - Phase 3 (15-20 contractors, Google Ads API + Meta Marketing API connected): Brain pulls live campaign data — keyword-level CPA, converting queries, burning ad groups. Makes specific recommendations. Jose approves or ignores. 10 min/week instead of hours.
 - Phase 4 (25+ contractors, guardrails pre-approved): Brain executes automatically within monthly budget cap + CPA threshold Jose sets. Contractor at 4 jobs gets budget spike to close job 5 before Stripe fires. Contractor with dead calendar gets budget pulled + alert to Jose. Google and Facebook budgets rebalanced automatically based on which channel is converting that week.
 Key advantage over Google's own Smart Bidding: brain has context Google doesn't — contractor job count, proximity to Stripe conversion, market profile, channel mix. Brain can say "contractor 8 is 2 jobs from $2,000 setup fee — pour gas on this for 48 hours." Google's algorithm can't make that call. Build Google Ads API integration after Phase 2 data exists to prove the patterns. Connect Meta Marketing API at same time.
+
+**July 28, 2026 — Trial delivery optimization framework locked.**
+Core insight: the cheapest path to 5 jobs isn't minimizing ad spend — it's qualifying contractors so well that organic channels deliver 3-4 jobs free and ads only close the gap. Five layers: (1) Filter before deploy — 3-min GBP check, miss-rate question on intake form. (2) Organic-first sequencing — reviewer outreach and GBP booking button on Day 1 before ads even approve, could produce 2-3 jobs before first ad impression. (3) Ads as finishers — start $50-100/day, count organic jobs at Day 3, only add spend where needed. (4) Channel priority: Nextdoor first (cheapest CPC, highest trust), Facebook Lead Ads second (3-5x conversion vs click-to-website), Google Call-Only third (closed loop with Twilio). (5) Free ad creative: pull contractor's actual Google review text into ad copy — outperforms anything written from scratch. Parallel track: warm outreach to pre-qualified Track 2 contractors on Google Maps alongside paid ads, zero cost, higher conversion than cold traffic. Target: under $500 per delivered trial. At that number the $2,000 setup fee is 4x cost of delivery and the business is profitable at any scale.
 
 **July 28, 2026 — Track 2 omnipresence play locked.**
 When a contractor is identified as Track 2 material (4.5+ stars, 50+ reviews, all 7 channels set up fast), the move is tri-platform paid attack simultaneously: $100/day Facebook, $100/day Google Search + Call-Only, $100/day Nextdoor. Key insight: the 10 channels aren't additive — they create omnipresence in a micro-geography. A homeowner in the service area can't avoid seeing this contractor. Google catches them actively searching. Nextdoor catches them asking neighbors. Facebook interrupts them before they've even started looking. Missed call text-back catches them if they already tried and got no answer. These aren't the same homeowners hit multiple times — they're completely different people caught at completely different moments of intent. Total addressable audience across all channels simultaneously is much larger than any single channel. Math on a winning contractor: organic channels alone produce 2-3 jobs the first week (GBP, Nextdoor post, reviewer outreach, Messenger auto-reply). Paid ads layer on top from day 3. Track 2 contractor result: 5 jobs in 3-5 days at $900-1,500 in ad spend. Contractor converts at $2,000 setup fee — the free trial is profitable before the retainer starts. The case study from that contractor ("5 jobs in 4 days, $6,200 revenue generated, 3 channels") becomes the ad creative that brings in the next ten contractors without additional spend. The flywheel feeds itself.
