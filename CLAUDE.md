@@ -548,6 +548,48 @@ Add the month suffix so you can compare Aug vs Sep performance. When a new creat
 
 ---
 
+#### Track 2 Attack Mode — What to Do When the Brain Identifies a Winner
+
+When a contractor hits all four Track 2 signals (4.5+ Google rating, 50+ reviews, 5+ years in business, active GBP listing) and completes their checklist fast — this is the green light. Execute this sequence immediately, don't wait.
+
+**The 10 channels already running before a dollar is spent:**
+1. Missed call text-back (Twilio) — every missed call → instant booking link SMS
+2. GBP "Book" button — organic search traffic booking directly from Google listing
+3. Nextdoor post — neighborhood trust traffic from setup checklist
+4. Facebook community group post — hyper-local homeowner mid-search traffic
+5. Google reviewer outreach — past customers re-engaged, highest trust possible
+6. Messenger + Instagram DM auto-reply — every inbound social message captured 24/7
+7. SMS keyword / van wrap — inbound texts get booking link automatically
+
+That's 7 automatic channels live before any ad spend. A Track 2 contractor with 80 reviews and an active listing may get 2-3 jobs from these alone in the first week.
+
+**Then layer the tri-platform paid attack ($300/day total):**
+- **Facebook/Instagram — $100/day:** Homeowner lookalike audience in their zip codes. Run Script 1 (missed call) or best-performing creative. Tag: `fb_vid_missedcall_aug`. Facebook approval: 24-48 hours.
+- **Google Search + Call-Only — $100/day:** RSA campaign targeting high-intent keywords in their zip codes. Call-Only campaign using their Twilio number. Tag: `google_search_aug` / `google_call_aug`. Google review: 1-2 days.
+- **Nextdoor — $100/day:** Zip code targeting in their exact service area. Homeowners asking for HVAC recommendations are already on this platform right now. Cheapest high-trust local traffic available.
+
+**What omnipresence looks like for one homeowner in the service area:**
+- Searches "AC repair [city]" on Google → contractor's ad at the top
+- Opens Nextdoor → contractor in neighborhood feed
+- Scrolls Facebook that evening → same contractor, different format
+- Called them two days ago and missed → already has a booking link in their texts
+- Checks Google Maps for reviews → booking button right there
+
+This homeowner has now encountered the same contractor with real reviews across four different contexts. They're not comparing anymore. They're booking.
+
+**Expected timeline for a Track 2 contractor:**
+- Day 1: Deploy. 7 organic channels live. GBP booking button active.
+- Day 1-2: First bookings from GBP + Nextdoor organic + Google reviewer outreach
+- Day 2-3: Facebook and Google ads approved and running
+- Day 3-5: Paid channels producing. Missed calls being caught and converted.
+- Day 3-5: Hit 5 jobs. Stripe fires. $2,000 setup fee collected.
+
+**The math:** $900-1,500 in ad spend to deliver 5 jobs. Contractor converts at $2,000. The free trial is profitable before the retainer even starts. Case study generated automatically from system data becomes the highest-converting ad creative going forward.
+
+**Ask the brain:** "Which active contractors are Track 2 material?" — it cross-references their Google data (from place_id), booking velocity, and checklist completion speed to surface who deserves the full $300/day treatment right now.
+
+---
+
 #### Budget Allocation (August)
 
 | Line | Amount | Purpose |
@@ -731,6 +773,9 @@ The compounding effect on Google's algorithm leads directly to full automation. 
 - Phase 3 (15-20 contractors, Google Ads API + Meta Marketing API connected): Brain pulls live campaign data — keyword-level CPA, converting queries, burning ad groups. Makes specific recommendations. Jose approves or ignores. 10 min/week instead of hours.
 - Phase 4 (25+ contractors, guardrails pre-approved): Brain executes automatically within monthly budget cap + CPA threshold Jose sets. Contractor at 4 jobs gets budget spike to close job 5 before Stripe fires. Contractor with dead calendar gets budget pulled + alert to Jose. Google and Facebook budgets rebalanced automatically based on which channel is converting that week.
 Key advantage over Google's own Smart Bidding: brain has context Google doesn't — contractor job count, proximity to Stripe conversion, market profile, channel mix. Brain can say "contractor 8 is 2 jobs from $2,000 setup fee — pour gas on this for 48 hours." Google's algorithm can't make that call. Build Google Ads API integration after Phase 2 data exists to prove the patterns. Connect Meta Marketing API at same time.
+
+**July 28, 2026 — Track 2 omnipresence play locked.**
+When a contractor is identified as Track 2 material (4.5+ stars, 50+ reviews, all 7 channels set up fast), the move is tri-platform paid attack simultaneously: $100/day Facebook, $100/day Google Search + Call-Only, $100/day Nextdoor. Key insight: the 10 channels aren't additive — they create omnipresence in a micro-geography. A homeowner in the service area can't avoid seeing this contractor. Google catches them actively searching. Nextdoor catches them asking neighbors. Facebook interrupts them before they've even started looking. Missed call text-back catches them if they already tried and got no answer. These aren't the same homeowners hit multiple times — they're completely different people caught at completely different moments of intent. Total addressable audience across all channels simultaneously is much larger than any single channel. Math on a winning contractor: organic channels alone produce 2-3 jobs the first week (GBP, Nextdoor post, reviewer outreach, Messenger auto-reply). Paid ads layer on top from day 3. Track 2 contractor result: 5 jobs in 3-5 days at $900-1,500 in ad spend. Contractor converts at $2,000 setup fee — the free trial is profitable before the retainer starts. The case study from that contractor ("5 jobs in 4 days, $6,200 revenue generated, 3 channels") becomes the ad creative that brings in the next ten contractors without additional spend. The flywheel feeds itself.
 
 *[Add entries here every time something is tested, a result comes in, a decision is made, or a pattern is spotted. Format: Date — what was tested — what happened — what changed as a result.]*
 
