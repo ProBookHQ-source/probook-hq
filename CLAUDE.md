@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 28, 2026 (session 12 final — legal + security hardening complete. Privacy Policy + Terms of Service live at /privacy and /terms. SMS consent disclosure added to both HVAC templates. STOP opt-out added to all homeowner-facing Twilio SMS. Terms acceptance checkbox added to intake-form.html (blocks submit if unchecked). /privacy and /terms routes added to App.jsx. Footer links added to LandingPage.jsx. Rate limiter added to both AI chat endpoints (20 req/15min protects Anthropic bill). Contractor AI chat rate limiter added alongside admin AI. Full security audit passed — no hardcoded secrets, all SQL uses parameterized queries or allowlist validation, Helmet active, Twilio + Facebook webhook signature validation in place, bcrypt on all passwords. Google Places API key in intake-form.html is public by design — restrict to intake.tractifyhq.com in Google Cloud Console as manual step.)*
+*Last updated: July 28, 2026 (session 13 — automation-first model reframe filed: trial delivery must not depend on contractor manual action; ad-sourced contractors are low-commitment at signup; jobs must flow from Jose-controlled channels + automatic system responses; minimum contractor action = 2 things only. Session 12 final — legal + security hardening complete. Privacy Policy + Terms of Service live at /privacy and /terms. SMS consent disclosure added to both HVAC templates. STOP opt-out added to all homeowner-facing Twilio SMS. Terms acceptance checkbox added to intake-form.html (blocks submit if unchecked). /privacy and /terms routes added to App.jsx. Footer links added to LandingPage.jsx. Rate limiter added to both AI chat endpoints (20 req/15min protects Anthropic bill). Contractor AI chat rate limiter added alongside admin AI. Full security audit passed — no hardcoded secrets, all SQL uses parameterized queries or allowlist validation, Helmet active, Twilio + Facebook webhook signature validation in place, bcrypt on all passwords. Google Places API key in intake-form.html is public by design — restrict to intake.tractifyhq.com in Google Cloud Console as manual step.)*
 
 ---
 
@@ -871,6 +871,30 @@ Core insight: the cheapest path to 5 jobs isn't minimizing ad spend — it's qua
 
 **July 28, 2026 — Track 2 omnipresence play locked.**
 When a contractor is identified as Track 2 material (4.5+ stars, 50+ reviews, all 7 channels set up fast), the move is tri-platform paid attack simultaneously: $100/day Facebook, $100/day Google Search + Call-Only, $100/day Nextdoor. Key insight: the 10 channels aren't additive — they create omnipresence in a micro-geography. A homeowner in the service area can't avoid seeing this contractor. Google catches them actively searching. Nextdoor catches them asking neighbors. Facebook interrupts them before they've even started looking. Missed call text-back catches them if they already tried and got no answer. These aren't the same homeowners hit multiple times — they're completely different people caught at completely different moments of intent. Total addressable audience across all channels simultaneously is much larger than any single channel. Math on a winning contractor: organic channels alone produce 2-3 jobs the first week (GBP, Nextdoor post, reviewer outreach, Messenger auto-reply). Paid ads layer on top from day 3. Track 2 contractor result: 5 jobs in 3-5 days at $900-1,500 in ad spend. Contractor converts at $2,000 setup fee — the free trial is profitable before the retainer starts. The case study from that contractor ("5 jobs in 4 days, $6,200 revenue generated, 3 channels") becomes the ad creative that brings in the next ten contractors without additional spend. The flywheel feeds itself.
+
+**July 28, 2026 — Automation-first constraint locked. Critical model reframe.**
+Key insight from brainstorm: the channel strategy that works for contractors who were personally called is NOT the same as what works for contractors who came through an online ad. Ad-sourced contractors are low-commitment at signup — they saw something interesting and filled out a form. Asking them to manually text past customers, dig through missed call logs, post in Facebook groups, or do reviewer outreach causes immediate drop-off. They didn't sign a contract. They're just curious. The moment friction is high, they check out.
+
+The reframe: **Tractify must generate the 5 jobs DESPITE low contractor engagement.** The jobs themselves are what convert curiosity into commitment. You don't earn their attention by asking for effort upfront — you earn it by putting appointments on their calendar before they've done anything.
+
+The minimum contractor action for the system to work:
+1. Confirm their availability — pre-populated from intake form, they just tap confirm
+2. Forward their calls to the Twilio number — 5 minutes, AI walks them through it step by step via SMS
+
+That's it. Two things. Not 8 checklist steps. Everything else is Jose + the system.
+
+What this changes about channel strategy: organic channels that require contractor action (reviewer outreach, Facebook group posting, personal SMS to past customers) are NOT reliable for trial delivery in the first cohort. They're too dependent on contractor follow-through that won't happen at this stage. The reliable channels are ones Jose controls completely (paid ads) and ones that run automatically once Twilio is set up (missed call text-back, abandoned booking follow-up, Facebook Lead Ad webhook). The execution model is: Jose sets up paid ads once per contractor → system converts automatically → contractor shows up for the job. The pitch becomes: "Set your hours, forward your calls. We handle everything else."
+
+What doesn't change: the checklist still exists, the AI SMS still pushes steps, GBP booking button still matters. But trial delivery can't be gated on contractors completing all of it. Jobs have to flow even for a contractor who only completed 2 of 7 steps.
+
+Channels ranked by reliability (no contractor involvement needed):
+1. Facebook Lead Ads (Jose sets up once, runs automatically, webhook converts in 60 seconds)
+2. Google Search + Call-Only (Jose sets up once in MCC, runs automatically, Twilio catches missed calls)
+3. Nextdoor paid ads (Jose sets up once, runs automatically)
+4. Abandoned booking follow-up — system fires 1 hour after form submission with no appointment (needs to be built)
+5. Missed call text-back — automatic once call forwarding is set up (contractor's 1 mandatory action)
+
+Burst spend ($150-200/day across the three paid channels for days 1-3) compresses the trial into 3-5 days instead of 10. Get data fast, optimize fast, close the trial fast. Slow burn is the wrong strategy — speed is what makes the product feel magical.
 
 *[Add entries here every time something is tested, a result comes in, a decision is made, or a pattern is spotted. Format: Date — what was tested — what happened — what changed as a result.]*
 
