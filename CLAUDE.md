@@ -1001,6 +1001,19 @@ Scratch ticket arrives Tuesday. Jose DMs them Thursday: "Hey — did you get the
 **July 29, 2026 — 2-step portal + AI SMS drip architecture locked. SMS copy must be airtight before first real contractor.**
 Contractor portal now shows exactly 2 required steps (confirm availability + call forwarding). Everything else removed from the UI entirely. One line at the bottom: "Everything else is handled by Tractify — you'll get a text as each channel goes live." The AI SMS drip is now the primary onboarding mechanism for all channels beyond the 2 required steps. This is intentional — the SMS drip acts as a filter. Contractors who text back and follow through are the ones worth having. Contractors who ignore three texts self-select out, saving Jose from chasing low-commitment trial contractors. The architecture is correct. The risk: if the SMS copy is generic or low-urgency, engaged contractors still won't act on it. **Before first real contractor goes live, the AI SMS drip messages in `backend/services/smsAI.js` must be rewritten to be specific, urgent, and value-forward.** Each message should name the exact channel, the exact cost of skipping it, and make the action feel like a 60-second win — not a task. Example of wrong: "Your next step is adding your booking link to Google Business Profile." Example of right: "Your Google listing is getting search traffic right now but there's no booking button — homeowners searching 'HVAC near me' can't book you. Takes 60 seconds to fix. Reply YES and I'll send the exact steps." The difference between those two messages is whether someone acts or ignores it. Review and rewrite every drip message in smsAI.js before the first contractor's Twilio number goes live.
 
+**July 30, 2026 — All pre-ad gaps closed. Machine ready for first real contractor.**
+Gap 1 closed: contractor portal now shows 2 required steps only. First-login modal rewritten to "You do 2 things. We handle the rest." Grayed-out 5-step section removed entirely — replaced with single line: "Everything else is handled by Tractify — you'll get a text as each channel goes live." Sidebar badge tracks only the 2 required steps. Setup Help chat panel also scoped to 2 steps. AI branding removed throughout portal ("Assistant" → "Help") — AI is invisible infrastructure, not a feature.
+
+Gap 2 closed: real-time booking alert fires to Jose the instant any homeowner books through any contractor site. Shows contractor, homeowner name + phone, channel, and job progress toward Stripe. 72-hour silence alert fires once when a contractor is live 72+ hours with zero bookings — tells Jose something is broken and gives investigation checklist. Both wired end-to-end: notifications.js → bookings.js → cron.js → db.js migration.
+
+Gap 3 scratched: post-access automation not built. AI SMS drip handles channel setup. Self-filtering is the point.
+
+Gap 4 irrelevant: burst spend model scrapped. New model is organic-first, ads as finishers. No economics risk.
+
+Worker acquisitionSource fix confirmed already working: intake form sends it, Worker passes full payload through, deploy.js saves it. Nothing to fix.
+
+**The funnel is ready. The only thing between now and running ads is Twilio compliance approval (external, waiting) and Stripe (August 4 with Daniel).**
+
 *[Add entries here every time something is tested, a result comes in, a decision is made, or a pattern is spotted. Format: Date — what was tested — what happened — what changed as a result.]*
 
 ---
@@ -2124,7 +2137,7 @@ The brain can't be built all at once. It has to be layered in the right order as
 
 **Remaining — makes the business smarter (build in parallel):**
 - ✅ Booking source tracking — BUILT (session 11). `booking_source` on every appointment. See Planned Features → Section 1 for full details.
-- ✅ Contractor acquisition source tracking — BUILT (session 12). `acquisition_source` on contractors table. Intake form reads `?src=` URL param, passes through Worker to deploy.js INSERT. Admin brain reports which content/ads drove contractor signups. ⚠️ Worker still needs one-line change (see "PICK UP HERE").
+- ✅ Contractor acquisition source tracking — BUILT (session 12). `acquisition_source` on contractors table. Intake form reads `?src=` URL param, passes through Worker to deploy.js INSERT. Admin brain reports which content/ads drove contractor signups. ✅ Worker fix confirmed unnecessary (session 14) — intake form already sends `acquisitionSource` in payload, Worker passes full payload to `/api/deploy`, deploy.js already saves it. End-to-end confirmed working.
 - ✅ Admin AI brain — BUILT (session 12). Floating 🧠 on admin dashboard. Live DB queries: contractor status, channel performance, acquisition sources, stalled alerts, Stripe conversion progress. Ask plain-language questions, get data-backed answers. Files: `backend/routes/adminAI.js`, `frontend/src/pages/AdminDashboard.jsx`.
 - [ ] Contractor dashboard live stats — jobs this month, revenue this month, total all time, next appointment (see Planned Features)
 - [ ] Automatic review request — SMS to homeowner 3 hours after appointment completed (see Planned Features)
@@ -2154,43 +2167,40 @@ Full audit passed. Summary of what was verified:
 
 ## ⚡ PICK UP HERE — First Contractor + Stripe
 
-**Context:** The full data + intelligence layer is live. The admin brain takes actions. Legal and security is airtight. The machine is built end-to-end. Focus is now on getting first real contractor live and converting to paid.
+**Context:** The full data + intelligence layer is live. The admin brain takes actions. Legal and security is airtight. Trial monitoring is live. The machine is built end-to-end and ready for the first real contractor. Focus is now on getting the first real contractor live and converting to paid.
 
 **Waiting on external:** Twilio compliance approval — code is 100% built, zero work left. Once approved: buy local number → set two webhooks in Twilio console → assign in admin dashboard.
 
 ---
 
-### ⚠️ CRITICAL GAPS — Must close BEFORE spending first dollar on ads (filed session 13)
+### ✅ ALL PRE-AD GAPS CLOSED (session 14)
 
-These are not nice-to-haves. A real contractor going through the funnel right now would hit all four of these gaps. Do not run ads into a funnel that isn't ready.
+All four gaps identified session 13 are resolved. The funnel is ready for real contractors and ad spend.
 
-**Gap 1 — Checklist mismatch (highest priority, quick fix)**
-The contractor portal checklist currently shows 7 steps and asks contractors to do all of them. The real model (decided session 13) is: contractor does 2 things (confirm availability + call forwarding), Tractify handles everything else. This is a direct contradiction. Any contractor who logs in tomorrow sees a 7-step checklist that conflicts with the pitch. Fix: update the checklist UI to reflect the 2-thing model for trial contractors. The other steps (GBP button, Messenger, etc.) should be framed as "Tractify will handle this for you" — not tasks for the contractor. This is the fastest gap to close and the most dangerous one to leave open.
+**Gap 1 — Checklist mismatch ✅ FIXED (session 14)**
+Contractor portal now shows exactly 2 required steps (confirm availability + call forwarding). The 5 other channel steps are gone from the UI entirely. Replaced with a single line: "Everything else is handled by Tractify — you'll get a text as each channel goes live." First-login modal rewritten to "You do 2 things. We handle the rest." Sidebar nav badge shows `!` only until those 2 steps are done. AI SMS drip is the onboarding mechanism for all channels beyond step 2.
 
-**Gap 2 — No visibility into trial failure (critical for August)**
-The real-time booking alert to Jose is on the build list but is being underestimated. If a trial contractor's calendar stays empty for 5 days, right now Jose won't know unless he checks the dashboard. That silence is a failed trial that could have been caught and course-corrected. Two alerts are needed: (1) instant email/SMS to Jose the moment any homeowner books during a trial — proof the machine is working, (2) automated alert if a trial contractor has zero bookings after 72 hours — something is broken, investigate immediately. Without these two alerts, August is flying blind. Build this before the first ad runs.
+**Gap 2 — No visibility into trial failure ✅ BUILT (session 14)**
+Two alerts live:
+- **Instant booking alert:** fires to Jose (ADMIN_EMAIL) the moment any homeowner books through any contractor's site. Shows contractor, homeowner name + phone, date/time, channel (booking_source), and job progress ("Job 3 of 5 — 2 more to Stripe"). At job 5 the email says "STRIPE SHOULD FIRE 🚀". Triggered from both `/book` and `/book-direct` routes in `bookings.js`.
+- **72-hour silence alert:** cron job runs every 6 hours. Finds contractors live 72+ hours with zero non-cancelled bookings, fires one email to Jose with investigation checklist. `trial_silence_alert_sent_at` column (added via db.js migration) prevents duplicate alerts.
+- Files changed: `backend/services/notifications.js` (`sendTrialBookingAlertToJose`, `sendTrialSilenceAlertToJose`), `backend/routes/bookings.js` (both booking routes), `backend/services/cron.js` (every-6h silence job), `backend/database/db.js` (migration).
 
-**Gap 3 — Post-access channel automation — SCRATCHED (July 29, session 14)**
-Decision: do not build this. The AI SMS drip handles channel setup by walking contractors through each step themselves via text. The self-filtering this creates is intentional — a contractor who won't text back to paste one URL is not a client Tractify wants. The filter is a feature, not a problem. Lean into it. Make the AI SMS messaging airtight so contractors who are serious follow through completely. GBP API automation is also blocked by Google's 0 QPM quota until API access is approved (requires a verified GBP active 60+ days — get this via first real contractor's listing). Post-access automation is a maybe-future Phase 3 feature — revisit only if manual overhead becomes a real problem at 10+ contractors. Until then: AI SMS drip is the channel setup mechanism. Jose's only per-contractor manual work is Twilio number (5 min) + paid ads (30 min). Everything else is automated or AI SMS-driven.
+**Gap 3 — Post-access channel automation ✅ SCRATCHED (session 14)**
+Decision: do not build this. The AI SMS drip handles channel setup. Self-filtering is intentional — a contractor who won't text back is not a client Tractify wants. GBP API also blocked at 0 QPM until Google approves. Revisit only if manual overhead becomes a real problem at 10+ contractors.
 
-**Gap 4 — Track 1 contractor economics risk**
-The burst ad spend model ($150-200/day) assumes a fast trial (5 jobs in 5 days). This works for Track 2 contractors. If a Track 1 contractor slips through the intake form — lower reviews, weaker GBP, softer market — job 1 might take 2-3 weeks. At $150/day that's $2,000-3,000 in ad spend before a single conversion. The intake form pre-qualification check (50+ reviews, 4.5+ stars, active GBP) is not optional — it's what protects the economics. The brain should flag any contractor who doesn't meet Track 2 criteria before Jose puts real ad spend behind them. If a contractor fails the check, slow-burn or organic-only approach only — no burst spend.
+**Gap 4 — Track 1 contractor economics risk ✅ IRRELEVANT (session 14)**
+Burst ad spend model was scratched. New model: organic channels first, ads as finishers only when signal exists. Economics are naturally protected — no blind $150/day commitment to any contractor. This gap no longer exists.
 
-**The correct sequence before running ads:**
-1. Fix checklist mismatch (Gap 1) — can be done in one session
-2. Build real-time booking alert — both alerts, both triggers (Gap 2)
-3. Build post-access channel automation — GBP API + Facebook Graph API (Gap 3)
-4. Then run ads — with confidence that what comes through the funnel will be handled correctly
+**Worker acquisitionSource fix ✅ CONFIRMED ALREADY WORKING (session 14)**
+Intake form already sends `acquisitionSource` in the submit payload. Worker passes the full JSON payload to `/api/deploy` unchanged. `deploy.js` already reads and saves `data.acquisitionSource` to `contractors.acquisition_source`. End-to-end confirmed. No fix needed.
 
 ---
 
 **Next builds in order:**
-1. **Checklist mismatch fix** — update contractor portal to reflect 2-thing model for trial phase. Other steps reframed as "Tractify handles this."
-2. **Real-time booking alert to Jose** — instant email when booking lands during trial. 72-hour silence alert if no bookings. Add to `notifications.js` + trigger from `bookings.js`. Non-negotiable before ads run.
-3. **Post-access channel automation** — admin dashboard toggles + GBP API (booking button + review replies) + Facebook Graph API (Messenger auto-reply). Saves Jose from per-contractor manual grunt work forever.
-4. **Worker acquisitionSource fix** — one line in `probook-upload-worker/src/index.js` (not in connected folder — Jose does it manually + `npx wrangler deploy`)
-5. **Stripe + job milestone trigger** — August 4 with Daniel. Job 5 fires → Stripe payment page → system marks paid.
-6. **Contractor dashboard live stats** — jobs by source, this month, upcoming. Churn prevention.
+1. **Stripe + job milestone trigger** — August 4 with Daniel. Job 5 fires → Stripe payment page → system marks paid.
+2. **Contractor dashboard live stats** — jobs by source, this month, upcoming. Churn prevention.
+3. **AI SMS drip messaging rewrite** — review and rewrite every drip message in `backend/services/smsAI.js` before first contractor's Twilio number goes live. Each message must name the exact channel, the cost of skipping it, and make the action feel like a 60-second win. See Playbook Log entry July 29 for examples.
 
 ### The admin brain — what it knows + what it can do (built session 12)
 
