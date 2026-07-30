@@ -53,7 +53,8 @@ async function handleContractorSms(contractor, incomingText) {
     db.query(
       `SELECT a.id, a.scheduled_date, a.scheduled_time, a.duration_minutes, a.status, a.notes,
               a.did_close, a.closed_value,
-              l.name as lead_name, l.phone as lead_phone, l.email as lead_email
+              l.name as lead_name, l.phone as lead_phone, l.email as lead_email,
+              l.zip_code as lead_zip, l.description as lead_description
        FROM appointments a
        LEFT JOIN leads l ON a.lead_id = l.id
        WHERE a.contractor_id = $1
@@ -89,8 +90,10 @@ async function handleContractorSms(contractor, incomingText) {
   const apptText = upcomingAppts.length
     ? upcomingAppts.slice(0, 5).map(a => {
         const name = a.lead_name || (a.notes ? 'Blocked' : 'Direct booking');
+        const phone = a.lead_phone ? ` · ${a.lead_phone}` : '';
+        const mapsLink = a.lead_zip ? ` · maps.apple.com/?q=${a.lead_zip}+WA` : '';
         const d = new Date(a.scheduled_date + 'T12:00:00');
-        return `[${a.id}] ${DAYS[d.getDay()]} ${a.scheduled_date} ${fmtTime(a.scheduled_time)} — ${name} (${a.status})`;
+        return `[${a.id}] ${DAYS[d.getDay()]} ${a.scheduled_date} ${fmtTime(a.scheduled_time)} — ${name}${phone}${mapsLink}`;
       }).join('\n')
     : 'No upcoming appointments';
 
@@ -196,7 +199,15 @@ RULES — CRITICAL:
 - If they ask what's next, tell them just the next incomplete step.
 - If all steps done: tell them all channels are live and jobs are coming.
 - Calendar questions: reply with day, time, name — brief and clear.
-- If they reply YES $amount or NO to a check-in about a past job — use log_job_outcome immediately.`;
+- If they reply YES $amount or NO to a check-in about a past job — use log_job_outcome immediately.
+
+CALENDAR RESPONSE FORMAT:
+When they ask about jobs or their schedule, show each job on its own line:
+Time — Service · Name · Phone · maps.apple.com/?q=ZIP+WA
+The map link is tappable and opens navigation. The phone number is tap-to-call.
+Show max 3 jobs. If 4+ say "+ X more not shown."
+Calendar responses may use up to 450 characters — the extra room is only for job lists.
+Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.apple.com/?q=98004+WA"`;
 
   // ── Tools ──────────────────────────────────────────────────────────────────
   const tools = [
@@ -304,6 +315,14 @@ RULES — CRITICAL:
           setTimeout(() => sendCalendarTrainingMessage(contractor, twilioClient).catch(err =>
             console.error('[SMS-AI] Calendar training message failed:', err.message)
           ), 3000);
+          // Capabilities guide fires 9s after main reply so all 3 messages arrive in sequence
+          const capCheck = await db.query('SELECT sms_capabilities_sent FROM contractors WHERE id = $1', [contractorId]);
+          if (!capCheck.rows[0]?.sms_capabilities_sent) {
+            await db.query('UPDATE contractors SET sms_capabilities_sent = 1 WHERE id = $1', [contractorId]);
+            setTimeout(() => sendCapabilitiesGuide(contractor, twilioClient).catch(err =>
+              console.error('[SMS-AI] Capabilities guide failed:', err.message)
+            ), 9000);
+          }
         }
       } catch (err) {
         toolResult = `Error: ${err.message}`;
@@ -482,6 +501,21 @@ async function sendCalendarTrainingMessage(contractor, twilioClient) {
   console.log(`[SMS-AI] Calendar blocking training sent to ${contractor.name} (${contractor.id})`);
 }
 
+// ── Capabilities guide ── fires after both required steps are done ────────────
+// The full "here's everything you can do" message. Makes the SMS interface feel
+// like a superpower they just unlocked. Arrives as a 3rd text after twilio step.
+async function sendCapabilitiesGuide(contractor, twilioClient) {
+  const body = `Here's everything you can do from this number: "jobs today" → your schedule with map links · "block Tue 10am-2pm" → holds that time · "cancel my 3pm Thu" → done, they get a rebook link · "how many jobs this week" → your count. Text me anything, anytime.`;
+
+  await twilioClient.messages.create({
+    to: contractor.phone,
+    from: contractor.twilio_number,
+    body,
+  });
+
+  console.log(`[SMS-AI] Capabilities guide sent to ${contractor.name} (${contractor.id})`);
+}
+
 // ── Post-appointment check-in ── called from cron 30-90 min after appointment ─
 async function sendPostAppointmentText(appointment, contractor, twilioClient) {
   const firstName = (contractor.name || '').split(' ')[0] || 'there';
@@ -563,5 +597,6 @@ module.exports = {
   sendWelcomeText,
   sendPowerMessage,
   sendCalendarTrainingMessage,
+  sendCapabilitiesGuide,
   sendPostAppointmentText,
 };

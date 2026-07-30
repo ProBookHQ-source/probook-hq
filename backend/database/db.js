@@ -205,9 +205,10 @@ async function initialize() {
   // Migration: trial monitoring — tracks when the 72-hour silence alert was sent (prevents dupes)
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS trial_silence_alert_sent_at TIMESTAMPTZ`).catch(() => {});
 
-  // Migration: SMS drip specialty messages — power message + calendar blocking training
+  // Migration: SMS drip specialty messages — power message, calendar blocking training, capabilities guide
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS sms_power_message_sent INTEGER DEFAULT 0`).catch(() => {});
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS sms_calendar_training_sent INTEGER DEFAULT 0`).catch(() => {});
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS sms_capabilities_sent INTEGER DEFAULT 0`).catch(() => {});
 
   // Migration: post-appointment outcome tracking via SMS
   await db.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS did_close INTEGER`).catch(() => {});
