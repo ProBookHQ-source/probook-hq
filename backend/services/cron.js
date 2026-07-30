@@ -173,4 +173,46 @@ cron.schedule('30 * * * *', async () => {
   }
 });
 
-console.log('✅ Cron jobs started (appointment reminders every hour, onboarding nudge daily at 10am, SMS drip hourly at :30)');
+// ── 72-hour silence alert ─────────────────────────────────────────────────────
+// Runs every 6 hours. Finds active trial contractors who have been live for 72+
+// hours with zero confirmed bookings — fires a single email alert to Jose.
+// The column trial_silence_alert_sent_at prevents duplicate alerts.
+cron.schedule('0 */6 * * *', async () => {
+  try {
+    const cutoff72h = new Date(Date.now() - 72 * 3600 * 1000).toISOString();
+
+    const { rows: silent } = await db.query(`
+      SELECT c.id, c.name, c.email, c.company_name, c.booking_slug,
+             c.created_at,
+             EXTRACT(EPOCH FROM (NOW() - c.created_at)) / 3600 AS hours_live
+      FROM contractors c
+      WHERE c.is_active = 1
+        AND c.created_at < $1
+        AND c.trial_silence_alert_sent_at IS NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM appointments a
+          WHERE a.contractor_id = c.id
+            AND a.status != 'cancelled'
+        )
+    `, [cutoff72h]);
+
+    if (!silent.length) return;
+
+    for (const contractor of silent) {
+      try {
+        await notifications.sendTrialSilenceAlertToJose({
+          contractor,
+          hoursSinceDeploy: parseFloat(contractor.hours_live),
+        });
+        await db.query('UPDATE contractors SET trial_silence_alert_sent_at = NOW() WHERE id = $1', [contractor.id]);
+        console.log(`⏰ [cron] 72h silence alert sent — ${contractor.name} (${Math.round(contractor.hours_live)}h live, 0 bookings)`);
+      } catch (err) {
+        console.error(`⏰ [cron] Silence alert failed for ${contractor.id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('⏰ [cron] Silence alert job error:', err.message);
+  }
+});
+
+console.log('✅ Cron jobs started (appointment reminders every hour, onboarding nudge daily at 10am, SMS drip hourly at :30, 72h silence check every 6h)');

@@ -202,6 +202,9 @@ async function initialize() {
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS last_setup_sms_at TIMESTAMPTZ`).catch(() => {});
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS sms_welcome_sent INTEGER DEFAULT 0`).catch(() => {});
 
+  // Migration: trial monitoring — tracks when the 72-hour silence alert was sent (prevents dupes)
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS trial_silence_alert_sent_at TIMESTAMPTZ`).catch(() => {});
+
   // Migration: add metadata + source_site to leads for inbound bridge support
   await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'`).catch(() => {});
   await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS source_site TEXT`).catch(() => {});

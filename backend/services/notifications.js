@@ -959,4 +959,80 @@ async function sendDeployAlertToAdmin({ businessName, contactEmail, siteUrl, con
   await sendEmail(adminTo, `New contractor deployed: ${businessName}`, html);
 }
 
-module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset, sendDirectBookingConfirmation, sendDirectBookingContractorAlert, sendOnboardingNudge, sendContractorWelcomeEmail, sendDeployAlertToAdmin };
+// ── Real-time trial booking alert to Jose ─────────────────────────────────────
+// Fires instantly every time a homeowner books through any contractor's site.
+// { contractor, homeowner: {name, phone?}, date, time, bookingSource, bookingNumber }
+async function sendTrialBookingAlertToJose({ contractor, homeowner, date, time, bookingSource, bookingNumber }) {
+  const adminTo = process.env.ADMIN_EMAIL || 'oiltoheatrebate@gmail.com';
+  const company  = esc(contractor.company_name || contractor.name);
+  const slug     = contractor.booking_slug || '';
+  const siteUrl  = slug ? `https://${slug}.tractifyhq.com` : '';
+  const src      = esc(bookingSource || 'unknown');
+
+  const fmtDateStr = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const fmtTimeStr = fmtTime(time);
+
+  const jobNum = bookingNumber || 1;
+  const remaining = Math.max(0, 5 - jobNum);
+  const progressText = jobNum >= 5
+    ? `<strong style="color:#16a34a;">JOB 5 — STRIPE SHOULD FIRE 🚀</strong>`
+    : `Job <strong>${jobNum}</strong> of 5 — <strong>${remaining}</strong> more to Stripe`;
+
+  const html = emailBase({
+    accentColor: '#16a34a',
+    label: `🎯 JOB ${jobNum} LANDED`,
+    headline: company,
+    sub: `${esc(homeowner.name)} booked ${esc(fmtDateStr)} at ${esc(fmtTimeStr)}`,
+    bodyContent: `
+      <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:20px;">
+        ${infoRow('Contractor', company, true)}
+        ${infoRow('Homeowner', esc(homeowner.name) + (homeowner.phone ? ` &nbsp;·&nbsp; ${esc(homeowner.phone)}` : ''))}
+        ${infoRow('Date / Time', `${esc(fmtDateStr)} at ${esc(fmtTimeStr)}`)}
+        ${infoRow('Channel', `<code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:13px;">${src}</code>`)}
+        ${infoRow('Progress', progressText)}
+      </table>
+      ${jobNum >= 5
+        ? calloutBox('<strong>Job 5 reached — Stripe payment page should have fired.</strong> Confirm the contractor received it and payment was collected.', '#dcfce7', '#16a34a', '#166534')
+        : calloutBox(`<strong>${remaining} more job${remaining === 1 ? '' : 's'}</strong> to the Stripe conversion page. Keep an eye on this one.`, '#eff6ff', '#6366f1', '#3730a3')}
+      ${siteUrl ? ctaBtn(siteUrl, 'View Contractor Site', '#374151') : ''}
+      ${ctaBtn(APP_URL + '/admin', 'Open Admin Dashboard')}
+    `,
+  });
+
+  await sendEmail(adminTo, `🎯 Job ${jobNum}: ${company} — ${esc(homeowner.name)} booked (${src})`, html);
+}
+
+// ── 72-hour silence alert to Jose ─────────────────────────────────────────────
+// Fires once when a trial contractor has been live for 72+ hours with zero bookings.
+// { contractor, hoursSinceDeploy }
+async function sendTrialSilenceAlertToJose({ contractor, hoursSinceDeploy }) {
+  const adminTo  = process.env.ADMIN_EMAIL || 'oiltoheatrebate@gmail.com';
+  const company  = esc(contractor.company_name || contractor.name);
+  const slug     = contractor.booking_slug || '';
+  const siteUrl  = slug ? `https://${slug}.tractifyhq.com` : '';
+  const daysLive = Math.round(hoursSinceDeploy / 24 * 10) / 10;
+
+  const html = emailBase({
+    accentColor: '#f59e0b',
+    label: '⚠️ TRIAL ALERT',
+    headline: `${company} — no bookings yet`,
+    sub: `${daysLive} days live, zero confirmed bookings`,
+    bodyContent: `
+      <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:20px;">
+        ${infoRow('Contractor', company, true)}
+        ${infoRow('Live for', `${daysLive} days (${Math.round(hoursSinceDeploy)} hours)`)}
+        ${infoRow('Bookings', '<strong style="color:#dc2626;">0</strong>')}
+        ${slug ? infoRow('Site', `<a href="${siteUrl}" style="color:#6366f1;">${siteUrl}</a>`) : ''}
+      </table>
+      ${calloutBox(
+        '<strong>Action needed:</strong> Check their availability is set, Twilio is active, and the GBP booking button is live. If paid ads are running, check the campaign. If no ads are running, consider launching them now.',
+        '#fef3c7', '#f59e0b', '#92400e'
+      )}
+      ${ctaBtn(APP_URL + '/admin', 'Open Admin Dashboard')}
+    `,
+  });
+
+  await sendEmail(adminTo, `⚠️ No bookings: ${company} — ${daysLive} days live, zero jobs`, html);
+}
+
+module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset, sendDirectBookingConfirmation, sendDirectBookingContractorAlert, sendOnboardingNudge, sendContractorWelcomeEmail, sendDeployAlertToAdmin, sendTrialBookingAlertToJose, sendTrialSilenceAlertToJose };

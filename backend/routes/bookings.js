@@ -213,6 +213,18 @@ router.post('/book', async (req, res) => {
     cancel_token: cancelToken, reschedule_token: rescheduleToken,
     is_reschedule: bookingToken.source === 'reschedule',
   }).catch(err => console.error('Confirmation email error:', err.message));
+
+  // ── Real-time booking alert to Jose ────────────────────────────────────────
+  db.query('SELECT COUNT(*) AS cnt FROM appointments WHERE contractor_id = $1 AND status != $2',
+    [lead.assigned_contractor_id, 'cancelled'])
+    .then(({ rows }) => notifications.sendTrialBookingAlertToJose({
+      contractor,
+      homeowner: { name: lead.name, phone: lead.phone },
+      date, time,
+      bookingSource: resolvedSource,
+      bookingNumber: parseInt(rows[0].cnt),
+    }))
+    .catch(err => console.error('[Alert] Trial booking alert error:', err.message));
 });
 
 // ── Direct booking (personal booking pages — no lead/token required) ─────────
@@ -331,6 +343,18 @@ router.post('/book-direct', async (req, res) => {
     date, time,
     message: 'Booking confirmed! Check your email for details.',
   });
+
+  // ── Real-time booking alert to Jose ────────────────────────────────────────
+  db.query('SELECT COUNT(*) AS cnt FROM appointments WHERE contractor_id = $1 AND status != $2',
+    [contractor_id, 'cancelled'])
+    .then(({ rows }) => notifications.sendTrialBookingAlertToJose({
+      contractor,
+      homeowner: { name, phone },
+      date, time,
+      bookingSource: booking_source || 'direct',
+      bookingNumber: parseInt(rows[0].cnt),
+    }))
+    .catch(err => console.error('[Alert] Trial booking alert error:', err.message));
 });
 
 // ── Self-service: get cancel info (public) ────────────────────────────────────
