@@ -215,4 +215,69 @@ cron.schedule('0 */6 * * *', async () => {
   }
 });
 
-console.log('✅ Cron jobs started (appointment reminders every hour, onboarding nudge daily at 10am, SMS drip hourly at :30, 72h silence check every 6h)');
+// ── Post-appointment close tracking ──────────────────────────────────────────
+// Runs hourly at :45. Finds confirmed appointments that ended 30-90 minutes ago
+// with no outcome logged yet and a contractor with an active Twilio number.
+// Texts the contractor: "How'd it go? Did the job close? Reply YES $amount or NO."
+cron.schedule('45 * * * *', async () => {
+  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return;
+
+  try {
+    const now = new Date();
+    // Window: 30-90 minutes ago
+    const windowStart = new Date(now - 90 * 60 * 1000);
+    const windowEnd   = new Date(now - 30 * 60 * 1000);
+
+    // Convert to date + time strings for comparison (appointments store TEXT dates/times)
+    const checkDate  = windowEnd.toISOString().slice(0, 10);
+    const checkStart = `${String(windowStart.getHours()).padStart(2, '0')}:${String(windowStart.getMinutes()).padStart(2, '0')}`;
+    const checkEnd   = `${String(windowEnd.getHours()).padStart(2, '0')}:${String(windowEnd.getMinutes()).padStart(2, '0')}`;
+
+    const { rows: appts } = await db.query(`
+      SELECT a.id, a.scheduled_date, a.scheduled_time, a.status,
+             l.name as lead_name,
+             c.id as contractor_id, c.name as contractor_name, c.phone as contractor_phone,
+             c.company_name, c.twilio_number, c.booking_slug, c.sms_welcome_sent
+      FROM appointments a
+      LEFT JOIN leads l ON a.lead_id = l.id
+      JOIN contractors c ON a.contractor_id = c.id
+      WHERE a.scheduled_date = $1
+        AND a.scheduled_time >= $2
+        AND a.scheduled_time <= $3
+        AND a.status IN ('confirmed', 'pending')
+        AND a.did_close IS NULL
+        AND a.post_job_sms_sent_at IS NULL
+        AND a.lead_id IS NOT NULL
+        AND c.twilio_number IS NOT NULL
+        AND c.phone IS NOT NULL
+        AND c.sms_welcome_sent = 1
+    `, [checkDate, checkStart, checkEnd]);
+
+    if (!appts.length) return;
+
+    const twilio = require('twilio');
+    const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    const { sendPostAppointmentText } = require('./smsAI');
+
+    for (const appt of appts) {
+      try {
+        const contractor = {
+          id: appt.contractor_id,
+          name: appt.contractor_name,
+          phone: appt.contractor_phone,
+          company_name: appt.company_name,
+          twilio_number: appt.twilio_number,
+          booking_slug: appt.booking_slug,
+        };
+        await sendPostAppointmentText(appt, contractor, twilioClient);
+        console.log(`⏰ [cron] Post-job check-in sent — appointment ${appt.id} (${appt.contractor_name})`);
+      } catch (err) {
+        console.error(`⏰ [cron] Post-job check-in failed for appointment ${appt.id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('⏰ [cron] Post-job check-in job error:', err.message);
+  }
+});
+
+console.log('✅ Cron jobs started (appointment reminders every hour, onboarding nudge daily at 10am, SMS drip hourly at :30, 72h silence check every 6h, post-job check-in hourly at :45)');
