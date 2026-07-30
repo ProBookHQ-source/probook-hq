@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 30, 2026 (session 14 — GBP API status resolved: OAuth credentials confirmed working — all three stored in Railway env vars as GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GBP_REFRESH_TOKEN (do not store values here). ⚠️ The original GBP_REFRESH_TOKEN was exposed in git commit history (session 14) and must be considered compromised. Before implementing GBP automation: (1) revoke the token at myaccount.google.com → Security → Third-party apps → Tractify GBP → Remove access, (2) generate a fresh token via OAuth Playground, (3) update GBP_REFRESH_TOKEN in Railway. Do not use the existing Railway token for any live GBP API calls. GBP Account Management API blocked at 0 QPM — requires Google approval (60-day verified GBP requirement + application at support.google.com/business/contact/api_default, "Application for Basic API Access", takes 1-4 weeks). Apply now and let it process in background. GBP booking button set manually per contractor in the interim — 2 min per contractor. My Business Reviews API also restricted/private. Post-access GBP automation deferred until Google approves. Manual GBP booking button steps filed below under "Manual GBP Booking Button Setup." Session 13 — automation-first model reframe filed: trial delivery must not depend on contractor manual action; ad-sourced contractors are low-commitment at signup; jobs must flow from Jose-controlled channels + automatic system responses; minimum contractor action = 2 things only. Session 12 final — legal + security hardening complete. Privacy Policy + Terms of Service live at /privacy and /terms. SMS consent disclosure added to both HVAC templates. STOP opt-out added to all homeowner-facing Twilio SMS. Terms acceptance checkbox added to intake-form.html (blocks submit if unchecked). /privacy and /terms routes added to App.jsx. Footer links added to LandingPage.jsx. Rate limiter added to both AI chat endpoints (20 req/15min protects Anthropic bill). Contractor AI chat rate limiter added alongside admin AI. Full security audit passed — no hardcoded secrets, all SQL uses parameterized queries or allowlist validation, Helmet active, Twilio + Facebook webhook signature validation in place, bcrypt on all passwords. Google Places API key in intake-form.html is public by design — restrict to intake.tractifyhq.com in Google Cloud Console as manual step.)*
+*Last updated: July 30, 2026 (session 15 — GBP API status resolved: OAuth credentials confirmed working — all three stored in Railway env vars as GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GBP_REFRESH_TOKEN (do not store values here). ⚠️ The original GBP_REFRESH_TOKEN was exposed in git commit history (session 14) and must be considered compromised. Before implementing GBP automation: (1) revoke the token at myaccount.google.com → Security → Third-party apps → Tractify GBP → Remove access, (2) generate a fresh token via OAuth Playground, (3) update GBP_REFRESH_TOKEN in Railway. Do not use the existing Railway token for any live GBP API calls. GBP Account Management API blocked at 0 QPM — requires Google approval (60-day verified GBP requirement + application at support.google.com/business/contact/api_default, "Application for Basic API Access", takes 1-4 weeks). Apply now and let it process in background. GBP booking button set manually per contractor in the interim — 2 min per contractor. My Business Reviews API also restricted/private. Post-access GBP automation deferred until Google approves. Manual GBP booking button steps filed below under "Manual GBP Booking Button Setup." Session 13 — automation-first model reframe filed: trial delivery must not depend on contractor manual action; ad-sourced contractors are low-commitment at signup; jobs must flow from Jose-controlled channels + automatic system responses; minimum contractor action = 2 things only. Session 12 final — legal + security hardening complete. Privacy Policy + Terms of Service live at /privacy and /terms. SMS consent disclosure added to both HVAC templates. STOP opt-out added to all homeowner-facing Twilio SMS. Terms acceptance checkbox added to intake-form.html (blocks submit if unchecked). /privacy and /terms routes added to App.jsx. Footer links added to LandingPage.jsx. Rate limiter added to both AI chat endpoints (20 req/15min protects Anthropic bill). Contractor AI chat rate limiter added alongside admin AI. Full security audit passed — no hardcoded secrets, all SQL uses parameterized queries or allowlist validation, Helmet active, Twilio + Facebook webhook signature validation in place, bcrypt on all passwords. Google Places API key in intake-form.html is public by design — restrict to intake.tractifyhq.com in Google Cloud Console as manual step.)*
 
 ---
 
@@ -324,37 +324,76 @@ Ad or organic content → contractor fills out intake form at `intake.tractifyhq
 
 ---
 
-## Pricing Strategy (July 21, 2026)
+## Pricing Strategy (Updated July 30, 2026 — session 15)
 
-**The core principle:** Price reflects value delivered, not cost to serve. Costs stay flat. Value to the contractor compounds every month.
+**The core principle:** Price reflects value delivered, not cost to serve. Charge for outcomes, not access.
 
-### Phase 1 — Proving It (First 3-5 clients)
-- **Setup fee:** $2,000 (one-time — covers contractor account setup, API key, Twilio number, channel activation, ad spend to deliver the 5 free jobs)
-- **Actual cost to Tractify per contractor:** ~$1.80 (Twilio number) + selective ad spend. Twilio numbers from non-converting trials are released back to the pool and reused for new contractors.
-- **Retainer:** $800/month
-  - $500 stays in pocket
-  - $300 goes toward paid Facebook/Instagram ad spend for that contractor during active period
-- **Why $800 and not more:** First clients are buying on trust, not proof. Risk feels real to them. $800 is low enough to be an easy yes, high enough to not signal desperation.
+### The Model — Per-Appointment, No Retainer
 
-### Phase 2 — Scaling with Proof (After 3-5 wins)
-- **Retainer:** $1,500-2,000/month
-- Justified by case studies showing real booked jobs and revenue generated
-- At this point you're not selling potential — you're selling documented results
-- Switching cost is also real by now: booking history in your system, customer list integrated, calendar running through Tractify
+**Free trial:** 5 booked jobs, zero cost to contractor. No strings, no commitment.
 
-### Phase 3 — Full Growth Partner (Scale)
-- **Retainer:** $2,000-5,000/month depending on market size and services included
-- Includes: booking site, missed call text-back, paid ads management, broadcast SMS campaigns, seasonal promos
-- At this level you're a contractor's entire marketing arm, not a software vendor
+**After job 5:** $2,000 setup fee (one-time). Covers trial delivery costs — ad spend, Twilio number, all infrastructure built for them. This is payment for results already received, not a commitment to the future.
 
-### The Retainer Growth Logic
-Every month a contractor stays, leaving gets more expensive for them. Their booking history, customer data, availability patterns, and ad performance data all live in Tractify. That compounding lock-in justifies aggressive price increases after the proof phase — not as punishment, but as accurate pricing of a product that's delivering more value over time.
+**Ongoing:** $75 per confirmed booking, auto-billed the moment Stripe processes it. No monthly minimum. No contract. No retainer. They pay for jobs, nothing else.
 
-**Document everything from client one.** Every booked job, every missed call that converted, every text blast result. Screenshots, numbers, before/after. This documentation is the entire sales pitch for every client after the first three.
+**That's the entire model.** One sentence pitch: "We charge $75 per job we book for you. Nothing if we don't deliver."
 
-**Document every result obsessively from day one.** Job delivered, channel it came from, how fast, revenue logged. When the data is clean and the numbers are real, the product sells itself to the next contractor without saying a word. The case study becomes the ad. The machine feeds itself.
+---
 
-**The math at scale:** 10 clients at $1,500/month = $180,000/year. 10 clients at $2,500/month = $300,000/year. With broadcast SMS added as a retainer-justified feature, $3,000+/month per client is realistic for established contractors in large markets.
+### Why Per-Appointment Is the Right Model
+
+**The offer is almost impossible to say no to.** There's no monthly commitment to evaluate, no risk of paying for a slow month, no contract to review. The only question is "do I want more booked jobs?" If yes, they're in. The decision is binary and obvious.
+
+**Incentives are perfectly aligned.** Tractify makes money when contractors make money. Every booked appointment is revenue for both parties simultaneously. No other pricing model achieves this cleanly.
+
+**The economics get insane at scale — and this is the key insight.** At 50 contractors each generating 20 appointments/month: 1,000 appointments × $75 = $75,000/month. At 100 contractors at 30 appointments each: 3,000 × $75 = $225,000/month. And Tractify's cost structure is almost entirely fixed — servers, Twilio, the platform. The marginal cost of booking appointment 1,000 is near zero. Margins compound automatically with volume.
+
+**Individual contractor slow seasons are irrelevant at portfolio scale.** One contractor's slow January is noise when 50 contractors across different markets and specialties are in the portfolio. Seattle's heating season, Phoenix's AC season, a plumber's year-round demand — the portfolio diversifies away individual seasonality completely. Slow season is a single-contractor problem that evaporates at scale.
+
+**Revenue scales with your best performers, not against them.** A contractor getting 40 jobs/month generates $3,000 in Tractify revenue. Show them the monthly results report — "you paid $3,000, we generated $32,000 in new revenue for you, ROI: 10.7x" — and that number is obviously cheap every single month. The math is always visible, the retention is automatic.
+
+**Don't offer a retainer option alongside per-appointment.** Adverse selection kills this. Smart high-volume contractors will always pick the retainer (40 jobs × $75 = $3,000 vs $800 flat). You end up capping revenue from your best performers — exactly the wrong outcome. Per-appointment only. If a high-volume contractor pushes back, that's a custom conversation about volume tiers, not a retainer.
+
+---
+
+### Why $75 and Not $50
+
+$25 per appointment will not affect whether a contractor converts. That decision is made when they watch 5 free jobs appear on their calendar, not when they see the price. But at 500 appointments a month, $25 less is $12,500 left on the table every single month for no reason.
+
+Price reflects value, not cost. A $1,200 HVAC repair job acquired for $75 is already a gift to the contractor. Don't discount a gift before anyone has even asked you to.
+
+$75 also sets the right anchor. It can be discounted as a goodwill gesture or volume incentive later. You cannot easily raise from $50 without a difficult conversation.
+
+**What counts as billable:** confirmed booking, regardless of whether the homeowner shows up or the job closes. Tractify controls booking confirmation. Tractify cannot control homeowner behavior after the booking. This line must be clear in the contract upfront.
+
+---
+
+### The Math That Sells Itself
+
+Show this on every monthly results report, automatically:
+
+| | This Month |
+|---|---|
+| Jobs booked by Tractify | 28 |
+| Estimated revenue generated | $22,400 |
+| Tractify cost | $2,100 |
+| Your ROI | 10.7x |
+
+No contractor cancels when they see this. No contractor negotiates price when they see this. The report IS the retention strategy.
+
+---
+
+### Volume Tiers (Future — When High-Volume Contractors Push Back)
+
+Not part of the launch model. Introduce only when a contractor is generating enough volume that $75/job starts feeling significant relative to their margin. Suggested structure when needed:
+
+- Jobs 1-20/month: $75/job
+- Jobs 21-40/month: $60/job
+- Jobs 41+/month: $50/job
+
+This rewards high-volume contractors without introducing retainer complexity, and keeps per-appointment as the universal model.
+
+**Document every result obsessively from day one.** Job delivered, channel it came from, how fast, revenue logged. When the data is clean and the numbers are real, the product sells itself. The case study becomes the ad. The machine feeds itself.
 
 ---
 
@@ -1124,6 +1163,164 @@ Don't write ad copy from scratch. Pull the contractor's actual Google review tex
 The first case study is: real contractor, real jobs, real timeline, real revenue, real portal screenshot. "Premier Comfort HVAC — deployed Friday. First booking Saturday (missed call). 5 jobs by Tuesday. 4 closed, $6,800 in revenue. Total ad spend: $180." That case study becomes the highest-converting ad creative Tractify will ever run. Every contractor who sees it asks the same question: "why isn't this happening for me?" The machine feeds itself — each win makes the next win cheaper to acquire. That's the generational wealth version of this. Jobs delivered → case study → more contractors → more jobs → better case study → flywheel accelerates.
 
 **The one-sentence summary for every decision in August:** Does this action deliver a booking to a contractor's calendar faster and cheaper? If yes, prioritize it. If no, cut it.
+
+**July 30, 2026 — The 3-way SMS AI attack. The biggest architectural insight in the product so far.**
+
+The contractor AI brain made Tractify's side of the relationship invisible. The homeowner AI brain makes the other side invisible too. When both exist simultaneously, the booking happens entirely on autopilot — while the contractor is on a roof and the homeowner is making lunch. Nobody did anything. The AI closed the job on both ends simultaneously.
+
+**The three brains:**
+- **Brain 1 (built):** Admin brain — Jose's command layer. Sees everything, takes action across the whole system, answers strategy questions with live data.
+- **Brain 2 (built):** Contractor AI SMS — runs the contractor's business via text. Calendar, blocking, job outcomes, setup steps. No login needed. Habit-forming.
+- **Brain 3 (not yet built):** Homeowner AI SMS — books homeowners conversationally over text. No browser, no link, no form. A 4-message exchange that ends with a confirmed appointment and a door-to-door navigation link sent to the contractor.
+
+**The full homeowner AI SMS conversation (what it looks like in production):**
+```
+Contractor misses a call while on a job.
+
+Tractify → homeowner: "Hey! Sorry we missed you at Premier Comfort HVAC. 
+I'm their scheduling assistant — what's the address that needs service?"
+
+Homeowner: "1234 Maple Ave, Bellevue"
+
+AI: "Got it. What's going on — heating, cooling, or something else?"
+
+Homeowner: "AC isn't cooling the house"
+
+AI: "Understood. Mike has openings Tue 10am, Tue 2pm, or Wed 9am. 
+Which works best?"
+
+Homeowner: "Tuesday 2pm"
+
+AI: "You're booked. Mike will be at 1234 Maple Ave Tuesday at 2pm. 
+You'll get a reminder morning of. Reply STOP to opt out."
+```
+Contractor gets an instant booking alert with address + door-to-door Maps link. Job is on the calendar. The contractor was on a rooftop the entire time. Zero human involvement on either side.
+
+**Why this changes every channel's value:**
+The missed call channel stops being a recovery mechanism ("we sent them a link") and becomes the most efficient booking channel in the system. Every channel that gives Tractify a phone number now becomes a full automated booking conversation instead of a link that may or may not get clicked:
+- **Missed call** → homeowner AI books them in 4 messages
+- **Van wrap / SMS keyword** → someone texts the truck's number → same homeowner AI flow
+- **Facebook Lead Ads webhook** → Tractify has their phone immediately → homeowner AI texts them before they've left Facebook → booked
+- **GBP click-to-call** → called, missed → homeowner AI picks it up → booked
+
+Every single channel converges on the same outcome: a confirmed appointment with an address, booked entirely over SMS, with zero browser required.
+
+**The new north star statement:**
+Not just "contractor logs in once, everything after is a text message." The booking happens entirely automatically, on both sides, over text, while the contractor is on a roof and the homeowner is making lunch. The AI closes the deal on both ends simultaneously. Neither party did anything except have a conversation with what felt like a real person.
+
+**This is a category of product that does not exist anywhere else in home services.** Every competitor, when a contractor misses a call, that lead dies. The homeowner calls the next guy. With Brain 3, every missed call is a fully automated booking conversation that closes in minutes. The contractor finds out when they get a notification.
+
+**Technical build — what needs to be created:**
+
+New table `homeowner_sms_sessions`:
+```sql
+id, phone, contractor_id,
+state TEXT -- 'greeting' | 'awaiting_address' | 'awaiting_service' | 'awaiting_slot' | 'confirmed'
+name TEXT, address TEXT, service_description TEXT,
+offered_slots JSONB, -- the 3 slots shown, maps "Tuesday 2pm" to a real datetime
+created_at, updated_at
+```
+
+New file `backend/services/homeownerSmsAI.js`:
+- `handleHomeownerSms(phone, contractorId, incomingText, session)` — Claude Haiku
+- Tools: `fetch_available_slots` (pulls live open slots for next 7 days), `book_appointment` (creates lead + appointment, fires contractor alert)
+- Warm, human tone. Never reveals it's AI. Max 320 chars per message.
+- System prompt knows: contractor name, company, niche (HVAC/plumbing/etc), service area
+
+Routing update in `backend/routes/twilio.js` inbound-sms handler (after contractor detection):
+1. Contractor phone? → contractor AI brain
+2. Active homeowner session for this phone + contractor? → homeowner AI brain
+3. No session but missed-call lead pending for this phone? → start homeowner session
+4. Unknown number → generic: "[Business Name] — reply with your address and we'll get you scheduled."
+
+Missed call webhook update (`/api/twilio/missed-call`):
+- Instead of immediately texting a booking link → start a homeowner SMS session, state = 'greeting'
+- First text: "Hey! Sorry we missed you at [Business Name]. I'm their scheduling assistant — what's the address that needs service?"
+- Create `homeowner_sms_sessions` row with `contractor_id`, `phone`, `state = 'awaiting_address'`
+
+Facebook Lead Ads webhook update (`/api/leads/facebook`):
+- Already has name + phone + email from Facebook
+- Instead of just sending booking link → start homeowner session with name pre-populated, state = 'awaiting_address'
+- First text: "Hey [name]! We got your request. What's the address that needs service?"
+
+Address capture for form-based channels (immediate build, separate from AI flow):
+- Add `address TEXT` to leads table (migration in db.js)
+- Add address field to HVAC template lead form (required)
+- Add address field to Facebook Lead Ads form
+- Add address field to DirectBooking.jsx
+- Show address in booking alert email to contractor + in SMS booking notification
+- Show address in contractor portal appointment view
+- Maps deep link upgrade: `maps.apple.com/?daddr=ADDRESS+CITY+STATE` (door-to-door navigation, not ZIP-level)
+
+**The data that Brain 3 generates — why it compounds:**
+Every homeowner conversation that Brain 3 has gets logged. Over time, Tractify knows:
+- Which opening message gets the highest response rate
+- Which service questions convert best
+- How many messages it takes to close a booking on average per channel
+- Which time slots get picked most (helps with availability optimization suggestions to contractors)
+- Homeowner phone numbers that have booked before → recognized and greeted differently on re-contact
+
+This is homeowner behavioral data no competitor has because no competitor is running conversations with homeowners at this level. It feeds back into the admin brain and makes every future homeowner interaction smarter.
+
+**Build order:**
+1. Address field — form + DB + contractor notifications (20 min, closes the immediate gap)
+2. `homeowner_sms_sessions` table + `homeownerSmsAI.js` base (1 session)
+3. Update missed call webhook to start homeowner session instead of sending link
+4. Update Facebook Lead Ads webhook to start homeowner session
+5. Update inbound-sms routing to detect and route homeowner conversations
+6. Test end-to-end: miss a call → homeowner AI converses → appointment appears on calendar
+
+**July 30, 2026 — Ad strategy reframe. The single point of failure gets its answer.**
+
+The single point of failure for Tractify has always been the same question: can we actually deliver jobs? Not deploy sites, not build channels, not automate setup — actually get booked appointments onto a contractor's calendar fast enough to matter. Everything in the business lives or dies on this.
+
+Brain 3 (homeowner AI SMS) directly attacks this in the simplest and most aggressive way possible. And it changes the ad strategy completely.
+
+**The old ad goal:** Get a homeowner to click a link → land on a page → fill out a form → navigate a calendar → book a slot. Five steps, drop-off at every single one. The creative had to carry the full weight of converting someone all the way through. Expensive, fragile, hard to scale.
+
+**The new ad goal:** Get a phone number or a call. That's it. One step. Brain 3 handles everything after.
+
+- Facebook Lead Ad → two pre-filled fields, they tap submit → Brain 3 texts them immediately, books them in 4 messages
+- Google Call-Only ad → they tap, call rings, contractor misses it → Brain 3 catches it, books them in 4 messages  
+- Nextdoor ad → they call or text → Brain 3 catches it, books them
+- Van wrap, business card, fridge magnet → they text the number → Brain 3 books them
+
+The ad's only job is to get them to raise their hand. Brain 3 converts. Which means:
+- Ad creative gets simpler (just get the number or call, nothing else)
+- Targeting gets broader (don't need someone ready to navigate a booking calendar, just someone who needs HVAC)
+- Cost per lead goes down (removed all friction from the conversion path)
+- Cost per booked job drops dramatically
+
+**The call-only ad insight — the contractor's biggest weakness becomes the trigger:**
+
+Call-Only ads on Google have always had a reputation for bad ROI in home services because contractors miss calls constantly — on rooftops, under houses, can't answer. The ROI looks bad when half the calls go to voicemail. Every competitor treats missed calls as a weakness to minimize.
+
+Tractify flips it. A missed call is now the best possible outcome. Brain 3 catches every single one and opens a booking conversation in seconds. You can run Call-Only ads knowing the contractor will miss most calls and still have the best conversion rate of any channel — because the miss is the trigger, not the failure.
+
+This is not a workaround. It's a structural competitive advantage built on the fact that contractors miss calls. The more calls they miss, the more Brain 3 works. You're not fighting that reality. You're weaponizing it.
+
+**What this does to job delivery math:**
+
+A contractor missing 10 calls per week (normal for an active HVAC contractor) is now 10 homeowner AI conversations happening automatically. At 30% close rate: 3 extra booked jobs per week from a channel that was previously dead. That's on top of everything else — GBP, Nextdoor, Facebook, reviewer outreach.
+
+At 20 contractors, Brain 3 is having 200 homeowner conversations per week. 60 bookings. Zero human involvement from Tractify. The jobs compound automatically as contractors get busier and miss more calls.
+
+**The simplest description of what Tractify does now:**
+
+Jose finds homeowners who need the service. Gets their phone number or gets them to call. Brain 3 books them. Contractor shows up. Every part of that sentence is as simple as it sounds. The sophistication is invisible.
+
+**The lead channel priority with Brain 3 active:**
+
+1. Call-Only Google ads → contractor misses → Brain 3 books (highest intent: actively searching, ready to hire right now)
+2. Facebook Lead Ads → pre-filled form, they submit → Brain 3 books immediately (frictionless, catches them while still in buying mode)
+3. Missed calls from any source → Brain 3 books (zero additional ad spend, pure conversion improvement)
+4. SMS keyword / van wrap → they text → Brain 3 books (long-tail, compounds forever)
+
+Every single one of these channels converges on the same outcome: homeowner AI has a 4-message conversation, job is on the calendar, contractor gets a notification with the address and a Maps link. The channel complexity is Tractify's problem, not the contractor's and not the homeowner's.
+
+**Why none of this gets lost:**
+
+The 3-way SMS AI attack answers the make-or-break question (can we deliver jobs?) with something so simple it's almost offensive: get their number, let Brain 3 talk to them. That's it. Every session from here forward starts with that as the baseline assumption — not "how do we get homeowners to a booking page" but "how do we get their number so Brain 3 can close them." The ad strategy, the channel strategy, and the job delivery strategy all collapse into one thing.
 
 ---
 
