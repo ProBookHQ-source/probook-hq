@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 29, 2026 (session 14 — GBP API status resolved: OAuth credentials confirmed working — all three stored in Railway env vars as GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GBP_REFRESH_TOKEN (do not store values here). ⚠️ The original GBP_REFRESH_TOKEN was exposed in git commit history (session 14) and must be considered compromised. Before implementing GBP automation: (1) revoke the token at myaccount.google.com → Security → Third-party apps → Tractify GBP → Remove access, (2) generate a fresh token via OAuth Playground, (3) update GBP_REFRESH_TOKEN in Railway. Do not use the existing Railway token for any live GBP API calls. GBP Account Management API blocked at 0 QPM — requires Google approval (60-day verified GBP requirement + application at support.google.com/business/contact/api_default, "Application for Basic API Access", takes 1-4 weeks). Apply now and let it process in background. GBP booking button set manually per contractor in the interim — 2 min per contractor. My Business Reviews API also restricted/private. Post-access GBP automation deferred until Google approves. Manual GBP booking button steps filed below under "Manual GBP Booking Button Setup." Session 13 — automation-first model reframe filed: trial delivery must not depend on contractor manual action; ad-sourced contractors are low-commitment at signup; jobs must flow from Jose-controlled channels + automatic system responses; minimum contractor action = 2 things only. Session 12 final — legal + security hardening complete. Privacy Policy + Terms of Service live at /privacy and /terms. SMS consent disclosure added to both HVAC templates. STOP opt-out added to all homeowner-facing Twilio SMS. Terms acceptance checkbox added to intake-form.html (blocks submit if unchecked). /privacy and /terms routes added to App.jsx. Footer links added to LandingPage.jsx. Rate limiter added to both AI chat endpoints (20 req/15min protects Anthropic bill). Contractor AI chat rate limiter added alongside admin AI. Full security audit passed — no hardcoded secrets, all SQL uses parameterized queries or allowlist validation, Helmet active, Twilio + Facebook webhook signature validation in place, bcrypt on all passwords. Google Places API key in intake-form.html is public by design — restrict to intake.tractifyhq.com in Google Cloud Console as manual step.)*
+*Last updated: July 30, 2026 (session 14 — GBP API status resolved: OAuth credentials confirmed working — all three stored in Railway env vars as GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GBP_REFRESH_TOKEN (do not store values here). ⚠️ The original GBP_REFRESH_TOKEN was exposed in git commit history (session 14) and must be considered compromised. Before implementing GBP automation: (1) revoke the token at myaccount.google.com → Security → Third-party apps → Tractify GBP → Remove access, (2) generate a fresh token via OAuth Playground, (3) update GBP_REFRESH_TOKEN in Railway. Do not use the existing Railway token for any live GBP API calls. GBP Account Management API blocked at 0 QPM — requires Google approval (60-day verified GBP requirement + application at support.google.com/business/contact/api_default, "Application for Basic API Access", takes 1-4 weeks). Apply now and let it process in background. GBP booking button set manually per contractor in the interim — 2 min per contractor. My Business Reviews API also restricted/private. Post-access GBP automation deferred until Google approves. Manual GBP booking button steps filed below under "Manual GBP Booking Button Setup." Session 13 — automation-first model reframe filed: trial delivery must not depend on contractor manual action; ad-sourced contractors are low-commitment at signup; jobs must flow from Jose-controlled channels + automatic system responses; minimum contractor action = 2 things only. Session 12 final — legal + security hardening complete. Privacy Policy + Terms of Service live at /privacy and /terms. SMS consent disclosure added to both HVAC templates. STOP opt-out added to all homeowner-facing Twilio SMS. Terms acceptance checkbox added to intake-form.html (blocks submit if unchecked). /privacy and /terms routes added to App.jsx. Footer links added to LandingPage.jsx. Rate limiter added to both AI chat endpoints (20 req/15min protects Anthropic bill). Contractor AI chat rate limiter added alongside admin AI. Full security audit passed — no hardcoded secrets, all SQL uses parameterized queries or allowlist validation, Helmet active, Twilio + Facebook webhook signature validation in place, bcrypt on all passwords. Google Places API key in intake-form.html is public by design — restrict to intake.tractifyhq.com in Google Cloud Console as manual step.)*
 
 ---
 
@@ -1034,6 +1034,96 @@ The drip as designed treats itself as a 7-step onboarding tool that ends when se
 **Architectural shift:** drip goes from onboarding tool (7 steps, then silence) to permanent business interface (3 phases: activation → orientation → ongoing loop). A contractor texting Tractify daily never cancels. Leaving means losing the business assistant in their texts. That retention story is completely different from "losing a booking website."
 
 *[Add entries here every time something is tested, a result comes in, a decision is made, or a pattern is spotted. Format: Date — what was tested — what happened — what changed as a result.]*
+
+**July 30, 2026 — Job acquisition framework locked. The make-or-break strategic question answered.**
+
+The single thing that determines whether Tractify wins or loses is whether the machine delivers 5 jobs in 7-10 days for each trial contractor. Everything else is infrastructure for that moment. This entry is the complete framework for making that happen reliably and cheaply.
+
+**The core insight:** Homeowners need HVAC service every single day regardless of what Tractify does. Right now in Seattle someone's AC is broken. They will hire someone today. The question is never "how do we create demand" — demand exists. The question is: can Tractify put the right contractor in front of that homeowner at the exact moment they're ready to hire, faster and more frictionlessly than any alternative?
+
+**The intent ladder — rank every channel against this before spending a dollar:**
+
+Level 1 — Emergency/immediate need: AC broke right now, no heat. Will hire the first person who responds. Conversion near 100% if responded to in under 5 minutes.
+
+Level 2 — Active search: Typing "AC repair near me" into Google right now. Ready to hire within hours.
+
+Level 3 — Passive consideration: Thinking about a tune-up, saw an ad, not urgent but willing to book.
+
+Level 4 — Unaware: Has no idea they need HVAC work yet. Seasonal campaigns and retargeting live here.
+
+Strategy: exhaust levels 1 and 2 completely before spending a dollar on 3 and 4. Most ad spend mistakes come from going to 3 and 4 before 1 and 2 are saturated.
+
+**Channel rankings — by probability of producing a booking in 7 days:**
+
+1. **Missed call text-back (Level 1 — highest ROI channel that exists).** Homeowner already called. Highest intent possible. 0 cost per conversion after Twilio setup. A contractor missing 8-10 calls/week has 8-10 Level 1 leads going to competitors every week. 30% conversion through text-back = 2-3 bookings per week at zero ad spend. Key variable: does this contractor miss calls? If answer is 0-1 per week, this channel is weak. If answer is "constantly," this alone could deliver all 5 jobs. Ask on intake form: "How many calls do you miss per week?"
+
+2. **GBP booking button (Level 2 — highest-intent free traffic).** Someone searching "HVAC near me" and clicking on the listing is ready to hire. Adding the booking button converts existing organic search traffic that's already there. A contractor with 80 reviews and 4.8 stars in a suburban market gets meaningful GBP traffic every day. Day-one activation, not week-two. Zero cost. Could produce 1-2 bookings before any paid channel runs.
+
+3. **Past Google reviewer outreach (Level 2 — warmest possible re-engagement).** Contractor's past customers who left 5-star reviews. Pre-written message sent directly through Google. These people already trust the contractor, already paid them, already had a good enough experience to leave public endorsement. A contractor with 60 reviews has 60 warm leads. 5-10% response rate = 3-6 potential bookings at zero cost. Can fire before ads are even submitted for approval. Message: "Hey [name] — thanks again for the kind review. We now have online booking if you ever need service again or know anyone who does: [link]." Bookings possible in 24-48 hours.
+
+4. **Facebook Lead Ads targeting local homeowners (Level 2-3 — fastest paid channel).** Pre-filled form inside Facebook, two taps to submit, Tractify texts booking link in 60 seconds. No landing page. 3-5x higher conversion than click-to-website ads. The creative that converts best: pull the contractor's actual Google review text directly into the ad copy. "★★★★★ 'Fixed our AC same day, price was fair, showed up on time.' — Sarah M., Bellevue | Book [Contractor Name] in 60 seconds." Real reviewer's words in the ad. Free to produce. Outperforms any copywritten creative. Missed call angle also works: "HVAC contractors miss calls constantly — they're on rooftops, under houses. [Contractor Name] now has online booking so you don't have to play phone tag." Reframes the contractor's weakness as a feature.
+
+5. **Google Search Ads (Level 2 — highest-intent paid traffic, slower to warm).** Someone typing "AC repair Bellevue" has maximum buying intent. Click goes to Tractify site, inline booking, appointment confirmed in 60 seconds. Tractify's conversion advantage over every competitor: their ad sends homeowners to a phone number or contact form → wait for callback. Tractify's ad sends them to a live calendar where they book a confirmed appointment immediately. The conversion rate difference is massive. Downside: 1-2 days to approve, Smart Bidding takes 14 days and 30 conversions to optimize. Don't judge Google performance before day 14. Exact match and phrase match only — never broad match (burns budget on DIY/how-to/parts/training traffic). Negative keywords on day 1: DIY, how to, parts, school, training, salary, jobs, careers, YouTube. High-intent keywords: "AC repair [city]", "HVAC near me", "furnace not working [city]", "[brand] AC repair" (brand-specific = they have the unit and need it fixed).
+
+6. **Nextdoor (Level 2-3 — neighbor trust context).** Homeowners on Nextdoor are actively posting "anyone know a good AC guy?" CPCs $0.50-2.00 vs $5-15 on Google. Conversion rate higher because trust context is already established (neighbor recommendation). Best as a support channel during trials, not primary driver — conversion timeline less predictable for 7-day delivery windows. Gets more powerful as more contractors accumulate reviews from the same neighborhoods.
+
+**The 7-day sequence that delivers 5 jobs:**
+
+Day 1 (before any ad is live):
+- Twilio number assigned, call forwarding set up → missed call text-back live immediately
+- GBP booking button added → free search traffic converting from minute one
+- Reviewer outreach messages sent → 2-3 potential warm bookings in 24 hours
+- Facebook Lead Ad submitted for approval (24-48 hours)
+- Google Search campaign submitted for approval (1-2 days)
+
+Day 2-3 (ads approve):
+- Facebook Lead Ad running at $20/day, Google Search at $15/day
+- Missed calls being caught and converted automatically
+- GBP organic producing
+
+Day 3-5 (bookings accumulate):
+- Qualified contractor (50+ reviews, active market) should have 2-3 from organic by now
+- Paid channels adding 1-2 more
+- At job 3: milestone email fires to contractor with their own numbers
+- At job 5: Stripe payment page fires
+
+Total spend to deliver 5 jobs on a qualified contractor: $200-400. Setup fee is $2,000. That's 5-10x return before the retainer even starts.
+
+**The qualification filter — the single biggest lever in the entire business:**
+
+The difference between a $300 trial and a $1,500 trial isn't the ad creative or the budget. It's who was deployed. The 3-minute pre-qualification check before any contractor goes live:
+- 50+ Google reviews ✓
+- 4.5+ star rating ✓
+- GBP listing showing up in top 3 for "HVAC [city]" ✓
+- Active call volume (5+ missed calls per week) ✓
+- 5+ years in business ✓
+
+A contractor who passes all five has existing demand the current system is failing to capture. Tractify is the capture mechanism. The demand already exists — you're routing it, not creating it.
+
+A contractor who fails most of these: jobs take 3-4 weeks, ad spend to deliver 5 jobs is $1,500+, unit economics break down. The intake form must surface these signals. The brain must refuse to authorize real ad spend behind a contractor who doesn't pass the filter.
+
+**The 72-hour organic test before committing ad budget:**
+
+Don't open at $150/day. Let organic channels run for 72 hours first.
+- 2-3 jobs by Day 3 from organic → small burst ($50/day) to close the remaining 2
+- 1 job by Day 3 → add $100/day, tighten targeting
+- 0 jobs by Day 3 → contractor profile is the problem, not the ads. Diagnose before spending more. The 72-hour silence alert built in session 14 is the early warning system for exactly this.
+
+The organic channels are the qualification test. If GBP + missed call text-back + reviewer outreach don't produce 1 booking in 72 hours, ads will struggle too — the fundamental problem is insufficient market presence. Ads can amplify demand, they cannot create it where none exists.
+
+**The failure mode that kills this:**
+
+Running real ad spend ($150+/day) into an unqualified contractor before the organic channels have signaled. You can spend $2,000 and deliver zero jobs on a contractor with 8 reviews in a weak market. That's not a product failure — it's a deployment failure. The qualification filter and the 72-hour organic test are the protection mechanisms. Use them without exception.
+
+**The creative formula that actually converts:**
+
+Don't write ad copy from scratch. Pull the contractor's actual Google review text into the ad. "★★★★★ 'Best HVAC in [City] — showed up same day, AC fixed in an hour.' — Sarah M." This is free to produce, impossible to fake, and outperforms anything written by a copywriter. The reviewer might be the homeowner's neighbor. On Nextdoor this lands even harder for exactly that reason. Every contractor with 50+ reviews has dozens of ready-made ad creatives sitting in their Google listing.
+
+**The compounding flywheel — why the first case study changes everything:**
+
+The first case study is: real contractor, real jobs, real timeline, real revenue, real portal screenshot. "Premier Comfort HVAC — deployed Friday. First booking Saturday (missed call). 5 jobs by Tuesday. 4 closed, $6,800 in revenue. Total ad spend: $180." That case study becomes the highest-converting ad creative Tractify will ever run. Every contractor who sees it asks the same question: "why isn't this happening for me?" The machine feeds itself — each win makes the next win cheaper to acquire. That's the generational wealth version of this. Jobs delivered → case study → more contractors → more jobs → better case study → flywheel accelerates.
+
+**The one-sentence summary for every decision in August:** Does this action deliver a booking to a contractor's calendar faster and cheaper? If yes, prioritize it. If no, cut it.
 
 ---
 
