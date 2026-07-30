@@ -834,14 +834,15 @@ export default function ContractorPortal() {
 
   const completedStepCount = ONBOARDING_STEPS.filter(s => onboardingSteps[s.key]).length;
   const allStepsDone = completedStepCount === ONBOARDING_STEPS.length;
+  const requiredStepsDone = ['availability', 'twilio'].every(k => !!onboardingSteps[k]);
 
   // ── Sidebar nav items ──────────────────────────────────────────────────────
   const NAV = [
     { id: 'home',         label: 'Home',        icon: Home,           badge: todayCount || null },
     { id: 'calendar',     label: 'Calendar',    icon: Calendar,       badge: null },
     { id: 'availability', label: 'My Schedule', icon: Clock,          badge: null },
-    { id: 'assistant',    label: 'Assistant',   icon: MessageSquare,  badge: null },
-    { id: 'setup',        label: 'Setup',       icon: ListChecks,     badge: allStepsDone ? null : `${completedStepCount}/${ONBOARDING_STEPS.length}` },
+    { id: 'assistant',    label: 'Help',        icon: MessageSquare,  badge: null },
+    { id: 'setup',        label: 'Setup',       icon: ListChecks,     badge: requiredStepsDone ? null : '!' },
     { id: 'settings',     label: 'Settings',    icon: Settings,       badge: null },
   ];
 
@@ -1694,23 +1695,38 @@ export default function ContractorPortal() {
                 <img src="/probook-icon-128.png" alt="Tractify" className="w-8 h-8 rounded-xl shadow-sm" />
                 <span className="font-bold text-gray-900 text-lg tracking-tight">Tractify</span>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">You're almost live!</h2>
-              <p className="text-gray-500 mb-6 leading-relaxed">
-                Complete {ONBOARDING_STEPS.length} quick setup steps to activate all your booking channels.
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">You do 2 things.<br />We handle the rest.</h2>
+              <p className="text-gray-500 mb-6 leading-relaxed text-sm">
+                Jobs start appearing on your calendar automatically once these two steps are done.
               </p>
-              <div className="space-y-2 text-left mb-8">
-                {ONBOARDING_STEPS.map((s, i) => (
-                  <div key={s.key} className="flex items-center gap-3 px-4 py-2.5 bg-gray-50 rounded-xl">
+
+              {/* Required: 2 steps */}
+              <div className="space-y-2 text-left mb-4">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">You do these</p>
+                {ONBOARDING_STEPS.filter(s => s.key === 'availability' || s.key === 'twilio').map(s => (
+                  <div key={s.key} className="flex items-center gap-3 px-4 py-3 bg-brand-50 border border-brand-100 rounded-xl">
                     <span className="text-lg">{s.icon}</span>
-                    <span className="text-sm font-medium text-gray-700">{s.label}</span>
+                    <span className="text-sm font-semibold text-brand-900">{s.label}</span>
                   </div>
                 ))}
               </div>
+
+              {/* Tractify handles */}
+              <div className="space-y-1.5 text-left mb-7">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">We handle these</p>
+                {ONBOARDING_STEPS.filter(s => s.key !== 'availability' && s.key !== 'twilio').map(s => (
+                  <div key={s.key} className="flex items-center gap-3 px-4 py-2.5 bg-gray-50 rounded-xl">
+                    <span className="text-base">{s.icon}</span>
+                    <span className="text-sm text-gray-500">{s.label}</span>
+                  </div>
+                ))}
+              </div>
+
               <button
                 onClick={() => { setShowOnboardingModal(false); setTab('setup'); }}
                 className="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-sm text-base"
               >
-                Start Setup →
+                Complete My 2 Steps →
               </button>
               <button
                 onClick={() => setShowOnboardingModal(false)}
@@ -1731,36 +1747,171 @@ export default function ContractorPortal() {
 
               {/* Header */}
               <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Setup Checklist</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Setup</h1>
                 <p className="text-gray-400 text-sm mt-1">
-                  Complete all {ONBOARDING_STEPS.length} steps to activate your booking channels and start getting jobs.
+                  You do 2 things. We handle everything else.
                 </p>
               </div>
 
-              {/* Progress bar */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-semibold text-gray-700">{completedStepCount} of {ONBOARDING_STEPS.length} steps complete</span>
-                  {allStepsDone && (
-                    <span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">All done! 🎉</span>
-                  )}
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-2.5">
-                  <div
-                    className="bg-brand-500 h-2.5 rounded-full transition-all duration-500"
-                    style={{ width: `${(completedStepCount / ONBOARDING_STEPS.length) * 100}%` }}
-                  />
-                </div>
-                {allStepsDone && (
-                  <p className="text-sm text-gray-500 mt-3 text-center">
-                    All channels are live. Jobs are on their way — check your calendar.
-                  </p>
-                )}
+              {/* Required steps progress */}
+              {(() => {
+                const requiredKeys = ['availability', 'twilio'];
+                const requiredDone = requiredKeys.filter(k => !!onboardingSteps[k]).length;
+                const requiredComplete = requiredDone === requiredKeys.length;
+                return (
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-semibold text-gray-700">
+                        {requiredComplete ? 'Required setup complete!' : `${requiredDone} of 2 required steps done`}
+                      </span>
+                      {requiredComplete && (
+                        <span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">Live! 🎉</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2.5">
+                      <div
+                        className="bg-brand-500 h-2.5 rounded-full transition-all duration-500"
+                        style={{ width: `${(requiredDone / 2) * 100}%` }}
+                      />
+                    </div>
+                    {requiredComplete && (
+                      <p className="text-sm text-gray-500 mt-3 text-center">
+                        Your booking pipeline is live. Jobs are on their way — check your calendar.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Required Steps */}
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">You do these (required)</p>
+              <div className="space-y-3 mb-8">
+                {ONBOARDING_STEPS.filter(s => s.key === 'availability' || s.key === 'twilio').map((step, i) => {
+                  const done = !!onboardingSteps[step.key];
+                  const isOpen = expandedStep === step.key;
+                  return (
+                    <div key={step.key} className={`bg-white rounded-2xl border transition-all shadow-sm ${done ? 'border-green-200' : 'border-brand-200'}`}>
+                      {/* Step header */}
+                      <button
+                        onClick={() => setExpandedStep(isOpen ? null : step.key)}
+                        className="w-full flex items-center gap-4 px-5 py-4 text-left"
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${
+                          done ? 'bg-green-100 text-green-600' : 'bg-brand-100 text-brand-600'
+                        }`}>
+                          {done ? <CheckCircle className="w-5 h-5" /> : i + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-semibold text-sm ${done ? 'text-green-700' : 'text-gray-900'}`}>
+                            <span className="mr-2">{step.icon}</span>{step.label}
+                          </p>
+                        </div>
+                        {!done && <span className="text-xs font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full shrink-0">Required</span>}
+                        <ChevronDown className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {/* Expanded content */}
+                      {isOpen && (
+                        <div className="px-5 pb-5 border-t border-gray-50 pt-4 space-y-4">
+                          {step.why && (
+                            <div className="flex gap-3 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+                              <span className="text-amber-500 shrink-0 mt-0.5">💡</span>
+                              <p className="text-sm text-amber-900 leading-relaxed font-medium">{step.why}</p>
+                            </div>
+                          )}
+                          <p className="text-sm text-gray-600 leading-relaxed">{step.description}</p>
+                          {step.instructions?.map(inst => (
+                            <div key={inst.platform} className="bg-gray-50 rounded-xl px-4 py-3">
+                              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{inst.platform}</p>
+                              <p className="text-sm text-gray-700 leading-relaxed">{inst.steps}</p>
+                            </div>
+                          ))}
+                          {step.copyText && (
+                            <div className="bg-brand-50 border border-brand-100 rounded-xl px-4 py-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs font-bold text-brand-600 uppercase tracking-wide">Copy & paste</p>
+                                <button
+                                  onClick={() => { navigator.clipboard.writeText(step.copyText); toast.success('Copied!'); }}
+                                  className="flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700 bg-white px-2 py-1 rounded-lg border border-brand-200 transition-all"
+                                >
+                                  <Copy className="w-3 h-3" /> Copy
+                                </button>
+                              </div>
+                              <p className="text-sm text-gray-700 leading-relaxed break-words">{step.copyText}</p>
+                            </div>
+                          )}
+                          {step.action && (
+                            <button
+                              onClick={step.action.onClick}
+                              className="inline-flex items-center gap-2 text-sm font-semibold text-brand-600 hover:text-brand-700"
+                            >
+                              {step.action.label}
+                            </button>
+                          )}
+                          {/* Twilio live test */}
+                          {step.key === 'twilio' && contractorProfile?.twilio_number && !done && (
+                            <div className="border border-dashed border-brand-200 bg-brand-50 rounded-xl px-4 py-3 space-y-2">
+                              <p className="text-xs font-bold text-brand-700 uppercase tracking-wide">Verify it's working</p>
+                              {!twilioTestActive && twilioTestResult === null && (
+                                <>
+                                  <p className="text-sm text-gray-600">Once you've turned on call forwarding, click below. Call your Tractify number and hang up — we'll detect it automatically.</p>
+                                  <button
+                                    onClick={startTwilioTest}
+                                    className="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-2.5 rounded-xl text-sm transition-all"
+                                  >
+                                    📞 Start live test
+                                  </button>
+                                </>
+                              )}
+                              {twilioTestActive && (
+                                <div className="flex items-center gap-3 py-1">
+                                  <div className="w-5 h-5 rounded-full border-2 border-brand-500 border-t-transparent animate-spin shrink-0" />
+                                  <p className="text-sm text-brand-700 font-medium">Waiting for your test call… (up to 90 sec)</p>
+                                </div>
+                              )}
+                              {twilioTestResult === 'success' && (
+                                <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
+                                  <CheckCircle className="w-4 h-4" /> Call forwarding is working! Step marked complete.
+                                </div>
+                              )}
+                              {twilioTestResult === 'timeout' && (
+                                <div className="space-y-2">
+                                  <p className="text-sm text-red-600">We didn't detect a call. Make sure forwarding is enabled and try again.</p>
+                                  <button onClick={startTwilioTest} className="text-sm font-semibold text-brand-600 hover:text-brand-700">Try again →</button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {!done && (
+                            <button
+                              onClick={() => markStep.mutate(step.key)}
+                              disabled={markStep.isPending}
+                              className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all text-sm"
+                            >
+                              {markStep.isPending ? 'Saving…' : '✓ Mark as done'}
+                            </button>
+                          )}
+                          {done && (
+                            <div className="flex items-center gap-2 text-green-600 text-sm font-semibold">
+                              <CheckCircle className="w-4 h-4" /> Completed
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
-              {/* Steps */}
+              {/* Tractify-handled channels */}
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">We activate these for you</p>
+              <div className="bg-gray-50 rounded-2xl border border-gray-100 px-5 py-4 mb-3">
+                <p className="text-sm text-gray-500 leading-relaxed">
+                  The channels below are activated by Tractify via text message — your setup assistant will walk you through each one. Check them off as they go live.
+                </p>
+              </div>
               <div className="space-y-3">
-                {ONBOARDING_STEPS.map((step, i) => {
+                {ONBOARDING_STEPS.filter(s => s.key !== 'availability' && s.key !== 'twilio').map((step, i) => {
                   const done = !!onboardingSteps[step.key];
                   const isOpen = expandedStep === step.key;
                   return (
@@ -1773,10 +1924,10 @@ export default function ContractorPortal() {
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${
                           done ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
                         }`}>
-                          {done ? <CheckCircle className="w-5 h-5" /> : i + 1}
+                          {done ? <CheckCircle className="w-5 h-5" /> : <span className="text-base">•</span>}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`font-semibold text-sm ${done ? 'text-green-700' : 'text-gray-900'}`}>
+                          <p className={`font-semibold text-sm ${done ? 'text-green-700' : 'text-gray-700'}`}>
                             <span className="mr-2">{step.icon}</span>{step.label}
                           </p>
                         </div>
@@ -1916,7 +2067,7 @@ export default function ContractorPortal() {
                       <MessageSquare className="w-3.5 h-3.5 text-white" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-gray-900 leading-tight">Setup Assistant</p>
+                      <p className="text-sm font-semibold text-gray-900 leading-tight">Setup Help</p>
                       <p className="text-xs text-gray-400">Ask me anything — I'll walk you through it</p>
                     </div>
                     {chatMessages.length > 0 && (
@@ -2172,7 +2323,7 @@ export default function ContractorPortal() {
                   <MessageSquare className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h1 className="text-base font-bold text-gray-900 leading-tight">Tractify Assistant</h1>
+                  <h1 className="text-base font-bold text-gray-900 leading-tight">Tractify Help</h1>
                   <p className="text-xs text-gray-400">Block time, check your schedule, manage bookings</p>
                 </div>
                 {chatMessages.length > 0 && (

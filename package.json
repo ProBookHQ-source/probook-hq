@@ -8,5 +8,8 @@
     "start": "node backend/server.js",
     "dev": "node backend/server.js",
     "setup": "npm run install:all && npm run build"
+  },
+  "dependencies": {
+    "googleapis": "^173.0.0"
   }
 }
