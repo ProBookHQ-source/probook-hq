@@ -1014,6 +1014,17 @@ Worker acquisitionSource fix confirmed already working: intake form sends it, Wo
 
 **The funnel is ready. The only thing between now and running ads is Twilio compliance approval (external, waiting) and Stripe (August 4 with Daniel).**
 
+**July 30, 2026 — Three critical gaps in the SMS drip identified. Must be closed before first Twilio number goes live.**
+The drip as designed treats itself as a 7-step onboarding tool that ends when setup is done. Three things are missing that turn it into a permanent business interface:
+
+(1) **Power message** — contractors coming through ads have zero idea the SMS thread can manage their calendar. They need to be told explicitly, early, with an invitation to try it immediately. "What's on my calendar tomorrow?" → real answer in 10 seconds → product becomes real. No portal UI creates that moment. Fire this after step 1 (availability) is confirmed.
+
+(2) **Calendar blocking training** — if contractors don't know to text "block Wednesday 10am-2pm" for jobs they book outside Tractify (referrals, repeat customers, word of mouth), double bookings happen. Angry homeowner. Contractor blames Tractify. This message must arrive before the first job lands, not after the first conflict. It needs to feel obvious and natural, not like a feature explanation.
+
+(3) **Post-appointment close tracking via SMS** — the planned revenue logging feature (did_close + closed_value on appointments) won't get used if it requires logging into the portal. The SMS version: cron fires 30-60 min after appointment time, texts contractor "how'd your 2pm go with [name]? Did the job close? Reply YES $amount or NO." They're already on their phone, just finished the job. 5-second reply. AI logs it. This feeds the monthly results report, job 3 milestone message, Stripe conversion anchor, and case studies. Also keeps the SMS channel active permanently after setup ends — the channel never goes quiet.
+
+**Architectural shift:** drip goes from onboarding tool (7 steps, then silence) to permanent business interface (3 phases: activation → orientation → ongoing loop). A contractor texting Tractify daily never cancels. Leaving means losing the business assistant in their texts. That retention story is completely different from "losing a booking website."
+
 *[Add entries here every time something is tested, a result comes in, a decision is made, or a pattern is spotted. Format: Date — what was tested — what happened — what changed as a result.]*
 
 ---
@@ -2200,7 +2211,18 @@ Intake form already sends `acquisitionSource` in the submit payload. Worker pass
 **Next builds in order:**
 1. **Stripe + job milestone trigger** — August 4 with Daniel. Job 5 fires → Stripe payment page → system marks paid.
 2. **Contractor dashboard live stats** — jobs by source, this month, upcoming. Churn prevention.
-3. **AI SMS drip messaging rewrite** — review and rewrite every drip message in `backend/services/smsAI.js` before first contractor's Twilio number goes live. Each message must name the exact channel, the cost of skipping it, and make the action feel like a 60-second win. See Playbook Log entry July 29 for examples.
+3. **AI SMS drip full rewrite** — three things identified July 30 that are missing (see Playbook Log). Must be done before first Twilio number goes live.
+
+**Three missing pieces in the SMS drip (identified July 30, 2026):**
+
+**A. The power message** — contractors coming through ads have no idea the SMS interface can manage their calendar. After step 1 (availability) is confirmed, fire a message that makes the capability feel like they just unlocked something: "You can text me anything, anytime. 'What's on my calendar tomorrow?' 'Block Thursday 3-6pm.' 'Cancel my Monday morning.' It all updates automatically. Try it right now." The last line drives an immediate test reply — first time they text a question and get a real answer back in 10 seconds, the product becomes real to them. No portal UI ever achieves that moment.
+
+**B. Calendar blocking training** — critical gap that causes double bookings. Contractors book jobs via referrals, word of mouth, repeat customers calling direct. They don't log into the portal to block that time. Someone then books that slot through Tractify. Double booking, angry homeowner, contractor blames Tractify. The fix: early in the drip, make blocking time via text feel obvious and natural before the first job lands. "Any job you book outside Tractify — just text me to block that time. Like: 'block Wednesday 10am to 2pm.' I'll hold it so nobody double-books you." Must arrive before jobs start flowing, not after the first conflict happens.
+
+**C. Post-appointment close tracking via SMS** — revenue logging is a planned portal feature (did_close + closed_value) that nobody will use if it requires logging in. The SMS version: a cron fires 30-60 minutes after the scheduled appointment time and texts the contractor: "Hey — how'd your 2pm go with [homeowner name]? Did the job close? Reply YES $[amount] or just NO." Contractor is on their phone, just finished the job, 5-second reply. AI handles the response and logs did_close + closed_value to the appointment record. This feeds: monthly results report, job 3 milestone message, Stripe conversion page anchor, and case studies — all from one text. Also keeps the SMS channel active permanently so it never goes quiet after setup is done.
+
+**The bigger architectural shift these three create:**
+The drip is currently an onboarding tool that ends when setup is done. These three additions make it a permanent business interface. Phase 1 (setup, days 1-7) trains the texting habit covertly — they reply YES seven times without thinking of it as behavior change. Phase 2 (power message + calendar training, woven into Phase 1) makes it conscious — they know they have this tool. Phase 3 (post-appointment follow-ups, ongoing) keeps the channel alive forever. A contractor who texts Tractify daily is a contractor who never cancels. Leaving means losing the assistant they text every morning — completely different retention story than losing a booking website.
 
 ### The admin brain — what it knows + what it can do (built session 12)
 
