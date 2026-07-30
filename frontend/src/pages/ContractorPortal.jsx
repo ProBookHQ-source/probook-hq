@@ -643,7 +643,7 @@ export default function ContractorPortal() {
     if (greetingFiredRef.current) return;
     greetingFiredRef.current = true;
 
-    const STEP_ORDER = ['availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers', 'messenger'];
+    const STEP_ORDER = ['availability', 'twilio'];
     const STEP_LABELS = {
       availability: 'confirm your schedule',
       twilio: 'set up missed call forwarding',
@@ -659,11 +659,11 @@ export default function ContractorPortal() {
 
     let greetMsg;
     if (completedCount === 0) {
-      greetMsg = `Hey ${firstName}! 👋 Let's get your booking channels live.\n\nThe most important first step is **missed call forwarding** — that's the one that catches every call you miss while you're on a job and sends them a booking link automatically. Want me to walk you through it?`;
+      greetMsg = `Hey ${firstName}! 👋 Two quick things and you're live.\n\nFirst, confirm your availability — your hours are already pre-filled from your signup. Then set up call forwarding so we catch every missed call automatically. Want to start?`;
     } else if (completedCount < STEP_ORDER.length) {
-      greetMsg = `Welcome back, ${firstName}! You're ${completedCount}/${STEP_ORDER.length} done. Up next: **${STEP_LABELS[firstIncomplete] || firstIncomplete}**.\n\nSay "let's do it" and I'll walk you through it step by step.`;
+      greetMsg = `Welcome back, ${firstName}! One thing left: **${STEP_LABELS[firstIncomplete] || firstIncomplete}**.\n\nSay "let's do it" and I'll walk you through it step by step.`;
     } else {
-      greetMsg = `All channels are live, ${firstName} — nice work! 🎉\n\nJobs should start coming in. I'm here if anything comes up — you can ask me to block time, cancel an appointment, or check your calendar anytime.`;
+      greetMsg = `You're all set, ${firstName}! 🎉 We're handling everything else from here.\n\nJobs will start coming in. I'm here if you need anything — ask me to block time, cancel an appointment, or check your schedule anytime.`;
     }
 
     setChatMessages([{ role: 'assistant', content: greetMsg }]);
