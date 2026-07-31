@@ -2504,9 +2504,17 @@ Intake form already sends `acquisitionSource` in the submit payload. Worker pass
 ---
 
 **Next builds in order:**
-1. **Stripe + job milestone trigger** — August 4 with Daniel. Job 5 fires → Stripe payment page → system marks paid.
+1. **Stripe integration** — August 4 with Daniel. Job 5 fires → automated Stripe payment page → $2,000 setup fee → per-appointment billing at $75/confirmed booking. No retainer, no contract.
 2. **Contractor dashboard live stats** — jobs by source, this month, upcoming. Churn prevention.
-3. ✅ **AI SMS drip complete** — all three missing pieces built (session 16): power message (after availability confirmed), calendar blocking training (after twilio confirmed), post-appointment close tracking via SMS cron. Bug fixed in twilio.js. Ready for first Twilio number.
+3. **Job milestone trigger (job 3 + job 5)** — portal notification + data-aware email. Job 5 fires Stripe automatically.
+4. **Revenue + outcome logging** — post-appointment "did it close?" prompt in portal.
+
+**✅ Complete as of session 16:**
+- All three SMS drip missing pieces: power message, calendar blocking training, post-appointment close tracking cron (hourly at :45)
+- Bug fixed: twilio.js inbound-sms SELECT was missing `sms_power_message_sent` + `sms_calendar_training_sent` — specialty messages could fire repeatedly on every availability confirm
+- Brain 3 (homeownerSmsAI.js) — full conversational homeowner booking over SMS, 4-message close, contractor gets door-to-door Maps link alert
+- Missed call webhook now starts Brain 3 session instead of sending a booking link
+- All DB migrations in place: `homeowner_sms_sessions`, `did_close`, `closed_value`, `post_job_sms_sent_at`, all drip columns
 
 **Three missing pieces in the SMS drip (identified July 30, 2026) — ✅ ALL BUILT (session 16):**
 
@@ -2603,10 +2611,16 @@ Connect to psql first: `railway run psql $DATABASE_URL` then paste at `=#`. (Pas
 **Ask the brain instead** — open 🧠 on the admin dashboard and ask "which channels are converting fastest?" — it runs the same query and answers in plain English.
 
 ### What to build next (in order)
-1. **Real-time booking alert to Jose** — email/SMS when any booking lands during trial. Critical for monitoring August without babysitting dashboard. Add to `notifications.js` + trigger from `bookings.js`.
-2. **Worker acquisitionSource fix** — one line in `probook-upload-worker/src/index.js`, then `npx wrangler deploy`
-3. **Contractor dashboard live stats** — jobs by source, jobs this month, upcoming. Primary churn prevention.
-4. **Stripe integration** — August 4 with Daniel. Self-serve conversion at job 5.
+1. **Stripe integration** — August 4 with Daniel. Job 5 fires → automated Stripe payment page → $2,000 setup fee → system marks paid → $75/confirmed booking auto-billed after that. No retainer. No contract. Self-serve, no Jose involvement.
+2. **Contractor dashboard live stats** — jobs by source, jobs this month, upcoming, next appointment. Primary churn prevention — contractor who sees their own numbers every login never cancels.
+3. **Job milestone trigger (job 3 + job 5)** — portal notification + email, data-aware. Job 3: "You've made $X through Tractify — here's what happens at job 5." Job 5: Stripe fires automatically.
+4. **Revenue + outcome logging** — "Did this job close? YES $850 or NO" prompt in portal after appointment completed. Feeds monthly results report and case studies.
+
+**Already complete — do not rebuild:**
+- ✅ Real-time booking alert to Jose (session 14) — fires on every booking
+- ✅ Worker acquisitionSource fix (session 14) — confirmed already working end-to-end
+- ✅ AI SMS drip all three pieces (session 16) — power message, calendar training, post-appointment close tracking
+- ✅ Brain 3 homeowner AI SMS (session 16) — full conversational booking, 4-message close, no browser required
 5. **Admin checklist completion visibility** — currently the brain answers this via chat; building it as a column in the Contractors tab is a polish item.
 
 ---
