@@ -130,7 +130,7 @@ router.post('/inbound-sms', async (req, res) => {
   const contractor = await db.prepare(`
     SELECT id, name, company_name, phone, booking_slug, twilio_number,
            onboarding_steps, sms_conversation, sms_welcome_sent,
-           sms_welcome_sent
+           sms_power_message_sent, sms_calendar_training_sent
     FROM contractors
     WHERE twilio_number = ? AND is_active = 1
   `).get(To);

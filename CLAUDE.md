@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 30, 2026 (session 15 — GBP API status resolved: OAuth credentials confirmed working — all three stored in Railway env vars as GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GBP_REFRESH_TOKEN (do not store values here). ⚠️ The original GBP_REFRESH_TOKEN was exposed in git commit history (session 14) and must be considered compromised. Before implementing GBP automation: (1) revoke the token at myaccount.google.com → Security → Third-party apps → Tractify GBP → Remove access, (2) generate a fresh token via OAuth Playground, (3) update GBP_REFRESH_TOKEN in Railway. Do not use the existing Railway token for any live GBP API calls. GBP Account Management API blocked at 0 QPM — requires Google approval (60-day verified GBP requirement + application at support.google.com/business/contact/api_default, "Application for Basic API Access", takes 1-4 weeks). Apply now and let it process in background. GBP booking button set manually per contractor in the interim — 2 min per contractor. My Business Reviews API also restricted/private. Post-access GBP automation deferred until Google approves. Manual GBP booking button steps filed below under "Manual GBP Booking Button Setup." Session 13 — automation-first model reframe filed: trial delivery must not depend on contractor manual action; ad-sourced contractors are low-commitment at signup; jobs must flow from Jose-controlled channels + automatic system responses; minimum contractor action = 2 things only. Session 12 final — legal + security hardening complete. Privacy Policy + Terms of Service live at /privacy and /terms. SMS consent disclosure added to both HVAC templates. STOP opt-out added to all homeowner-facing Twilio SMS. Terms acceptance checkbox added to intake-form.html (blocks submit if unchecked). /privacy and /terms routes added to App.jsx. Footer links added to LandingPage.jsx. Rate limiter added to both AI chat endpoints (20 req/15min protects Anthropic bill). Contractor AI chat rate limiter added alongside admin AI. Full security audit passed — no hardcoded secrets, all SQL uses parameterized queries or allowlist validation, Helmet active, Twilio + Facebook webhook signature validation in place, bcrypt on all passwords. Google Places API key in intake-form.html is public by design — restrict to intake.tractifyhq.com in Google Cloud Console as manual step.)*
+*Last updated: July 30, 2026 (session 16 — Brain 3 (homeowner conversational SMS) fully built and deployed. All three SMS drip missing pieces built: power message (after availability confirmed), calendar blocking training (after twilio confirmed), post-appointment close tracking via SMS cron (hourly at :45). Bug fixed: twilio.js inbound-sms contractor SELECT was missing sms_power_message_sent + sms_calendar_training_sent columns — specialty messages could fire repeatedly. Fixed by adding columns to SELECT. Session 15 — GBP API status resolved: OAuth credentials confirmed working — all three stored in Railway env vars as GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GBP_REFRESH_TOKEN (do not store values here). ⚠️ The original GBP_REFRESH_TOKEN was exposed in git commit history (session 14) and must be considered compromised. Before implementing GBP automation: (1) revoke the token at myaccount.google.com → Security → Third-party apps → Tractify GBP → Remove access, (2) generate a fresh token via OAuth Playground, (3) update GBP_REFRESH_TOKEN in Railway. Do not use the existing Railway token for any live GBP API calls. GBP Account Management API blocked at 0 QPM — requires Google approval (60-day verified GBP requirement + application at support.google.com/business/contact/api_default, "Application for Basic API Access", takes 1-4 weeks). Apply now and let it process in background. GBP booking button set manually per contractor in the interim — 2 min per contractor. My Business Reviews API also restricted/private. Post-access GBP automation deferred until Google approves. Manual GBP booking button steps filed below under "Manual GBP Booking Button Setup." Session 13 — automation-first model reframe filed: trial delivery must not depend on contractor manual action; ad-sourced contractors are low-commitment at signup; jobs must flow from Jose-controlled channels + automatic system responses; minimum contractor action = 2 things only. Session 12 final — legal + security hardening complete. Privacy Policy + Terms of Service live at /privacy and /terms. SMS consent disclosure added to both HVAC templates. STOP opt-out added to all homeowner-facing Twilio SMS. Terms acceptance checkbox added to intake-form.html (blocks submit if unchecked). /privacy and /terms routes added to App.jsx. Footer links added to LandingPage.jsx. Rate limiter added to both AI chat endpoints (20 req/15min protects Anthropic bill). Contractor AI chat rate limiter added alongside admin AI. Full security audit passed — no hardcoded secrets, all SQL uses parameterized queries or allowlist validation, Helmet active, Twilio + Facebook webhook signature validation in place, bcrypt on all passwords. Google Places API key in intake-form.html is public by design — restrict to intake.tractifyhq.com in Google Cloud Console as manual step.)*
 
 ---
 
@@ -1171,7 +1171,7 @@ The contractor AI brain made Tractify's side of the relationship invisible. The 
 **The three brains:**
 - **Brain 1 (built):** Admin brain — Jose's command layer. Sees everything, takes action across the whole system, answers strategy questions with live data.
 - **Brain 2 (built):** Contractor AI SMS — runs the contractor's business via text. Calendar, blocking, job outcomes, setup steps. No login needed. Habit-forming.
-- **Brain 3 (not yet built):** Homeowner AI SMS — books homeowners conversationally over text. No browser, no link, no form. A 4-message exchange that ends with a confirmed appointment and a door-to-door navigation link sent to the contractor.
+- **Brain 3 (✅ BUILT — session 16):** Homeowner AI SMS — books homeowners conversationally over text. No browser, no link, no form. A 4-message exchange that ends with a confirmed appointment and a door-to-door navigation link sent to the contractor.
 
 **The full homeowner AI SMS conversation (what it looks like in production):**
 ```
@@ -1262,13 +1262,13 @@ Every homeowner conversation that Brain 3 has gets logged. Over time, Tractify k
 
 This is homeowner behavioral data no competitor has because no competitor is running conversations with homeowners at this level. It feeds back into the admin brain and makes every future homeowner interaction smarter.
 
-**Build order:**
-1. Address field — form + DB + contractor notifications (20 min, closes the immediate gap)
-2. `homeowner_sms_sessions` table + `homeownerSmsAI.js` base (1 session)
-3. Update missed call webhook to start homeowner session instead of sending link
-4. Update Facebook Lead Ads webhook to start homeowner session
-5. Update inbound-sms routing to detect and route homeowner conversations
-6. Test end-to-end: miss a call → homeowner AI converses → appointment appears on calendar
+**Build order: ✅ ALL COMPLETE (session 16)**
+1. ✅ Address field — form + DB + contractor notifications
+2. ✅ `homeowner_sms_sessions` table + `homeownerSmsAI.js` base
+3. ✅ Missed call webhook starts homeowner session instead of sending link
+4. ✅ Facebook Lead Ads webhook starts homeowner session
+5. ✅ Inbound-sms routing detects and routes homeowner conversations
+6. ✅ Bug fix: twilio.js inbound-sms SELECT now includes sms_power_message_sent + sms_calendar_training_sent
 
 **July 30, 2026 — Ad strategy reframe. The single point of failure gets its answer.**
 
@@ -2506,9 +2506,9 @@ Intake form already sends `acquisitionSource` in the submit payload. Worker pass
 **Next builds in order:**
 1. **Stripe + job milestone trigger** — August 4 with Daniel. Job 5 fires → Stripe payment page → system marks paid.
 2. **Contractor dashboard live stats** — jobs by source, this month, upcoming. Churn prevention.
-3. **AI SMS drip full rewrite** — three things identified July 30 that are missing (see Playbook Log). Must be done before first Twilio number goes live.
+3. ✅ **AI SMS drip complete** — all three missing pieces built (session 16): power message (after availability confirmed), calendar blocking training (after twilio confirmed), post-appointment close tracking via SMS cron. Bug fixed in twilio.js. Ready for first Twilio number.
 
-**Three missing pieces in the SMS drip (identified July 30, 2026):**
+**Three missing pieces in the SMS drip (identified July 30, 2026) — ✅ ALL BUILT (session 16):**
 
 **A. The power message** — contractors coming through ads have no idea the SMS interface can manage their calendar. After step 1 (availability) is confirmed, fire a message that makes the capability feel like they just unlocked something: "You can text me anything, anytime. 'What's on my calendar tomorrow?' 'Block Thursday 3-6pm.' 'Cancel my Monday morning.' It all updates automatically. Try it right now." The last line drives an immediate test reply — first time they text a question and get a real answer back in 10 seconds, the product becomes real to them. No portal UI ever achieves that moment.
 
