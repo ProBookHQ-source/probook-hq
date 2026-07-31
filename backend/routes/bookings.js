@@ -219,7 +219,7 @@ router.post('/book', async (req, res) => {
     [lead.assigned_contractor_id, 'cancelled'])
     .then(({ rows }) => notifications.sendTrialBookingAlertToJose({
       contractor,
-      homeowner: { name: lead.name, phone: lead.phone },
+      homeowner: { name: lead.name, phone: lead.phone, address: lead.address || (lead.metadata?.address) || null },
       date, time,
       bookingSource: resolvedSource,
       bookingNumber: parseInt(rows[0].cnt),
@@ -231,7 +231,7 @@ router.post('/book', async (req, res) => {
 // Used by tractifyhq.com/schedule/:slug — prospect books a call directly with a contractor.
 // Also used by the HVAC template inline slot picker — passes booking_source from ?src= URL param.
 router.post('/book-direct', async (req, res) => {
-  const { contractor_id, name, email, phone, date, time, notes, booking_source } = req.body;
+  const { contractor_id, name, email, phone, address, date, time, notes, booking_source } = req.body;
   if (!contractor_id || !name || !email || !date || !time) {
     return res.status(400).json({ error: 'contractor_id, name, email, date, and time are required' });
   }
@@ -299,7 +299,7 @@ router.post('/book-direct', async (req, res) => {
 
   // ── 6. Create appointment (lead_id = NULL — direct booking, not a lead) ───
   const appointmentId = uuidv4();
-  const contactInfo = JSON.stringify({ name, email, phone: phone || '', notes: notes || '' });
+  const contactInfo = JSON.stringify({ name, email, phone: phone || '', address: address || '', notes: notes || '' });
   try {
     await db.query(
       `INSERT INTO appointments (id, lead_id, contractor_id, scheduled_date, scheduled_time, status, notes, booking_source)
@@ -349,7 +349,7 @@ router.post('/book-direct', async (req, res) => {
     [contractor_id, 'cancelled'])
     .then(({ rows }) => notifications.sendTrialBookingAlertToJose({
       contractor,
-      homeowner: { name, phone },
+      homeowner: { name, phone, address: address || null },
       date, time,
       bookingSource: booking_source || 'direct',
       bookingNumber: parseInt(rows[0].cnt),

@@ -55,18 +55,27 @@ router.post('/missed-call', async (req, res) => {
     ? `${process.env.FRONTEND_URL}/schedule/${bookingSlug}?src=missed_call`
     : process.env.FRONTEND_URL;
 
-  // ── Send SMS to the caller ───────────────────────────────────────────────────
+  // ── Start homeowner SMS session (Brain 3) — or fall back to booking link ─────
   if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && From) {
     try {
       const client = twilio(
         process.env.TWILIO_ACCOUNT_SID,
         process.env.TWILIO_AUTH_TOKEN
       );
-      await client.messages.create({
-        to:   From,
-        from: To, // reply from the contractor's Twilio number
-        body: `Hey! This is ${businessName} — sorry we missed your call, we're out on a job. Book a time that works for you here: ${bookingLink} — takes 60 seconds and we'll confirm right away. Reply STOP to opt out.`,
-      });
+
+      let smsBody;
+      try {
+        // Brain 3: start a conversational booking session
+        const { startHomeownerSession } = require('../services/homeownerSmsAI');
+        await startHomeownerSession(From, contractor.id);
+        smsBody = `Hey! Sorry we missed you at ${businessName} — we're out on a job. I'm their scheduling assistant. What's the address that needs service?`;
+        console.log(`[TWILIO] Brain 3 session started for ${From} → contractor ${contractor.id}`);
+      } catch (brainErr) {
+        console.error(`[TWILIO] Brain 3 session failed, falling back to booking link:`, brainErr.message);
+        smsBody = `Hey! This is ${businessName} — sorry we missed your call, we're out on a job. Book a time that works for you here: ${bookingLink} — takes 60 seconds and we'll confirm right away. Reply STOP to opt out.`;
+      }
+
+      await client.messages.create({ to: From, from: To, body: smsBody });
       console.log(`[TWILIO] SMS sent to ${From} for contractor ${contractor.id} (${businessName})`);
     } catch (err) {
       console.error(`[TWILIO] SMS send failed:`, err.message);
@@ -164,21 +173,42 @@ router.post('/inbound-sms', async (req, res) => {
       }).catch(() => {});
     }
   } else {
-    // ── Homeowner texting in → send booking link ───────────────────────────────
-    // Tagged ?src=sms_keyword — covers all physical touchpoints (van wrap, business card,
-    // fridge magnet, door hanger, invoice) that have "Text us" on them.
-    console.log(`[TWILIO-SMS] Homeowner (${From}) — sending booking link`);
+    // ── Homeowner texting in → Brain 3 (conversational booking) ───────────────
     const businessName = contractor.company_name || contractor.name || 'us';
-    const bookingLink = contractor.booking_slug
-      ? `${process.env.FRONTEND_URL}/schedule/${contractor.booking_slug}?src=sms_keyword`
-      : process.env.FRONTEND_URL;
+    let replyBody = null;
+
     try {
-      await twilioClient.messages.create({
-        to: From,
-        from: To,
-        body: `Hey! This is ${businessName}. Book a time online here: ${bookingLink} — takes 60 seconds and we'll confirm right away. Reply STOP to opt out.`,
-      });
-      console.log(`[TWILIO-SMS] Booking link sent to homeowner ${From}`);
+      const { getActiveSession, routeHomeownerSms, startHomeownerSession } = require('../services/homeownerSmsAI');
+
+      // Check for active session first
+      const activeSession = await getActiveSession(From, contractor.id);
+
+      if (activeSession) {
+        // Continue existing conversation
+        console.log(`[TWILIO-SMS] Homeowner ${From} has active Brain 3 session (state: ${activeSession.state}) — routing`);
+        replyBody = await routeHomeownerSms(From, contractor.id, Body || '');
+      } else {
+        // No session — this is an unsolicited text (van wrap, SMS keyword, etc.)
+        // Start a fresh session
+        console.log(`[TWILIO-SMS] Homeowner (${From}) — no session, starting Brain 3 (sms_keyword)`);
+        await startHomeownerSession(From, contractor.id);
+        replyBody = `Hey! This is ${businessName}. Happy to help — what's the address that needs service?`;
+      }
+    } catch (brainErr) {
+      console.error('[TWILIO-SMS] Brain 3 error, falling back to booking link:', brainErr.message);
+    }
+
+    // Fallback if Brain 3 failed or returned null
+    if (!replyBody) {
+      const bookingLink = contractor.booking_slug
+        ? `${process.env.FRONTEND_URL}/schedule/${contractor.booking_slug}?src=sms_keyword`
+        : process.env.FRONTEND_URL;
+      replyBody = `Hey! This is ${businessName}. Book a time online here: ${bookingLink} — takes 60 seconds and we'll confirm right away. Reply STOP to opt out.`;
+    }
+
+    try {
+      await twilioClient.messages.create({ to: From, from: To, body: replyBody });
+      console.log(`[TWILIO-SMS] Brain 3 reply sent to homeowner ${From}: ${replyBody.substring(0, 80)}`);
     } catch (err) {
       console.error('[TWILIO-SMS] Failed to send homeowner reply:', err.message);
     }

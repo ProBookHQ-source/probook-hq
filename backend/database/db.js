@@ -210,6 +210,29 @@ async function initialize() {
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS sms_calendar_training_sent INTEGER DEFAULT 0`).catch(() => {});
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS sms_capabilities_sent INTEGER DEFAULT 0`).catch(() => {});
 
+  // Migration: homeowner address on leads (so contractor knows where to go)
+  await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS address TEXT`).catch(() => {});
+
+  // Migration: homeowner SMS sessions — stateful conversational booking via Brain 3
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS homeowner_sms_sessions (
+      id TEXT PRIMARY KEY,
+      phone TEXT NOT NULL,
+      contractor_id TEXT NOT NULL REFERENCES contractors(id) ON DELETE CASCADE,
+      state TEXT DEFAULT 'awaiting_address',
+      name TEXT,
+      address TEXT,
+      city TEXT,
+      service_description TEXT,
+      offered_slots JSONB DEFAULT '[]',
+      lead_id TEXT REFERENCES leads(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(() => {});
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_homeowner_sessions_phone_contractor ON homeowner_sms_sessions(phone, contractor_id)`).catch(() => {});
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_homeowner_sessions_updated ON homeowner_sms_sessions(updated_at DESC)`).catch(() => {});
+
   // Migration: post-appointment outcome tracking via SMS
   await db.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS did_close INTEGER`).catch(() => {});
   await db.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS closed_value NUMERIC`).catch(() => {});

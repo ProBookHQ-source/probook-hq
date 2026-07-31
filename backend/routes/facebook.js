@@ -186,9 +186,10 @@ async function processLead(leadgenId, pageId) {
   const businessName = contractor.company_name || contractor.name;
   const firstName_   = fullName.split(' ')[0] || 'there';
 
-  // ── Step 7: Instant SMS — fires within seconds of form submission ─────────────
-  // This is the core advantage: homeowner is still on their phone, intent is
-  // still hot, no other contractor has reached them yet.
+  // ── Step 7: Brain 3 — start conversational booking session ──────────────────
+  // Homeowner is still on Facebook, intent is hot. Instead of just sending a link,
+  // we open a Brain 3 session so the next SMS they get is a conversation that
+  // ends with a confirmed appointment — no browser, no link, no friction.
   let smsSent = false;
   if (
     phone &&
@@ -197,17 +198,27 @@ async function processLead(leadgenId, pageId) {
     process.env.TWILIO_AUTH_TOKEN
   ) {
     try {
-      const twilio = require('twilio')(
+      const twilioClient = require('twilio')(
         process.env.TWILIO_ACCOUNT_SID,
         process.env.TWILIO_AUTH_TOKEN
       );
-      await twilio.messages.create({
-        to:   phone,
-        from: contractor.twilio_number,
-        body: `Hey ${firstName_}! This is ${businessName} — thanks for reaching out. Book a time that works here: ${bookingUrl} — takes 60 seconds and we'll confirm right away.`,
-      });
+
+      let smsBody;
+      try {
+        const { startHomeownerSession } = require('../services/homeownerSmsAI');
+        // Start session with name pre-populated from Facebook form
+        await startHomeownerSession(phone, contractor.id, fullName);
+        // Since we have their name already, skip straight to address
+        smsBody = `Hey ${firstName_}! We got your request — I'm ${businessName}'s scheduling assistant. What's the address that needs service?`;
+        console.log(`[FACEBOOK] Brain 3 session started for ${phone} → contractor ${contractor.id}`);
+      } catch (brainErr) {
+        console.error('[FACEBOOK] Brain 3 start failed, falling back to booking link:', brainErr.message);
+        smsBody = `Hey ${firstName_}! This is ${businessName} — thanks for reaching out. Book a time that works here: ${bookingUrl} — takes 60 seconds and we'll confirm right away.`;
+      }
+
+      await twilioClient.messages.create({ to: phone, from: contractor.twilio_number, body: smsBody });
       smsSent = true;
-      console.log(`[FACEBOOK] Instant SMS sent to ${phone} (lead ${leadId})`);
+      console.log(`[FACEBOOK] Brain 3 SMS sent to ${phone} (lead ${leadId})`);
     } catch (err) {
       console.error('[FACEBOOK] SMS failed — falling back to email:', err.message);
     }

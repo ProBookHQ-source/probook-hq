@@ -186,11 +186,13 @@ router.post('/inbound', async (req, res) => {
   try {
     await db.prepare(`
       INSERT INTO leads
-        (id, name, email, phone, niche_id, zip_code, description,
+        (id, name, email, phone, niche_id, zip_code, address, description,
          source_site, external_tier, external_score, metadata, status)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'new')
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'new')
     `).run(
-      id, name, normalizedEmail, phone || null, niche.id, zip_code, description,
+      id, name, normalizedEmail, phone || null, niche.id, zip_code,
+      address || null,
+      description,
       source_site || null,
       lead_tier || null,
       lead_score ? parseInt(lead_score) : null,

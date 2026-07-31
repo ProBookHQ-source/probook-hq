@@ -987,6 +987,7 @@ async function sendTrialBookingAlertToJose({ contractor, homeowner, date, time, 
       <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:20px;">
         ${infoRow('Contractor', company, true)}
         ${infoRow('Homeowner', esc(homeowner.name) + (homeowner.phone ? ` &nbsp;·&nbsp; ${esc(homeowner.phone)}` : ''))}
+        ${homeowner.address ? infoRow('Address', `<a href="maps.apple.com/?daddr=${encodeURIComponent(homeowner.address)}" style="color:#6366f1;">${esc(homeowner.address)}</a> &nbsp;<span style="font-size:11px;color:#6b7280;">(tap for nav)</span>`) : ''}
         ${infoRow('Date / Time', `${esc(fmtDateStr)} at ${esc(fmtTimeStr)}`)}
         ${infoRow('Channel', `<code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:13px;">${src}</code>`)}
         ${infoRow('Progress', progressText)}
