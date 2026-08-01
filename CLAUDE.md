@@ -397,6 +397,74 @@ This rewards high-volume contractors without introducing retainer complexity, an
 
 ---
 
+### Stripe Conversion System — Job 5 Trigger (Build August 4 with Daniel)
+
+At job 5, the system fires automatically. No Jose involvement. No call. No invoice. The machine closes itself.
+
+**The technical flow:**
+1. Job 5 confirmed → `POST /api/bookings/book` detects 5th non-cancelled booking for contractor → pulls contractor's `did_close` + `closed_value` data → runs smart A/B logic → generates Stripe Payment Link via API → texts contractor the link
+2. Contractor pays $2,000 → Stripe webhook fires → system saves `stripe_customer_id` + `stripe_payment_method_id` → flips `contractors.payment_status = 'paid'`
+3. Every subsequent confirmed booking → `$75` auto-charged to saved payment method → `appointments.stripe_charge_id` logged
+
+**New DB columns needed:**
+```sql
+ALTER TABLE contractors ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
+ALTER TABLE contractors ADD COLUMN IF NOT EXISTS stripe_payment_method_id TEXT;
+ALTER TABLE contractors ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'trial'; -- 'trial' | 'paid' | 'churned'
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS stripe_charge_id TEXT;
+```
+
+**Smart A vs B conversion SMS logic:**
+
+Version A fires when: `SUM(closed_value WHERE did_close = 1) >= 2000 AND COUNT(did_close = 1) >= 3`
+— contractor has logged meaningful, verifiable revenue. The numbers are real and impressive.
+
+Version B fires otherwise — contractor hasn't logged closes, logged too few, or numbers are low. Don't fabricate a ROI they can't verify.
+
+**Version A SMS (impressive logged revenue):**
+> "[firstName] — 5 jobs, $[sum_closed_value] generated. That's your free trial. The machine works. Keep it running: [stripe_link]. $2,000 covers everything we built and ran. After that it's $75 per booking we deliver — nothing if we don't. We only make money when you make money. No contract, stop anytime."
+
+**Version B SMS (no meaningful revenue logged):**
+> "[firstName] — 5 jobs on your calendar. That's your free trial. The machine works. Keep it running: [stripe_link]. $2,000 covers everything we built. After that, $75 per booking we deliver — nothing if we don't. We only make money when you make money. No contract, stop anytime."
+
+Both versions make two things unmistakably clear: (1) Tractify only charges for results delivered — aligned incentives, not a subscription. (2) There is no contract. They can stop. That confidence is the close.
+
+---
+
+### Churn / Offboarding Policy
+
+**When a contractor wants to stop:**
+- Deactivate immediately, no questions, no friction
+- Twilio number held for 6 months at ~$1/month (Tractify absorbs this cost)
+- During the 6-month hold: their number, their slug, their booking history — all preserved
+
+**Return within 6 months:** same Twilio number reactivated, no setup fee, picks up exactly where they left off
+
+**Return after 6 months:** number released, history cleared, new non-refundable $2,000 setup fee required before any channels reactivate
+
+**The psychology behind this:** a contractor who thinks they want to leave but knows the 6-month window is closing will re-sign before it expires rather than pay another setup fee. The hold period is a free retention mechanic that costs $6-12 in Twilio and converts a permanent churn into a temporary pause for a meaningful percentage of contractors.
+
+**The non-refundable framing is critical:** make it explicit in the deactivation SMS and in any future Terms of Service update. If they know upfront, there's no dispute, no bad feelings, no chargeback risk. They made an informed decision.
+
+**Deactivation SMS (sent when a contractor requests deactivation):**
+> "Got it — deactivating now. Your number is held for 6 months at no charge. Come back before then and you pick up exactly where you left off. After 6 months it's released — restarting requires a new non-refundable setup fee. No hard feelings — if the jobs weren't there, we didn't earn it."
+
+**What "deactivate" means technically:**
+- `contractors.payment_status = 'churned'`
+- `contractors.is_active = 0`
+- Twilio number: do NOT release — mark it in the DB with `twilio_hold_until` (6 months from deactivation date)
+- Subdomains continue serving (no need to take them down — they're just inactive booking pages)
+- New bookings stop flowing — Brain 3 sessions disabled for churned contractors
+
+**New DB column needed:**
+```sql
+ALTER TABLE contractors ADD COLUMN IF NOT EXISTS twilio_hold_until TIMESTAMPTZ;
+```
+
+Cron job (monthly): check contractors where `payment_status = 'churned'` and `twilio_hold_until < NOW()` → release Twilio number via API → set `twilio_number = NULL`.
+
+---
+
 ### Content, Ads & Distribution Brain (August 2026)
 
 *Built July 28, 2026. This is a full department-level knowledge base. The admin brain reads this on every query and cross-references it with live `acquisition_source` data from the database to answer attribution questions and make real spend recommendations. Update the Playbook Log at the bottom every time something is proven, disproven, or discovered.*
