@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 30, 2026 (session 17 — SMS maximization complete. Five major builds: (1) HVAC templates (both index.html + backend/templates/hvac-template.html) stripped to phone-only form — single phone field, submit fires Brain 3 conversational SMS immediately, success shows "Check Your Texts!" instead of inline slot picker. (2) Brain 3 name capture + lead_id threading — Brain 3 asks homeowner for name+address together via Claude JSON extraction, patches lead record as info is captured, skips lead creation in handleSlotPick when lead_id already set. (3) Cancelled appointment → Brain 3 rebook SMS — both contractor cancel (PUT /:id/cancel) and homeowner cancel (POST /cancel-token/:token) now fire a Brain 3 rebook session alongside the existing email: startRebookSession() creates a session with state='awaiting_slot', name+address+service pre-populated, offered_slots fetched — homeowner gets a text with available times immediately. (4) Pre-appointment morning-of confirmation SMS cron — runs 7:30 AM daily, texts homeowners their appointment details + "Reply CANCEL to cancel." CANCEL keyword in inbound-sms handler cancels the appointment + starts Brain 3 rebook session. pre_appt_sms_sent_at column tracks sends. (5) Review request SMS cron — runs hourly at :50, fires 2-4 hours after appointment marked 'completed', texts homeowner a Google review link using contractor.place_id. homeowner_review_sms_sent_at column tracks sends. New export from homeownerSmsAI.js: startRebookSession(). Session 16 — Brain 3 (homeowner conversational SMS) fully built and deployed. All three SMS drip missing pieces built: power message (after availability confirmed), calendar blocking training (after twilio confirmed), post-appointment close tracking via SMS cron (hourly at :45). Bug fixed: twilio.js inbound-sms contractor SELECT was missing sms_power_message_sent + sms_calendar_training_sent columns — specialty messages could fire repeatedly. Fixed by adding columns to SELECT. Session 15 — GBP API status resolved: OAuth credentials confirmed working — all three stored in Railway env vars as GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GBP_REFRESH_TOKEN (do not store values here). ⚠️ The original GBP_REFRESH_TOKEN was exposed in git commit history (session 14) and must be considered compromised. Before implementing GBP automation: (1) revoke the token at myaccount.google.com → Security → Third-party apps → Tractify GBP → Remove access, (2) generate a fresh token via OAuth Playground, (3) update GBP_REFRESH_TOKEN in Railway. Do not use the existing Railway token for any live GBP API calls. GBP Account Management API blocked at 0 QPM — requires Google approval (60-day verified GBP requirement + application at support.google.com/business/contact/api_default, "Application for Basic API Access", takes 1-4 weeks). Apply now and let it process in background. GBP booking button set manually per contractor in the interim — 2 min per contractor. My Business Reviews API also restricted/private. Post-access GBP automation deferred until Google approves. Manual GBP booking button steps filed below under "Manual GBP Booking Button Setup." Session 13 — automation-first model reframe filed: trial delivery must not depend on contractor manual action; ad-sourced contractors are low-commitment at signup; jobs must flow from Jose-controlled channels + automatic system responses; minimum contractor action = 2 things only. Session 12 final — legal + security hardening complete. Privacy Policy + Terms of Service live at /privacy and /terms. SMS consent disclosure added to both HVAC templates. STOP opt-out added to all homeowner-facing Twilio SMS. Terms acceptance checkbox added to intake-form.html (blocks submit if unchecked). /privacy and /terms routes added to App.jsx. Footer links added to LandingPage.jsx. Rate limiter added to both AI chat endpoints (20 req/15min protects Anthropic bill). Contractor AI chat rate limiter added alongside admin AI. Full security audit passed — no hardcoded secrets, all SQL uses parameterized queries or allowlist validation, Helmet active, Twilio + Facebook webhook signature validation in place, bcrypt on all passwords. Google Places API key in intake-form.html is public by design — restrict to intake.tractifyhq.com in Google Cloud Console as manual step.)*
+*Last updated: July 31, 2026 (session 18 — RAG diagnostic knowledge system built and live. Brain 3 audit fully closed: all 5 logic gaps fixed across sessions 17-18. Three Brain 3 fixes this session: (1) getLastConfirmedBooking now covers awaiting_email state so homeowners who book but never reply with their email are still recognized as returning on next contact. (2) Double-booking race condition — 23505 unique_violation now caught in handleSlotPick, re-fetches fresh slots and re-offers instead of returning generic error. (3) facebook.js returning homeowner greeting fixed — uses isReturning flag from startHomeownerSession so returning homeowners no longer get asked for their address again. RAG system built: pgvector + Voyage AI voyage-3-lite (512 dims, NOT OpenAI 1536) for semantic retrieval. Files: embeddings.js (Voyage AI wrapper with 4-retry exponential backoff), diagnosticKnowledge.js (getRelevantKnowledge + storeKnowledgeBatch + clearNicheKnowledge), loadDiagnosticKnowledge.js (one-time seeder — HVAC + Roofing + Electrical + Plumbing + Landscaping knowledge loaded). VOYAGE_API_KEY added to Railway env vars. Expanding to a new niche = DB inserts only, zero code changes. Session 17 — SMS maximization complete. Five major builds: (1) HVAC templates (both index.html + backend/templates/hvac-template.html) stripped to phone-only form — single phone field, submit fires Brain 3 conversational SMS immediately, success shows "Check Your Texts!" instead of inline slot picker. (2) Brain 3 name capture + lead_id threading — Brain 3 asks homeowner for name+address together via Claude JSON extraction, patches lead record as info is captured, skips lead creation in handleSlotPick when lead_id already set. (3) Cancelled appointment → Brain 3 rebook SMS — both contractor cancel (PUT /:id/cancel) and homeowner cancel (POST /cancel-token/:token) now fire a Brain 3 rebook session alongside the existing email: startRebookSession() creates a session with state='awaiting_slot', name+address+service pre-populated, offered_slots fetched — homeowner gets a text with available times immediately. (4) Pre-appointment morning-of confirmation SMS cron — runs 7:30 AM daily, texts homeowners their appointment details + "Reply CANCEL to cancel." CANCEL keyword in inbound-sms handler cancels the appointment + starts Brain 3 rebook session. pre_appt_sms_sent_at column tracks sends. (5) Review request SMS cron — runs hourly at :50, fires 2-4 hours after appointment marked 'completed', texts homeowner a Google review link using contractor.place_id. homeowner_review_sms_sent_at column tracks sends. New export from homeownerSmsAI.js: startRebookSession(). Session 16 — Brain 3 (homeowner conversational SMS) fully built and deployed. All three SMS drip missing pieces built: power message (after availability confirmed), calendar blocking training (after twilio confirmed), post-appointment close tracking via SMS cron (hourly at :45). Bug fixed: twilio.js inbound-sms contractor SELECT was missing sms_power_message_sent + sms_calendar_training_sent columns — specialty messages could fire repeatedly. Fixed by adding columns to SELECT. Session 15 — GBP API status resolved: OAuth credentials confirmed working — all three stored in Railway env vars as GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GBP_REFRESH_TOKEN (do not store values here). ⚠️ The original GBP_REFRESH_TOKEN was exposed in git commit history (session 14) and must be considered compromised. Before implementing GBP automation: (1) revoke the token at myaccount.google.com → Security → Third-party apps → Tractify GBP → Remove access, (2) generate a fresh token via OAuth Playground, (3) update GBP_REFRESH_TOKEN in Railway. Do not use the existing Railway token for any live GBP API calls. GBP Account Management API blocked at 0 QPM — requires Google approval (60-day verified GBP requirement + application at support.google.com/business/contact/api_default, "Application for Basic API Access", takes 1-4 weeks). Apply now and let it process in background. GBP booking button set manually per contractor in the interim — 2 min per contractor. My Business Reviews API also restricted/private. Post-access GBP automation deferred until Google approves. Manual GBP booking button steps filed below under "Manual GBP Booking Button Setup." Session 13 — automation-first model reframe filed: trial delivery must not depend on contractor manual action; ad-sourced contractors are low-commitment at signup; jobs must flow from Jose-controlled channels + automatic system responses; minimum contractor action = 2 things only. Session 12 final — legal + security hardening complete. Privacy Policy + Terms of Service live at /privacy and /terms. SMS consent disclosure added to both HVAC templates. STOP opt-out added to all homeowner-facing Twilio SMS. Terms acceptance checkbox added to intake-form.html (blocks submit if unchecked). /privacy and /terms routes added to App.jsx. Footer links added to LandingPage.jsx. Rate limiter added to both AI chat endpoints (20 req/15min protects Anthropic bill). Contractor AI chat rate limiter added alongside admin AI. Full security audit passed — no hardcoded secrets, all SQL uses parameterized queries or allowlist validation, Helmet active, Twilio + Facebook webhook signature validation in place, bcrypt on all passwords. Google Places API key in intake-form.html is public by design — restrict to intake.tractifyhq.com in Google Cloud Console as manual step.)*
 
 ---
 
@@ -1518,6 +1518,17 @@ Everything from this session is now the operating playbook. The decisions that a
 
 (6) **The brand position is the endgame.** Homeowners across America think of Tractify as "the number you text when something in your house is broken." ServiceTitan owns contractor software. Tractify owns homeowner trust. Homeowner trust is the demand side of the entire market. That's the moat no one can buy their way into — it's built one honest diagnostic conversation at a time.
 
+**July 31, 2026 — RAG diagnostic knowledge system built and deployed. Brain 3 audit fully closed.**
+
+RAG system is live in production. Full stack: pgvector + Voyage AI voyage-3-lite (512 dims) + `diagnostic_knowledge` table + `embeddings.js` + `diagnosticKnowledge.js` + `loadDiagnosticKnowledge.js`. Five niches seeded: HVAC (~28 chunks covering AC cooling, furnace heating, heat pumps, mini-splits, oil tanks, boilers, air quality, ductwork, thermostats, 4 safety overrides), Roofing (~9 chunks), Electrical (~10 chunks), Plumbing (~11 chunks), Landscaping (~12 chunks). Total: ~70 knowledge chunks covering every common homeowner symptom across all primary niches. Brain 3 now retrieves the 3-5 most semantically relevant chunks per homeowner message — never the whole encyclopedia, just what's relevant. Cost per homeowner conversation: fractions of a penny (Voyage AI). Safety-flagged chunks (gas smell, CO alarm, smoke, no heat in extreme cold) always surface first regardless of similarity score.
+
+Three Brain 3 logic gaps also closed this session (completing the 5-gap audit from session 17):
+1. **getLastConfirmedBooking + awaiting_email** — homeowners who book but never reply with their email are now recognized as returning on next contact (state='awaiting_email' added to the IN clause).
+2. **Double-booking race condition** — 23505 unique_violation caught in handleSlotPick. Instead of generic error, re-fetches fresh slots and re-offers with "That slot just got taken — here are the next available times."
+3. **facebook.js returning homeowner greeting** — now uses `isReturning` flag from `startHomeownerSession`. Returning homeowners get "Great to hear from you again" instead of being asked for their address again.
+
+**Key implementation note:** CLAUDE.md previously spec'd OpenAI text-embedding-3-small (1536 dims) and `OPENAI_API_KEY`. The actual implementation uses Voyage AI voyage-3-lite (512 dims) and `VOYAGE_API_KEY`. These are different. Do not use OpenAI for embeddings. The DB column is `VECTOR(512)` not `VECTOR(1536)`. If a new Claude session tries to build anything related to embeddings, it must use Voyage AI and `VOYAGE_API_KEY`.
+
 *[Add entries here every time something is tested, a result comes in, a decision is made, or a pattern is spotted. Format: Date — what was tested — what happened — what changed as a result.]*
 
 ---
@@ -1592,11 +1603,11 @@ Speed kills in business — but the right kind of speed. Building A now means re
 
 ### Full Technical Specification
 
-**New infrastructure needed:**
-- pgvector PostgreSQL extension — already available on Railway, enabled with one SQL command: `CREATE EXTENSION IF NOT EXISTS vector;`
-- OpenAI text-embedding-3-small API — for generating embeddings. $0.02 per 1M tokens. A homeowner conversation generates roughly 50-100 tokens of text to embed. Cost per homeowner conversation: fractions of a penny. New Railway env var: `OPENAI_API_KEY`
+**Infrastructure (✅ ALL BUILT — session 18):**
+- pgvector PostgreSQL extension — enabled via: `CREATE EXTENSION IF NOT EXISTS vector;`
+- **Voyage AI voyage-3-lite** — for generating embeddings. ⚠️ NOT OpenAI. 512 dimensions. Anthropic-endorsed. Fractions of a penny per call. Railway env var: `VOYAGE_API_KEY`
 
-**New table:**
+**Table (live in production):**
 ```sql
 CREATE TABLE IF NOT EXISTS diagnostic_knowledge (
   id SERIAL PRIMARY KEY,
@@ -1604,7 +1615,7 @@ CREATE TABLE IF NOT EXISTS diagnostic_knowledge (
   category TEXT,                    -- 'cooling', 'heating', 'safety', 'structural', etc.
   symptom_tags TEXT[],              -- ['grinding', 'noise', 'ac', 'startup'] — keyword backup search
   content TEXT NOT NULL,            -- the actual diagnostic knowledge chunk
-  embedding VECTOR(1536),           -- text-embedding-3-small dimension
+  embedding VECTOR(512),            -- voyage-3-lite dimension (512, NOT 1536)
   urgency TEXT DEFAULT 'schedule',  -- 'immediate', 'this_week', 'schedule', 'diy_first', 'emergency_911'
   safety_flag BOOLEAN DEFAULT FALSE,-- true = this chunk involves safety risk
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -1614,19 +1625,38 @@ CREATE TABLE IF NOT EXISTS diagnostic_knowledge (
 CREATE INDEX ON diagnostic_knowledge USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 ```
 
-**New files:**
-- `backend/services/embeddings.js` — wrapper around OpenAI text-embedding-3-small. `embed(text)` → vector array. Used for both storing new knowledge and querying at conversation time.
-- `backend/services/diagnosticKnowledge.js` — `getRelevantKnowledge(messageText, niche, limit=5)` → embed the message → cosine similarity search against `diagnostic_knowledge` filtered by niche → return top chunks as formatted text for prompt injection. Also exports `storeKnowledgeChunk(niche, category, symptom_tags, content, urgency, safety_flag)` for loading knowledge.
-- `backend/scripts/loadDiagnosticKnowledge.js` — one-time script to generate and load knowledge for each niche. Uses Claude Sonnet to generate comprehensive niche knowledge, structures it into chunks, embeds and stores each chunk.
+**Files (all built and live):**
+- `backend/services/embeddings.js` — Voyage AI wrapper. `embed(text)` → 512-dim float vector. 4-retry exponential backoff on 429s (delays: 5s, 10s, 20s, 30s). `embedBatch(texts)` for bulk. Both exported. Uses `VOYAGE_API_KEY`. Model: `voyage-3-lite`.
+- `backend/services/diagnosticKnowledge.js` — RAG retrieval service. `getRelevantKnowledge(messageText, nicheName, limit=5)` → embeds message → cosine similarity search (`ORDER BY embedding <=> $1::vector`) filtered by niche → safety-flagged chunks surfaced first → returns formatted string for prompt injection. Fails gracefully (returns `''` if Voyage is down or table is empty — Brain 3 still responds). Also exports: `storeKnowledgeChunk({niche, category, symptom_tags, content, urgency, safety_flag})`, `storeKnowledgeBatch(chunks)` (embeds one at a time with 500ms pause to avoid rate limits), `clearNicheKnowledge(nicheName)` (wipes all chunks for a niche before reloading).
+- `backend/scripts/loadDiagnosticKnowledge.js` — one-time seeder. Run with `cd backend && node scripts/loadDiagnosticKnowledge.js` or `--niche=hvac` flag. Handles `DATABASE_PUBLIC_URL` swap for Railway local runs. Contains full knowledge arrays for: HVAC (AC cooling, furnace heating, heat pumps, mini-splits, oil tanks, boilers, air quality, ductwork, thermostats, safety — ~28 chunks), Roofing (~9 chunks), Electrical (~10 chunks), Plumbing (~11 chunks), Landscaping (~12 chunks). All niches loaded as of session 18.
+- `backend/services/homeownerSmsAI.js` — calls `getRelevantKnowledge(incomingMessage, contractor.niche)` on every message and injects into Brain 3 system prompt.
 
-**Update to `homeownerSmsAI.js`:**
-In `buildSystemPrompt(contractor)` (or wherever the Brain 3 system prompt is constructed), add a call to `getRelevantKnowledge(incomingMessage, contractor.niche)` and inject the returned chunks into the prompt as:
+**Niche normalization map in `diagnosticKnowledge.js`:**
+```javascript
+const NICHE_MAP = {
+  'hvac': 'hvac', 'HVAC': 'hvac',
+  'Roofing': 'roofing', 'roofing': 'roofing',
+  'Electrical': 'electrical', 'electrical': 'electrical',
+  'Plumbing': 'plumbing', 'plumbing': 'plumbing',
+  'Landscaping': 'landscaping', 'landscaping': 'landscaping',
+  'Painting': 'painting', 'painting': 'painting',
+  'General Contracting': 'general', 'general contracting': 'general',
+};
 ```
-RELEVANT DIAGNOSTIC KNOWLEDGE FOR THIS CONVERSATION:
-[chunks injected here]
+Adding a new niche: if the intake form uses a name not in this map, add one line here. Then insert knowledge rows via `storeKnowledgeBatch()`. That's the entire expansion procedure — zero other code changes.
 
-Use the above knowledge to give a specific, honest answer. If the symptom doesn't clearly match any of the above, say so honestly — "that could be a few things, I'd want a tech to take a look" is better than guessing.
-```
+**How to expand to a new niche (zero code required after adding to NICHE_MAP):**
+1. Add the niche name string to `NICHE_MAP` in `diagnosticKnowledge.js` if needed
+2. Write knowledge chunks (or have Claude Sonnet generate them) in the format used in `loadDiagnosticKnowledge.js`
+3. Add a `const YOURNICHE_KNOWLEDGE = [...]` array to the load script and call `storeKnowledgeBatch(YOURNICHE_KNOWLEDGE)` at the bottom
+4. Run: `cd backend && node scripts/loadDiagnosticKnowledge.js`
+5. Done — Brain 3 is now an expert in that niche for any contractor with that niche_id
+
+**To update existing niche knowledge (if a diagnosis was wrong):**
+1. `clearNicheKnowledge('hvac')` — wipes all existing chunks for that niche
+2. Update the knowledge array in the load script
+3. Re-run the script
+4. No deployment needed — just DB rows
 
 **Safety overrides — hardcoded in base system prompt, never in RAG:**
 ```
@@ -1637,11 +1667,13 @@ SAFETY OVERRIDES — respond to these BEFORE anything else, before any diagnosti
 - No heat in extreme cold with elderly or infants → treat as urgent, offer same-day slot first before anything else
 ```
 
-**Knowledge generation approach (per niche, one session each):**
-Use Claude Sonnet to generate the knowledge — it has comprehensive home services domain knowledge from training. Structure the prompt as:
-"Generate comprehensive diagnostic knowledge for [niche] contractors. For each major symptom category, include: common symptom descriptions a homeowner would use, most likely causes ranked by probability, urgency level, whether it's a safety situation, what the homeowner can check themselves first (filter, breaker, etc.), and an honest answer for when it truly can't be diagnosed without a tech visit. Cover niche subcategories: [oil tanks, boilers, heat pumps, mini-splits for HVAC etc.]"
+**Prompt injection pattern in homeownerSmsAI.js:**
+```
+RELEVANT DIAGNOSTIC KNOWLEDGE FOR THIS CONVERSATION:
+[chunks injected from getRelevantKnowledge()]
 
-Output gets structured into chunks (one chunk per symptom category), embedded, and stored. Then reviewed by one domain expert per niche before going live.
+Use the above knowledge to give a specific, honest answer. If the symptom doesn't clearly match any of the above, say so honestly — "that could be a few things, I'd want a tech to take a look" is better than guessing.
+```
 
 ---
 
@@ -1649,21 +1681,20 @@ Output gets structured into chunks (one chunk per symptom category), embedded, a
 
 | Month | Action | Build required |
 |---|---|---|
-| August | HVAC knowledge loaded, Brain 3 live | One knowledge generation session |
-| Month 2-3 | Roofing, electrical, plumbing knowledge loaded | DB inserts only, zero code |
-| Month 3-4 | Landscaping, painting, general contracting | DB inserts only, zero code |
+| ✅ August | HVAC, Roofing, Electrical, Plumbing, Landscaping knowledge loaded | Built session 18 — `loadDiagnosticKnowledge.js` |
+| Month 2-3 | Painting, general contracting knowledge (if needed) | DB inserts only, zero code |
 | Month 6+ | Any new niche a contractor requests | DB inserts only, zero code |
 
-The intake form `niche_id` field already exists and links to the `niches` table. The template already has a services system that's niche-aware. Brain 3 already gets contractor context including niche. The only missing piece is the knowledge retrieval layer — once it's built, every new niche is a database operation.
+All five primary niches are already seeded with comprehensive knowledge. Adding any new niche = write the knowledge chunks, run the load script, done.
 
 ---
 
 ### Build Time
 
 - **Option A (niche files):** 1 session (~3-4 hours). Works. Wrong foundation.
-- **Option B (pgvector RAG):** 2 sessions (~6-8 hours). Right foundation. Every niche after HVAC costs hours instead of days. Every homeowner conversation starts building the data moat from day one.
+- **Option B (pgvector RAG):** ✅ Built session 18. Right foundation. Every niche after the first costs hours, not a development cycle. Every homeowner conversation from day one builds the data moat.
 
-**Decision: Build Option B. Start this session.**
+**Decision: Build Option B. ✅ COMPLETE.**
 
 ---
 
@@ -1950,6 +1981,7 @@ SENTRY_DSN           → not set yet (optional — add to enable error monitorin
 FB_PAGE_ACCESS_TOKEN → not set yet (needed for Facebook Lead Ads webhook — get from Business Manager → App → Page token)
 FB_VERIFY_TOKEN      → not set yet (any secret string Jose picks — used only for webhook verification setup)
 FB_APP_SECRET        → not set yet (optional — enables X-Hub-Signature-256 validation on webhook posts)
+VOYAGE_API_KEY       → set (session 18) ← Voyage AI embeddings for RAG diagnostic knowledge (voyage-3-lite, 512 dims)
 ```
 
 ---
