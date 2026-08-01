@@ -512,10 +512,15 @@ async function main() {
   }
 
   console.log('\n🎉 All knowledge loaded. Brain 3 is now an expert.\n');
-  process.exit(0);
 }
 
-main().catch(err => {
-  console.error('❌ Load failed:', err.message);
-  process.exit(1);
-});
+// Allow require()'ing this script as a module (e.g. from the admin endpoint)
+// without auto-running. Only auto-run when called directly.
+module.exports = { main };
+
+if (require.main === module) {
+  main().catch(err => {
+    console.error('❌ Load failed:', err.message);
+    process.exit(1);
+  }).then(() => process.exit(0));
+}

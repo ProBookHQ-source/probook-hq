@@ -170,6 +170,23 @@ app.use('/api/deploy',       require('./routes/deploy'));   // ← Cloudflare Wo
 app.use('/api/contractor/ai-chat', require('./routes/aiChat'));
 app.use('/api/admin/ai-chat',     require('./routes/adminAI')); // Jose's business intelligence brain
 
+// ── ONE-TIME: Load Brain 3 diagnostic knowledge into DB ──────────────────────
+// Hit once after deploy, then this endpoint can be removed.
+app.post('/api/admin/load-diagnostic-knowledge', express.json(), async (req, res) => {
+  if (req.headers['x-deploy-secret'] !== process.env.DEPLOY_SECRET) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  try {
+    const { main } = require('./scripts/loadDiagnosticKnowledge');
+    res.json({ ok: true, message: 'Loading started — check Railway logs for progress' });
+    // Run after responding so the HTTP request doesn't time out
+    main().then(() => console.log('✅ Diagnostic knowledge load complete'))
+          .catch(err => console.error('❌ Knowledge load failed:', err.message));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Google Calendar OAuth ─────────────────────────────────────────────────────
 const googleCalendar = require('./services/googleCalendar');
 const db             = require('./database/db');
