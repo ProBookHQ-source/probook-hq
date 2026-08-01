@@ -535,13 +535,15 @@ async function handleEmail(session, contractor, businessName, text) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const skipWords  = /^(skip|no|nope|none|n\/a|na)$/i;
 
-  if (skipWords.test(input)) {
+  const socialReply = /^(thanks?|ok|okay|great|sounds?\s*good|perfect|awesome|got\s*it|👍|thx|ty|yep|yup|sure|cool|nice|wonderful)$/i;
+
+  if (skipWords.test(input) || socialReply.test(input)) {
     await updateSession(session.id, { state: 'confirmed' });
     return `No problem! Your booking is confirmed. ${businessName} will remind you the morning of your appointment. Reply STOP to opt out.`;
   }
 
   if (!emailRegex.test(input)) {
-    // Not a valid email and not a skip word — ask once more
+    // Not a valid email and not a skip/social word — ask once more
     return `Just reply with your email address or SKIP if you'd rather not.`;
   }
 

@@ -155,6 +155,16 @@ const aiChatLimiter = rateLimit({
 app.use('/api/admin/ai-chat',      aiChatLimiter);
 app.use('/api/contractor/ai-chat', aiChatLimiter);
 
+// Rate limiting — Twilio inbound SMS (15 per 15 min per sender phone — prevents API cost abuse)
+// Keyed by From phone number so each homeowner is limited independently, not by Twilio's shared IP.
+const twilioSmsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  keyGenerator: (req) => req.body?.From || req.ip,
+  message: { error: 'Too many messages' },
+});
+app.use('/api/twilio/inbound-sms', twilioSmsLimiter);
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth',         require('./routes/auth'));
 app.use('/api/contractors',  require('./routes/contractors'));
