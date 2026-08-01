@@ -124,33 +124,30 @@ async function storeKnowledgeChunk({ niche, category, symptom_tags, content, urg
  * @param {object[]} chunks — array of chunk objects (same shape as storeKnowledgeChunk)
  */
 async function storeKnowledgeBatch(chunks) {
-  const BATCH_SIZE = 96; // stay well under Voyage's limit
+  // Embed one chunk at a time to avoid Voyage AI rate limits on large text batches.
+  // Each PLUMBING/HVAC chunk is a long paragraph — batching all at once hits token limits.
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk  = chunks[i];
+    const vector = await embed(chunk.content);
+    const vectorStr = `[${vector.join(',')}]`;
 
-  for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-    const batch   = chunks.slice(i, i + BATCH_SIZE);
-    const texts   = batch.map(c => c.content);
-    const vectors = await embedBatch(texts);
+    await db.query(`
+      INSERT INTO diagnostic_knowledge (niche, category, symptom_tags, content, embedding, urgency, safety_flag)
+      VALUES ($1, $2, $3, $4, $5::vector, $6, $7)
+      ON CONFLICT DO NOTHING
+    `, [
+      normalizeNiche(chunk.niche),
+      chunk.category || null,
+      chunk.symptom_tags || [],
+      chunk.content,
+      vectorStr,
+      chunk.urgency || 'schedule',
+      chunk.safety_flag || false,
+    ]);
 
-    for (let j = 0; j < batch.length; j++) {
-      const chunk     = batch[j];
-      const vectorStr = `[${vectors[j].join(',')}]`;
-
-      await db.query(`
-        INSERT INTO diagnostic_knowledge (niche, category, symptom_tags, content, embedding, urgency, safety_flag)
-        VALUES ($1, $2, $3, $4, $5::vector, $6, $7)
-        ON CONFLICT DO NOTHING
-      `, [
-        normalizeNiche(chunk.niche),
-        chunk.category || null,
-        chunk.symptom_tags || [],
-        chunk.content,
-        vectorStr,
-        chunk.urgency || 'schedule',
-        chunk.safety_flag || false,
-      ]);
-    }
-
-    console.log(`[DIAGNOSTIC] Stored chunks ${i + 1}–${Math.min(i + BATCH_SIZE, chunks.length)} of ${chunks.length}`);
+    console.log(`[DIAGNOSTIC] Stored chunk ${i + 1} of ${chunks.length}`);
+    // Small pause between individual embeddings to respect rate limits
+    if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 500));
   }
 }
 
