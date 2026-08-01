@@ -173,7 +173,7 @@ app.use('/api/admin/ai-chat',     require('./routes/adminAI')); // Jose's busine
 // ── ONE-TIME: Load Brain 3 diagnostic knowledge into DB ──────────────────────
 // Hit once after deploy, then this endpoint can be removed.
 app.post('/api/admin/load-diagnostic-knowledge', express.json(), async (req, res) => {
-  if (req.headers['x-deploy-secret'] !== process.env.DEPLOY_SECRET) {
+  if (req.headers['x-api-key'] !== process.env.INBOUND_API_KEY) {
     return res.status(403).json({ error: 'Forbidden' });
   }
   try {
