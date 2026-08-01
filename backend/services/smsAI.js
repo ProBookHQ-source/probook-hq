@@ -31,6 +31,14 @@ function fmtTime(t) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+// Formats availability slots into a compact SMS-readable string
+// e.g. "Mon 8:00 AM-5:00 PM, Tue 8:00 AM-5:00 PM, ..."
+function formatAvailabilityForSms(slots) {
+  if (!slots.length) return 'No hours loaded yet';
+  const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return slots.map(s => `${DAYS_SHORT[s.day_of_week]} ${fmtTime(s.start_time)}-${fmtTime(s.end_time)}`).join(', ');
+}
+
 function getTwilioClient() {
   if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return null;
   return require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
@@ -118,7 +126,7 @@ async function handleContractorSms(contractor, incomingText) {
     availability: {
       label: 'Confirm your schedule',
       done: !!completedSteps.availability,
-      guide: 'Their hours were pre-set from the intake form. Ask them to confirm they look right at tractifyhq.com/contractor. Text DONE when confirmed.',
+      guide: 'Their hours are shown in the REGULAR SCHEDULE section above. Read them back in the text and ask if they look right — no portal login needed. If yes, mark the step done. If they want changes, ask them to text the specific change and update via block_time.',
     },
     twilio: {
       label: 'Set up missed call forwarding',
@@ -454,7 +462,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
 async function sendWelcomeText(contractor, twilioClient) {
   const firstName = (contractor.name || '').split(' ')[0] || 'there';
 
-  const body = `Hey ${firstName}! Your Tractify pipeline is live. Two things get the jobs flowing — I'll walk you through them. You can also text me anytime: "what's on my calendar" or "block Tuesday 3pm". Ready? Reply YES. Reply STOP to opt out.`;
+  const body = `Hey ${firstName} — your booking system is live. Two quick things and jobs start coming in automatically. Ready to knock them out? Reply YES to start. Reply STOP to opt out.`;
 
   await twilioClient.messages.create({
     to: contractor.phone,
@@ -476,7 +484,7 @@ async function sendWelcomeText(contractor, twilioClient) {
 async function sendPowerMessage(contractor, twilioClient) {
   const firstName = (contractor.name || '').split(' ')[0] || 'there';
 
-  const body = `By the way ${firstName} — this number is your direct line to your whole calendar. Try it: text "what's on my calendar tomorrow" or "block Wednesday 2-5pm". It all updates automatically. This is how you run everything.`;
+  const body = `${firstName} — this number does more than setup. Text me "what's on my calendar tomorrow" right now and I'll read it back in 10 seconds. Text "block Wednesday 2-5pm" and it's held. Try it.`;
 
   await twilioClient.messages.create({
     to: contractor.phone,
@@ -490,7 +498,7 @@ async function sendPowerMessage(contractor, twilioClient) {
 // ── Calendar blocking training ── fires after step 2 (twilio) confirmed ───────
 // Critical: must arrive BEFORE the first job lands or double-bookings happen.
 async function sendCalendarTrainingMessage(contractor, twilioClient) {
-  const body = `One more thing before jobs start coming in — any job you book outside Tractify (referrals, direct calls, word of mouth) just text me: "block Thursday 10am to 2pm". I'll hold it instantly so nobody double-books you.`;
+  const body = `Before the first jobs hit — if you book something direct (referral, repeat customer, phone call) text me the time: "block Thursday 10am to 2pm." I hold it immediately. If you skip this, someone will book that slot through Tractify and you'll have a conflict.`;
 
   await twilioClient.messages.create({
     to: contractor.phone,
@@ -505,7 +513,7 @@ async function sendCalendarTrainingMessage(contractor, twilioClient) {
 // The full "here's everything you can do" message. Makes the SMS interface feel
 // like a superpower they just unlocked. Arrives as a 3rd text after twilio step.
 async function sendCapabilitiesGuide(contractor, twilioClient) {
-  const body = `Here's everything you can do from this number: "jobs today" → your schedule with map links · "block Tue 10am-2pm" → holds that time · "cancel my 3pm Thu" → done, they get a rebook link · "how many jobs this week" → your count. Text me anything, anytime.`;
+  const body = `Quick cheat sheet. "jobs today" gets your schedule with map links. "block Tue 10am-2pm" holds that time. "cancel my 3pm Thu" cancels and sends them a rebook link. "how many jobs this week" gives your count. Text me anything.`;
 
   await twilioClient.messages.create({
     to: contractor.phone,
@@ -522,7 +530,7 @@ async function sendPostAppointmentText(appointment, contractor, twilioClient) {
   const homeownerName = appointment.lead_name || 'your customer';
   const apptTime = fmtTime(appointment.scheduled_time);
 
-  const body = `Hey ${firstName} — how'd your ${apptTime} go with ${homeownerName}? Did the job close? Reply YES $amount (like YES $850) or just NO.`;
+  const body = `Hey ${firstName} — how'd the ${apptTime} with ${homeownerName} go? Job close? Reply YES $850 (or whatever you got) or just NO. 5 seconds.`;
 
   await twilioClient.messages.create({
     to: contractor.phone,
@@ -556,22 +564,33 @@ async function sendSetupStepText(contractor, twilioClient) {
   const firstName = (contractor.name || '').split(' ')[0] || 'there';
   const twilioNum = contractor.twilio_number;
 
-  // Each message names the channel, states the cost of skipping it,
-  // and makes the action feel like a 60-second win.
-  const STEP_TEXTS = {
-    availability: `${firstName}, step 1 of 2 — your hours were pre-set from your form. Log in at tractifyhq.com/contractor and confirm they look right. Takes 30 seconds. Reply DONE when you've checked.`,
+  // For the availability step, pull their hours from DB and show them in the text
+  // so the contractor never has to log into the portal to confirm.
+  let availabilityText = '';
+  if (nextIncomplete === 'availability') {
+    const slotsResult = await db.query(
+      'SELECT * FROM availability_slots WHERE contractor_id = $1 ORDER BY day_of_week',
+      [contractor.id]
+    );
+    availabilityText = formatAvailabilityForSms(slotsResult.rows);
+  }
 
-    twilio: `Step 2 of 2 — the big one. Right now when you miss a call on a job, that homeowner calls your competitor. Forward unanswered calls to ${twilioNum} and we auto-text every missed caller a booking link. iPhone: Settings > Phone > Call Forwarding > When Unanswered > enter ${twilioNum} > on. Reply DONE when set.`,
+  // Each message names the channel, states the cost of skipping it,
+  // and makes the action feel like a 60-second win — no portal login required.
+  const STEP_TEXTS = {
+    availability: `${firstName} — step 1 of 2. Here are the hours we loaded from your form: ${availabilityText}. Look right? Reply YES to confirm or text me any changes.`,
+
+    twilio: `Step 2 of 2. Every call you miss on a job — that homeowner is already calling your competitor. Forward unanswered calls to ${twilioNum} and we auto-text every missed caller before they dial someone else. iPhone: Settings > Phone > Call Forwarding > When Unanswered > enter ${twilioNum} > on. Reply DONE.`,
 
     gbp: `Good news — your Google listing is already getting search traffic. But right now there's no Book button. Homeowners searching "HVAC near me" can see you but can't book. 60 seconds to fix: business.google.com > Edit Profile > Appointments > paste this: ${bookingLink} > Save. Reply DONE.`,
 
-    nextdoor: `Homeowners in your area post "anyone know a good contractor?" on Nextdoor every single day. One post from you puts your booking link in front of neighbors who already trust their neighbors. Text COPY and I'll send you the exact post — takes 2 minutes.`,
+    nextdoor: `People in your service area are posting "anyone know a good HVAC guy?" on Nextdoor right now. They hire whoever shows up first. Text COPY and I'll send you the exact post — 2 minutes and you're in front of all of them.`,
 
-    facebook: `Facebook community groups are full of homeowners asking for contractor recommendations right now. Text COPY and I'll send the exact post to paste — 2 minutes, could bring your next booking.`,
+    facebook: `Every local Facebook group has homeowners asking for contractor recommendations right now. The ones that respond fastest get the job. Text COPY and I'll send the exact post to paste — 2 minutes.`,
 
-    reviewers: `Your past Google reviewers already trust you — they paid you and left 5 stars. Reaching out to them is the fastest free channel we have. Text COPY for the exact message to send each one.`,
+    reviewers: `Your Google reviewers paid you, loved you, and left proof. They're your warmest leads — they'll book again or refer a neighbor. Text COPY and I'll send the exact message to send each one. Free channel, highest trust.`,
 
-    messenger: `Last channel — homeowners DM contractors on Facebook and Instagram constantly and never hear back. Set up an auto-reply that sends your booking link to every DM, 24/7. Text COPY for the reply text to paste in.`,
+    messenger: `Last one. Homeowners DM contractors on Facebook and Instagram, don't hear back, and hire whoever responds. One-time auto-reply setup and every DM gets your booking link instantly, 24/7, without you touching it. Text COPY for the exact text to paste.`,
   };
 
   const textBody = STEP_TEXTS[nextIncomplete];
