@@ -2092,72 +2092,29 @@
             <input type="text" name="website" id="h-honeypot" tabindex="-1" autocomplete="off" />
           </div>
           <form id="hero-lead-form" novalidate>
-          <p class="form-title">Book Your Free Estimate</p>
+            <p class="form-title">Get a Free Estimate</p>
             <div class="form-group">
-              <label for="h-name">Full Name *</label>
-              <input id="h-name" name="name" type="text" placeholder="Jane Smith" autocomplete="name" required />
-            </div>
-            <div class="form-group">
-              <label for="h-phone">Phone *</label>
-              <input id="h-phone" name="phone" type="tel" placeholder="(555) 000-0000" autocomplete="tel" required />
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="h-email">Email *</label>
-                <input id="h-email" name="email" type="email" placeholder="jane@email.com" autocomplete="email" required />
-              </div>
-              <div class="form-group">
-                <label for="h-zip">ZIP Code *</label>
-                <input id="h-zip" name="zip_code" type="text" inputmode="numeric" placeholder="80202" maxlength="5" autocomplete="postal-code" required />
-              </div>
-            </div>
-            <div id="zip-status" style="display:none;"></div>
-            <div class="form-group">
-              <label for="h-address">Street Address *</label>
-              <input id="h-address" name="address" type="text" placeholder="1234 Maple Street" autocomplete="street-address" required />
-            </div>
-            <div class="form-group">
-              <label for="h-service">Service Needed *</label>
-              <select id="h-service" name="service_type" required>
-                <option value="" disabled selected>Select a service…</option>
-              </select>
+              <label for="h-phone">Your Phone Number *</label>
+              <input id="h-phone" name="phone" type="tel" placeholder="(555) 000-0000" autocomplete="tel" required style="font-size:1.1rem;padding:14px 16px;" />
             </div>
             <div class="form-social-proof">
               <span class="form-stars">★★★★★</span>
               <span id="form-proof-text">4.9 rating · 500+ homes served</span>
             </div>
-            <button type="submit" id="hero-form-submit">Book My Free Estimate →</button>
-            <p class="form-reassurance">No obligation · Booking link sent instantly</p>
-            <p style="font-size:11px;color:#888;margin-top:6px;line-height:1.4;">By submitting, you agree to receive SMS and email about your appointment. Reply STOP to opt out. <a href="https://tractifyhq.com/privacy" target="_blank" style="color:#888;text-decoration:underline;">Privacy Policy</a></p>
+            <button type="submit" id="hero-form-submit">Text Me Available Times →</button>
+            <p class="form-reassurance">We'll text you in seconds — no spam, no obligation</p>
+            <p style="font-size:11px;color:#888;margin-top:6px;line-height:1.4;">By submitting, you consent to receive SMS about your request. Reply STOP to opt out. <a href="https://tractifyhq.com/privacy" target="_blank" style="color:#888;text-decoration:underline;">Privacy Policy</a></p>
             <div id="hero-form-message"></div>
           </form>
 
-          <!-- Inline booking — shown after form submit, replaces form -->
-          <div id="hero-inline-booking" style="display:none;">
-
-            <!-- Slot picker -->
-            <div id="ibook-picker">
-              <h3 style="color:#fff;font-size:1.15rem;font-weight:700;margin:0 0 4px;">Pick Your Appointment Time</h3>
-              <p style="color:rgba(255,255,255,.75);font-size:.85rem;margin:0 0 16px;">Choose a date and time that works for you — we'll confirm right away.</p>
-              <div id="ibook-loader" class="ibook-loader">Loading available times…</div>
-              <div id="ibook-no-slots" class="ibook-no-slots" style="display:none;">No openings in the next 2 weeks. We'll reach out by email to schedule.</div>
-              <div id="ibook-dates" class="slot-dates" style="display:none;"></div>
-              <div id="ibook-times" class="slot-times" style="display:none;"></div>
-              <div id="ibook-confirm-bar" class="ibook-confirm-bar"></div>
-              <button id="ibook-confirm-btn" class="ibook-confirm-btn" onclick="confirmInlineBooking()">Confirm Appointment →</button>
-              <div id="ibook-error" style="display:none;color:#fca5a5;font-size:.85rem;margin-top:10px;text-align:center;"></div>
+          <!-- Success — shown after form submit, replaces form -->
+          <div id="hero-sms-success" style="display:none;text-align:center;padding:24px 8px;">
+            <div style="width:72px;height:72px;background:#22c55e;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             </div>
-
-            <!-- Confirmed state -->
-            <div id="ibook-confirmed" style="display:none;text-align:center;">
-              <div style="width:72px;height:72px;background:#22c55e;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
-                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-              </div>
-              <h3 style="color:#fff;font-size:1.4rem;font-weight:700;margin:0 0 6px;">You're Booked!</h3>
-              <p style="color:rgba(255,255,255,.8);font-size:.9rem;margin:0 0 14px;">A confirmation email is on its way to you.</p>
-              <div id="ibook-confirmed-detail" style="background:rgba(255,255,255,.12);border-radius:10px;padding:14px 16px;color:#fff;font-size:.92rem;text-align:left;line-height:1.9;"></div>
-            </div>
-
+            <h3 style="color:#fff;font-size:1.4rem;font-weight:700;margin:0 0 8px;">Check Your Texts!</h3>
+            <p style="color:rgba(255,255,255,.85);font-size:.95rem;margin:0 0 6px;">We just texted you — reply to get booked in minutes.</p>
+            <p style="color:rgba(255,255,255,.6);font-size:.82rem;">No app needed. Just reply to the text.</p>
           </div>
 
         </div>
@@ -3053,14 +3010,12 @@
       }
     }
 
-    // ── Shared lead form handler ─────────────────────────────────────────
+    // ── Hero lead form handler (phone-only → Brain 3 SMS) ────────────────
     let _lastSubmitTime = 0;
     async function handleLeadForm(formId, btnId, msgId, prefix) {
-      // Honeypot check — bots fill hidden fields, humans don't
       const honeypot = document.getElementById('h-honeypot');
-      if (honeypot && honeypot.value) return; // silently reject
+      if (honeypot && honeypot.value) return;
 
-      // Rate limiting — prevent rapid resubmission
       const now = Date.now();
       if (now - _lastSubmitTime < 30000) {
         const msg = document.getElementById(msgId);
@@ -3071,151 +3026,63 @@
 
       const btn = document.getElementById(btnId);
       const msg = document.getElementById(msgId);
-      const origBtnText = btn.textContent; // save so we can restore exactly
+      const origBtnText = btn.textContent;
+      const phone = document.getElementById(prefix + 'phone').value.trim();
 
-      const name    = document.getElementById(prefix + 'name').value.trim();
-      const email   = document.getElementById(prefix + 'email').value.trim();
-      const phone   = document.getElementById(prefix + 'phone').value.trim();
-      const zip     = document.getElementById(prefix + 'zip').value.trim();
-      const address = document.getElementById(prefix + 'address') ? document.getElementById(prefix + 'address').value.trim() : '';
-      const service = document.getElementById(prefix + 'service').value;
-
-      // Field-level validation — highlight each empty field individually
-      const _requiredFields = [
-        { id: prefix + 'name',    val: name },
-        { id: prefix + 'phone',   val: phone },
-        { id: prefix + 'email',   val: email },
-        { id: prefix + 'zip',     val: zip },
-        { id: prefix + 'address', val: address },
-        { id: prefix + 'service', val: service },
-      ];
-      const _emptyFields = _requiredFields.filter(f => { const el = document.getElementById(f.id); return el && !f.val; });
-      if (_emptyFields.length) {
-        _emptyFields.forEach(f => {
-          const el = document.getElementById(f.id);
-          if (!el) return;
-          el.style.borderColor = 'rgba(239,68,68,0.9)';
-          el.style.boxShadow = '0 0 0 3px rgba(239,68,68,0.25)';
-          el.addEventListener('input', function() { this.style.borderColor = ''; this.style.boxShadow = ''; }, { once: true });
-          el.addEventListener('change', function() { this.style.borderColor = ''; this.style.boxShadow = ''; }, { once: true });
-        });
+      if (!phone || phone.replace(/\D/g,'').length !== 10) {
         msg.className = 'error'; msg.style.display = '';
-        msg.textContent = 'Please fill in all highlighted fields before submitting.';
-        const firstEl = document.getElementById(_emptyFields[0].id);
-        if (firstEl) { firstEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); firstEl.focus(); }
+        msg.textContent = 'Please enter a valid 10-digit U.S. phone number.';
+        const el = document.getElementById(prefix + 'phone');
+        if (el) { el.style.borderColor = 'rgba(239,68,68,0.9)'; el.style.boxShadow = '0 0 0 3px rgba(239,68,68,0.25)'; el.focus(); }
         return;
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
-        msg.className = 'error'; msg.style.display = ''; msg.textContent = 'Please enter a valid email address.'; return;
-      }
-      if (phone.replace(/\D/g,'').length !== 10) {
-        msg.className = 'error'; msg.style.display = ''; msg.textContent = 'Please enter a valid 10-digit U.S. phone number.'; return;
-      }
-      if (!/^\d{5}$/.test(zip)) {
-        msg.className = 'error'; msg.style.display = ''; msg.textContent = 'Please enter a valid 5-digit ZIP code.'; return;
       }
 
       btn.disabled = true; btn.textContent = 'Sending…';
       msg.className = ''; msg.style.display = 'none';
 
-      const payload = { name, email, phone, zip_code: zip, address, service_type: service,
-                        niche_slug: 'hvac', source_site: CLIENT.sourceSite };
-
-      // ── Demo mode: if API key is still the placeholder, simulate success ──
+      const payload = { phone, niche_slug: 'hvac', source_site: (typeof _ibookSource !== 'undefined' ? _ibookSource : '') || CLIENT.sourceSite || '' };
       const isDemoMode = CLIENT.tractifyKey === 'YOUR_TRACTIFY_API_KEY';
 
       try {
         const res = isDemoMode
-          ? { ok: true, status: 201, json: async () => ({}) }
+          ? { ok: true, status: 201, json: async () => ({ brain3: true }) }
           : await fetch(`${TRACTIFY_API}/api/leads/inbound`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + CLIENT.tractifyKey },
               body: JSON.stringify(payload),
             });
-        if (res.ok) {
-          _lastSubmitTime = Date.now(); // stamp time to enforce rate limit
-          const data = await res.json().catch(() => ({}));
-          // Hide the form
-          const form = document.getElementById(formId);
-          form.style.display = 'none';
-          form.reset();
-          const zs = document.getElementById('zip-status');
-          if (zs) { zs.style.display = 'none'; zs.className = ''; }
-          // Show inline booking slot picker
-          showInlineBooking(data);
-        } else if (res.status === 409) {
-          // Duplicate lead — show inline booking (they may still want to book)
+
+        if (res.ok || res.status === 409) {
           _lastSubmitTime = Date.now();
-          const form = document.getElementById(formId);
-          form.style.display = 'none';
-          form.reset();
-          const zs = document.getElementById('zip-status');
-          if (zs) { zs.style.display = 'none'; zs.className = ''; }
-          showInlineBooking({});
+          document.getElementById(formId).style.display = 'none';
+          document.getElementById('hero-sms-success').style.display = 'block';
         } else {
           const errData = await res.json().catch(() => ({}));
           msg.className = 'error'; msg.style.display = '';
-          msg.textContent = errData.error || errData.message || 'Something went wrong. Please call us directly.';
+          msg.textContent = errData.error || 'Something went wrong. Please call us directly.';
+          btn.disabled = false; btn.textContent = origBtnText;
         }
       } catch (err) {
         msg.className = 'error'; msg.style.display = '';
         msg.textContent = 'Unable to submit — please call us at ' + CLIENT.phone + '.';
-      } finally {
-        btn.disabled = false; btn.textContent = origBtnText; // restore original text
+        btn.disabled = false; btn.textContent = origBtnText;
       }
     }
 
     // ── Phone auto-formatter ─────────────────────────────────────────────
     function formatPhone(input) {
+      if (!input) return;
       input.addEventListener('input', function() {
         const digits = this.value.replace(/\D/g, '').slice(0, 10);
         let formatted = '';
-        if (digits.length === 0) {
-          formatted = '';
-        } else if (digits.length <= 3) {
-          formatted = '(' + digits;
-        } else if (digits.length <= 6) {
-          formatted = '(' + digits.slice(0,3) + ') ' + digits.slice(3);
-        } else {
-          formatted = '(' + digits.slice(0,3) + ') ' + digits.slice(3,6) + '-' + digits.slice(6);
-        }
+        if (digits.length === 0) { formatted = ''; }
+        else if (digits.length <= 3) { formatted = '(' + digits; }
+        else if (digits.length <= 6) { formatted = '(' + digits.slice(0,3) + ') ' + digits.slice(3); }
+        else { formatted = '(' + digits.slice(0,3) + ') ' + digits.slice(3,6) + '-' + digits.slice(6); }
         this.value = formatted;
       });
     }
     formatPhone(document.getElementById('h-phone'));
-
-    // ── ZIP code service area validation ─────────────────────────────────
-    const zipInput    = document.getElementById('h-zip');
-    const zipStatus   = document.getElementById('zip-status');
-    const submitBtn   = document.getElementById('hero-form-submit');
-
-    zipInput.addEventListener('blur', function() {
-      const zip = this.value.trim();
-      if (zip.length !== 5) { zipStatus.style.display = 'none'; return; }
-
-      if (CLIENT.serviceZips.includes('*') || CLIENT.serviceZips.includes(zip)) {
-        zipStatus.style.display = 'none';
-        submitBtn.disabled = false;
-      } else {
-        zipStatus.style.display = 'block';
-        zipStatus.className = 'zip-status-warn';
-        zipStatus.innerHTML = `
-          <p>⚠️ Your zip code may be outside our service area. Call us to confirm we can reach you:</p>
-          <a href="tel:${CLIENT.phoneRaw}" class="zip-call-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.06 1.18 2 2 0 012.03 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
-            Call ${CLIENT.phone}
-          </a>`;
-        submitBtn.disabled = true;
-      }
-    });
-
-    // Re-validate on input after a warning so user can correct their zip
-    zipInput.addEventListener('input', function() {
-      if (this.value.trim().length < 5) {
-        zipStatus.style.display = 'none';
-        submitBtn.disabled = false;
-      }
-    });
 
     // ── FAQ accordion ────────────────────────────────────────────────────
     document.querySelectorAll('.faq-q').forEach(btn => {

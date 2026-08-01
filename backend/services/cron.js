@@ -280,4 +280,119 @@ cron.schedule('45 * * * *', async () => {
   }
 });
 
-console.log('✅ Cron jobs started (appointment reminders every hour, onboarding nudge daily at 10am, SMS drip hourly at :30, 72h silence check every 6h, post-job check-in hourly at :45)');
+// ── Morning-of confirmation SMS ───────────────────────────────────────────────
+// Runs at 7:30 AM daily. Texts homeowners whose appointment is TODAY so they
+// can confirm or cancel early. Reply CANCEL cancels and triggers a rebook.
+// Uses pre_appt_sms_sent_at to prevent duplicate sends.
+cron.schedule('30 7 * * *', async () => {
+  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return;
+
+  try {
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    const { rows: appts } = await db.query(`
+      SELECT a.id, a.scheduled_date, a.scheduled_time,
+             l.name AS lead_name, l.phone AS lead_phone, l.id AS lead_id,
+             c.id AS contractor_id, c.company_name, c.name AS contractor_name,
+             c.twilio_number
+      FROM appointments a
+      JOIN leads l       ON a.lead_id = l.id
+      JOIN contractors c ON a.contractor_id = c.id
+      WHERE a.scheduled_date = $1
+        AND a.status = 'confirmed'
+        AND a.pre_appt_sms_sent_at IS NULL
+        AND l.phone IS NOT NULL
+        AND c.twilio_number IS NOT NULL
+    `, [todayStr]);
+
+    if (!appts.length) return;
+
+    const twilio = require('twilio');
+    const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+
+    for (const appt of appts) {
+      try {
+        const firstName = appt.lead_name ? appt.lead_name.split(' ')[0] : null;
+        const business  = appt.company_name || appt.contractor_name;
+        const greeting  = firstName ? `Hey ${firstName}! ` : 'Hey! ';
+        const timeLabel = appt.scheduled_time.replace(/^0/, '').replace(':00', '');
+        const body = `${greeting}Just confirming your appointment with ${business} today at ${timeLabel}. Reply CANCEL if you need to cancel.`;
+
+        const digits = appt.lead_phone.replace(/\D/g, '');
+        const e164   = digits.length === 10 ? `+1${digits}` : `+${digits}`;
+
+        await twilioClient.messages.create({
+          to:   e164,
+          from: appt.twilio_number,
+          body,
+        });
+        await db.prepare('UPDATE appointments SET pre_appt_sms_sent_at = NOW() WHERE id = $1').run(appt.id);
+        console.log(`⏰ [cron] Morning-of confirmation sent — appt ${appt.id} (${appt.lead_name}, ${appt.scheduled_time})`);
+      } catch (err) {
+        console.error(`⏰ [cron] Morning-of SMS failed for appt ${appt.id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('⏰ [cron] Morning-of confirmation job error:', err.message);
+  }
+});
+
+// ── Post-appointment review request SMS ───────────────────────────────────────
+// Runs hourly at :50. Finds appointments marked 'completed' 2-4 hours ago where
+// homeowner has a phone + contractor has a Twilio number + place_id is set.
+// Texts homeowner a Google review request with a direct link.
+// Uses homeowner_review_sms_sent_at to prevent duplicate sends.
+cron.schedule('50 * * * *', async () => {
+  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return;
+
+  try {
+    const { rows: appts } = await db.query(`
+      SELECT a.id, a.scheduled_date, a.scheduled_time,
+             l.name AS lead_name, l.phone AS lead_phone,
+             c.id AS contractor_id, c.company_name, c.name AS contractor_name,
+             c.twilio_number, c.place_id
+      FROM appointments a
+      JOIN leads l       ON a.lead_id = l.id
+      JOIN contractors c ON a.contractor_id = c.id
+      WHERE a.status = 'completed'
+        AND a.homeowner_review_sms_sent_at IS NULL
+        AND a.updated_at >= NOW() - INTERVAL '4 hours'
+        AND a.updated_at <  NOW() - INTERVAL '2 hours'
+        AND l.phone IS NOT NULL
+        AND c.twilio_number IS NOT NULL
+        AND c.place_id IS NOT NULL
+    `);
+
+    if (!appts.length) return;
+
+    const twilio = require('twilio');
+    const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+
+    for (const appt of appts) {
+      try {
+        const firstName   = appt.lead_name ? appt.lead_name.split(' ')[0] : null;
+        const business    = appt.company_name || appt.contractor_name;
+        const greeting    = firstName ? `Hey ${firstName}! ` : 'Hey! ';
+        const reviewLink  = `https://search.google.com/local/writereview?placeid=${appt.place_id}`;
+        const body = `${greeting}Hope the service with ${business} went great! A quick Google review would mean a lot to them — takes 30 seconds: ${reviewLink}`;
+
+        const digits = appt.lead_phone.replace(/\D/g, '');
+        const e164   = digits.length === 10 ? `+1${digits}` : `+${digits}`;
+
+        await twilioClient.messages.create({
+          to:   e164,
+          from: appt.twilio_number,
+          body,
+        });
+        await db.prepare('UPDATE appointments SET homeowner_review_sms_sent_at = NOW() WHERE id = $1').run(appt.id);
+        console.log(`⏰ [cron] Review request SMS sent — appt ${appt.id} (${appt.lead_name})`);
+      } catch (err) {
+        console.error(`⏰ [cron] Review SMS failed for appt ${appt.id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('⏰ [cron] Review request SMS job error:', err.message);
+  }
+});
+
+console.log('✅ Cron jobs started (appointment reminders every hour, onboarding nudge daily at 10am, SMS drip hourly at :30, 72h silence check every 6h, post-job check-in hourly at :45, morning confirmation at 7:30am, review SMS hourly at :50)');

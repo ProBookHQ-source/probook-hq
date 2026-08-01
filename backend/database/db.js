@@ -238,6 +238,38 @@ async function initialize() {
   await db.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS closed_value NUMERIC`).catch(() => {});
   await db.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS post_job_sms_sent_at TIMESTAMPTZ`).catch(() => {});
 
+  // Migration: pre-appointment morning-of confirmation SMS tracking
+  await db.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS pre_appt_sms_sent_at TIMESTAMPTZ`).catch(() => {});
+
+  // Migration: post-appointment review request SMS tracking (3 hours after completion)
+  await db.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS homeowner_review_sms_sent_at TIMESTAMPTZ`).catch(() => {});
+
+  // Migration: allow leads.name and leads.email to be NULL (phone-only Brain 3 path)
+  await db.query(`ALTER TABLE leads ALTER COLUMN name DROP NOT NULL`).catch(() => {});
+  await db.query(`ALTER TABLE leads ALTER COLUMN email DROP NOT NULL`).catch(() => {});
+
+  // Migration: pgvector + diagnostic knowledge for Brain 3 RAG
+  await db.query(`CREATE EXTENSION IF NOT EXISTS vector`).catch(() => {});
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS diagnostic_knowledge (
+      id SERIAL PRIMARY KEY,
+      niche TEXT NOT NULL,
+      category TEXT,
+      symptom_tags TEXT[],
+      content TEXT NOT NULL,
+      embedding VECTOR(512),
+      urgency TEXT DEFAULT 'schedule',
+      safety_flag BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(() => {});
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_diagnostic_niche ON diagnostic_knowledge(niche)`).catch(() => {});
+  await db.query(`
+    CREATE INDEX IF NOT EXISTS diagnostic_knowledge_embedding_idx
+    ON diagnostic_knowledge USING hnsw (embedding vector_cosine_ops)
+  `).catch(() => {});
+
   // Migration: add metadata + source_site to leads for inbound bridge support
   await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'`).catch(() => {});
   await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS source_site TEXT`).catch(() => {});

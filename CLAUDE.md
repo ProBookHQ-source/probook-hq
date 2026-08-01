@@ -1,5 +1,5 @@
 # Tractify — Master Context Document
-*Last updated: July 30, 2026 (session 16 — Brain 3 (homeowner conversational SMS) fully built and deployed. All three SMS drip missing pieces built: power message (after availability confirmed), calendar blocking training (after twilio confirmed), post-appointment close tracking via SMS cron (hourly at :45). Bug fixed: twilio.js inbound-sms contractor SELECT was missing sms_power_message_sent + sms_calendar_training_sent columns — specialty messages could fire repeatedly. Fixed by adding columns to SELECT. Session 15 — GBP API status resolved: OAuth credentials confirmed working — all three stored in Railway env vars as GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GBP_REFRESH_TOKEN (do not store values here). ⚠️ The original GBP_REFRESH_TOKEN was exposed in git commit history (session 14) and must be considered compromised. Before implementing GBP automation: (1) revoke the token at myaccount.google.com → Security → Third-party apps → Tractify GBP → Remove access, (2) generate a fresh token via OAuth Playground, (3) update GBP_REFRESH_TOKEN in Railway. Do not use the existing Railway token for any live GBP API calls. GBP Account Management API blocked at 0 QPM — requires Google approval (60-day verified GBP requirement + application at support.google.com/business/contact/api_default, "Application for Basic API Access", takes 1-4 weeks). Apply now and let it process in background. GBP booking button set manually per contractor in the interim — 2 min per contractor. My Business Reviews API also restricted/private. Post-access GBP automation deferred until Google approves. Manual GBP booking button steps filed below under "Manual GBP Booking Button Setup." Session 13 — automation-first model reframe filed: trial delivery must not depend on contractor manual action; ad-sourced contractors are low-commitment at signup; jobs must flow from Jose-controlled channels + automatic system responses; minimum contractor action = 2 things only. Session 12 final — legal + security hardening complete. Privacy Policy + Terms of Service live at /privacy and /terms. SMS consent disclosure added to both HVAC templates. STOP opt-out added to all homeowner-facing Twilio SMS. Terms acceptance checkbox added to intake-form.html (blocks submit if unchecked). /privacy and /terms routes added to App.jsx. Footer links added to LandingPage.jsx. Rate limiter added to both AI chat endpoints (20 req/15min protects Anthropic bill). Contractor AI chat rate limiter added alongside admin AI. Full security audit passed — no hardcoded secrets, all SQL uses parameterized queries or allowlist validation, Helmet active, Twilio + Facebook webhook signature validation in place, bcrypt on all passwords. Google Places API key in intake-form.html is public by design — restrict to intake.tractifyhq.com in Google Cloud Console as manual step.)*
+*Last updated: July 30, 2026 (session 17 — SMS maximization complete. Five major builds: (1) HVAC templates (both index.html + backend/templates/hvac-template.html) stripped to phone-only form — single phone field, submit fires Brain 3 conversational SMS immediately, success shows "Check Your Texts!" instead of inline slot picker. (2) Brain 3 name capture + lead_id threading — Brain 3 asks homeowner for name+address together via Claude JSON extraction, patches lead record as info is captured, skips lead creation in handleSlotPick when lead_id already set. (3) Cancelled appointment → Brain 3 rebook SMS — both contractor cancel (PUT /:id/cancel) and homeowner cancel (POST /cancel-token/:token) now fire a Brain 3 rebook session alongside the existing email: startRebookSession() creates a session with state='awaiting_slot', name+address+service pre-populated, offered_slots fetched — homeowner gets a text with available times immediately. (4) Pre-appointment morning-of confirmation SMS cron — runs 7:30 AM daily, texts homeowners their appointment details + "Reply CANCEL to cancel." CANCEL keyword in inbound-sms handler cancels the appointment + starts Brain 3 rebook session. pre_appt_sms_sent_at column tracks sends. (5) Review request SMS cron — runs hourly at :50, fires 2-4 hours after appointment marked 'completed', texts homeowner a Google review link using contractor.place_id. homeowner_review_sms_sent_at column tracks sends. New export from homeownerSmsAI.js: startRebookSession(). Session 16 — Brain 3 (homeowner conversational SMS) fully built and deployed. All three SMS drip missing pieces built: power message (after availability confirmed), calendar blocking training (after twilio confirmed), post-appointment close tracking via SMS cron (hourly at :45). Bug fixed: twilio.js inbound-sms contractor SELECT was missing sms_power_message_sent + sms_calendar_training_sent columns — specialty messages could fire repeatedly. Fixed by adding columns to SELECT. Session 15 — GBP API status resolved: OAuth credentials confirmed working — all three stored in Railway env vars as GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GBP_REFRESH_TOKEN (do not store values here). ⚠️ The original GBP_REFRESH_TOKEN was exposed in git commit history (session 14) and must be considered compromised. Before implementing GBP automation: (1) revoke the token at myaccount.google.com → Security → Third-party apps → Tractify GBP → Remove access, (2) generate a fresh token via OAuth Playground, (3) update GBP_REFRESH_TOKEN in Railway. Do not use the existing Railway token for any live GBP API calls. GBP Account Management API blocked at 0 QPM — requires Google approval (60-day verified GBP requirement + application at support.google.com/business/contact/api_default, "Application for Basic API Access", takes 1-4 weeks). Apply now and let it process in background. GBP booking button set manually per contractor in the interim — 2 min per contractor. My Business Reviews API also restricted/private. Post-access GBP automation deferred until Google approves. Manual GBP booking button steps filed below under "Manual GBP Booking Button Setup." Session 13 — automation-first model reframe filed: trial delivery must not depend on contractor manual action; ad-sourced contractors are low-commitment at signup; jobs must flow from Jose-controlled channels + automatic system responses; minimum contractor action = 2 things only. Session 12 final — legal + security hardening complete. Privacy Policy + Terms of Service live at /privacy and /terms. SMS consent disclosure added to both HVAC templates. STOP opt-out added to all homeowner-facing Twilio SMS. Terms acceptance checkbox added to intake-form.html (blocks submit if unchecked). /privacy and /terms routes added to App.jsx. Footer links added to LandingPage.jsx. Rate limiter added to both AI chat endpoints (20 req/15min protects Anthropic bill). Contractor AI chat rate limiter added alongside admin AI. Full security audit passed — no hardcoded secrets, all SQL uses parameterized queries or allowlist validation, Helmet active, Twilio + Facebook webhook signature validation in place, bcrypt on all passwords. Google Places API key in intake-form.html is public by design — restrict to intake.tractifyhq.com in Google Cloud Console as manual step.)*
 
 ---
 
@@ -405,11 +405,125 @@ This rewards high-volume contractors without introducing retainer complexity, an
 
 #### The Iron Rules (Never Break These)
 1. Never mention website, system, or technology — only booked jobs and outcomes
-2. The offer is always "5 free booked jobs, no strings"
-3. Every piece of content drives to `intake.tractifyhq.com` with a unique `?src=` tag
-4. Both Jose and Daniel are on camera — faces convert better than faceless content
+2. Two distinct offers for two distinct audiences — never mix them: **Contractor-facing offer** (intake form, contractor ads, cold outreach): "5 free booked jobs, no strings." **Homeowner-facing offer** (all homeowner-targeted ads, physical channels, Brain 3): "Text us what's wrong — our AI will diagnose it free." The contractor offer is about outcomes. The homeowner offer is about help. Both are 100% true. Neither mentions Tractify's business model.
+3. Every contractor-facing content piece drives to `intake.tractifyhq.com` with a unique `?src=` tag
+4. Both Jose and Daniel are on camera for contractor-facing content — faces convert better than faceless content
 5. Raw and real beats polished every time — shot on iPhone is the format, not a limitation
-6. Cost per completed intake form is the only metric that matters, not clicks or views or impressions
+6. Cost per completed intake form is the only metric that matters for contractor acquisition. Cost per homeowner booking is the only metric that matters for job delivery.
+7. The creative is the product. A diagnostic ad that generates word of mouth compounds forever without ad spend. Build things that homeowners would tell their neighbors about unprompted.
+
+---
+
+#### The Diagnostic Ad — The Entire Creative Strategy in One Insight (July 31, 2026)
+
+This is the most important strategic discovery in Tractify's history and changes everything about how ads are built, deployed, and scaled.
+
+**The core insight:**
+Tractify is not advertising HVAC service. Tractify is advertising a free diagnostic tool that happens to close bookings. The ad doesn't look like an ad. The homeowner doesn't experience it as a sales funnel. They experience it as a useful tool that helped them understand what's wrong with their home. By the time they realize they just had a sales conversation they already have a booked appointment and they're grateful for it.
+
+**Why this beats every other ad format in home services:**
+Every other HVAC ad triggers the sales filter instantly — "call us," "book now," "licensed and insured." Homeowner's brain dismisses it in under a second. The diagnostic ad triggers zero sales resistance because it's a genuine help offer. "Is your AC making a grinding noise? Text us — our AI will tell you what's actually wrong. Free." That's not an ad. That's a tool. The scroll stops.
+
+**The universal creative template:**
+"Is your [appliance/system] [specific symptom]? Text us — our AI will tell you what's actually wrong. Free."
+
+Examples across niches:
+- "Is your AC making a grinding noise? Running constantly but not cooling? Text us — our AI will diagnose it free."
+- "Circuit breaker keeps tripping? Text us what's happening — our AI will tell you if it's serious."
+- "Noticed dark spots on your roof after the last rain? Text us a description — our AI will tell you if it's actually a problem."
+- "Water heater making a popping sound? Text us — our AI will tell you what's wrong."
+
+One creative concept. One offer. One mechanic. Swap two words per niche. Deploy everywhere.
+
+**The scaling unlock — proven creative compounds across zip codes:**
+Test in one zip code. Find the symptom angle that converts best. That creative is now a proven asset. New contractor signs up in a new zip code — deploy the winning creative immediately. No testing phase, no wasted spend, no figuring out what works. You already know. Every new zip code runs on day-one proven creative from the zip codes before it. The creative playbook gets sharper with every market entered. By contractor 20 you have battle-tested creative across multiple markets deploying instantly for every new contractor.
+
+**The niche scaling unlock:**
+You're not advertising HVAC. You're not advertising roofing. You're advertising the free diagnostic tool. The brand is the tool — Tractify, the thing you text when something in your house is broken. One brand identity, one creative format, infinite niches. HVAC in Seattle, electrical in Phoenix, roofing in Dallas — same ad, same mechanic, same Brain 3 close. Zero new creative strategy per niche. Clone, swap two words, deploy.
+
+**The word of mouth mechanic built into the product:**
+"I texted this number and it told me exactly what was wrong with my AC" is a story people tell. Remarkable things spread without ad spend. And the ones where Brain 3 says "actually just change your filter" become the most loyal customers of all — because you saved them $200 and they'll never forget it. Honesty compounds trust. Trust compounds word of mouth. Word of mouth reduces paid spend required per zip code over time.
+
+**The competitive moat on the creative side:**
+Competitors see the ad and think it's a gimmick. They don't realize Brain 3 is behind it closing at a rate their "call us now" ads can never match. By the time they understand what they're looking at Tractify has homeowner trust relationships across hundreds of zip codes built over two years. They're starting from zero. The creative advantage and the data advantage compound simultaneously and are inseparable.
+
+**The endgame:**
+Homeowners across America don't think of Tractify as an HVAC company or a roofing company. They think of it as the number they text when something breaks. That brand position — the trusted home diagnostic tool — is worth more than any individual niche. It's the infrastructure layer that every home services transaction flows through. ServiceTitan owns contractor software. Tractify owns homeowner trust. Homeowner trust is the more valuable asset because it's the demand side of the entire market.
+
+**Tagging for this creative:**
+- Facebook diagnostic ad — HVAC: `fb_diag_hvac_aug`
+- Facebook diagnostic ad — roofing: `fb_diag_roof_aug`
+- Facebook diagnostic ad — electrical: `fb_diag_elec_aug`
+- Instagram version: `ig_diag_hvac_aug`
+- Nextdoor version: `nd_diag_hvac_aug`
+
+Track which symptom angle converts best per niche. The data from symptom A vs symptom B is the creative playbook for every future market.
+
+---
+
+#### Physical Channels — Zero Ongoing Cost After Setup (July 31, 2026)
+
+These two channels are fundamentally different from every paid channel. They have a one-time cost and then compound forever. Every competitor is optimizing CPMs. Tractify is quietly building a permanent booking infrastructure in thousands of homes.
+
+**Channel A — Fridge Magnet (left at every completed job)**
+After every appointment is marked complete, the contractor leaves a fridge magnet at the home. Magnet has the business name, the contractor's Twilio number, and one line: "Text us anytime to book service." Cost: $0.10-0.20 per magnet in bulk.
+
+Six months later the homeowner's AC breaks. They look up, see the magnet, text the number. Brain 3 picks up instantly and closes the booking in 4 messages. The magnet cost pennies. The Twilio message costs cents. The job is worth $1,200+.
+
+**The compounding math:** every completed job seeds a permanent passive booking channel in that home. Month 1: 50 jobs = 50 magnets. Month 12: thousands of magnets across the service area generating random inbound bookings at zero incremental cost. This is a channel that gets more powerful automatically just by the business running — no maintenance, no renewal, no algorithm. One physical object lasts 10 years on a fridge. The "ad" runs for a decade.
+
+**Add to portal flow:** after contractor marks appointment complete, portal shows: "Don't forget to leave a magnet at this job. Every magnet is a future booking." Future cron: text contractor after every completed job: "Great work today — did you leave a magnet at [address]?"
+
+**Channel B — Scratch Ticket Mailer — Two Uses**
+
+*Contractor acquisition:* Mail to top 100-150 HVAC contractors in the service area. Physical scratch ticket reveals: "You won: 5 Free Booked Jobs." QR code underneath → `intake.tractifyhq.com?src=scratch_mail`. One converting contractor = $2,000 setup fee. Break-even at a fraction of 1% response rate. The scratch mechanic guarantees physical interaction — they can't ignore it the way they ignore a postcard. Tag: `?src=scratch_mail`.
+
+*Homeowner job delivery:* Mail to 150-200 homeowner addresses in the contractor's service zips. Scratch to reveal: "Free HVAC diagnostic — text [Twilio number] to claim." Underneath is the contractor's Brain 3 number. Homeowner scratches, texts, Brain 3 opens the diagnostic conversation. Cost: $2-3 per mailer total. 150 mailers = $300-450. One job from that batch = $1,200+ revenue. Break-even under 1% response rate.
+
+*The two-touch combination for contractor acquisition:* Scratch ticket arrives Tuesday. Jose DMs them Thursday: "Did you get the scratch card? The 5 free jobs offer is real." The DM is now warm — they've already held something physical from Tractify. Response rate jumps from ~2% cold to 15-20% warm. Tag the DM follow-up link: `?src=scratch_dm_followup`.
+
+**Why physical channels matter strategically:**
+Every competitor is fighting over Facebook CPMs and Google CPCs. The cost of those channels goes up every year as more advertisers enter. Physical channels don't have this dynamic. A fridge magnet in 2030 costs the same as a fridge magnet in 2024. The mechanic works identically. The competitive landscape for physical mail gets less crowded every year, not more, as everyone moves digital. These channels age in Tractify's favor.
+
+---
+
+#### Google Call-Only Ads + Brain 3 — The Closed Loop No Competitor Has (July 31, 2026)
+
+This combination is possibly the most underpriced and underused homeowner acquisition channel that exists, and the reason it's underpriced is that every other company running it can't convert the missed calls. Tractify can.
+
+**Why Call-Only ads have historically underperformed for home services:**
+HVAC contractors miss calls constantly — they're on rooftops, under houses, in crawl spaces. Half the clicks to a Call-Only ad get voicemail. The homeowner hangs up and calls the next result. CPL looks terrible. Advertisers pause the campaigns. The underpriced inventory sits there.
+
+**Why the same dynamic is now Tractify's biggest advantage:**
+A missed call is the best possible outcome. Brain 3 catches every single one and opens a booking conversation in seconds. The contractor was on a roof. The homeowner texted the number (or called and missed). Brain 3 closed the booking in 4 messages. The contractor finds out when they get an alert with the address and a Maps link.
+
+**The closed loop:**
+Google Call-Only ad (high-intent searcher, actively looking for HVAC) → homeowner taps, phone rings → contractor misses (because they're working) → Twilio fires → Brain 3: "Hey! Sorry we missed you at [Business Name]. I'm their scheduling assistant — what's the address that needs service?" → booking confirmed in 4 messages.
+
+**The economics:**
+- Google Call-Only CPC for HVAC: $3-8 (vs $8-20 for Search with booking landing page)
+- Reason it's cheaper: everyone else has bad conversion rates on missed calls
+- Tractify's conversion rate on missed calls: dramatically better because Brain 3 catches them
+- Effective CPB (cost per booking) on Call-Only: potentially the lowest of any paid channel
+- Scale: as more calls happen, more data flows into Smart Bidding, CPC drops further
+
+**How to run it:**
+- Campaign type: Call-Only (separate from RSA campaigns)
+- Bid strategy: Maximize Conversions initially, Target CPA once 30+ conversions
+- Budget: $5-10/day per contractor, run alongside RSA campaigns
+- Destination number: contractor's Twilio number (not their real number — Twilio catches missed calls)
+- Ad headline: "[Business Name] HVAC" / "Available Now" / "Call for Same-Day Service"
+- Tag bookings that follow a call within 2 hours as `booking_source = 'google_call'`
+
+**The channel priority with Brain 3 active (updated):**
+1. Call-Only Google ads → contractor misses → Brain 3 books (peak intent: actively searching, ready to call)
+2. Facebook Lead Ads → pre-filled form → Brain 3 texts immediately → booked before they scroll away
+3. Diagnostic ad (Facebook/Instagram/Nextdoor) → homeowner texts symptom → Brain 3 diagnoses → closes booking
+4. Missed calls from all other sources → Brain 3 catches them all (zero additional ad spend)
+5. SMS keyword / van wrap / fridge magnet → homeowner texts → Brain 3 books
+6. Scratch ticket mailer → homeowner scratches, texts → Brain 3 books
+
+Every channel feeds the same Brain 3 close. The channel diversification is Tractify's problem. The homeowner just has a conversation and ends up with an appointment.
 
 ---
 
@@ -1322,6 +1436,90 @@ Every single one of these channels converges on the same outcome: homeowner AI h
 
 The 3-way SMS AI attack answers the make-or-break question (can we deliver jobs?) with something so simple it's almost offensive: get their number, let Brain 3 talk to them. That's it. Every session from here forward starts with that as the baseline assumption — not "how do we get homeowners to a booking page" but "how do we get their number so Brain 3 can close them." The ad strategy, the channel strategy, and the job delivery strategy all collapse into one thing.
 
+**July 30, 2026 — Zero ongoing cost physical channels locked. The long-tail compounding play.**
+
+Two physical channel ideas identified that feed Brain 3 with zero ongoing cost after setup. Both exploit the same insight: a physical object that someone touches and keeps is a permanent booking channel in their home, not a one-time ad impression.
+
+**Channel A — Fridge magnet (left at every completed job):**
+After every appointment is marked complete, the contractor leaves a fridge magnet at the home. Magnet has the business name, the Twilio number, and one line: "Text us anytime to book service." Six months later the homeowner's AC breaks, they look up, see the magnet, text the number. Brain 3 picks up instantly — "Hey! This is [Business]. Happy to help — what's the address that needs service?" — and closes the booking in 4 messages. The magnet cost pennies. The Twilio message costs cents. The job is worth $1,200+.
+
+The compounding math: every completed job seeds a permanent passive booking channel in that home. Month 1: 50 jobs = 50 magnets. Month 12: thousands of magnets across the service area generating random inbound bookings with zero incremental cost. This is a channel that gets more powerful automatically just by the business running — no maintenance, no renewal, no algorithm.
+
+**Channel B — Scratch ticket mailer to homeowners in service zip codes:**
+Same mechanic as the contractor scratch ticket play but targeting homeowners directly. Mail to top 150-200 homeowner addresses in the contractor's service zips (pulled from public records or data sources). Scratch to reveal: "Free HVAC diagnostic — text [number] to claim." Underneath is the contractor's Brain 3 Twilio number. Physical scratch mechanic guarantees they interact with it before discarding — engagement rate dramatically higher than any digital ad. A homeowner who scratches and texts is warm. Brain 3 is waiting.
+
+Cost: $0.50-1.50 per scratch ticket + $0.60 envelope + stamp = $2-3 total per homeowner. 150 mailers = $300-450 total. One job from that batch = $1,200 revenue. Break-even is under 1% response rate.
+
+**Why both of these matter strategically:**
+Every other channel Tractify runs has ongoing cost — ad spend per day, content creation time, Twilio per-message. These two channels have a one-time cost and then compound forever. The fridge magnet especially — it's a self-replicating network of physical booking triggers that expands automatically with every job delivered. No competitor is building this. They're all optimizing their Facebook CPMs while Tractify is quietly installing a permanent booking infrastructure in thousands of homes.
+
+**Build needed:** Add fridge magnet as a reminder/prompt in the post-appointment flow — after contractor marks appointment complete, portal shows: "Leave a magnet at this job. Every magnet is a future booking." Physical magnet design: simple, clean, business name + Twilio number + "Text to book anytime." Order in bulk at $0.10-0.20 each. Future automation: cron sends contractor a text after every completed job: "Great work today — did you leave a magnet at [address]?"
+
+**July 31, 2026 — Scratch ticket play fully expanded. Two targets, same mechanic, completely different effect.**
+
+The scratch ticket was originally conceived for contractor acquisition. The same mechanic applies to homeowner acquisition and is potentially more powerful because the market is orders of magnitude larger.
+
+**Scratch ticket — contractor side (acquisition):**
+Mail to top 100-150 HVAC contractors in the service area. Scratch to reveal: "You won: 5 Free Booked Jobs." QR code underneath → intake.tractifyhq.com?src=scratch_mail. $2-3 per mailer total. One relationship with one converting contractor = $2,000 setup fee + ongoing per-job billing. Break-even on the mailer is a fraction of one conversion. The scratch mechanic guarantees physical interaction — they can't ignore it the way they ignore a postcard. Tag: ?src=scratch_mail.
+
+**Scratch ticket — homeowner side (job delivery):**
+Mail to 150-200 homeowner addresses in the contractor's service zips. Scratch to reveal: "Free HVAC diagnostic — text [Twilio number] to claim." Underneath is the contractor's Brain 3 number. Homeowner scratches, texts, Brain 3 opens a diagnostic conversation. Cost: $2-3 per mailer. 150 mailers = $300-450. One job from that batch = $1,200+ revenue. Break-even is under 1% response rate. The scratch interaction creates physical engagement that any digital ad can't replicate — they've already committed a physical action before they text.
+
+**The two-touch combination for contractors:**
+Scratch ticket arrives Tuesday. Jose DMs them Thursday: "Did you get the scratch card? The 5 free jobs offer is real." DM is now warm — they've already held something physical from Tractify. Response rate jumps from ~2% cold to 15-20% warm. Tag: ?src=scratch_dm_followup.
+
+**July 31, 2026 — "Diagnose by text" — the biggest channel discovery in Tractify's history. A category that doesn't exist yet.**
+
+This is not a booking channel. This is a category-defining product hidden inside a booking business.
+
+**The concept:**
+Instead of "text to book," the offer is "text us what your AC is doing and our AI will tell you what's actually wrong — for free." Brain 3, powered by Claude, gives a real HVAC diagnosis via SMS. Grinding noise = fan motor bearings. Squealing = belt or bearings. Hissing = refrigerant leak. Running constantly = low refrigerant, dirty filter, undersized unit. Banging = loose blower wheel. Real answers, not runaround. Then naturally: "That sounds like it needs a tech — want us to come take a look?" Brain 3 books them.
+
+**Why this is a completely different category:**
+Every competitor's CTA is "call us" or "book an appointment." That's a sales ask. "Find out what's wrong with your AC for free" is a help offer. Completely different psychological trigger. The homeowner isn't being sold to — they're getting help. Trust is established before the booking conversation starts. By the time Brain 3 says "sounds like you need service," the homeowner already trusts it completely. The diagnostic IS the close. Close rate on these bookings will be dramatically higher than any cold channel.
+
+**The ad creative:**
+"AC making a grinding noise? Squealing? Running constantly but not cooling? Text us — our AI will tell you what's actually wrong. Free." This stops the scroll because it solves a problem someone has RIGHT NOW. Not a future problem. Not a vague offer. Their specific AC symptom, answered immediately.
+
+**The timing advantage:**
+HVAC breaks at the worst moments — 10pm Saturday, middle of a heat wave, holidays. Nobody's answering phones. Brain 3 is there 24/7, immediately helpful, genuinely useful. The emotional moment when something actually helps you at 11pm on a hot Saturday creates loyalty no ad can manufacture. That homeowner tells their neighbors.
+
+**The word of mouth mechanic:**
+"I texted this number and it told me exactly what was wrong with my AC" is a story people tell. It's remarkable. Remarkable things spread without ad spend. One satisfied diagnosis = multiple neighbor referrals. The viral coefficient is built into the product experience.
+
+**The self-selection magic:**
+People who text because their AC is making a noise have a broken AC. They are not browsing. They are not curious. They have an urgent problem. Every lead is pre-qualified by the act of texting. There is no better lead quality than "person who already knows they have a problem and is actively seeking help right now."
+
+**The expansion is the endgame:**
+Same mechanic works for every home services niche identically. Pipe dripping? Electrical panel buzzing? Roof showing dark spots? Water heater making noise? Brain 3 diagnoses all of it. Tractify is not building an HVAC booking tool — it's building the diagnostic AI for every home problem that exists. That is a category no competitor has touched and cannot replicate without the same AI infrastructure.
+
+**Ad strategy with this offer:**
+Run Facebook/Instagram ads targeting homeowners with specific symptom creative — not generic "HVAC service" ads. "Is your AC making this sound?" with a short audio clip or description. People who recognize their exact symptom engage immediately. The creative relevance score goes up, CPM goes down, cost per lead drops. The diagnostic offer outperforms every booking CTA tested in this space because it's genuinely useful content, not an ad.
+
+**What Brain 3 needs for diagnostic mode:**
+The system prompt needs HVAC diagnostic knowledge baked in — common symptoms, likely causes, urgency level, honest "you might not need service" answers when appropriate. Honesty when service isn't needed builds MORE trust than always saying "come in" — it establishes Brain 3 as a trusted advisor, not a sales bot. The contractor who tells a homeowner "actually your filter is just dirty, change it first" gets called back for every real problem forever.
+
+**The category-defining statement:**
+Tractify is not a booking platform. Tractify is the AI that diagnoses your home and connects you with a trusted contractor when you actually need one. That positioning beats every competitor in home services because it comes from a place of genuine help, not a sales funnel.
+
+**July 31, 2026 — The complete homeowner acquisition strategy locked. All pieces in the brain.**
+
+Everything from this session is now the operating playbook. The decisions that are locked:
+
+(1) **Two-audience, two-offer model.** Contractor-facing: "5 free booked jobs." Homeowner-facing: "Diagnose by text, free." These never mix. The contractor offer is about business outcomes. The homeowner offer is about help. Brain 3 is the conversion engine behind both — contractors text to manage their calendar, homeowners text to diagnose their home. Same SMS infrastructure, completely different offer and framing per audience.
+
+(2) **Diagnostic ad is the primary homeowner creative from this point forward.** Not "book now." Not "licensed and insured." Symptom-specific creative that triggers zero sales resistance. "Is your AC making a grinding noise? Text us — our AI will tell you what's actually wrong. Free." The diagnostic ad will outperform every previous homeowner creative on click rate, conversion rate, and word of mouth. It is also the only ad concept that naturally scales to every niche with a two-word swap. This is the brand.
+
+(3) **Proven creative compounds across zip codes — never start from zero.** Test symptom A vs symptom B in the first zip code. Find the winner. Every new contractor deployment runs the winning creative on day one. By contractor 20 you have tested creative across multiple markets. By contractor 50 you have enough data to know which symptoms convert best by season, by demographic, by niche. The creative database is worth real money — a competitor starting from scratch in a new zip code is guessing. Tractify is deploying proven.
+
+(4) **Google Call-Only ads + Brain 3 is the closed loop.** This combination is the most underpriced homeowner acquisition channel available because everyone else's Call-Only campaigns are penalized by missed-call drop-off. Tractify's missed calls are the trigger, not the failure. Every Call-Only click becomes a Brain 3 conversation. Run at $5-10/day per contractor alongside RSA campaigns. Tag: `google_call`.
+
+(5) **Physical channels compound forever.** Fridge magnet at every completed job = permanent passive booking channel in that home. Scratch ticket mailer works for both contractor acquisition (5 free jobs on the contractor side) and homeowner job delivery (free diagnostic on the homeowner side). These don't require budget renewal, algorithm updates, or creative refreshes. They just work for years.
+
+(6) **The brand position is the endgame.** Homeowners across America think of Tractify as "the number you text when something in your house is broken." ServiceTitan owns contractor software. Tractify owns homeowner trust. Homeowner trust is the demand side of the entire market. That's the moat no one can buy their way into — it's built one honest diagnostic conversation at a time.
+
+*[Add entries here every time something is tested, a result comes in, a decision is made, or a pattern is spotted. Format: Date — what was tested — what happened — what changed as a result.]*
+
 ---
 
 ## Case Studies — Auto-Generated from System Data (No Chasing Contractors)
@@ -1346,6 +1544,126 @@ Case studies don't require filming, chasing contractors, or getting anyone on ca
 - Screenshot of the portal as visual proof
 
 **Why this is powerful:** No competitor is showing this level of transparency. Real numbers, real timestamps, real contractor. The screenshot of the actual portal makes it impossible to fake and instantly credible.
+
+---
+
+## Diagnostic Knowledge Architecture — Brain 3 Intelligence Layer (July 31, 2026)
+
+*Decision locked: build RAG (pgvector) from day one. Reasoning and full technical spec below. The admin brain reads this on every query related to Brain 3 capability, niche expansion, or diagnostic quality.*
+
+---
+
+### Why This Matters
+
+The diagnostic ad is the entire homeowner acquisition strategy. "Is your AC making a grinding noise? Text us — our AI will tell you what's actually wrong. Free." That ad only works if Brain 3 actually gives a real, trustworthy answer. A vague or wrong diagnosis destroys the trust the ad was built on, kills the booking, and generates negative word of mouth instead of positive.
+
+Brain 3 runs on Claude Haiku. Haiku is smart but it needs structured domain knowledge in its context to give expert-level diagnostic answers — not just general AI reasoning. The Diagnostic Knowledge Architecture is how that expert knowledge gets into Brain 3's context for every homeowner conversation.
+
+---
+
+### Why RAG (pgvector) and Not Simple Knowledge Files
+
+**Option A — Niche knowledge files per contractor:**
+Each niche gets a JS/JSON file (hvac.js, roofing.js, etc.). Brain 3 loads the whole file for the contractor's niche on every message. Simple, fast to build, works for single-niche contractors.
+
+Limitations:
+- The entire niche knowledge file loads on every message — expensive at scale and eventually hits context limits as knowledge deepens
+- Cross-niche queries fail (homeowner texts an HVAC contractor about a plumbing smell)
+- Adding deep niche knowledge (oil tanks, boilers, geothermal, mini-splits) makes files huge
+- No semantic matching — Brain 3 gets ALL the knowledge whether relevant or not
+- Updating knowledge = editing code files = deployment required
+
+**Option B — pgvector RAG (chosen architecture):**
+Knowledge stored as chunks in PostgreSQL with vector embeddings. On each homeowner message, embed the message, retrieve only the 3-5 most semantically relevant knowledge chunks, inject only those into Brain 3's context. The rest stays in the DB untouched.
+
+Why this wins:
+- **Only relevant knowledge loads per message** — Brain 3 gets "banging noise on startup" knowledge, not the entire HVAC encyclopedia
+- **Scales to any niche with zero code changes** — adding roofing = inserting rows. Adding electrical = inserting rows. No new files, no deployments, no code
+- **Knowledge updates without deployment** — fix a wrong diagnosis by updating a DB row
+- **Cross-niche capability** — a homeowner can text about AC and a burning smell (could be electrical) and Brain 3 retrieves knowledge from both niches simultaneously
+- **The knowledge compounds as data grows** — every new symptom added is searchable immediately
+- **Speed to new verticals is a database INSERT, not a code change** — this is the key business unlock. Month 2: roofing contractor signs up. Roofing knowledge is already in the DB. Brain 3 is already a roofing expert. Zero build time per new niche after initial setup.
+- **The data moat** — every homeowner conversation that Brain 3 has teaches you which knowledge chunks are most retrieved, which symptoms are most common per region and season. That data refines the knowledge base automatically over time and is uncopiable.
+
+**Why build B from day one instead of starting with A:**
+Speed kills in business — but the right kind of speed. Building A now means rebuilding into B in 6 weeks when scale demands it, while mid-expansion. Building B now costs one extra session (3-4 hours) and means every niche from month 2 onward is a database operation, not a development cycle. The compounding advantage of having the right foundation starts on day one of the first HVAC deployment. Every homeowner conversation from that point forward is building the data moat. Starting with A delays that by weeks and creates technical debt at the worst possible time (when you're trying to scale fast across multiple verticals).
+
+---
+
+### Full Technical Specification
+
+**New infrastructure needed:**
+- pgvector PostgreSQL extension — already available on Railway, enabled with one SQL command: `CREATE EXTENSION IF NOT EXISTS vector;`
+- OpenAI text-embedding-3-small API — for generating embeddings. $0.02 per 1M tokens. A homeowner conversation generates roughly 50-100 tokens of text to embed. Cost per homeowner conversation: fractions of a penny. New Railway env var: `OPENAI_API_KEY`
+
+**New table:**
+```sql
+CREATE TABLE IF NOT EXISTS diagnostic_knowledge (
+  id SERIAL PRIMARY KEY,
+  niche TEXT NOT NULL,              -- 'hvac', 'roofing', 'electrical', 'plumbing', 'oil_tank', etc.
+  category TEXT,                    -- 'cooling', 'heating', 'safety', 'structural', etc.
+  symptom_tags TEXT[],              -- ['grinding', 'noise', 'ac', 'startup'] — keyword backup search
+  content TEXT NOT NULL,            -- the actual diagnostic knowledge chunk
+  embedding VECTOR(1536),           -- text-embedding-3-small dimension
+  urgency TEXT DEFAULT 'schedule',  -- 'immediate', 'this_week', 'schedule', 'diy_first', 'emergency_911'
+  safety_flag BOOLEAN DEFAULT FALSE,-- true = this chunk involves safety risk
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX ON diagnostic_knowledge USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+```
+
+**New files:**
+- `backend/services/embeddings.js` — wrapper around OpenAI text-embedding-3-small. `embed(text)` → vector array. Used for both storing new knowledge and querying at conversation time.
+- `backend/services/diagnosticKnowledge.js` — `getRelevantKnowledge(messageText, niche, limit=5)` → embed the message → cosine similarity search against `diagnostic_knowledge` filtered by niche → return top chunks as formatted text for prompt injection. Also exports `storeKnowledgeChunk(niche, category, symptom_tags, content, urgency, safety_flag)` for loading knowledge.
+- `backend/scripts/loadDiagnosticKnowledge.js` — one-time script to generate and load knowledge for each niche. Uses Claude Sonnet to generate comprehensive niche knowledge, structures it into chunks, embeds and stores each chunk.
+
+**Update to `homeownerSmsAI.js`:**
+In `buildSystemPrompt(contractor)` (or wherever the Brain 3 system prompt is constructed), add a call to `getRelevantKnowledge(incomingMessage, contractor.niche)` and inject the returned chunks into the prompt as:
+```
+RELEVANT DIAGNOSTIC KNOWLEDGE FOR THIS CONVERSATION:
+[chunks injected here]
+
+Use the above knowledge to give a specific, honest answer. If the symptom doesn't clearly match any of the above, say so honestly — "that could be a few things, I'd want a tech to take a look" is better than guessing.
+```
+
+**Safety overrides — hardcoded in base system prompt, never in RAG:**
+```
+SAFETY OVERRIDES — respond to these BEFORE anything else, before any diagnostic:
+- Gas smell, rotten egg smell → "Stop everything. Leave your home now and call your gas company or 911. Do not text me — handle this first."
+- Burning smell, electrical smell, smoke → "Turn your system off at the breaker right now. This is a fire risk. Once you're safe, text me back."
+- Carbon monoxide detector going off → "Leave immediately. Call 911. Do not re-enter."
+- No heat in extreme cold with elderly or infants → treat as urgent, offer same-day slot first before anything else
+```
+
+**Knowledge generation approach (per niche, one session each):**
+Use Claude Sonnet to generate the knowledge — it has comprehensive home services domain knowledge from training. Structure the prompt as:
+"Generate comprehensive diagnostic knowledge for [niche] contractors. For each major symptom category, include: common symptom descriptions a homeowner would use, most likely causes ranked by probability, urgency level, whether it's a safety situation, what the homeowner can check themselves first (filter, breaker, etc.), and an honest answer for when it truly can't be diagnosed without a tech visit. Cover niche subcategories: [oil tanks, boilers, heat pumps, mini-splits for HVAC etc.]"
+
+Output gets structured into chunks (one chunk per symptom category), embedded, and stored. Then reviewed by one domain expert per niche before going live.
+
+---
+
+### Niche Expansion Timeline (enabled by this architecture)
+
+| Month | Action | Build required |
+|---|---|---|
+| August | HVAC knowledge loaded, Brain 3 live | One knowledge generation session |
+| Month 2-3 | Roofing, electrical, plumbing knowledge loaded | DB inserts only, zero code |
+| Month 3-4 | Landscaping, painting, general contracting | DB inserts only, zero code |
+| Month 6+ | Any new niche a contractor requests | DB inserts only, zero code |
+
+The intake form `niche_id` field already exists and links to the `niches` table. The template already has a services system that's niche-aware. Brain 3 already gets contractor context including niche. The only missing piece is the knowledge retrieval layer — once it's built, every new niche is a database operation.
+
+---
+
+### Build Time
+
+- **Option A (niche files):** 1 session (~3-4 hours). Works. Wrong foundation.
+- **Option B (pgvector RAG):** 2 sessions (~6-8 hours). Right foundation. Every niche after HVAC costs hours instead of days. Every homeowner conversation starts building the data moat from day one.
+
+**Decision: Build Option B. Start this session.**
 
 ---
 
@@ -1677,7 +1995,8 @@ lead-booking-app/
 │   │   ├── googleCalendar.js ← OAuth2 Google Calendar sync
 │   │   ├── auditLog.js       ← Lead event logging (lead_events table)
 │   │   ├── smsAI.js          ← Two-way AI SMS brain: handleContractorSms, sendSetupStepText, sendWelcomeText
-│   │   └── cron.js           ← node-cron: 24hr reminders, onboarding nudge, SMS setup drip (hourly :30)
+│   │   ├── homeownerSmsAI.js ← Brain 3: handleHomeownerSms, startHomeownerSession, getActiveSession, routeHomeownerSms, startRebookSession
+│   │   └── cron.js           ← node-cron: 24hr reminders, onboarding nudge, SMS setup drip (hourly :30), pre-appt confirmation SMS (7:30am daily), review request SMS (hourly :50), post-job close tracking SMS (hourly :45), 72hr silence alert (every 6h)
 │   ├── middleware/
 │   │   └── auth.js           ← JWT verify, requireAdmin, requireContractor
 │   └── tests/
@@ -1980,8 +2299,10 @@ Built July 21, 2026. Every missed call a contractor gets becomes a booked appoin
 5. Tractify looks up the contractor by their Twilio number, sends the caller an SMS with a booking link
 6. Twilio plays a voice message and hangs up
 
-**The SMS text:**
-> "Hey! This is [Business Name] — sorry we missed your call, we're out on a job. Book a time that works for you here: tractifyhq.com/schedule/[slug] — takes 60 seconds and we'll confirm right away."
+**The SMS text (Brain 3 — session 16+):**
+Missed calls no longer send a booking link — instead Brain 3 starts a conversational session:
+> "Hey! Sorry we missed you at [Business Name] — we're out on a job. I'm their scheduling assistant. What's the address that needs service?"
+Brain 3 closes the booking in 4 messages. Homeowner never needs to click a link or open a browser.
 
 **Follow-up text (sent ~2 hours later if no booking):**
 > "Just checking in — still happy to help. Here's that booking link if you'd like to grab a time: tractifyhq.com/schedule/[slug]"
@@ -1996,7 +2317,12 @@ Built July 21, 2026. Every missed call a contractor gets becomes a booked appoin
 - **Voice (missed call):** `https://tractifyhq.com/api/twilio/missed-call` → set on "A call comes in"
 - **SMS (two-way AI):** `https://tractifyhq.com/api/twilio/inbound-sms` → set on "A message comes in"
 
-Both run on the same Twilio number. Voice webhook fires on missed calls → sends homeowner booking link. SMS webhook fires on any inbound text → routes by phone number: contractor's own number goes to AI assistant, homeowner number gets booking link.
+Both run on the same Twilio number. Voice webhook fires on missed calls → starts Brain 3 session (conversational booking). SMS webhook fires on any inbound text → routing:
+1. If sender matches contractor's own phone → contractor AI assistant (smsAI.js)
+2. If homeowner texts "CANCEL" → find + cancel their upcoming appointment → start Brain 3 rebook session → reply with available times
+3. If active Brain 3 session exists for this homeowner + contractor → route to Brain 3 (routeHomeownerSms)
+4. No session → start new Brain 3 session (van wrap / SMS keyword source)
+Homeowners replying STOP are handled by Twilio natively — all outbound SMS include "Reply STOP to opt out."
 
 **Railway env vars needed:**
 - `TWILIO_ACCOUNT_SID` — from Twilio console (Account SID)
@@ -2509,6 +2835,15 @@ Intake form already sends `acquisitionSource` in the submit payload. Worker pass
 3. **Job milestone trigger (job 3 + job 5)** — portal notification + data-aware email. Job 5 fires Stripe automatically.
 4. **Revenue + outcome logging** — post-appointment "did it close?" prompt in portal.
 
+**✅ Complete as of session 17 (SMS maximization):**
+- **Phone-only HVAC form** — both `hvac-template/index.html` and `backend/templates/hvac-template.html` stripped to a single phone field. On submit: `POST /api/leads/inbound` with phone only → backend creates lead + starts Brain 3 session → homeowner gets a conversational SMS asking for address. No slot picker, no email capture, no inline booking UI. Success screen shows "Check Your Texts!" Instead. `handleLeadForm` rewritten to phone-only path. Removed ZIP validation, service-select handler, CTA scroll to old fields. CTA scroll now focuses `h-phone` only. Enter on phone field submits.
+- **`startRebookSession` exported from homeownerSmsAI.js** — new function that creates a Brain 3 session with state `awaiting_slot`, pre-populated name/address/service from an existing lead, and offered_slots fetched immediately. Returns SMS text with 3 slot options. Used for post-cancel rebook flows.
+- **Cancelled appointment → Brain 3 rebook SMS** — both cancel routes in `backend/routes/bookings.js`: (1) `PUT /:id/cancel` (contractor cancels), (2) `POST /cancel-token/:token` (homeowner cancels). After the existing email fires, a Brain 3 rebook session starts non-blocking (fire-and-forget `.then().catch()`). Homeowner gets an SMS with available times within seconds of the cancellation.
+- **CANCEL keyword in inbound-sms** — added to `backend/routes/twilio.js` homeowner branch before Brain 3 session check. When a homeowner texts "CANCEL", finds their next confirmed appointment (within 7 days), cancels it, and calls `startRebookSession` to offer new times in the same reply. Phone normalization via SQL `REPLACE` chain handles all stored formats.
+- **Morning-of confirmation SMS cron** — runs at 7:30 AM daily (`'30 7 * * *'`). Finds confirmed appointments for today with `pre_appt_sms_sent_at IS NULL`. Texts homeowner: "Hey [firstName]! Just confirming your appointment with [Business] today at [time]. Reply CANCEL if you need to cancel." Updates `pre_appt_sms_sent_at = NOW()` after send.
+- **Review request SMS cron** — runs hourly at :50 (`'50 * * * *'`). Finds appointments with `status = 'completed'`, `updated_at` 2-4 hours ago, `homeowner_review_sms_sent_at IS NULL`, and contractor has `place_id`. Uses Google review deep link: `https://search.google.com/local/writereview?placeid={place_id}`. Updates `homeowner_review_sms_sent_at = NOW()` after send.
+- **DB columns in use**: `pre_appt_sms_sent_at TIMESTAMPTZ`, `homeowner_review_sms_sent_at TIMESTAMPTZ` on appointments (already migrated via db.js). `leads.name` and `leads.email` are nullable (already migrated).
+
 **✅ Complete as of session 16:**
 - All three SMS drip missing pieces: power message, calendar blocking training, post-appointment close tracking cron (hourly at :45)
 - Bug fixed: twilio.js inbound-sms SELECT was missing `sms_power_message_sent` + `sms_calendar_training_sent` — specialty messages could fire repeatedly on every availability confirm
@@ -2621,6 +2956,12 @@ Connect to psql first: `railway run psql $DATABASE_URL` then paste at `=#`. (Pas
 - ✅ Worker acquisitionSource fix (session 14) — confirmed already working end-to-end
 - ✅ AI SMS drip all three pieces (session 16) — power message, calendar training, post-appointment close tracking
 - ✅ Brain 3 homeowner AI SMS (session 16) — full conversational booking, 4-message close, no browser required
+- ✅ Phone-only HVAC form (session 17) — both templates stripped to phone field, Brain 3 fires on submit
+- ✅ `startRebookSession` (session 17) — exported from homeownerSmsAI.js, pre-populates name/address/service, state=awaiting_slot
+- ✅ Cancelled appointment → Brain 3 rebook SMS (session 17) — both contractor cancel + homeowner cancel-token routes in bookings.js
+- ✅ CANCEL keyword in inbound-sms (session 17) — cancels upcoming appointment + starts rebook session in one SMS reply
+- ✅ Morning-of confirmation SMS cron (session 17) — 7:30 AM daily, `pre_appt_sms_sent_at` prevents duplicates
+- ✅ Review request SMS cron (session 17) — hourly at :50, 2-4 hours post-completion, Google review deep link via `place_id`
 5. **Admin checklist completion visibility** — currently the brain answers this via chat; building it as a column in the Contractors tab is a polish item.
 
 ---

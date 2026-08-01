@@ -416,6 +416,25 @@ router.post('/cancel-token/:token', async (req, res) => {
       .run(uuidv4(), lead.id, newToken, expiresAt);
     const bookingUrl = `${process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app'}/book/${newToken}`;
     notifications.sendHomeownerRebookLink(lead, contractor, bookingUrl).catch(console.error);
+
+    // Brain 3 rebook SMS — fires alongside email if Twilio is live
+    if (lead.phone && contractor.twilio_number && process.env.TWILIO_ACCOUNT_SID) {
+      const { startRebookSession } = require('../services/homeownerSmsAI');
+      const twilio = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+      const digits  = lead.phone.replace(/\D/g, '');
+      const e164    = digits.length === 10 ? `+1${digits}` : `+${digits}`;
+      startRebookSession(e164, contractor.id, lead)
+        .then(async smsText => {
+          if (!smsText) return;
+          const businessName = contractor.company_name || contractor.name;
+          await twilio.messages.create({
+            to:   e164,
+            from: contractor.twilio_number,
+            body: `Hey${lead.name ? ' ' + lead.name.split(' ')[0] : ''}! No worries on cancelling — ${businessName} has other openings. ${smsText}`,
+          });
+        })
+        .catch(e => console.error('[CANCEL-TOKEN] Rebook SMS error:', e.message));
+    }
   }
   res.json({ message: 'Appointment cancelled. A new booking link has been sent to your email.' });
 });
@@ -505,6 +524,25 @@ router.put('/:id/cancel', requireContractor, async (req, res) => {
       .run(uuidv4(), lead.id, newToken, expiresAt);
     const bookingUrl = `${process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app'}/book/${newToken}`;
     notifications.sendCancellationAndRebook(lead, contractor, bookingUrl).catch(console.error);
+
+    // Brain 3 rebook SMS — fires alongside email if Twilio is live
+    if (lead.phone && contractor.twilio_number && process.env.TWILIO_ACCOUNT_SID) {
+      const { startRebookSession } = require('../services/homeownerSmsAI');
+      const twilio = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+      const digits  = lead.phone.replace(/\D/g, '');
+      const e164    = digits.length === 10 ? `+1${digits}` : `+${digits}`;
+      startRebookSession(e164, contractor.id, lead)
+        .then(async smsText => {
+          if (!smsText) return;
+          const businessName = contractor.company_name || contractor.name;
+          await twilio.messages.create({
+            to:   e164,
+            from: contractor.twilio_number,
+            body: `Hey${lead.name ? ' ' + lead.name.split(' ')[0] : ''}! Your ${businessName} appointment was cancelled. ${smsText}`,
+          });
+        })
+        .catch(e => console.error('[CANCEL] Rebook SMS error:', e.message));
+    }
   }
 
   res.json({ message: 'Appointment cancelled' });

@@ -177,6 +177,58 @@ router.post('/inbound-sms', async (req, res) => {
     const businessName = contractor.company_name || contractor.name || 'us';
     let replyBody = null;
 
+    // ── CANCEL keyword — cancel today's appointment and rebook via Brain 3 ─────
+    if ((Body || '').trim().toUpperCase() === 'CANCEL') {
+      try {
+        // Find a confirmed appointment for this homeowner + contractor (next 7 days)
+        const { rows: appts } = await db.query(`
+          SELECT a.id, a.scheduled_date, a.scheduled_time,
+                 l.id AS lead_id, l.name AS lead_name, l.phone AS lead_phone, l.address AS lead_address
+          FROM appointments a
+          JOIN leads l ON a.lead_id = l.id
+          WHERE a.contractor_id = $1
+            AND a.status = 'confirmed'
+            AND a.scheduled_date >= CURRENT_DATE
+            AND a.scheduled_date <= CURRENT_DATE + INTERVAL '7 days'
+            AND REPLACE(REPLACE(REPLACE(l.phone, '-', ''), ' ', ''), '+1', '') = RIGHT(REPLACE($2, '+', ''), 10)
+          ORDER BY a.scheduled_date, a.scheduled_time
+          LIMIT 1
+        `, [contractor.id, From]);
+
+        if (appts.length) {
+          const appt = appts[0];
+          await db.prepare("UPDATE appointments SET status = 'cancelled', updated_at = NOW() WHERE id = $1").run(appt.id);
+          await db.prepare("UPDATE leads SET status = 'matched' WHERE id = $1").run(appt.lead_id);
+          const { logEvent } = require('../services/auditLog');
+          logEvent(appt.lead_id, 'cancelled', 'homeowner', 'Cancelled via CANCEL SMS keyword').catch(() => {});
+
+          // Start Brain 3 rebook session
+          const { startRebookSession } = require('../services/homeownerSmsAI');
+          const lead = { id: appt.lead_id, name: appt.lead_name, phone: appt.lead_phone, address: appt.lead_address };
+          const slotsText = await startRebookSession(From, contractor.id, lead);
+
+          const firstName = appt.lead_name ? appt.lead_name.split(' ')[0] : null;
+          const greeting  = firstName ? `Got it ${firstName} — ` : 'Got it — ';
+          replyBody = slotsText
+            ? `${greeting}appointment cancelled. ${slotsText}`
+            : `${greeting}appointment cancelled. Reply any time to rebook.`;
+        } else {
+          replyBody = `No upcoming appointment found for this number. Want to book one? Just reply and I'll help.`;
+        }
+      } catch (cancelErr) {
+        console.error('[TWILIO-SMS] CANCEL keyword error:', cancelErr.message);
+        replyBody = `Couldn't find your appointment. Call us or reply to rebook.`;
+      }
+
+      try {
+        await twilioClient.messages.create({ to: From, from: To, body: replyBody });
+      } catch (err) {
+        console.error('[TWILIO-SMS] CANCEL reply send error:', err.message);
+      }
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response/>`);
+    }
+
     try {
       const { getActiveSession, routeHomeownerSms, startHomeownerSession } = require('../services/homeownerSmsAI');
 

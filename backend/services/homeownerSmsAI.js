@@ -15,6 +15,7 @@
 const { v4: uuidv4 } = require('uuid');
 const https  = require('https');
 const db     = require('../database/db');
+const { getRelevantKnowledge } = require('./diagnosticKnowledge');
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MAX_CHARS = 320;
@@ -156,12 +157,12 @@ async function getSession(phone, contractorId) {
   return session || null;
 }
 
-async function createSession(phone, contractorId, name = null) {
+async function createSession(phone, contractorId, name = null, leadId = null) {
   const id = uuidv4();
   await db.prepare(`
-    INSERT INTO homeowner_sms_sessions (id, phone, contractor_id, state, name, offered_slots)
-    VALUES ($1, $2, $3, 'awaiting_address', $4, '[]')
-  `).run(id, phone, contractorId, name);
+    INSERT INTO homeowner_sms_sessions (id, phone, contractor_id, state, name, offered_slots, lead_id)
+    VALUES ($1, $2, $3, 'awaiting_address', $4, '[]', $5)
+  `).run(id, phone, contractorId, name, leadId);
   return db.prepare(`SELECT * FROM homeowner_sms_sessions WHERE id = $1`).get(id);
 }
 
@@ -178,7 +179,11 @@ async function updateSession(sessionId, updates) {
 // ── Core handler — called from twilio.js for homeowner inbound SMS ────────────
 async function handleHomeownerSms(phone, contractorId, incomingText, session) {
   const contractor = await db.prepare(
-    `SELECT id, name, company_name, niche_id FROM contractors WHERE id = $1`
+    `SELECT c.id, c.name, c.company_name, c.niche_id, c.phone, c.twilio_number,
+            n.name AS niche_name
+     FROM contractors c
+     LEFT JOIN niches n ON n.id = c.niche_id
+     WHERE c.id = $1`
   ).get(contractorId);
 
   if (!contractor) return null;
@@ -201,59 +206,146 @@ async function handleHomeownerSms(phone, contractorId, incomingText, session) {
   return `What address needs service?`;
 }
 
-// ── Step 1: Capture address ───────────────────────────────────────────────────
+// ── Step 1: Capture address (and name if not yet known) ──────────────────────
 async function handleAddress(session, contractor, businessName, text) {
-  // Use Claude Haiku to extract a clean address from whatever they sent
-  const system = `You are an address extractor. The user is responding to a question about what address needs HVAC service.
+  const needsName = !session.name;
+
+  // Use Claude Haiku to extract name + address (or just address if name already known)
+  const systemWithName = `You are an assistant extracting booking info from a homeowner text message.
+The homeowner was asked: "What's your name and the address that needs service?"
+Extract their name and address and return ONLY valid JSON: {"name": "...", "address": "..."}
+If name is unclear, use "Homeowner". If no address is present, use "".
+Return ONLY the JSON object. No explanation.`;
+
+  const systemAddressOnly = `You are an address extractor. The user is responding to a question about what address needs HVAC service.
 Extract the address from their message. If they gave a clear address (even partial like "123 Main St"), return it as-is.
 If the message has no address information at all, return the single word: NONE
 Return ONLY the address or NONE. No explanation.`;
 
   let address = text.trim();
+  let name = session.name || null;
+
   if (ANTHROPIC_API_KEY) {
     try {
-      const result = await callClaude(
-        [{ role: 'user', content: text }],
-        [],
-        system
-      );
-      const extracted = result.content?.[0]?.text?.trim();
-      if (extracted && extracted !== 'NONE') address = extracted;
-      else if (extracted === 'NONE') {
-        return `Got it — what's the address that needs service?`;
+      if (needsName) {
+        const result = await callClaude(
+          [{ role: 'user', content: text }],
+          [],
+          systemWithName
+        );
+        const raw = result.content?.[0]?.text?.trim();
+        const parsed = JSON.parse(raw);
+        if (parsed.name && parsed.name !== 'Homeowner') name = parsed.name;
+        if (parsed.address) address = parsed.address;
+        // If they only gave a name and no address, ask for address
+        if (!parsed.address) {
+          await updateSession(session.id, { name: name || session.name });
+          return `Thanks ${name || ''}! And the address that needs service?`.trim();
+        }
+      } else {
+        const result = await callClaude(
+          [{ role: 'user', content: text }],
+          [],
+          systemAddressOnly
+        );
+        const extracted = result.content?.[0]?.text?.trim();
+        if (extracted && extracted !== 'NONE') address = extracted;
+        else if (extracted === 'NONE') {
+          return `What's the address that needs service?`;
+        }
       }
     } catch (e) {
       console.error('[BRAIN3] Address extraction error:', e.message);
     }
   }
 
-  await updateSession(session.id, { address, state: 'awaiting_service' });
+  const updates = { address, state: 'awaiting_service' };
+  if (name) updates.name = name;
+  await updateSession(session.id, updates);
+
+  // Patch the lead record if session has a lead_id
+  if (session.lead_id) {
+    await db.query(
+      `UPDATE leads SET name = COALESCE($1, name), address = COALESCE($2, address) WHERE id = $3`,
+      [name || null, address || null, session.lead_id]
+    ).catch(e => console.error('[BRAIN3] Lead patch error:', e.message));
+  }
 
   return `Got it. What's going on — AC, heating, or something else?`;
 }
 
-// ── Step 2: Capture service type ──────────────────────────────────────────────
+// ── Step 2: Capture service type + give real diagnostic ───────────────────────
 async function handleService(session, contractor, businessName, text) {
-  await updateSession(session.id, { service_description: text.trim(), state: 'awaiting_slot' });
+  const serviceText = text.trim();
+  await updateSession(session.id, { service_description: serviceText, state: 'awaiting_slot' });
 
-  // Fetch open slots
-  const slots = await getOpenSlots(contractor.id);
+  // Fetch slots in parallel with diagnostic retrieval
+  const [slots, knowledgeChunks] = await Promise.all([
+    getOpenSlots(contractor.id),
+    getRelevantKnowledge(serviceText, contractor.niche_name || 'HVAC').catch(() => ''),
+  ]);
 
+  // Build the slot options string
   if (!slots.length) {
-    // No availability — fall back to booking link
-    await updateSession(session.id, { state: 'confirmed' }); // end session
-    return `We're fully booked this week but let me have someone reach out to you directly. Sit tight!`;
+    await updateSession(session.id, { state: 'confirmed' });
+    return `We're fully booked this week but I'll have someone call you to schedule. Hang tight!`;
   }
 
-  // Offer up to 3 slots
   const offered = slots.slice(0, 3);
   await updateSession(session.id, {
     offered_slots: JSON.stringify(offered),
     state: 'awaiting_slot',
   });
 
-  const options = offered.map((s, i) => `${i + 1}) ${s.label}`).join('  ');
-  return `${businessName} has openings: ${options}. Reply 1, 2, or 3.`;
+  const slotOptions = offered.map((s, i) => `${i + 1}) ${s.label}`).join('  ');
+
+  // If we have diagnostic knowledge and Claude is available, generate a real diagnostic
+  if (knowledgeChunks && ANTHROPIC_API_KEY) {
+    try {
+      const diagnosticSystem = `You are the scheduling assistant for ${businessName}. A homeowner just described their problem.
+Your job: give a brief, honest, expert diagnostic response (1-2 sentences max) then naturally transition to offering appointment times.
+
+KNOWLEDGE BASE — use this to give a real answer:
+${knowledgeChunks}
+
+SAFETY RULES (hardcoded — check these first):
+- Gas smell / rotten egg: Tell them to leave the home immediately and call gas company or 911. DO NOT book an appointment.
+- CO detector going off: Tell them to evacuate and call 911 first.
+- Smoke or sparks: Tell them to turn off at the breaker, evacuate if needed, call 911.
+
+FORMATTING:
+- Max 320 characters total (diagnosis + slot offer combined)
+- No markdown, no asterisks, plain SMS text
+- Warm, human tone — not robotic, not salesy
+- End with the slot offer: "Available times: 1) ... 2) ... 3) ... Reply 1, 2, or 3."
+- If it's a serious safety issue, DO NOT include slot options — just the safety instruction.
+
+SLOTS AVAILABLE:
+${slotOptions}`;
+
+      const result = await callClaude(
+        [{ role: 'user', content: serviceText }],
+        [],
+        diagnosticSystem
+      );
+
+      const reply = result.content?.[0]?.text?.trim();
+      if (reply && reply.length > 0) {
+        // Safety check: if the reply tells them to leave/call 911, don't add slots
+        const isSafetyOverride = /911|leave.*home|evacuate|gas company/i.test(reply);
+        if (isSafetyOverride) {
+          await updateSession(session.id, { state: 'confirmed' }); // end session on safety
+          return reply.slice(0, MAX_CHARS);
+        }
+        return reply.slice(0, MAX_CHARS);
+      }
+    } catch (e) {
+      console.error('[BRAIN3] Diagnostic generation error:', e.message);
+    }
+  }
+
+  // Fallback if no knowledge / Claude unavailable
+  return `Got it. ${businessName} has openings: ${slotOptions}. Reply 1, 2, or 3.`;
 }
 
 // ── Step 3: Confirm slot pick ─────────────────────────────────────────────────
@@ -281,31 +373,40 @@ async function handleSlotPick(session, contractor, businessName, text) {
 
   // ── Book the appointment ────────────────────────────────────────────────────
   try {
-    // Find HVAC niche (or contractor's niche)
-    const niche = await db.prepare(
-      `SELECT id FROM niches WHERE id = $1`
-    ).get(contractor.niche_id);
-
-    const nicheId = niche?.id || (await db.prepare(`SELECT id FROM niches WHERE name = 'HVAC'`).get())?.id;
-    if (!nicheId) throw new Error('No niche found');
-
-    // Create lead
-    const leadId = uuidv4();
     const name = session.name || 'Homeowner';
-    await db.prepare(`
-      INSERT INTO leads
-        (id, name, email, phone, niche_id, zip_code, address, description, status, assigned_contractor_id, source_site)
-      VALUES
-        ($1, $2, NULL, $3, $4, 'sms', $5, $6, 'matched', $7, 'sms_brain3')
-    `).run(
-      leadId,
-      name,
-      session.phone,
-      nicheId,
-      session.address || '',
-      session.service_description || 'HVAC service',
-      contractor.id
-    );
+    let leadId = session.lead_id || null;
+
+    if (leadId) {
+      // Lead already created (phone-only form path) — just update status + fill in name/address
+      await db.query(
+        `UPDATE leads SET status = 'matched', assigned_contractor_id = $1,
+         name = COALESCE(NULLIF($2,'Homeowner'), name),
+         address = COALESCE($3, address)
+         WHERE id = $4`,
+        [contractor.id, name, session.address || null, leadId]
+      );
+    } else {
+      // Create lead (missed call / van wrap / Facebook Lead Ad / direct SMS path)
+      const niche = await db.prepare(`SELECT id FROM niches WHERE id = $1`).get(contractor.niche_id);
+      const nicheId = niche?.id || (await db.prepare(`SELECT id FROM niches WHERE name = 'HVAC'`).get())?.id;
+      if (!nicheId) throw new Error('No niche found');
+
+      leadId = uuidv4();
+      await db.prepare(`
+        INSERT INTO leads
+          (id, name, email, phone, niche_id, zip_code, address, description, status, assigned_contractor_id, source_site)
+        VALUES
+          ($1, $2, NULL, $3, $4, 'sms', $5, $6, 'matched', $7, 'sms_brain3')
+      `).run(
+        leadId,
+        name,
+        session.phone,
+        nicheId,
+        session.address || '',
+        session.service_description || 'HVAC service',
+        contractor.id
+      );
+    }
 
     // Create appointment
     const apptId = uuidv4();
@@ -372,8 +473,8 @@ async function handleSlotPick(session, contractor, businessName, text) {
 }
 
 // ── Public: start a new homeowner session ─────────────────────────────────────
-// Called from twilio.js (missed call) and facebook.js (Lead Ad)
-async function startHomeownerSession(phone, contractorId, name = null) {
+// Called from twilio.js (missed call), facebook.js (Lead Ad), and leads.js (phone-only form)
+async function startHomeownerSession(phone, contractorId, name = null, leadId = null) {
   // Kill any stale session for this phone + contractor first
   await db.query(`
     UPDATE homeowner_sms_sessions
@@ -381,7 +482,7 @@ async function startHomeownerSession(phone, contractorId, name = null) {
     WHERE phone = $1 AND contractor_id = $2 AND state != 'confirmed'
   `, [phone, contractorId]).catch(() => {});
 
-  return createSession(phone, contractorId, name);
+  return createSession(phone, contractorId, name, leadId);
 }
 
 // ── Public: get active session ────────────────────────────────────────────────
@@ -396,8 +497,43 @@ async function routeHomeownerSms(phone, contractorId, text) {
   return handleHomeownerSms(phone, contractorId, text, session);
 }
 
+// ── Public: start a rebook session after cancellation ────────────────────────
+// Pre-populates name, address, service from the lead and jumps straight to
+// slot selection. Returns the SMS text to send, or null if no slots available.
+async function startRebookSession(phone, contractorId, lead) {
+  // Expire any existing session
+  await db.query(`
+    UPDATE homeowner_sms_sessions
+    SET state = 'confirmed', updated_at = NOW()
+    WHERE phone = $1 AND contractor_id = $2 AND state != 'confirmed'
+  `, [phone, contractorId]).catch(() => {});
+
+  // Fetch open slots
+  const slots = await getOpenSlots(contractorId);
+  if (!slots.length) return null; // No slots — caller falls back to email
+
+  const offered = slots.slice(0, 3);
+  const sessionId = uuidv4();
+  await db.prepare(`
+    INSERT INTO homeowner_sms_sessions
+      (id, phone, contractor_id, state, name, address, service_description, offered_slots, lead_id)
+    VALUES ($1, $2, $3, 'awaiting_slot', $4, $5, $6, $7, $8)
+  `).run(
+    sessionId, phone, contractorId,
+    lead.name || null,
+    lead.address || null,
+    'rebooking',
+    JSON.stringify(offered),
+    lead.id || null,
+  );
+
+  const options = offered.map((s, i) => `${i + 1}) ${s.label}`).join('  ');
+  return `Want to get rebooked? Here are the next available times: ${options}. Reply 1, 2, or 3.`;
+}
+
 module.exports = {
   startHomeownerSession,
   getActiveSession,
   routeHomeownerSms,
+  startRebookSession,
 };

@@ -108,6 +108,80 @@ router.post('/inbound', async (req, res) => {
     ...rest
   } = req.body;
 
+  // ── Phone-only path: Brain 3 conversational booking ──────────────────────────
+  // When the HVAC form sends only a phone number (no email), Brain 3 takes over via SMS.
+  // Only works on dedicated contractor API keys (not the general matching engine).
+  const isPhoneOnly = phone && !email;
+  if (isPhoneOnly && dedicatedContractorId) {
+    try {
+      const contractor = await db.prepare(
+        `SELECT id, name, company_name, phone, twilio_number, niche_id FROM contractors WHERE id = $1 AND is_active = 1`
+      ).get(dedicatedContractorId);
+
+      if (!contractor || !contractor.twilio_number || !process.env.TWILIO_ACCOUNT_SID) {
+        // Fallback: return error so form can show a message
+        return res.status(400).json({ error: 'Phone-only booking not available for this contractor. Please try again or call us directly.' });
+      }
+
+      // Normalize phone
+      const normalizedPhone = phone.replace(/\D/g, '').slice(-10);
+      const e164Phone = `+1${normalizedPhone}`;
+
+      // Dedup by phone (30 days) to prevent duplicate sessions
+      const recentPhoneLead = await db.prepare(`
+        SELECT id FROM leads
+        WHERE phone = $1 AND assigned_contractor_id = $2 AND created_at > NOW() - INTERVAL '30 days'
+        LIMIT 1
+      `).get(e164Phone, dedicatedContractorId);
+
+      if (recentPhoneLead) {
+        // Session may already be in progress — just re-send the opener
+        const businessName = contractor.company_name || contractor.name;
+        const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+        await twilioClient.messages.create({
+          to: e164Phone,
+          from: contractor.twilio_number,
+          body: `Still here at ${businessName}! What's your name and the address that needs service?`,
+        });
+        return res.status(201).json({ success: true, brain3: true });
+      }
+
+      // Resolve niche from contractor
+      const niche = await db.prepare(`SELECT id FROM niches WHERE id = $1`).get(contractor.niche_id)
+        || await db.prepare(`SELECT id FROM niches WHERE LOWER(name) = 'hvac'`).get();
+      if (!niche) return res.status(500).json({ error: 'Could not resolve niche' });
+
+      // Create minimal lead (name/email nullable — Brain 3 captures them conversationally)
+      const leadId = uuidv4();
+      await db.prepare(`
+        INSERT INTO leads
+          (id, name, email, phone, niche_id, zip_code, source_site, status, assigned_contractor_id)
+        VALUES ($1, NULL, NULL, $2, $3, 'sms', 'form_brain3', 'matched', $4)
+      `).run(leadId, e164Phone, niche.id, dedicatedContractorId);
+
+      // Start Brain 3 session with leadId threaded through
+      const { startHomeownerSession } = require('../services/homeownerSmsAI');
+      await startHomeownerSession(e164Phone, dedicatedContractorId, null, leadId);
+
+      // Fire opening Brain 3 message
+      const businessName = contractor.company_name || contractor.name;
+      const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+      await twilioClient.messages.create({
+        to: e164Phone,
+        from: contractor.twilio_number,
+        body: `Hey! Got your request at ${businessName}. What's your name and the address that needs service?`,
+      });
+
+      console.log(`📲 Brain 3 session started for ${e164Phone} → contractor ${dedicatedContractorId} (lead: ${leadId})`);
+      return res.status(201).json({ success: true, brain3: true });
+
+    } catch (err) {
+      console.error('[INBOUND] Phone-only Brain 3 error:', err.message);
+      return res.status(500).json({ error: 'Failed to start booking session' });
+    }
+  }
+
+  // ── Standard path: full form with name + email ────────────────────────────────
   if (!name || !email || !zip_code || !niche_slug) {
     return res.status(400).json({ error: 'name, email, zip_code, and niche_slug are required' });
   }
