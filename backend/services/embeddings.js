@@ -13,20 +13,9 @@ const VOYAGE_API_KEY = process.env.VOYAGE_API_KEY;
 const VOYAGE_MODEL   = 'voyage-3-lite'; // 512 dims, best for short text retrieval
 
 /**
- * embed(text) — converts a string to a 512-dimensional float vector
- * @param {string} text
- * @returns {Promise<number[]>}
+ * voyageRequest(body) — makes one POST to Voyage embeddings API, returns parsed JSON
  */
-async function embed(text) {
-  if (!VOYAGE_API_KEY) {
-    throw new Error('VOYAGE_API_KEY not set — add it to Railway env vars');
-  }
-
-  const body = JSON.stringify({
-    input: [text],
-    model: VOYAGE_MODEL,
-  });
-
+function voyageRequest(body) {
   return new Promise((resolve, reject) => {
     const req = https.request({
       hostname: 'api.voyageai.com',
@@ -42,11 +31,7 @@ async function embed(text) {
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         try {
-          const parsed = JSON.parse(data);
-          if (parsed.error) return reject(new Error(`Voyage API: ${parsed.error}`));
-          const vector = parsed.data?.[0]?.embedding;
-          if (!vector) return reject(new Error('Voyage API returned no embedding'));
-          resolve(vector);
+          resolve({ status: res.statusCode, body: JSON.parse(data) });
         } catch (e) {
           reject(new Error('Voyage parse error: ' + data.slice(0, 200)));
         }
@@ -56,6 +41,38 @@ async function embed(text) {
     req.write(body);
     req.end();
   });
+}
+
+/**
+ * embed(text) — converts a string to a 512-dimensional float vector.
+ * Retries up to 4 times with exponential backoff on rate limit errors.
+ * @param {string} text
+ * @returns {Promise<number[]>}
+ */
+async function embed(text) {
+  if (!VOYAGE_API_KEY) {
+    throw new Error('VOYAGE_API_KEY not set — add it to Railway env vars');
+  }
+
+  const body = JSON.stringify({ input: [text], model: VOYAGE_MODEL });
+  const delays = [5000, 10000, 20000, 30000]; // backoff on 429
+
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    const { status, body: parsed } = await voyageRequest(body);
+
+    if (status === 429 || parsed.detail?.toLowerCase().includes('rate')) {
+      if (attempt === delays.length) throw new Error('Voyage rate limit — all retries exhausted');
+      const wait = delays[attempt];
+      console.log(`[EMBEDDINGS] Rate limited — waiting ${wait / 1000}s before retry ${attempt + 1}...`);
+      await new Promise(r => setTimeout(r, wait));
+      continue;
+    }
+
+    if (parsed.error) throw new Error(`Voyage API: ${JSON.stringify(parsed.error)}`);
+    const vector = parsed.data?.[0]?.embedding;
+    if (!vector) throw new Error(`Voyage API returned no embedding. Status: ${status}. Body: ${JSON.stringify(parsed).slice(0, 200)}`);
+    return vector;
+  }
 }
 
 /**
