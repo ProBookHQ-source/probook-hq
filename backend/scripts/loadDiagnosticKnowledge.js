@@ -509,8 +509,8 @@ async function main() {
     await clearNicheKnowledge(name);
     await storeKnowledgeBatch(chunks);
     console.log(`✅ ${name.toUpperCase()} complete`);
-    // Pause between niches to avoid Voyage AI rate limits
-    await new Promise(r => setTimeout(r, 2000));
+    // Wait 15s between niches to avoid Voyage AI rate limits
+    await new Promise(r => setTimeout(r, 15000));
   }
 
   console.log('\n🎉 All knowledge loaded. Brain 3 is now an expert.\n');
