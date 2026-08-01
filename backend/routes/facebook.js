@@ -207,10 +207,18 @@ async function processLead(leadgenId, pageId) {
       try {
         const { startHomeownerSession } = require('../services/homeownerSmsAI');
         // Start session with name pre-populated from Facebook form
-        await startHomeownerSession(phone, contractor.id, fullName);
-        // Since we have their name already, skip straight to address
-        smsBody = `Hey ${firstName_}! We got your request — I'm ${businessName}'s scheduling assistant. What's the address that needs service?`;
-        console.log(`[FACEBOOK] Brain 3 session started for ${phone} → contractor ${contractor.id}`);
+        const result = await startHomeownerSession(phone, contractor.id, fullName);
+        const isReturning = result && result.isReturning;
+
+        if (isReturning && result.name) {
+          // Returning homeowner — address already pre-populated, skip straight to service
+          const firstName = result.name.split(' ')[0];
+          smsBody = `Hey ${firstName}! Great to hear from you again — what's going on this time?`;
+        } else {
+          // New homeowner — we have their name from Facebook, so skip straight to address
+          smsBody = `Hey ${firstName_}! We got your request — I'm ${businessName}'s scheduling assistant. What's the address that needs service?`;
+        }
+        console.log(`[FACEBOOK] Brain 3 session started for ${phone} → contractor ${contractor.id} (returning: ${isReturning})`);
       } catch (brainErr) {
         console.error('[FACEBOOK] Brain 3 start failed, falling back to booking link:', brainErr.message);
         smsBody = `Hey ${firstName_}! This is ${businessName} — thanks for reaching out. Book a time that works here: ${bookingUrl} — takes 60 seconds and we'll confirm right away.`;

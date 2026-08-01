@@ -60,11 +60,13 @@ function isInServiceArea(address, serviceZipCodesJson) {
 
 // ── Returning homeowner check ─────────────────────────────────────────────────
 async function getLastConfirmedBooking(phone, contractorId) {
+  // Include 'awaiting_email' so homeowners who went dark after booking (but before
+  // providing their email) are still recognized as returning on next contact.
   return db.prepare(`
     SELECT name, address, service_description
     FROM homeowner_sms_sessions
     WHERE phone = $1 AND contractor_id = $2
-      AND state = 'confirmed'
+      AND state IN ('confirmed', 'awaiting_email')
       AND name IS NOT NULL AND address IS NOT NULL
     ORDER BY updated_at DESC
     LIMIT 1
@@ -524,6 +526,25 @@ async function handleSlotPick(session, contractor, businessName, text) {
     return `Confirmed! ${businessName} will be there${addrPart} on ${fmtDate(chosen.date)} at ${fmtTime(chosen.time)}. Want a confirmation email? Reply with your email or SKIP.`;
 
   } catch (err) {
+    // 23505 = PostgreSQL unique_violation — slot was taken by another homeowner
+    // between when we offered it and when they replied. Re-offer fresh slots instead
+    // of returning a generic error that leaves them with nothing.
+    if (err.code === '23505') {
+      console.warn('[BRAIN3] Slot conflict (23505) — re-offering fresh slots');
+      try {
+        const freshSlots = await getOpenSlots(contractor.id);
+        if (!freshSlots.length) {
+          await updateSession(session.id, { state: 'confirmed' });
+          return `Sorry — that slot just got taken and we're fully booked this week. We'll have someone reach out to schedule you!`;
+        }
+        const newOffered = freshSlots.slice(0, 3);
+        await updateSession(session.id, { offered_slots: JSON.stringify(newOffered) });
+        const newOptions = newOffered.map((s, i) => `${i + 1}) ${s.label}`).join('  ');
+        return `That slot just got taken — here are the next available times: ${newOptions}. Reply 1, 2, or 3.`;
+      } catch (retryErr) {
+        console.error('[BRAIN3] Re-offer failed:', retryErr.message);
+      }
+    }
     console.error('[BRAIN3] Booking error:', err.message);
     return `Something went wrong on our end — we'll reach out to confirm your appointment. Sorry about that!`;
   }
