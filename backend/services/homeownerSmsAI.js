@@ -335,7 +335,10 @@ Return ONLY the address or NONE. No explanation.`;
 // ── Step 2: Capture service type + give real diagnostic ───────────────────────
 async function handleService(session, contractor, businessName, text) {
   const serviceText = text.trim();
-  await updateSession(session.id, { service_description: serviceText, state: 'awaiting_slot' });
+  // Save service description only — don't advance state until we confirm slots exist.
+  // If we set state='awaiting_slot' before fetching, a slot-fetch failure leaves the
+  // homeowner stuck in awaiting_slot with an empty offered_slots array.
+  await updateSession(session.id, { service_description: serviceText });
 
   // Fetch slots in parallel with diagnostic retrieval
   const [slots, knowledgeChunks] = await Promise.all([
@@ -346,10 +349,11 @@ async function handleService(session, contractor, businessName, text) {
   // Build the slot options string
   if (!slots.length) {
     await updateSession(session.id, { state: 'confirmed' });
-    return `We're fully booked this week but I'll have someone call you to schedule. Hang tight!`;
+    return `We're fully booked right now — text us again in a few days and we'll get you scheduled. Reply STOP to opt out.`;
   }
 
   const offered = slots.slice(0, 3);
+  // Now safe to advance state — offered_slots and state set together atomically
   await updateSession(session.id, {
     offered_slots: JSON.stringify(offered),
     state: 'awaiting_slot',
@@ -535,7 +539,7 @@ async function handleSlotPick(session, contractor, businessName, text) {
         const freshSlots = await getOpenSlots(contractor.id);
         if (!freshSlots.length) {
           await updateSession(session.id, { state: 'confirmed' });
-          return `Sorry — that slot just got taken and we're fully booked this week. We'll have someone reach out to schedule you!`;
+          return `Sorry — that slot just got taken and we're fully booked right now. Text us again in a few days and we'll get you on the calendar. Reply STOP to opt out.`;
         }
         const newOffered = freshSlots.slice(0, 3);
         await updateSession(session.id, { offered_slots: JSON.stringify(newOffered) });
@@ -595,12 +599,14 @@ async function handleEmail(session, contractor, businessName, text) {
         time: fmtTime(appt.scheduled_time),
         address: session.address || '',
       }).catch(e => console.error('[BRAIN3] Confirmation email error:', e.message));
+
+      return `Done! Confirmation sent to ${input}. See you ${fmtDate(appt.scheduled_date)} at ${fmtTime(appt.scheduled_time)}. Reply STOP to opt out.`;
     }
   } catch (e) {
     console.error('[BRAIN3] Email confirmation lookup error:', e.message);
   }
 
-  return `Done! Check ${input} for your confirmation. See you at the appointment!`;
+  return `Done! Check ${input} for your confirmation. Reply STOP to opt out.`;
 }
 
 // ── Public: start a new homeowner session ─────────────────────────────────────
