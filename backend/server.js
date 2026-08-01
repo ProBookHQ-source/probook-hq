@@ -280,6 +280,9 @@ db._ready.then(async () => {
     )
   `);
 
+  // Brain 3 email capture — optional email stored on homeowner session
+  await db.query(`ALTER TABLE homeowner_sms_sessions ADD COLUMN IF NOT EXISTS email TEXT`);
+
   // Start scheduled jobs (appointment reminders, etc.)
   require('./services/cron');
 

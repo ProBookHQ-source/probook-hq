@@ -66,10 +66,17 @@ router.post('/missed-call', async (req, res) => {
       let smsBody;
       try {
         // Brain 3: start a conversational booking session
-        const { startHomeownerSession } = require('../services/homeownerSmsAI');
-        await startHomeownerSession(From, contractor.id);
-        smsBody = `Hey! Sorry we missed you at ${businessName} — we're out on a job. I'm their scheduling assistant. What's the address that needs service?`;
-        console.log(`[TWILIO] Brain 3 session started for ${From} → contractor ${contractor.id}`);
+        const { startHomeownerSession, getLastConfirmedBooking } = require('../services/homeownerSmsAI');
+        const result = await startHomeownerSession(From, contractor.id);
+        const isReturning = result && result.isReturning;
+
+        if (isReturning && result.name) {
+          const firstName = result.name.split(' ')[0];
+          smsBody = `Hey ${firstName}! Great to hear from you again — what's going on this time?`;
+        } else {
+          smsBody = `Hey! Sorry we missed you at ${businessName} — we're out on a job. I'm their scheduling assistant. What's the address that needs service?`;
+        }
+        console.log(`[TWILIO] Brain 3 session started for ${From} → contractor ${contractor.id} (returning: ${isReturning})`);
       } catch (brainErr) {
         console.error(`[TWILIO] Brain 3 session failed, falling back to booking link:`, brainErr.message);
         smsBody = `Hey! This is ${businessName} — sorry we missed your call, we're out on a job. Book a time that works for you here: ${bookingLink} — takes 60 seconds and we'll confirm right away. Reply STOP to opt out.`;
@@ -240,11 +247,18 @@ router.post('/inbound-sms', async (req, res) => {
         console.log(`[TWILIO-SMS] Homeowner ${From} has active Brain 3 session (state: ${activeSession.state}) — routing`);
         replyBody = await routeHomeownerSms(From, contractor.id, Body || '');
       } else {
-        // No session — this is an unsolicited text (van wrap, SMS keyword, etc.)
-        // Start a fresh session
+        // No session — unsolicited text (van wrap, SMS keyword, etc.)
+        // Start a fresh session and greet appropriately
         console.log(`[TWILIO-SMS] Homeowner (${From}) — no session, starting Brain 3 (sms_keyword)`);
-        await startHomeownerSession(From, contractor.id);
-        replyBody = `Hey! This is ${businessName}. Happy to help — what's the address that needs service?`;
+        const result = await startHomeownerSession(From, contractor.id);
+        const isReturning = result && result.isReturning;
+
+        if (isReturning && result.name) {
+          const firstName = result.name.split(' ')[0];
+          replyBody = `Hey ${firstName}! Great to hear from you again — what's going on this time?`;
+        } else {
+          replyBody = `Hey! This is ${businessName}. Happy to help — what's the address that needs service?`;
+        }
       }
     } catch (brainErr) {
       console.error('[TWILIO-SMS] Brain 3 error, falling back to booking link:', brainErr.message);

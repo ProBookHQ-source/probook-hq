@@ -6,7 +6,8 @@
  * in a 4-message conversation — entirely over SMS, no browser required.
  *
  * State machine:
- *   awaiting_address  → awaiting_service → awaiting_slot → confirmed
+ *   awaiting_address  → awaiting_service → awaiting_slot → awaiting_email → confirmed
+ *   (returning homeowners skip awaiting_address — pre-populated from last booking)
  *
  * The contractor finds out when a push notification hits their phone.
  * The homeowner gets a confirmation text. Nobody did anything manually.
@@ -35,6 +36,43 @@ function fmtDate(dateStr) {
   const d = new Date(dateStr + 'T12:00:00');
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
+
+// ── ZIP extraction + service area check ──────────────────────────────────────
+function extractZip(address) {
+  const matches = (address || '').match(/\b(\d{5})(?:-\d{4})?\b/g);
+  if (!matches) return null;
+  return matches[matches.length - 1].slice(0, 5); // last match = ZIP (city, state, ZIP order)
+}
+
+function isInServiceArea(address, serviceZipCodesJson) {
+  try {
+    const zips = typeof serviceZipCodesJson === 'string'
+      ? JSON.parse(serviceZipCodesJson)
+      : serviceZipCodesJson;
+    if (!zips || !Array.isArray(zips) || zips.includes('*')) return true; // wildcard = all
+    const zip = extractZip(address);
+    if (!zip) return true; // can't parse ZIP — give benefit of the doubt
+    return zips.includes(zip);
+  } catch (e) {
+    return true; // parse error = permissive
+  }
+}
+
+// ── Returning homeowner check ─────────────────────────────────────────────────
+async function getLastConfirmedBooking(phone, contractorId) {
+  return db.prepare(`
+    SELECT name, address, service_description
+    FROM homeowner_sms_sessions
+    WHERE phone = $1 AND contractor_id = $2
+      AND state = 'confirmed'
+      AND name IS NOT NULL AND address IS NOT NULL
+    ORDER BY updated_at DESC
+    LIMIT 1
+  `).get(phone, contractorId);
+}
+
+// ── Graceful exit detection ───────────────────────────────────────────────────
+const EXIT_RE = /^(no\s*thanks?|not\s*interested|never\s*mind|nevermind|forget\s*it|nvm|nm|no\s*need|don'?t\s*need|not\s*now|maybe\s*later|i'?m\s*good|all\s*good|no\s*worries)$/i;
 
 async function callClaude(messages, tools, system) {
   return new Promise((resolve, reject) => {
@@ -145,11 +183,11 @@ async function getOpenSlots(contractorId) {
 
 // ── Get or create a homeowner session ────────────────────────────────────────
 async function getSession(phone, contractorId) {
-  // Sessions expire after 2 hours of inactivity
+  // Sessions expire after 24 hours of inactivity
   const session = await db.prepare(`
     SELECT * FROM homeowner_sms_sessions
     WHERE phone = $1 AND contractor_id = $2
-    AND updated_at > NOW() - INTERVAL '2 hours'
+    AND updated_at > NOW() - INTERVAL '24 hours'
     AND state != 'confirmed'
     ORDER BY updated_at DESC
     LIMIT 1
@@ -180,6 +218,7 @@ async function updateSession(sessionId, updates) {
 async function handleHomeownerSms(phone, contractorId, incomingText, session) {
   const contractor = await db.prepare(
     `SELECT c.id, c.name, c.company_name, c.niche_id, c.phone, c.twilio_number,
+            c.service_zip_codes,
             n.name AS niche_name
      FROM contractors c
      LEFT JOIN niches n ON n.id = c.niche_id
@@ -190,6 +229,12 @@ async function handleHomeownerSms(phone, contractorId, incomingText, session) {
 
   const businessName = contractor.company_name || contractor.name || 'us';
 
+  // ── Graceful exit — detect disinterest in any state ──────────────────────
+  if (EXIT_RE.test(incomingText.trim())) {
+    await updateSession(session.id, { state: 'confirmed' });
+    return `No problem at all! Feel free to text us anytime if you need service. Have a great day!`;
+  }
+
   // ── State routing ──────────────────────────────────────────────────────────
   if (session.state === 'awaiting_address') {
     return handleAddress(session, contractor, businessName, incomingText);
@@ -199,6 +244,9 @@ async function handleHomeownerSms(phone, contractorId, incomingText, session) {
   }
   if (session.state === 'awaiting_slot') {
     return handleSlotPick(session, contractor, businessName, incomingText);
+  }
+  if (session.state === 'awaiting_email') {
+    return handleEmail(session, contractor, businessName, incomingText);
   }
 
   // Fallback — session in unknown state, restart
@@ -257,6 +305,14 @@ Return ONLY the address or NONE. No explanation.`;
     } catch (e) {
       console.error('[BRAIN3] Address extraction error:', e.message);
     }
+  }
+
+  // ── Service area check ────────────────────────────────────────────────────
+  if (!isInServiceArea(address, contractor.service_zip_codes)) {
+    await updateSession(session.id, { state: 'confirmed' }); // close session
+    const zip = extractZip(address);
+    const areaHint = zip ? `(we cover different zip codes)` : `(we don't serve that area)`;
+    return `Thanks! Unfortunately we don't cover that area ${areaHint}. Hope you find help nearby soon!`;
   }
 
   const updates = { address, state: 'awaiting_service' };
@@ -417,8 +473,8 @@ async function handleSlotPick(session, contractor, businessName, text) {
         ($1, $2, $3, $4, $5, 'confirmed', 'sms_brain3')
     `, [apptId, leadId, contractor.id, chosen.date, chosen.time]);
 
-    // Mark session confirmed
-    await updateSession(session.id, { state: 'confirmed', lead_id: leadId });
+    // Transition to email capture before final close
+    await updateSession(session.id, { state: 'awaiting_email', lead_id: leadId });
 
     // Alert Jose + contractor
     try {
@@ -464,7 +520,8 @@ async function handleSlotPick(session, contractor, businessName, text) {
       console.error('[BRAIN3] Contractor SMS alert failed:', e.message);
     }
 
-    return `You're booked! ${businessName} will be at ${session.address || 'your address'} on ${fmtDate(chosen.date)} at ${fmtTime(chosen.time)}. You'll get a reminder the morning of. Reply STOP to opt out.`;
+    const addrPart = session.address ? ` at ${session.address}` : '';
+    return `Confirmed! ${businessName} will be there${addrPart} on ${fmtDate(chosen.date)} at ${fmtTime(chosen.time)}. Want a confirmation email? Reply with your email or SKIP.`;
 
   } catch (err) {
     console.error('[BRAIN3] Booking error:', err.message);
@@ -472,8 +529,60 @@ async function handleSlotPick(session, contractor, businessName, text) {
   }
 }
 
+// ── Step 4: Capture email (optional) ────────────────────────────────────────
+async function handleEmail(session, contractor, businessName, text) {
+  const input = text.trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const skipWords  = /^(skip|no|nope|none|n\/a|na)$/i;
+
+  if (skipWords.test(input)) {
+    await updateSession(session.id, { state: 'confirmed' });
+    return `No problem! Your booking is confirmed. ${businessName} will remind you the morning of your appointment. Reply STOP to opt out.`;
+  }
+
+  if (!emailRegex.test(input)) {
+    // Not a valid email and not a skip word — ask once more
+    return `Just reply with your email address or SKIP if you'd rather not.`;
+  }
+
+  // Valid email — save and send confirmation
+  await updateSession(session.id, { state: 'confirmed', email: input });
+
+  if (session.lead_id) {
+    db.query(`UPDATE leads SET email = $1 WHERE id = $2`, [input, session.lead_id])
+      .catch(e => console.error('[BRAIN3] Email save error:', e.message));
+  }
+
+  // Look up the appointment to populate the confirmation email
+  try {
+    const appt = await db.prepare(`
+      SELECT scheduled_date, scheduled_time
+      FROM appointments
+      WHERE lead_id = $1 AND contractor_id = $2 AND status = 'confirmed'
+      ORDER BY created_at DESC LIMIT 1
+    `).get(session.lead_id, contractor.id);
+
+    if (appt) {
+      const notifications = require('./notifications');
+      notifications.sendBrain3BookingConfirmation({
+        to: input,
+        name: session.name || 'there',
+        businessName,
+        date: fmtDate(appt.scheduled_date),
+        time: fmtTime(appt.scheduled_time),
+        address: session.address || '',
+      }).catch(e => console.error('[BRAIN3] Confirmation email error:', e.message));
+    }
+  } catch (e) {
+    console.error('[BRAIN3] Email confirmation lookup error:', e.message);
+  }
+
+  return `Done! Check ${input} for your confirmation. See you at the appointment!`;
+}
+
 // ── Public: start a new homeowner session ─────────────────────────────────────
 // Called from twilio.js (missed call), facebook.js (Lead Ad), and leads.js (phone-only form)
+// Detects returning homeowners and pre-populates name + address.
 async function startHomeownerSession(phone, contractorId, name = null, leadId = null) {
   // Kill any stale session for this phone + contractor first
   await db.query(`
@@ -482,7 +591,20 @@ async function startHomeownerSession(phone, contractorId, name = null, leadId = 
     WHERE phone = $1 AND contractor_id = $2 AND state != 'confirmed'
   `, [phone, contractorId]).catch(() => {});
 
-  return createSession(phone, contractorId, name, leadId);
+  // Returning homeowner check — if they've booked before, pre-populate and skip address
+  const lastBooking = await getLastConfirmedBooking(phone, contractorId);
+  if (lastBooking && lastBooking.name && lastBooking.address) {
+    const id = uuidv4();
+    await db.prepare(`
+      INSERT INTO homeowner_sms_sessions
+        (id, phone, contractor_id, state, name, address, offered_slots, lead_id)
+      VALUES ($1, $2, $3, 'awaiting_service', $4, $5, '[]', $6)
+    `).run(id, phone, contractorId, lastBooking.name, lastBooking.address, leadId);
+    return { isReturning: true, ...(await db.prepare(`SELECT * FROM homeowner_sms_sessions WHERE id = $1`).get(id)) };
+  }
+
+  const session = await createSession(phone, contractorId, name, leadId);
+  return { isReturning: false, ...session };
 }
 
 // ── Public: get active session ────────────────────────────────────────────────
@@ -536,4 +658,5 @@ module.exports = {
   getActiveSession,
   routeHomeownerSms,
   startRebookSession,
+  getLastConfirmedBooking,
 };

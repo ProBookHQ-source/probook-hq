@@ -1036,4 +1036,35 @@ async function sendTrialSilenceAlertToJose({ contractor, hoursSinceDeploy }) {
   await sendEmail(adminTo, `⚠️ No bookings: ${company} — ${daysLive} days live, zero jobs`, html);
 }
 
-module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset, sendDirectBookingConfirmation, sendDirectBookingContractorAlert, sendOnboardingNudge, sendContractorWelcomeEmail, sendDeployAlertToAdmin, sendTrialBookingAlertToJose, sendTrialSilenceAlertToJose };
+// ── Brain 3 booking confirmation email ────────────────────────────────────────
+// Sent when a homeowner optionally provides their email after Brain 3 books them via SMS.
+async function sendBrain3BookingConfirmation({ to, name, businessName, date, time, address }) {
+  const biz  = esc(businessName);
+  const nm   = esc(name);
+  const dt   = esc(date);
+  const tm   = esc(time);
+  const addr = esc(address);
+
+  const html = emailBase({
+    label: '📅 Appointment Confirmed',
+    headline: `You're booked with ${biz}!`,
+    sub: `Here are your appointment details`,
+    bodyContent: `
+      <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:20px;">
+        ${infoRow('Name', nm, true)}
+        ${infoRow('Business', biz)}
+        ${infoRow('Date', dt)}
+        ${infoRow('Time', tm)}
+        ${addr ? infoRow('Address', addr) : ''}
+      </table>
+      <p style="font-size:14px;color:#6b7280;margin:0 0 16px;">
+        You'll receive a reminder text the morning of your appointment. If you need to cancel,
+        reply <strong>CANCEL</strong> to the SMS we texted you.
+      </p>
+    `,
+  });
+
+  await sendEmail(to, `Appointment confirmed — ${biz} on ${dt}`, html);
+}
+
+module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset, sendDirectBookingConfirmation, sendDirectBookingContractorAlert, sendOnboardingNudge, sendContractorWelcomeEmail, sendDeployAlertToAdmin, sendTrialBookingAlertToJose, sendTrialSilenceAlertToJose, sendBrain3BookingConfirmation };
