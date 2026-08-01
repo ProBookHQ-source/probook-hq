@@ -1009,6 +1009,37 @@ The brain can't see Facebook Ads Manager directly (that data doesn't live in Tra
 
 ---
 
+#### Learning Resources — Ads, Content & Distribution
+
+*Jose's curated list of the best sources for learning each ad platform and content strategy. Added July 31, 2026. Work through these in order — Facebook first, then Google, then Nextdoor. Platform mastery comes after the first campaign is converting, not before.*
+
+**Overall Content Mindset (read first)**
+- **"Day Trading Attention" by Gary Vaynerchuk** — foundational thinking for organic content and how attention works across platforms in 2026. Read this before touching any ad platform. Rewires how you think about creative.
+
+**Facebook / Meta Ads (start here)**
+- **Ben Heath — YouTube** — the clearest practical educator for Facebook lead generation specifically. Watch his videos on campaign structure, creative testing, and algorithm behavior. Skip most other Facebook educators — too much noise in that space. Ben Heath is the signal.
+- **Meta Blueprint** — facebook.com/business/learn — free courses directly from Meta. Use for platform fundamentals and understanding the ad auction. Pairs well with Ben Heath.
+
+**Google Ads (layer on after Facebook has data)**
+- **Google Skillshop** — skillshop.google.com — free, directly from Google, includes Search Ads certification. Best starting point for Google — teaches fundamentals correctly without bad habits. Do the Search Ads certification first.
+- **Aaron Young "Define Digital Academy" — YouTube** — practical campaign management after Skillshop gives you the foundation. Good for understanding bidding strategies, Quality Score, and campaign optimization in the real world.
+
+**Nextdoor Ads (simplest platform — no course needed)**
+- **Nextdoor for Business help center** — business.nextdoor.com — spend one hour reading their documentation and you'll know everything needed. Creative and targeting principles learned from Facebook transfer directly. No dedicated course necessary.
+
+**Offer + Lead Quality Thinking (applies across all platforms)**
+- **"$100M Leads" by Alex Hormozi** — not a course on ad platforms but sharpens thinking on offers and lead quality in a way that makes everything you run more effective. The offer is more important than the targeting at this stage.
+
+**The right order:**
+1. Finish "Day Trading Attention" — content brain first
+2. Meta Blueprint fundamentals → Ben Heath YouTube → first Facebook campaign live
+3. Let Facebook run 2 weeks, collect conversion data
+4. Google Skillshop certification → Aaron Young → first Google campaign live
+5. Nextdoor launches alongside Google — 1 hour of reading, done
+6. "$100M Leads" anywhere in the process — sharpens the offer thinking that makes all channels work better
+
+---
+
 #### Living Playbook Log
 
 *This section is the running record of everything tested, proven, disproven, and learned. The brain reads this log and factors it into every recommendation. Date every entry. Be specific — vague entries are useless to the brain.*
