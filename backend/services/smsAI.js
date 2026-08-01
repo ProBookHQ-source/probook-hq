@@ -270,6 +270,32 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
         required: ['appointment_id', 'did_close'],
       },
     },
+    {
+      name: 'update_availability_slot',
+      description: 'Update a recurring weekly availability slot — use when a contractor wants to change their regular hours for a day, or mark a day as unavailable. Do NOT use for one-off date blocks (use block_time for those).',
+      input_schema: {
+        type: 'object',
+        properties: {
+          day_of_week: {
+            type: 'number',
+            description: '0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday',
+          },
+          start_time: {
+            type: 'string',
+            description: 'Start time in HH:MM 24-hour format, e.g. "09:00". Required if is_active is true.',
+          },
+          end_time: {
+            type: 'string',
+            description: 'End time in HH:MM 24-hour format, e.g. "17:00". Required if is_active is true.',
+          },
+          is_active: {
+            type: 'boolean',
+            description: 'true to set hours for this day, false to mark the day as unavailable (closed).',
+          },
+        },
+        required: ['day_of_week', 'is_active'],
+      },
+    },
   ];
 
   // ── Call Claude ─────────────────────────────────────────────────────────────
@@ -422,6 +448,31 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
       } catch (err) {
         toolResult = `Error: ${err.message}`;
         console.error('[SMS-AI] log_job_outcome error:', err.message);
+      }
+
+    } else if (name === 'update_availability_slot') {
+      try {
+        const { day_of_week, start_time, end_time, is_active } = input;
+        const dayName = DAYS[day_of_week] || `day ${day_of_week}`;
+        // Remove existing slot(s) for this day first, then insert if active
+        await db.query(
+          `DELETE FROM availability_slots WHERE contractor_id = $1 AND day_of_week = $2`,
+          [contractorId, day_of_week]
+        );
+        if (is_active && start_time && end_time) {
+          await db.query(
+            `INSERT INTO availability_slots (contractor_id, day_of_week, start_time, end_time, is_active)
+             VALUES ($1, $2, $3, $4, 1)`,
+            [contractorId, day_of_week, start_time, end_time]
+          );
+          toolResult = `Updated ${dayName} to ${fmtTime(start_time)}-${fmtTime(end_time)}.`;
+        } else {
+          toolResult = `Marked ${dayName} as unavailable.`;
+        }
+        console.log(`[SMS-AI] Updated availability slot — ${dayName} for contractor ${contractorId}`);
+      } catch (err) {
+        toolResult = `Error: ${err.message}`;
+        console.error('[SMS-AI] update_availability_slot error:', err.message);
       }
 
     } else {
