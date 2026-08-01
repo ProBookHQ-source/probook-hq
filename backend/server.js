@@ -170,21 +170,6 @@ app.use('/api/deploy',       require('./routes/deploy'));   // ← Cloudflare Wo
 app.use('/api/contractor/ai-chat', require('./routes/aiChat'));
 app.use('/api/admin/ai-chat',     require('./routes/adminAI')); // Jose's business intelligence brain
 
-// ── One-time: reload expanded non-HVAC diagnostic knowledge ──────────────────
-// Remove after successful run. HVAC (32 chunks) is excluded — already correct.
-app.post('/api/internal/brain3-knowledge-expand-v2', express.json(), async (req, res) => {
-  try {
-    const { loadNiches } = require('./scripts/loadDiagnosticKnowledge');
-    const niches = ['roofing', 'electrical', 'plumbing', 'landscaping', 'painting', 'general'];
-    res.json({ ok: true, message: `Loading ${niches.length} niches — check Railway logs` });
-    loadNiches(niches)
-      .then(() => console.log('✅ Non-HVAC knowledge expansion complete'))
-      .catch(err => console.error('❌ Knowledge expansion failed:', err.message));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // ── Google Calendar OAuth ─────────────────────────────────────────────────────
 const googleCalendar = require('./services/googleCalendar');
 const db             = require('./database/db');
