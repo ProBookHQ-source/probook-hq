@@ -276,6 +276,30 @@ const ROOFING_KNOWLEDGE = [
     content: `Ice dams forming at roof edges in winter: Ice dams form when heat escapes through the roof, melts snow at the top, and that water refreezes at the cold eaves — eventually backing up under shingles and leaking inside. The root cause is almost always insufficient attic insulation and/or ventilation. The fix isn't about the roof itself — it's about keeping the attic cold (like the outside) so snow doesn't melt unevenly. Short-term: ice dam removal (carefully, with a roof rake) and proper attic ventilation can help. Long-term fix: add attic insulation (typical target is R-49 to R-60 in cold climates), ensure soffit vents are unblocked, and consider a ridge vent. A roofing contractor can assess whether the immediate damage (water staining, wet insulation) needs remediation.`
   },
 
+  {
+    niche: 'roofing', category: 'gutters', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['gutters', 'clogged', 'overflowing', 'water', 'fascia'],
+    content: `Gutters overflowing or clogged: Gutters that overflow during rain are blocked — usually by leaves, pine needles, or debris buildup. Clogged gutters cause water to pour over the front edge and saturate the soil against the foundation, contributing to basement water intrusion. They also trap moisture against the fascia board and soffit, which rots over time. Clean gutters at minimum once a year (twice if you have overhanging trees). Signs of gutter damage beyond clogs: gutters pulling away from the fascia (the spike-and-ferrule hangers fail after 15-20 years; hidden hanger replacement is more durable), gutters sloping wrong and pooling water instead of draining, seams leaking at joints (seal with gutter caulk from inside the gutter). Downspouts should discharge at least 4-6 feet from the foundation — use extensions or buried drainage to get water away from the house.`
+  },
+
+  {
+    niche: 'roofing', category: 'moss_algae', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['moss', 'algae', 'black streaks', 'green', 'roof', 'shingles'],
+    content: `Moss, algae, or black streaks on the roof: Black streaks on shingles are gloeocapsa magma — a type of algae that feeds on the limestone filler in asphalt shingles. It looks alarming but doesn't damage shingles directly; it's mainly cosmetic. Moss is more problematic — moss holds moisture against shingles and can lift edges, allowing water under them. Treatment: a diluted bleach solution (1 part bleach, 3 parts water) kills both algae and moss. Apply, let sit 20 minutes, rinse gently. Never pressure wash a roof — it strips granules and damages shingles. Zinc or copper strips installed at the ridge work as a long-term preventive — rain water picks up metal ions and flows down, inhibiting growth. Algae-resistant shingles (contain copper granules) are available for replacement. Heavy moss on an older roof may require professional treatment; a roofer can assess whether shingle damage has occurred underneath.`
+  },
+
+  {
+    niche: 'roofing', category: 'skylights', urgency: 'this_week', safety_flag: false,
+    symptom_tags: ['skylight', 'leak', 'condensation', 'dripping', 'ceiling'],
+    content: `Skylight leaking or dripping: Skylight leaks come from two very different sources — and distinguishing them matters. (1) Actual water leak (flashing or seal failure): Water appears during or after rain, typically at the sides or corners of the skylight frame. Skylight flashing (metal around the perimeter) can separate, corrode, or lose its seal. Fixed-skylights vs. venting skylights (that open) have different failure points — the gaskets on venting skylights wear out. (2) Condensation: Dripping that appears in cold weather, not related to rain, usually at the glass or the frame is condensation forming on the cold glass surface and dripping inside. This is a thermal bridging and humidity issue, not a leak. Fix: improve attic ventilation and interior humidity control. If you're not sure which you have, note whether it happens during rain (leak) or cold mornings/nights regardless of rain (condensation). Both need attention; actual flashing leaks are more urgent.`
+  },
+
+  {
+    niche: 'roofing', category: 'replacement', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['roof', 'replace', 'how long', 'age', 'lifespan', 'cost'],
+    content: `When to replace vs. repair a roof: Repair when: the roof is less than 15 years old, damage is isolated to one area (a single field of shingles, around one penetration), the underlying decking is in good condition. Replace when: the roof is over 20 years old (architectural) or 15+ years old (3-tab), damage is widespread, granule loss is significant across the whole surface, you're seeing multiple leak points, or the decking has rot or damage. A good roofer will tell you honestly — a repair on a roof that needs replacement is money wasted. When getting quotes: get at least 3, ask whether they're tearing off the old roof or overlaying (tear-off is better — overlay adds weight, hides problems, and most manufacturers require tear-off for warranty). Ask about decking inspection — you shouldn't know the full price until the old shingles are off and the decking is checked. Ask what warranty they provide on labor vs. the manufacturer's shingle warranty.`
+  },
+
 ];
 
 // ─── ELECTRICAL KNOWLEDGE ────────────────────────────────────────────────────
@@ -306,6 +330,48 @@ const ELECTRICAL_KNOWLEDGE = [
     content: `Electrical panel questions — capacity, age, upgrades: Most modern homes need 200-amp service. If you have a 100-amp panel (common in homes built before the 1980s), you may need an upgrade if you're adding EV charging, a hot tub, an HVAC system, or a major kitchen remodel. Signs your panel may need attention: frequently tripping breakers, the need to unplug appliances to use others, a panel that's more than 40 years old, fuse boxes (fuses instead of breakers — these are obsolete and generally upgraded). Specific brands to be aware of: Federal Pacific Electric (FPE) Stab-Lok panels and Zinsco/Sylvania panels are known for breaker failure issues and are often flagged in home inspections. An electrician can assess whether your panel is adequate or needs replacement.`
   },
 
+  {
+    niche: 'electrical', category: 'lighting', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['flickering', 'dimming', 'lights', 'blinking', 'bulbs'],
+    content: `Flickering or dimming lights — causes and what they mean: (1) Single light flickering: check the bulb first — loose bulb in the socket, or a bulb going bad. LED bulbs can flicker on dimmer switches not designed for LEDs. Replace with a dimmer-compatible LED or replace the dimmer. (2) Multiple lights on the same circuit flickering: a loose connection somewhere in that circuit — at the fixture, in the junction box, or at the breaker. Loose connections cause arcing, which is a fire risk. Don't ignore persistent flickering on multiple lights. (3) Lights dimming when a large appliance starts (HVAC, refrigerator, washer): normal momentary voltage dip from the motor starting. Brief and immediate recovery is normal. If lights stay dim or dim frequently, could be an undersized service or loose main connections. (4) Lights flickering throughout the entire house: loose connections at the meter or main panel, or a utility issue. Have an electrician check the main connections and call your utility if it continues.`
+  },
+
+  {
+    niche: 'electrical', category: 'outlets', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['two-prong', 'grounded', 'ungrounded', 'outlet', 'safety'],
+    content: `Two-prong outlets and ungrounded circuits: Two-prong outlets (no round ground hole) are ungrounded. Most homes built before the 1960s have them. Options for upgrading: (1) Replace with GFCI outlet — NEC allows replacing ungrounded outlets with GFCI outlets. This protects against shock but does NOT provide a true ground. Label the outlet "No Equipment Ground" as required. This is the most affordable option. (2) Run a new grounded circuit — a new cable from the panel to the outlets. Most expensive, but the "right" solution, especially for electronics and computers that need a true ground. (3) Install GFCI breaker — protects the whole circuit. Same protection as GFCI outlet, no true ground. Do NOT use a cheater plug (3-prong-to-2-prong adapter) and rely on it as a safety measure — that ground tab needs to actually be connected to a ground screw to do anything.`
+  },
+
+  {
+    niche: 'electrical', category: 'wiring', urgency: 'schedule', safety_flag: true,
+    symptom_tags: ['aluminum wiring', 'old house', 'fire hazard', '1960s', '1970s'],
+    content: `Aluminum wiring in homes built 1965-1973: Some homes built during this period were wired with aluminum branch circuit wiring (not aluminum service entrance, which is fine — just aluminum in the walls to outlets and switches). Aluminum expands and contracts more than copper, causing connections to loosen over time. Loose connections cause arcing. Arcing causes fires. Red flags: single-strand aluminum wire connected to outlets and switches (usually 15A and 20A circuits). Smoke detector brand "CO/ALR" written on outlets. Solutions: (1) Pigtailing — an electrician connects a short copper pigtail to each aluminum wire end using a specific "CO/ALR" connector and anti-oxidant compound. CPSC-approved method. (2) Replace the wiring — full rewire. Expensive, but permanent. Do NOT have an electrician simply retighten the connections — that's a temporary fix. Have your home inspected if you're unsure of the wiring type.`
+  },
+
+  {
+    niche: 'electrical', category: 'ev_charging', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['ev charger', 'electric car', '240v', 'level 2', 'outlet', 'garage'],
+    content: `EV charger or 240V outlet installation: Level 1 charging (a standard 120V outlet) gives an EV about 3-5 miles of range per hour — fine for occasional light driving. Level 2 charging (240V, 30-50A circuit) gives 20-30+ miles per hour — practical for daily drivers. A Level 2 EVSE (the charging equipment) requires a dedicated 240V circuit from your panel to the garage. Process: (1) Assess your panel — do you have capacity? A 200A panel with multiple open breaker slots is fine. A full 100A panel may need a sub-panel or panel upgrade. (2) An electrician installs a 40-50A 240V circuit from the panel to the garage (a 40A circuit with a 32A EVSE is the sweet spot for most EVs). (3) The EVSE (the actual charging unit) is a separate purchase — Chargepoint, JuiceBox, and Tesla Wall Connector are popular options, ranging $300-700. Most car manufacturers include a Level 1 cord with the vehicle; you buy the Level 2 unit separately. Install permits are typically required.`
+  },
+
+  {
+    niche: 'electrical', category: 'outlets', urgency: 'immediate', safety_flag: true,
+    symptom_tags: ['sparks', 'outlet', 'plug', 'shock', 'warm outlet', 'hot'],
+    content: `Outlet sparking or feeling warm: A brief spark when you plug something in is usually normal — electricity jumps briefly as the prongs make contact. What's NOT normal: (1) Large, sustained sparks or sparks when nothing is being plugged in. (2) A plastic burning smell from the outlet or switch. (3) An outlet or switch plate that feels warm or hot to the touch. (4) Discoloration or black marks around the outlet. Any of these indicate a loose connection, overloaded circuit, or failing outlet that is generating heat — an electrical fire risk. Turn off the circuit at the breaker and don't use the outlet until an electrician can inspect it. Don't dismiss a warm outlet as "probably fine" — connection failures create resistance, resistance creates heat, heat starts fires in walls.`
+  },
+
+  {
+    niche: 'electrical', category: 'smoke_co', urgency: 'immediate', safety_flag: true,
+    symptom_tags: ['smoke detector', 'carbon monoxide', 'alarm', 'chirping', 'beeping'],
+    content: `Smoke and carbon monoxide detectors — what different sounds mean: Continuous alarm: treat as real. Get out, call 911. A CO alarm going off with no smell is still real — CO is odorless. Chirping every 30-60 seconds: low battery. Replace the battery (usually 9V or AA depending on the model). Chirping continues after battery replacement: the unit is at end of life (detectors should be replaced every 10 years for smoke, 5-7 years for CO). Interconnected alarm system: one alarm sets them all off. Find the "trigger" unit — it usually has a flashing red light. Detectors should be: on every level of the home, inside and outside every sleeping area, and the CO detector within 10 feet of sleeping areas. Hard-wired detectors with battery backup are better than battery-only (they don't fail during power outages). Don't disable a chronically chirping detector — replace it.`
+  },
+
+  {
+    niche: 'electrical', category: 'generator', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['generator', 'whole home', 'standby', 'transfer switch', 'backup power'],
+    content: `Whole-home generator or standby generator questions: Portable generators (gas, wheeled): provide temporary power for essentials during outages. NEVER run them inside the garage or near windows — CO poisoning kills people every year this way. Must be manually started and connected. Standby generators (natural gas or propane, permanently installed): turn on automatically within seconds of a power outage, run indefinitely on utility gas. Require installation of a transfer switch or smart panel to safely connect to your home's wiring — this prevents back-feeding electricity onto utility lines (which kills linemen). Installation: a licensed electrician must install the transfer switch. Propane or gas plumber runs the fuel line. Permit required. Cost: a 20kW standby generator installed typically runs $8,000-15,000+ depending on location and panel complexity. Annual maintenance: change the oil every 100-200 hours or yearly — same as a car engine.`
+  },
+
 ];
 
 // ─── PLUMBING KNOWLEDGE ──────────────────────────────────────────────────────
@@ -334,6 +400,54 @@ const PLUMBING_KNOWLEDGE = [
     niche: 'plumbing', category: 'drains', urgency: 'diy_first', safety_flag: false,
     symptom_tags: ['clog', 'slow drain', 'toilet', 'blocked', 'backed up'],
     content: `Slow or clogged drain: For a single slow drain (one sink or shower), it's usually a simple blockage at the drain itself. Remove and clean the drain stopper, use a drain snake or hair clog remover tool (the plastic hooks that pull hair out), or pour boiling water down to melt soap buildup. Avoid chemical drain cleaners in chrome/brass drains and PVC pipes — they're corrosive and often don't work on physical clogs. If multiple drains are slow, or toilets gurgle when you run the sink, the blockage is further down in the main sewer line — this requires a plumber with a sewer snake or hydro-jet. A complete drain backup (sewage coming up into tubs when you flush) is a sewer line emergency — call immediately and don't use any water until it's cleared.`
+  },
+
+  {
+    niche: 'plumbing', category: 'pressure', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['low water pressure', 'weak flow', 'shower', 'faucet'],
+    content: `Low water pressure throughout the home or at specific fixtures: (1) Single fixture — low pressure at just one faucet or showerhead is usually a clogged aerator or showerhead. Unscrew the aerator (the screen at the faucet tip) and rinse it under water; mineral deposits clog it over time. For showerheads: soak in white vinegar overnight. This is a free DIY fix. (2) All hot water only — if cold pressure is fine but hot is weak, the water heater shutoff may be partially closed, or there's scale buildup inside a tankless heater. (3) Whole house — check the main shutoff valve (it may have been partially closed during a repair and not fully reopened). Also check the pressure regulator (PRV) — a small bell-shaped device where the main water line enters the house. A failing PRV can cause either low or unusually high pressure. Normal home water pressure is 40-60 PSI; you can test with a cheap gauge at any outdoor hose bib. Persistent low pressure throughout the home with a normal PRV reading can indicate a partially corroded galvanized pipe system — older homes with galvanized steel pipes develop internal corrosion that restricts flow over decades.`
+  },
+
+  {
+    niche: 'plumbing', category: 'toilet', urgency: 'diy_first', safety_flag: false,
+    symptom_tags: ['toilet', 'running', 'constantly', 'wont stop', 'water', 'tank'],
+    content: `Toilet running constantly or water running into the bowl: You can hear it — a hissing or trickling sound from the toilet even when it hasn't been flushed. Two most common causes: (1) Flapper failure — the rubber flapper at the bottom of the tank isn't sealing properly. Water slowly leaks from the tank into the bowl. Test: put a few drops of food coloring in the tank. If the bowl water turns colored without flushing, the flapper is leaking. Flapper replacement is a $5-10 part and a 15-minute DIY fix for most people. (2) Fill valve not shutting off — if the water level in the tank rises above the overflow tube, water goes directly into the bowl. The float or fill valve needs adjustment or replacement. Both are DIY-fixable with a $10-20 repair kit from any hardware store. A constantly running toilet wastes 200+ gallons of water per day — it's worth fixing promptly.`
+  },
+
+  {
+    niche: 'plumbing', category: 'smells', urgency: 'this_week', safety_flag: false,
+    symptom_tags: ['sewer smell', 'sulfur', 'rotten egg', 'drain', 'bathroom', 'sink'],
+    content: `Sewer smell or sulfur/rotten egg smell from drains: (1) Rarely used drain — the P-trap (the curved pipe under every drain) holds water that blocks sewer gas from entering the home. If a drain isn't used for weeks, the water in the trap evaporates. Fix: run the water for 30 seconds. If the smell goes away and stays away after using the drain regularly, you found it. Floor drains in basements are notorious for this. (2) Sulfur smell from hot water only — sulfur-reducing bacteria in the water heater reacting with the anode rod. Common in homes with a softener on well water. Bacteria thrive in water heaters set below 140°F. Temporarily turn up the heater to 140°F for a few hours (kills bacteria), then return to 120°F. Repeat magnesium anode rod with aluminum rod may help long-term. (3) Persistent sewer smell throughout the house — may indicate a dry trap somewhere else, a cracked sewer vent pipe in the walls, or a damaged wax ring at the toilet base. A plumber can do a smoke test to find the exact entry point.`
+  },
+
+  {
+    niche: 'plumbing', category: 'garbage_disposal', urgency: 'diy_first', safety_flag: false,
+    symptom_tags: ['garbage disposal', 'not working', 'humming', 'jammed', 'reset'],
+    content: `Garbage disposal not working, humming, or jammed: (1) Not working at all: check that it's plugged in (most disposals plug under the sink into an outlet), then press the red reset button on the bottom of the disposal unit. If the button popped out from an overload, pressing it resets the thermal breaker. (2) Humming but not spinning: the disposal is powered but the plate is jammed. Turn it off immediately — a humming motor that can't spin will overheat and burn out. Use the hex/Allen key (usually 1/4 inch) that came with the disposal in the hole at the bottom center of the unit to manually crank the plate free. Most hardware stores carry this key. Once it moves freely, try the disposal again (hit reset first). (3) Running but not grinding well: blades may be dull or a small hard object (a bottle cap, silverware, stone) got in. Turn off and shine a flashlight — never put your hand in. Use tongs to retrieve any foreign object. (4) Leaking from the bottom: the internal seals have failed. Time for a replacement — units typically last 10-15 years.`
+  },
+
+  {
+    niche: 'plumbing', category: 'frozen_pipes', urgency: 'immediate', safety_flag: true,
+    symptom_tags: ['frozen', 'no water', 'winter', 'pipes', 'burst'],
+    content: `Frozen pipes — prevention and what to do: Pipes freeze in uninsulated areas: crawl spaces, exterior walls, garages, under kitchen cabinets on exterior walls. At risk once temperatures drop below 20°F for sustained periods. Prevention: open cabinet doors under sinks on exterior walls, let faucets drip slightly (both hot and cold), insulate exposed pipes with foam pipe insulation. If you suspect a pipe is frozen (no water from a specific faucet, visible frost on a pipe): keep the faucet open so water can flow when thawing begins. Apply heat gently — hair dryer, space heater, warm towels. NEVER use an open flame. Start from the faucet end and work toward the blockage. If you can't locate the frozen section or it's inside a wall, call a plumber. If a pipe bursts: turn off the main water supply immediately (know where your shutoff is before winter). Even a small crack in a pipe can release 250 gallons per hour. Water damage from burst pipes is extensive — act fast.`
+  },
+
+  {
+    niche: 'plumbing', category: 'water_quality', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['hard water', 'water softener', 'limescale', 'spots', 'mineral'],
+    content: `Hard water, limescale buildup, and water softeners: Hard water contains dissolved calcium and magnesium. Signs: white mineral deposits on faucets and showerheads, spots on dishes after washing, soap that doesn't lather well, shortened lifespan of water heaters and appliances. Hardness is measured in grains per gallon (GPG) — water above 7 GPG is considered hard, above 10 GPG is very hard. A water test (strips or a lab test for well water) tells you exactly what you have. Softeners: a salt-based ion exchange softener removes calcium and magnesium by swapping them for sodium. Softened water is slippery (normal), slightly salty in taste, and extends appliance life significantly. Maintenance: add water softener salt to the brine tank (every 1-2 months depending on use), clean the brine tank annually. Scale deposits in existing fixtures: soak in white vinegar to dissolve calcium buildup. For the water heater, annual flushing removes sediment buildup.`
+  },
+
+  {
+    niche: 'plumbing', category: 'pipes', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['banging', 'water hammer', 'pipes', 'loud noise', 'knocking'],
+    content: `Banging or knocking pipes (water hammer): A loud thump or bang when you shut off a faucet quickly is water hammer — the momentum of moving water is suddenly stopped, sending a pressure wave through the pipes. Over time, water hammer can loosen fittings and damage pipe joints. Fixes: (1) Water hammer arrestors — small devices installed at the problem fixture that contain a spring and air chamber to absorb the shock. Available at hardware stores, easy DIY install at the supply shutoff. (2) Secure loose pipes — pipes that aren't properly strapped to joists vibrate and bang against structure. Add foam pipe straps where pipes run through floor joists. (3) Reduce water pressure — if home pressure is above 80 PSI (test at outdoor hose bib), install or adjust a pressure reducing valve at the main. High pressure causes water hammer and shortens fixture lifespan. A distinct banging sound from pipes in the walls during cold snaps is different — that's thermal expansion of pipes, not water hammer. Both are fixable.`
+  },
+
+  {
+    niche: 'plumbing', category: 'sewer', urgency: 'this_week', safety_flag: false,
+    symptom_tags: ['sewer line', 'main drain', 'gurgling', 'slow', 'multiple drains'],
+    content: `Main sewer line problems — gurgling drains, multiple slow drains, sewage backup: When only one drain is slow, the problem is local. When multiple drains are slow, or when flushing the toilet makes the bathtub gurgle, the problem is in the main sewer line. Main sewer line blockages are caused by: grease buildup over years, tree roots infiltrating the pipe, a crushed or damaged pipe section, or a belly (a sag in the pipe where solids settle). Don't continue using the plumbing if you have sewage backing up into tubs or floor drains — you can make it worse. A plumber will run a sewer snake or hydro-jet to clear the blockage, and can run a camera to see the inside of the pipe. Sewer camera inspection costs $150-300 and is worth it for older homes or recurring clogs — it tells you if the pipe itself is damaged versus just blocked. Tree root intrusion is very common in clay tile or orangeburg pipes common in homes pre-1980s.`
   },
 
 ];
@@ -384,6 +498,42 @@ const LANDSCAPING_KNOWLEDGE = [
     content: `Pavers sinking, cracking, or shifting: Paver and concrete problems are almost always a base problem, not a surface problem. Pavers shift and sink when the gravel/sand base settles, erodes, or was insufficient to begin with. Concrete cracks when the base settles unevenly, the slab was too thin, or tree roots heave it from below. Options: (1) Paver re-leveling — individual sunken pavers can be lifted, the base releveled with additional sand, and the paver reset. Can be done without replacing pavers. (2) Full base repair — if widespread settling, the area needs to be excavated, a proper compacted base installed, and pavers reset. (3) Tree root damage — if a root is heaving the surface, cutting the root and releveling is a short-term fix; the root will regrow. Sometimes tree removal is the only permanent solution. (4) Concrete lifting — foam injection (polyjacking) or mudjacking can lift and stabilize sunken concrete slabs without replacement.`
   },
 
+  {
+    niche: 'landscaping', category: 'lawn', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['lawn', 'overseeding', 'thin', 'bare spots', 'renovation', 'grass seed'],
+    content: `Overseeding and lawn renovation — how to get grass growing where it isn't: Overseeding is seeding into an existing lawn to thicken it or fill bare areas. For best results: (1) Timing — fall is the best time in most of the country (cool-season grasses like fescue, bluegrass, ryegrass). Soil is warm (good for germination), air is cooling (less heat stress on seedlings). Spring is second best. (2) Prep — mow the existing lawn short, dethatch if thatch layer is over 1/2 inch, core aerate (the holes from aeration are perfect seed-to-soil contact). (3) Seed — choose the right seed for your climate zone and sun conditions. Don't mix warm-season (Bermuda, zoysia) with cool-season grasses. Spread at the labeled overseeding rate. (4) After — keep the seed bed moist for 2-3 weeks until germination and establishment. Light watering twice a day is better than one heavy watering. Don't mow until the new grass is 3 inches tall. Don't apply pre-emergent herbicide when overseeding — it prevents grass seed germination too.`
+  },
+
+  {
+    niche: 'landscaping', category: 'lawn', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['grubs', 'lawn grubs', 'birds', 'skunks', 'digging', 'dead grass'],
+    content: `Lawn grubs — signs, diagnosis, and treatment: Grubs are the larval stage of Japanese beetles, June bugs, and other beetles. They live just under the soil surface eating grass roots in late summer. Signs: brown patches that appear in August-September, sections of lawn that peel back like a carpet with no roots attached, increased bird and skunk activity in the lawn (they're digging for grubs). Confirm: cut a 1-square-foot section of sod 2-3 inches deep and count grubs. Fewer than 5 — tolerable. 10 or more — treatment is warranted. Treatment timing matters: (1) Preventive grub control (imidacloprid, chlorantraniliprole) — applied May-July, before eggs hatch. Most effective approach. (2) Curative grub control (carbaryl, trichlorfon) — applied August-September when grubs are feeding near the surface. Works less reliably but can reduce existing populations. Water well after application. A landscaper can apply grub control as part of a seasonal lawn care program.`
+  },
+
+  {
+    niche: 'landscaping', category: 'plants', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['mulch', 'beds', 'weeds', 'landscaping', 'flower beds'],
+    content: `Mulch, planting beds, and weed control: Mulch is one of the highest-ROI landscaping investments. A 2-3 inch layer of organic mulch (shredded bark, wood chips, shredded leaves) suppresses weeds, retains soil moisture, moderates soil temperature, and improves soil as it decomposes. Common mistakes: (1) Volcano mulching — piling mulch against tree trunks causes rot, disease, and pest damage. Keep mulch 2-4 inches away from the trunk. (2) Too thick — more than 4 inches of mulch can prevent oxygen and water from reaching roots. (3) Using landscape fabric under mulch — fabric works for a year or two, then degrades and becomes a permanent weed trap as soil accumulates on top. Better approach: no fabric, just replenish mulch annually. For planting beds: edge the beds annually to keep grass from encroaching. A steel or aluminum bed edge is more permanent than plastic. Weed annually before applying fresh mulch in spring — pulling while soil is moist and before weeds set seed.`
+  },
+
+  {
+    niche: 'landscaping', category: 'lawn', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['fertilizer', 'yellow grass', 'lawn fertilization', 'nutrients'],
+    content: `Lawn fertilization — when, what, and how: Fertilization is the accelerator — it does little if the basics (mowing height, watering, pH) aren't right. Cool-season lawns (fescue, bluegrass, ryegrass): fertilize in fall (September-November) and lightly in spring. Do not fertilize cool-season grasses in summer — it causes stress. Warm-season lawns (Bermuda, zoysia, St. Augustine): fertilize during the growing season (May-August). Soil pH matters: grass can't uptake nutrients if pH is wrong. Target 6.0-7.0 for most turf grasses. Get a soil test ($10-20 from your local extension office) — it tells you pH and what nutrients are deficient. Without a test, you're guessing. Nitrogen is the primary driver of green color and growth; it's the first number on a fertilizer bag (e.g., 32-0-10 means 32% nitrogen). Slow-release nitrogen (poly-coated or IBDU) feeds over months and is less likely to burn. Don't fertilize drought-stressed grass — it will burn.`
+  },
+
+  {
+    niche: 'landscaping', category: 'seasonal', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['seasonal cleanup', 'fall cleanup', 'leaves', 'spring cleanup', 'debris'],
+    content: `Seasonal landscaping cleanup — what actually needs to happen: Fall cleanup: remove fallen leaves before they mat down and suffocate grass (matted wet leaves block sunlight and airflow, creating fungal conditions). Leaves left through winter on lawns cause significant bare patches in spring. Cut back perennial plants to 6 inches in late fall or early spring — either timing works. Leave ornamental grasses and seed heads through winter for wildlife interest, then cut back in late February before new growth. Spring cleanup: remove any remaining leaves, cut back ornamental grasses, edge beds, apply fresh mulch. Check irrigation system before activating it in spring — run each zone and look for broken heads. Don't rush to remove 'dead' plants — wait until you see new growth to know what's truly dead versus dormant. Tender perennials and some ornamental grasses look dead all winter but come back. Give them until mid-May before declaring them lost.`
+  },
+
+  {
+    niche: 'landscaping', category: 'hardscape', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['retaining wall', 'leaning', 'bulging', 'fence', 'post', 'rot'],
+    content: `Retaining walls leaning or bulging, fence posts rotting: Retaining walls that lean forward (toward the downhill side) are failing — soil pressure is overcoming the wall's resistance. This happens over time due to inadequate drainage (hydrostatic pressure builds behind the wall when water can't escape), insufficient footer depth, or inadequate tie-backs on taller walls. A wall that's leaning more than 2-3 inches out of plumb needs professional evaluation — it can fail suddenly. The fix often requires rebuilding with proper drainage aggregate, drainage pipe (French drain), and appropriate batter (backward lean). Fence posts: wood posts that contact the ground rot at the soil line. Concrete-set posts rot from the inside where the concrete holds moisture. At replacement, consider steel or concrete posts for ground contact. Existing wood posts can be supported with metal post bases or sistered with a metal spike if the rot is limited to the bottom few inches. A landscaper or fence contractor can assess whether the rail and picket system above the post is salvageable.`
+  },
+
 ];
 
 // ─── PAINTING KNOWLEDGE ──────────────────────────────────────────────────────
@@ -424,6 +574,42 @@ const PAINTING_KNOWLEDGE = [
     niche: 'painting', category: 'color', urgency: 'diy_first', safety_flag: false,
     symptom_tags: ['color', 'coverage', 'bleed through', 'dark color', 'painting over'],
     content: `Painting over dark colors or getting proper coverage: Dark colors are hard to cover with light colors in a single coat — the old color bleeds through. The solution is tinted primer: ask the paint store to tint the primer to a color close to your finish color. This dramatically reduces the number of topcoats needed. Going light to dark (painting a dark color over a light one) is usually fine in 2 coats. Going dark to light (white over navy) often takes 3-4 coats without tinted primer. For a dramatic color change, expect 2 coats of tinted primer and 2 coats of finish color. One-coat coverage claims on paint cans assume you're painting a similar color over a properly primed surface — not a dark-to-light change. Factor this into your project timeline and material estimate.`
+  },
+
+  {
+    niche: 'painting', category: 'exterior', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['deck', 'stain', 'wood', 'fading', 'gray', 'weathered'],
+    content: `Deck staining, sealing, and restoration: An unprotected wood deck turns gray, checks (develops small cracks along the grain), and eventually rots. Treatment frequency: transparent or semi-transparent stains on weathered wood should be reapplied every 2-3 years. Solid stains (more opaque, like paint) last 4-5 years but hide the wood grain. Sealer alone (clear) provides minimal UV protection — better than nothing but needs annual reapplication. Before staining: (1) Clean thoroughly with a deck cleaner/brightener (removes gray weathering and opens the wood grain). Power washing alone isn't enough — you need a chemical cleaner to prep the wood. (2) Let it dry completely — at least 48 hours, ideally 72 hours. Test: sprinkle water on the surface; if it beads, it needs more drying time. (3) Apply stain in the direction of the grain. Oil-based stains penetrate better on rough or aged wood. Water-based stains are easier to clean and more eco-friendly. New deck lumber (pressure-treated): let it dry for 6 months before staining — fresh PT lumber won't accept stain properly.`
+  },
+
+  {
+    niche: 'painting', category: 'prep', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['wallpaper', 'removal', 'strips', 'old', 'wall', 'underneath'],
+    content: `Removing wallpaper before painting: Painting over wallpaper is strongly discouraged — moisture from paint can cause wallpaper to bubble, seams to lift, and if you ever want to remove it later, you'll pull drywall paper off with it. Removal process: (1) Score the wallpaper with a scoring tool (don't press too hard on drywall — you can damage the paper facing). (2) Apply wallpaper removal solution (or a 50/50 fabric softener/water mix) and let it soak for 10-15 minutes. (3) Use a broad plastic or flexible metal scraper to remove strips, working from seams. (4) After removal, wash walls with TSP substitute to remove adhesive residue. Let dry fully. (5) Check for damaged drywall paper (fuzzy texture, crumbling). Prime with PVA drywall primer, skim coat damaged areas, re-prime. (6) Prime finished walls before painting — removes any remaining adhesive from bonding to your finish coat. Budget more time than you think — wallpaper removal typically takes 4x longer than expected, especially over drywall (vs. plaster, which tolerates moisture better).`
+  },
+
+  {
+    niche: 'painting', category: 'prep', urgency: 'diy_first', safety_flag: false,
+    symptom_tags: ['sheen', 'finish', 'flat', 'eggshell', 'satin', 'semi-gloss', 'paint'],
+    content: `Choosing paint sheen (finish) — what each does and where to use it: Flat/matte: no shine, hides surface imperfections well. Use on ceilings and low-traffic walls. Hard to clean — scuffs and marks show easily. Not for kids rooms, kitchens, or bathrooms. Eggshell: slight sheen, still hides imperfections reasonably, somewhat washable. The most common interior wall finish for living rooms and bedrooms. Satin: more sheen, very washable. Best for kids rooms, hallways, trim. Shows surface imperfections more than eggshell. Semi-gloss: significant sheen, very durable and washable. Classic for trim, doors, cabinets, and bathrooms. Highlights surface imperfections — requires better surface prep. High-gloss: maximum sheen, extremely durable. Doors and cabinets, furniture painting. Shows every imperfection — prep is everything. General rule: the higher the sheen, the more durable and washable, but the more prep required. Ceilings: flat. Living areas: eggshell. Kitchen/bath walls: satin or semi-gloss. Trim everywhere: semi-gloss.`
+  },
+
+  {
+    niche: 'painting', category: 'interior', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['cabinet', 'painting', 'kitchen', 'refinishing', 'doors'],
+    content: `Painting kitchen cabinets — what it actually takes to do it right: Painted kitchen cabinets look excellent when done properly, terrible when rushed. The surface prep is 90% of the job: (1) Remove all doors and drawers. Paint the boxes in place, the doors and drawers flat off the cabinet. (2) Degrease thoroughly — kitchen cabinets accumulate cooking grease that will cause paint to peel regardless of primer used. TSP substitute is the standard. (3) Scuff-sand all surfaces with 150-grit — painted or stained surfaces need mechanical tooth for the primer to bond. (4) Use a bonding primer (shellac-based like Zinsser BIN or an oil-based primer) — this is non-negotiable for cabinets. Latex primer alone will often peel on cabinet-grade finishes. (5) Apply topcoat in thin coats — a high-quality acrylic alkyd hybrid (like Advance by Benjamin Moore or Emerald Urethane by Sherwin-Williams) levels better and is more durable than standard latex. (6) Reassemble only after full cure — usually 7-10 days before normal use. Door hinges should be adjusted after installation. A professional cabinet painter sprays for best results.`
+  },
+
+  {
+    niche: 'painting', category: 'exterior', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['trim', 'fascia', 'soffits', 'paint', 'wood rot'],
+    content: `Painting exterior trim, fascia, and soffits — and dealing with rot: Trim and fascia are among the first places wood rot appears — they're exposed to weather and often the last surfaces where paint failure is noticed. Before painting any exterior trim: probe the wood with a screwdriver. Sound wood is hard; rotted wood feels soft or spongy and the screwdriver sinks in. Options for rotted wood: (1) Consolidant + filler — for localized rot, LiquidWood consolidant soaks into the soft wood and hardens it. WoodEpox or Bondo wood filler fills the void, sands to shape, primes, paints. Works well for rot that's not fully through the board. (2) Replace the board — the right call when rot is through more than 30% of a board's cross-section. Costs more but the fix is permanent. Always prime and back-prime (prime the back and cut ends) of replacement wood before installation. Unprimed end grain is how moisture gets in and starts the rot cycle over again. High-quality 100% acrylic primer and topcoat are the right materials for exterior trim.`
+  },
+
+  {
+    niche: 'painting', category: 'interior', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['how much paint', 'coverage', 'calculate', 'gallons', 'room'],
+    content: `How much paint do you need — calculating coverage: One gallon of paint covers approximately 350-400 square feet with one coat. To calculate: (1) Add up the square footage of the walls you're painting. Wall square footage = perimeter of the room × wall height, then subtract windows and doors (approximately 20 square feet each). (2) Divide by 350-400 to get gallons for one coat. Add 10% for waste, touch-ups, and cutting in. For two coats (standard for a full color change), multiply by 2. (3) Ceilings: measure the floor area of the room — that's the ceiling square footage. Ceilings usually take one coat unless you're going from a very different color. (4) Trim: a quart covers most rooms' worth of trim. A gallon for a large home. Buying extra for touch-ups: buy at least one quart more than you calculate — having the exact paint for touch-ups for years is worth the few dollars. Store paint properly (lid sealed, upside down briefly to create a seal, in a temperature-controlled space) and it lasts 5-10 years.`
   },
 
 ];
@@ -474,6 +660,48 @@ const GENERAL_KNOWLEDGE = [
     content: `Questions about permits and unpermitted work: Most structural, electrical, plumbing, and HVAC work requires permits. What typically requires a permit: new electrical circuits or panel upgrades, plumbing work beyond fixture replacement, HVAC installation or replacement, structural work (removing walls, adding rooms, decks), and window/door replacements that change the opening size. What typically doesn't: painting, flooring, cabinet replacement, fixture swaps (same location), minor repairs. Unpermitted work: discovered during home sale inspections, it can kill a deal or require expensive remediation. An existing homeowner with unpermitted work can often retroactively permit it by having the work inspected — sometimes requiring opening walls to verify. A contractor doing work without required permits is putting you at legal and financial risk. If a contractor says "we don't need a permit for this" on work that clearly requires one, that's a red flag.`
   },
 
+  {
+    niche: 'general', category: 'safety', urgency: 'immediate', safety_flag: true,
+    symptom_tags: ['asbestos', 'old home', 'popcorn ceiling', 'insulation', 'tiles', 'pre-1980'],
+    content: `Asbestos — where it's found and what to do: Asbestos was widely used in building materials until the late 1970s. Homes built before 1980 may contain: popcorn (acoustic) ceilings, vinyl floor tiles and the adhesive beneath them, duct insulation (gray or white wrap on older forced-air systems), pipe insulation (the gray or white wrap or the putty around fittings), some textured drywall compounds, roof shingles, and siding. Asbestos is only dangerous when it's friable (crumbling) and airborne — intact, well-adhered asbestos in good condition is generally not an immediate hazard. What NOT to do: don't sand, scrape, drill, or disturb suspected asbestos-containing materials without testing first. The correct process: have a sample professionally collected and sent to a certified lab for testing ($25-50 per sample). If positive and the material needs to be removed or disturbed, hire a licensed asbestos abatement contractor — this is not a DIY project and is regulated by the EPA and state agencies.`
+  },
+
+  {
+    niche: 'general', category: 'garage', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['garage door', 'not opening', 'spring', 'broken', 'noisy', 'stuck'],
+    content: `Garage door not opening, broken spring, or making noise: (1) Door won't open, motor runs but nothing moves: the torsion or extension springs may have broken. Springs are under extreme tension and MUST be replaced by a professional — DIY spring replacement has caused serious injuries and deaths. A broken spring is identifiable by a visible gap in the coil or the door suddenly feeling extremely heavy. (2) Door won't open, nothing happens: check the power to the opener, then the outlet it's plugged into. Check if the manual release cord has been pulled (red cord hanging from the trolley). The opener logic board may have failed. (3) Door opens with wall switch but not the remote: reprogram or replace the remote, or replace the logic board. (4) Noisy grinding or squeaking: lubricate the springs, rollers, and hinges with a garage door lubricant spray (not WD-40 — it dries out). Nylon rollers are quieter than steel if you're replacing. (5) Door reverses before closing all the way: the close-limit switch needs adjustment. Door reverses immediately after hitting the floor: the close-force or close-limit setting.`
+  },
+
+  {
+    niche: 'general', category: 'pests', urgency: 'this_week', safety_flag: false,
+    symptom_tags: ['termites', 'wood damage', 'sawdust', 'tubes', 'carpenter ants'],
+    content: `Termites, carpenter ants, and wood-destroying pest damage: Termites are the most damaging wood pest. Signs: mud tubes (pencil-width tunnels of dried mud) on foundation walls or framing, damaged wood that sounds hollow when tapped, swarms of winged insects in spring near light sources (can look like flying ants), frass (sawdust-like pellets) from drywood termites. Carpenter ants don't eat wood — they hollow it out to nest, usually in already-damaged or moist wood. They indicate a moisture problem. Signs: large black ants inside, sawdust piles, faint rustling sounds in walls. Powder post beetles leave tiny round exit holes (1/16-1/8 inch) and sawdust in hardwood — most active in wood under 20% moisture content. What to do: don't disturb or spray wood you think is termite-infested — you may scatter the colony, making professional treatment harder. Have a licensed pest control company inspect and identify the pest. Treatment varies: subterranean termites require soil treatment or bait systems; drywood termites may require fumigation or localized treatment.`
+  },
+
+  {
+    niche: 'general', category: 'locks_doors', urgency: 'diy_first', safety_flag: false,
+    symptom_tags: ['door', 'lock', 'key', 'wont turn', 'deadbolt', 'knob', 'sticky'],
+    content: `Door locks not working properly — sticky, hard to turn, or key won't work: (1) Key difficult to turn in deadbolt: deadbolt locks are large and sturdy but the cylinder can bind if the door has shifted (foundation settlement or seasonal wood swelling). Try lifting or pushing the door slightly while turning the key — if this helps, the bolt alignment is the problem, not the lock. Adjust the strike plate (the metal plate the bolt slides into) by filing the hole slightly in the direction the bolt isn't reaching. (2) Knob lock that's loose: tighten the set screws on the interior knob (small hole on the side of the rose plate — insert a thin pin to find the screw). (3) Deadbolt that won't extend fully: lubricate the bolt with graphite powder or a dry silicone lubricant. WD-40 attracts dust and makes it worse over time. (4) Lock that's seized or hard to operate in winter: cold temperatures thicken lubricants and cause metal to contract. Warm the key before inserting, apply a lock de-icer from outside. (5) Front door that doesn't latch without forcing: adjust the strike plate depth or the latch mechanism engagement.`
+  },
+
+  {
+    niche: 'general', category: 'moisture', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['basement', 'wet', 'damp', 'humidity', 'waterproofing', 'moisture'],
+    content: `Basement or crawl space moisture — source diagnosis and solutions: Most basement moisture comes from one of three sources: (1) Water intrusion through walls or floor: water table pressure or surface water draining toward the foundation. Signs: water stains on walls rising from the floor, efflorescence (white mineral deposits where water has evaporated), damp floor after rain. Solutions: exterior grading correction (slope ground away from house), extend downspouts, exterior waterproofing membrane, interior French drain and sump pump. (2) Condensation: humid outside air meets the cool basement surface. Most common in summer. Signs: moisture on cold walls and pipes on humid days, no visible stains below ground. Dehumidifier is the solution. (3) Plumbing leak: check for active dripping or wet insulation around pipes. Before spending money on waterproofing, confirm which source you have — a dehumidifier won't fix intrusion water, and waterproofing won't fix condensation. Interior vs. exterior waterproofing: interior (sump pump + French drain inside the perimeter) manages water that gets in; exterior (excavation + membrane) keeps water out. Interior is more common because it's less expensive; exterior is better for severe cases.`
+  },
+
+  {
+    niche: 'general', category: 'attic', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['attic', 'ventilation', 'hot', 'mold', 'dark spots', 'roof deck'],
+    content: `Attic problems — ventilation, heat buildup, and mold: A properly ventilated attic should be close to outdoor temperature. An attic that's much hotter than outdoors in summer or shows condensation and mold in winter is under-ventilated. Consequences of poor attic ventilation: ice dams in winter (warm roof melts snow, refreezes at eaves), excessive heat gain in summer (makes upper floors uncomfortably hot, stresses AC), moisture condensing on the underside of the roof deck (causes mold and roof deck rot). Correct ventilation: the standard is 1 square foot of net free vent area per 150 square feet of attic floor (or 1:300 with a vapor barrier). Balance between intake (soffit vents, low on the roofline) and exhaust (ridge vents, gable vents, turbines at the peak). Never block soffit vents with insulation — use ventilation baffles to maintain airflow from the soffit to the ridge. Mold on the underside of the roof deck: visible black mold in the attic usually indicates a chronic moisture problem. Identify whether a bath fan or dryer vent is improperly discharging into the attic (common code violation). Fix the source before treating the mold.`
+  },
+
+  {
+    niche: 'general', category: 'renovation', urgency: 'schedule', safety_flag: false,
+    symptom_tags: ['renovation', 'remodel', 'estimate', 'contractor', 'scope', 'budget'],
+    content: `Working with contractors on renovations — getting accurate estimates and avoiding problems: (1) Get 3 estimates minimum, but don't automatically take the lowest. A dramatically low bid usually means the contractor is missing scope, planning to use inferior materials, or desperate for work. (2) Specify everything in writing before signing — materials (brand, model, dimensions), quantities, exclusions, payment schedule, timeline. A vague scope is the #1 source of renovation disputes. (3) Payment schedule: never pay more than 10-30% upfront (enough for material deposits). Tie remaining payments to completion milestones. Never pay in full before work is done. (4) Check credentials: licensed contractor (verify license number with your state board), insured (ask for a certificate of insurance — don't just take their word), check reviews across multiple platforms. (5) Change orders: any work outside the original scope should be in writing with a price before it's done. Verbal agreements during construction are difficult to enforce. (6) Gut-check: a contractor who refuses to pull permits is protecting themselves, not you. All permitted work is your risk.`
+  },
+
 ];
 
 // ─── MAIN ────────────────────────────────────────────────────────────────────
@@ -516,9 +744,37 @@ async function main() {
   console.log('\n🎉 All knowledge loaded. Brain 3 is now an expert.\n');
 }
 
+/**
+ * loadNiches(nicheNames) — load specific niches only. Used by admin endpoint.
+ * @param {string[]} nicheNames — e.g. ['roofing', 'electrical']
+ */
+async function loadNiches(nicheNames) {
+  await db._ready;
+  const allNiches = [
+    { name: 'hvac',        chunks: HVAC_KNOWLEDGE },
+    { name: 'roofing',     chunks: ROOFING_KNOWLEDGE },
+    { name: 'electrical',  chunks: ELECTRICAL_KNOWLEDGE },
+    { name: 'plumbing',    chunks: PLUMBING_KNOWLEDGE },
+    { name: 'landscaping', chunks: LANDSCAPING_KNOWLEDGE },
+    { name: 'painting',    chunks: PAINTING_KNOWLEDGE },
+    { name: 'general',     chunks: GENERAL_KNOWLEDGE },
+  ];
+  const toLoad = nicheNames
+    ? allNiches.filter(n => nicheNames.includes(n.name))
+    : allNiches;
+  for (const { name, chunks } of toLoad) {
+    console.log(`\n── Loading ${name.toUpperCase()} knowledge (${chunks.length} chunks) ──`);
+    await clearNicheKnowledge(name);
+    await storeKnowledgeBatch(chunks);
+    console.log(`✅ ${name.toUpperCase()} complete`);
+    await new Promise(r => setTimeout(r, 15000));
+  }
+  console.log('\n🎉 Knowledge load complete.\n');
+}
+
 // Allow require()'ing this script as a module (e.g. from the admin endpoint)
 // without auto-running. Only auto-run when called directly.
-module.exports = { main };
+module.exports = { main, loadNiches };
 
 if (require.main === module) {
   main().catch(err => {
