@@ -451,6 +451,16 @@ Both versions make two things unmistakably clear: (1) Tractify only charges for 
 
 **Ownership:** Jose 55% / Daniel 45%
 
+**Two completely separate revenue streams — they stack, never compete:**
+
+**Stream 1 — Setup fee ($2,000 per converting contractor):**
+This fires at job 5, after the trial is already delivered. By the time it hits, ad spend is already sunk — the setup fee recovers CAC and puts money in the pocket immediately. It is not funding future work. It is settlement on work already done and proven. Split this however Jose and Daniel decide — it can be taken entirely as profit or run through the same split as appointments. Every converting contractor is profitable on day one before a single $75 ever fires.
+
+**Stream 2 — Per-appointment ($75, charged day-of):**
+Pure compounding recurring revenue. CAC is already covered by the setup fee. Every dollar here is margin that funds ads and grows the profit split over time.
+
+**The combined picture:** Even a slow month — 2 contractor conversions + 50 appointments across the portfolio = $4,000 setup fees + $3,750 appointments = $7,750 gross before split. The two streams are additive and independent.
+
 **Per-appointment revenue split ($75 per confirmed appointment, charged day-of):**
 - 50% → ads (reinvested immediately for growth — aggressive and intentional)
 - 10% → cash/chargeback reserve (held, becomes profit after 90 days clean)
