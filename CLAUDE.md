@@ -461,6 +461,9 @@ Pure compounding recurring revenue. CAC is already covered by the setup fee. Eve
 
 **The combined picture:** Even a slow month — 2 contractor conversions + 50 appointments across the portfolio = $4,000 setup fees + $3,750 appointments = $7,750 gross before split. The two streams are additive and independent.
 
+**The setup fee makes CAC almost irrelevant — this is a key strategic insight:**
+The $2,000 setup fee means Tractify could theoretically spend $1,800 in ads to deliver 5 jobs to one contractor, collect $2,000 the same day, and be profitable on that contractor before a single $75 ever fires. CAC is recovered immediately at conversion — not over months like every other subscription or retainer model. This gives Tractify an acquisition aggression advantage no competitor in this space has. A competitor charging monthly retainer has to wait 2-3 months to recover CAC. Tractify recovers it the same week the contractor converts. And as the system gets more efficient — better creative, smarter targeting, proven channels — CAC drops naturally while the $2,000 ceiling stays fixed. The spread between what Tractify could spend and what it actually spends is pure margin expansion that compounds automatically just by getting better at job delivery.
+
 **Per-appointment revenue split ($75 per confirmed appointment, charged day-of):**
 - 50% → ads (reinvested immediately for growth — aggressive and intentional)
 - 10% → cash/chargeback reserve (held, becomes profit after 90 days clean)
