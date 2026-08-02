@@ -404,7 +404,23 @@ At job 5, the system fires automatically. No Jose involvement. No call. No invoi
 **The technical flow:**
 1. Job 5 confirmed → `POST /api/bookings/book` detects 5th non-cancelled booking for contractor → pulls contractor's `did_close` + `closed_value` data → runs smart A/B logic → generates Stripe Payment Link via API → texts contractor the link
 2. Contractor pays $2,000 → Stripe webhook fires → system saves `stripe_customer_id` + `stripe_payment_method_id` → flips `contractors.payment_status = 'paid'`
-3. Every subsequent confirmed booking → `$75` auto-charged to saved payment method → `appointments.stripe_charge_id` logged
+3. Every subsequent appointment → **$75 auto-charged at the scheduled appointment time on the day of the appointment** (not at booking confirmation) → `appointments.stripe_charge_id` logged
+
+**Billing trigger — day-of, not booking confirmation (locked August 1, 2026):**
+The $75 fires at the scheduled appointment time, not when the homeowner books. This is intentional and is a core trust and marketing position.
+
+- Homeowner books for next Tuesday → no charge yet
+- Tuesday arrives → $75 auto-charges at the scheduled time
+- Homeowner cancels before appointment day → no charge, nothing owed
+- Homeowner cancels same day → charge still fires (contractor held that slot, that day is gone — on the homeowner not Tractify)
+- Homeowner reschedules to a later date → charge moves to the new date automatically
+- Contractor cancels → no charge, Brain 3 fires rebook SMS to homeowner
+
+**Why this is the right call — trust + marketing:**
+No other lead gen service or agency in this market charges this way. Every competitor bills upfront, monthly, or at booking. Tractify bills when the appointment actually happens. This is a genuine competitive differentiator that doubles as a trust signal and a marketing angle. Contractors cannot dispute in good faith — they're paying for something that just showed up on their calendar that day. The billing policy becomes content, the content drives conversions, and the conversions compound.
+
+**The pitch line for conversion page, ads, and content:**
+"We charge you when the appointment happens. Not when it's booked. Not upfront. When the job shows up on your calendar that day. Homeowner cancels or reschedules — no charge until the new day comes."
 
 **New DB columns needed:**
 ```sql
@@ -428,6 +444,29 @@ Version B fires otherwise — contractor hasn't logged closes, logged too few, o
 > "[firstName] — 5 jobs on your calendar. That's your free trial. The machine works. Keep it running: [stripe_link]. $2,000 covers everything we built. After that, $75 per booking we deliver — nothing if we don't. We only make money when you make money. No contract, stop anytime."
 
 Both versions make two things unmistakably clear: (1) Tractify only charges for results delivered — aligned incentives, not a subscription. (2) There is no contract. They can stop. That confidence is the close.
+
+---
+
+### Revenue Split Framework + Cash Flow Discipline (locked August 1, 2026)
+
+**Ownership:** Jose 55% / Daniel 45%
+
+**Per-appointment revenue split ($75 per confirmed appointment, charged day-of):**
+- 50% → ads (reinvested immediately for growth — aggressive and intentional)
+- 10% → cash/chargeback reserve (held, becomes profit after 90 days clean)
+- Remainder after operations → profit split 55/45 between Jose and Daniel
+
+**Why 50% back into ads:**
+The model is self-liquidating — day-of charges mean cash arrives the same day the job happens. That cash immediately funds the next round of ads. The faster it compounds, the faster the profit side grows. 50% reinvestment is aggressive but the math rewards it — every dollar back into ads at a proven cost-per-booking generates more appointments, more charges, more profit. The split incentivizes both Jose and Daniel to push volume because their take grows proportionally with every appointment delivered.
+
+**The reserve:**
+10% held as a buffer — not primarily for chargebacks (the billing policy and Terms make those rare) but as smart cash flow discipline. Never deploy money that hasn't settled. Stripe holds funds for a few days anyway. The reserve grows with volume and becomes pure profit after it clears clean.
+
+**The chargeback reality:**
+Chargeback risk on this model is low by design. Setup fee is non-refundable and clearly stated upfront. Per-appointment charge fires day-of for something the contractor already experienced. Terms are explicit at signup — confirmed appointment on that day = billable event regardless of homeowner outcome. Contractor agreed, appointment happened, timestamp exists. B2B disputes are harder to win and contractors who've watched jobs land aren't disputing $75 for a job that showed up. The reserve exists for edge cases, not as a core risk management tool.
+
+**The velocity angle:**
+This model behaves like a product business but scales like software. Every $75 that comes in can immediately fund the next booking before anything is shipped, manufactured, or delivered. No inventory, no delays, no supplier. Pure cash velocity — appointment confirms, money moves, ads run, more appointments confirm. The compounding effect accelerates automatically with volume and the cost-per-booking decreases as the system learns.
 
 ---
 
@@ -475,6 +514,7 @@ Cron job (monthly): check contractors where `payment_status = 'churned'` and `tw
 1. Never mention website, system, or technology — only booked jobs and outcomes
 2. Two distinct offers for two distinct audiences — never mix them: **Contractor-facing offer** (intake form, contractor ads, cold outreach): "5 free booked jobs, no strings." **Homeowner-facing offer** (all homeowner-targeted ads, physical channels, Brain 3): "Text us what's wrong — our AI will diagnose it free." The contractor offer is about outcomes. The homeowner offer is about help. Both are 100% true. Neither mentions Tractify's business model.
 3. Every contractor-facing content piece drives to `intake.tractifyhq.com` with a unique `?src=` tag
+4. **The billing policy is a marketing weapon — use it constantly.** "We charge when the appointment happens, not when it's booked" is not just a policy, it's the single most trust-building sentence in the entire pitch. It belongs in ads, in content, on the conversion page, in the Stripe SMS, everywhere. No competitor can match it. Every piece of educational content explaining how the billing works doubles as a conversion driver — contractors who understand it want it immediately. Lead with transparency, let the policy close them.
 4. Both Jose and Daniel are on camera for contractor-facing content — faces convert better than faceless content
 5. Raw and real beats polished every time — shot on iPhone is the format, not a limitation
 6. Cost per completed intake form is the only metric that matters for contractor acquisition. Cost per homeowner booking is the only metric that matters for job delivery.
