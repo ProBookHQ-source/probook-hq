@@ -978,6 +978,58 @@ Ask the brain at any time: "Which active contractors are closest to 5 jobs?" and
 
 ---
 
+#### Content Ideas Bank (Pull From This — Add To It Every Session)
+
+*Every idea here can be filmed anywhere — living room, parking lot, coffee shop. No job site needed. No production setup. Just a phone and the product working in real time. Daniel handles creative execution. Jose handles the product demos and on-camera explanations. Both on camera together for the high-conviction ones.*
+
+---
+
+**CONTRACTOR-FACING (acquisition side) — film these first**
+
+| Idea | Who Films | Format | Priority |
+|------|-----------|--------|----------|
+| "The worst product ever created is FREE" | Jose or Daniel | Talking head, hook drives curiosity | 🔥 Film first |
+| "I ran $20 in ads while sleeping and this happened" | Jose | Phone screen recording + voiceover | 🔥 Film first |
+| Before/after calendar — empty Monday, booked Friday | Jose | Screen recording, zero words needed | 🔥 Film first |
+| "We called 10 HVAC contractors at 2pm on a Tuesday" | Both | All go to voicemail. Brain 3 catches it. | 🔥 Film first |
+| Live Brain 3 screen recording — homeowner booked in 4 texts | Jose | Raw screen capture, no acting | 🔥 Film first |
+| "This is why your competitor is busier than you" | Jose or Daniel | Talking head — not skill, not reviews, just automation | High |
+| Before/after — contractor missing calls vs Brain 3 catching every one | Both | Split screen or cut | High |
+| Series: doing random things while jobs book automatically | Both | Tennis, cooking, driving — notification comes in | High |
+| Interview style — contractor explains what changed | Both (when case study exists) | Raw interview, no script | High — wait for first client |
+| Case study drop — real contractor, real jobs, real timeline | Both | First one changes everything — wait for real data | 🚀 Most important video ever made |
+
+---
+
+**HOMEOWNER-FACING (diagnostic side) — the trust + word of mouth engine**
+
+| Idea | Who Films | Format | Priority |
+|------|-----------|--------|----------|
+| "I texted a number about my AC and it told me exactly what was wrong for free" | Jose or Daniel | POV homeowner, film the actual conversation | 🔥 Film first |
+| Common HVAC sounds with live diagnosis | Jose | Audio clip + text overlay, funnels to Brain 3 | High |
+| "AC running but not cooling? Before you call anyone, text this" | Jose or Daniel | Catches peak intent mid-problem | High |
+| "We told 10 homeowners they didn't need a repair" | Both | Honesty content — trust flywheel | High |
+| Free diagnostic text angle — show the full conversation | Jose | Real Brain 3 chat, no editing | 🔥 Film first |
+
+---
+
+**CONTENT THAT WRITES ITSELF (zero effort, maximum impact)**
+
+- **Billing policy education:** "We charge when the appointment happens, not when it's booked." Explain it straight to camera. Every contractor who watches it wants it immediately. Educational content that is also a conversion driver.
+- **"How Tractify actually makes money":** Full transparency on the model. Contractors who understand the aligned incentives trust it completely. Radical transparency as a marketing strategy.
+- **Notification content:** Every real booking that comes in during August — screenshot the notification, post it. No context needed. Volume of these compounds fast.
+- **Comment response videos:** When contractors ask "how does this work?" in comments — answer it as a video. Infinite content from real questions.
+
+---
+
+**FILMING NOTES**
+- Retro camera with good audio (Daniel's idea) — lo-fi visual, high-fi sound. Forces weight onto what's being said and what's on screen. Perfect contrast with the technology being shown.
+- Raw and real beats polished every time. One good take on iPhone beats ten produced ones.
+- Both faces on camera for the high-conviction contractor pieces — two founders builds more trust than one.
+- Tag every piece of content with a ?src= tag in the link so the brain can tell which video drove contractor signups.
+
+---
+
 #### Video Script Templates (Word-for-Word — Film These)
 
 **Script 1: The Missed Call — 30 seconds (Jose on camera)**
