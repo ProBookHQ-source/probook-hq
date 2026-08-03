@@ -1,6 +1,7 @@
-const express = require('express');
-const twilio  = require('twilio');
-const db      = require('../database/db');
+const express       = require('express');
+const twilio        = require('twilio');
+const db            = require('../database/db');
+const { requireAdmin } = require('../middleware/auth');
 
 const router  = express.Router();
 
@@ -283,6 +284,133 @@ router.post('/inbound-sms', async (req, res) => {
   // Always return empty TwiML — we already sent via REST API above
   res.type('text/xml');
   res.send(`<?xml version="1.0" encoding="UTF-8"?><Response/>`);
+});
+
+// ── POST /api/twilio/test-sms ─────────────────────────────────────────────────
+// Admin-only: simulate an inbound SMS conversation for testing Brain 2 (contractor)
+// and Brain 3 (homeowner) without needing real Twilio credentials or a deployed number.
+//
+// Runs the exact same routing logic as /inbound-sms but accepts contractorId directly
+// instead of a Twilio "To" number, and skips signature validation. Returns the AI
+// reply as JSON instead of sending a real SMS — perfect for Postman/curl testing
+// while Twilio compliance is pending.
+//
+// Body:
+//   {
+//     phone:        string  — simulated sender phone, e.g. "+12065551234" (optional, defaults to test number)
+//     message:      string  — the SMS text to send (required)
+//     role:         string  — "contractor" | "homeowner" (required)
+//     contractorId: string  — UUID of the target contractor (required)
+//   }
+//
+// Returns:
+//   { role, contractor, phone, message, reply, sessionState?, sessionId? }
+//
+// Example curl:
+//   curl -X POST https://tractifyhq.com/api/twilio/test-sms \
+//     -H "Authorization: Bearer ADMIN_JWT" \
+//     -H "Content-Type: application/json" \
+//     -d '{"phone":"+12065551234","message":"what is on my calendar tomorrow","role":"contractor","contractorId":"UUID"}'
+router.post('/test-sms', requireAdmin, async (req, res) => {
+  const { phone, message, role, contractorId } = req.body;
+
+  if (!message || !role || !contractorId) {
+    return res.status(400).json({ error: 'message, role, and contractorId are required' });
+  }
+  if (role !== 'contractor' && role !== 'homeowner') {
+    return res.status(400).json({ error: 'role must be "contractor" or "homeowner"' });
+  }
+
+  // Normalize phone — default to a test number if omitted
+  const rawPhone        = (phone || '+10000000000').replace(/\s/g, '');
+  const digits          = rawPhone.replace(/\D/g, '');
+  const normalizedPhone = digits.length === 10 ? `+1${digits}` : `+${digits}`;
+
+  // Look up contractor by ID
+  const { rows } = await db.query(`
+    SELECT id, name, company_name, phone, booking_slug, twilio_number,
+           onboarding_steps, sms_conversation, sms_welcome_sent,
+           sms_power_message_sent, sms_calendar_training_sent
+    FROM contractors
+    WHERE id = $1 AND is_active = 1
+  `, [contractorId]);
+
+  if (!rows.length) {
+    return res.status(404).json({ error: `No active contractor found with id: ${contractorId}` });
+  }
+
+  const contractor  = rows[0];
+  const businessName = contractor.company_name || contractor.name || 'us';
+
+  console.log(`[TEST-SMS] role=${role} phone=${normalizedPhone} contractor="${businessName}" message="${message.substring(0, 60)}"`);
+
+  // ── Contractor role → Brain 2 (smsAI.js) ────────────────────────────────────
+  if (role === 'contractor') {
+    const { handleContractorSms } = require('../services/smsAI');
+    const reply = await handleContractorSms(contractor, message);
+    console.log(`[TEST-SMS] Brain 2 reply: "${reply.substring(0, 80)}"`);
+    return res.json({ role, contractor: businessName, phone: normalizedPhone, message, reply });
+  }
+
+  // ── Homeowner role → Brain 3 (homeownerSmsAI.js) ────────────────────────────
+  const { getActiveSession, routeHomeownerSms, startHomeownerSession } = require('../services/homeownerSmsAI');
+
+  // CANCEL keyword — explain what would happen without touching real data
+  if (message.trim().toUpperCase() === 'CANCEL') {
+    const activeSession = await getActiveSession(normalizedPhone, contractorId);
+    return res.json({
+      role,
+      contractor: businessName,
+      phone: normalizedPhone,
+      message,
+      reply: '[CANCEL keyword — in production this finds the next confirmed appointment for this phone + contractor, cancels it, and starts a Brain 3 rebook session with available slots. No data was changed in this test.]',
+      sessionState: activeSession?.state || null,
+      note: 'To test the full CANCEL flow, use the live /inbound-sms webhook with a real phone that has a confirmed appointment.',
+    });
+  }
+
+  let reply;
+
+  // Check for an existing Brain 3 session with this phone + contractor
+  const activeSession = await getActiveSession(normalizedPhone, contractorId);
+
+  if (activeSession) {
+    // Continue existing conversation
+    console.log(`[TEST-SMS] Active Brain 3 session (state: ${activeSession.state}) — routing`);
+    reply = await routeHomeownerSms(normalizedPhone, contractorId, message);
+  } else {
+    // No session → unsolicited text (van wrap / SMS keyword / fridge magnet flow)
+    console.log(`[TEST-SMS] No active session — starting new Brain 3 session`);
+    const result      = await startHomeownerSession(normalizedPhone, contractorId);
+    const isReturning = result && result.isReturning;
+
+    if (isReturning && result.name) {
+      const firstName = result.name.split(' ')[0];
+      reply = `Hey ${firstName}! Great to hear from you again — what's going on this time?`;
+    } else {
+      reply = `Hey! This is ${businessName}. Happy to help — what's the address that needs service?`;
+    }
+  }
+
+  // Safety net in case Brain 3 returned null
+  if (!reply) {
+    reply = `Hey! This is ${businessName}. Happy to help — what's the address that needs service?`;
+  }
+
+  console.log(`[TEST-SMS] Brain 3 reply: "${reply.substring(0, 80)}"`);
+
+  // Fetch updated session state for debugging
+  const updatedSession = await getActiveSession(normalizedPhone, contractorId);
+
+  return res.json({
+    role,
+    contractor: businessName,
+    phone: normalizedPhone,
+    message,
+    reply,
+    sessionState: updatedSession?.state || null,
+    sessionId:    updatedSession?.id    || null,
+  });
 });
 
 module.exports = router;
