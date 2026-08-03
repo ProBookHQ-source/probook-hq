@@ -179,7 +179,6 @@ app.use('/api/leads/facebook', require('./routes/facebook')); // Facebook Lead A
 app.use('/api/deploy',       require('./routes/deploy'));   // ← Cloudflare Worker calls this after intake form submit
 app.use('/api/contractor/ai-chat', require('./routes/aiChat'));
 app.use('/api/admin/ai-chat',     require('./routes/adminAI')); // Jose's business intelligence brain
-app.use('/api/admin/seed-knowledge', require('./routes/seedKnowledge')); // One-time RAG knowledge seeder
 
 // ── Google Calendar OAuth ─────────────────────────────────────────────────────
 const googleCalendar = require('./services/googleCalendar');
