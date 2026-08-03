@@ -413,7 +413,10 @@ ${slotOptions}`;
 // ── Step 3: Confirm slot pick ─────────────────────────────────────────────────
 async function handleSlotPick(session, contractor, businessName, text) {
   let offeredSlots = [];
-  try { offeredSlots = JSON.parse(session.offered_slots || '[]'); } catch (e) {}
+  try {
+    const raw = session.offered_slots;
+    offeredSlots = Array.isArray(raw) ? raw : JSON.parse(raw || '[]');
+  } catch (e) {}
 
   // Parse reply: "1", "2", "3", or a time string
   const pick = text.trim();
