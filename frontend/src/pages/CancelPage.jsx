@@ -98,8 +98,8 @@ export default function CancelPage({ mode = 'cancel' }) {
           <p className="text-gray-500 mb-6">{message}</p>
           <p className="text-sm text-gray-400">
             Need help? Email us at{' '}
-            <a href="mailto:bookings@tractifyhq.com" className="text-brand-600 hover:underline">
-              bookings@tractifyhq.com
+            <a href="mailto:support@tractifyhq.com" className="text-brand-600 hover:underline">
+              support@tractifyhq.com
             </a>
           </p>
         </div>
@@ -126,8 +126,8 @@ export default function CancelPage({ mode = 'cancel' }) {
           {message === 'contact_us' ? (
             <p className="text-gray-500 mb-6">
               Your appointment has been cancelled. To book a new time, please contact us directly at{' '}
-              <a href="mailto:bookings@tractifyhq.com" className="text-brand-600 hover:underline font-semibold">
-                bookings@tractifyhq.com
+              <a href="mailto:support@tractifyhq.com" className="text-brand-600 hover:underline font-semibold">
+                support@tractifyhq.com
               </a>
             </p>
           ) : (
@@ -137,8 +137,8 @@ export default function CancelPage({ mode = 'cancel' }) {
           )}
           <p className="text-sm text-gray-400">
             Questions?{' '}
-            <a href="mailto:bookings@tractifyhq.com" className="text-brand-500 hover:underline">
-              bookings@tractifyhq.com
+            <a href="mailto:support@tractifyhq.com" className="text-brand-500 hover:underline">
+              support@tractifyhq.com
             </a>
           </p>
         </div>
@@ -177,8 +177,8 @@ export default function CancelPage({ mode = 'cancel' }) {
           )}
           <p className="text-xs text-gray-400">
             Need to make a change later? Use the links in your confirmation email or contact{' '}
-            <a href="mailto:bookings@tractifyhq.com" className="text-brand-500 hover:underline">
-              bookings@tractifyhq.com
+            <a href="mailto:support@tractifyhq.com" className="text-brand-500 hover:underline">
+              support@tractifyhq.com
             </a>
           </p>
         </div>
@@ -261,8 +261,8 @@ export default function CancelPage({ mode = 'cancel' }) {
         <div className="px-8 pb-6 text-center">
           <p className="text-xs text-gray-400">
             Need help?{' '}
-            <a href="mailto:bookings@tractifyhq.com" className="text-brand-500 hover:underline">
-              bookings@tractifyhq.com
+            <a href="mailto:support@tractifyhq.com" className="text-brand-500 hover:underline">
+              support@tractifyhq.com
             </a>
           </p>
         </div>

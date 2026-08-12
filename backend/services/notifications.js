@@ -150,7 +150,7 @@ function emailBase({ accentColor = '#6366f1', label, headline, sub = '', bodyCon
         </td>
         <td style="vertical-align:middle;">
           <p style="margin:0;font-size:14px;font-weight:700;color:#1a1a2e;">The <span style="color:${accentColor};">Tractify</span> Team</p>
-          <p style="margin:2px 0 0;font-size:13px;color:#9ca3af;">bookings@tractifyhq.com &nbsp;·&nbsp; tractifyhq.com</p>
+          <p style="margin:2px 0 0;font-size:13px;color:#9ca3af;">support@tractifyhq.com &nbsp;·&nbsp; tractifyhq.com</p>
         </td>
       </tr>
     </table>
@@ -955,7 +955,7 @@ async function sendDeployAlertToAdmin({ businessName, contactEmail, siteUrl, con
       </td></tr>
     `,
   });
-  const adminTo = process.env.ADMIN_EMAIL || 'oiltoheatrebate@gmail.com';
+  const adminTo = process.env.ADMIN_EMAIL || 'bookings@tractifyhq.com';
   await sendEmail(adminTo, `New contractor deployed: ${businessName}`, html);
 }
 
@@ -963,7 +963,7 @@ async function sendDeployAlertToAdmin({ businessName, contactEmail, siteUrl, con
 // Fires instantly every time a homeowner books through any contractor's site.
 // { contractor, homeowner: {name, phone?}, date, time, bookingSource, bookingNumber }
 async function sendTrialBookingAlertToJose({ contractor, homeowner, date, time, bookingSource, bookingNumber }) {
-  const adminTo = process.env.ADMIN_EMAIL || 'oiltoheatrebate@gmail.com';
+  const adminTo = process.env.ADMIN_EMAIL || 'bookings@tractifyhq.com';
   const company  = esc(contractor.company_name || contractor.name);
   const slug     = contractor.booking_slug || '';
   const siteUrl  = slug ? `https://${slug}.tractifyhq.com` : '';
@@ -1007,7 +1007,7 @@ async function sendTrialBookingAlertToJose({ contractor, homeowner, date, time, 
 // Fires once when a trial contractor has been live for 72+ hours with zero bookings.
 // { contractor, hoursSinceDeploy }
 async function sendTrialSilenceAlertToJose({ contractor, hoursSinceDeploy }) {
-  const adminTo  = process.env.ADMIN_EMAIL || 'oiltoheatrebate@gmail.com';
+  const adminTo  = process.env.ADMIN_EMAIL || 'bookings@tractifyhq.com';
   const company  = esc(contractor.company_name || contractor.name);
   const slug     = contractor.booking_slug || '';
   const siteUrl  = slug ? `https://${slug}.tractifyhq.com` : '';

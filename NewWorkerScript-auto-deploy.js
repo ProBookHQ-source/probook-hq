@@ -98,7 +98,7 @@ async function handleSubmit(request, env) {
     if (!env.RESEND_API_KEY) return;
     const emailBody = JSON.stringify({
       from:    'Tractify <bookings@tractifyhq.com>',
-      to:      ['oiltoheatrebate@gmail.com'],
+      to:      ['bookings@tractifyhq.com'],
       subject: `New intake submission: ${payload.businessName || 'Unknown'}`,
       html: `
         <h2>New Tractify Intake Submission</h2>

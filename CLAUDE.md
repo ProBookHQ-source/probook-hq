@@ -6,7 +6,7 @@
 ## Who You Are Talking To
 - **Name:** Jose
 - **Personal email:** ayc98223@gmail.com
-- **Business email:** oiltoheatrebate@gmail.com
+- **Business email:** bookings@tractifyhq.com (forwards to ayc98223@gmail.com via Cloudflare Email Routing, set up Aug 11 2026, session 25)
 - **GitHub account:** ProBookHQ-source (linked to ayc98223@gmail.com)
 - **GitHub repo:** https://github.com/ProBookHQ-source/probook-hq
 
@@ -3047,7 +3047,7 @@ All emails use a shared branded HTML base with Tractify logo, indigo accent (#63
 | `sendAppointmentReminder` | 24hr before appt | Homeowner |
 | `sendContractorReminder` | 24hr before appt | Contractor |
 | `sendContractorApplicationAck` | Contractor applies | Contractor |
-| `sendContractorApplicationAlert` | Contractor applies | Admin (oiltoheatrebate@gmail.com) |
+| `sendContractorApplicationAlert` | Contractor applies | Admin (`ADMIN_EMAIL` env var, currently ayc98223@gmail.com) |
 | `sendContractorApproved` | Admin approves | Contractor |
 | `sendContractorDeclined` | Admin declines | Contractor |
 | `sendPasswordReset` | Forgot password | Contractor |

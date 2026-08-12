@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function TermsOfService() {
   const navigate = useNavigate();
-  const CONTACT_EMAIL = 'oiltoheatrebate@gmail.com';
+  const CONTACT_EMAIL = 'support@tractifyhq.com';
   const EFFECTIVE_DATE = 'July 28, 2026';
 
   return (
