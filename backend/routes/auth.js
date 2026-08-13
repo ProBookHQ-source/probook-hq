@@ -3,7 +3,7 @@ const bcrypt  = require('bcryptjs');
 const crypto  = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database/db');
-const { signToken, requireAdmin, requireContractor } = require('../middleware/auth');
+const { signToken, requireAdmin, requireContractor, signImpersonationToken } = require('../middleware/auth');
 const notifications = require('../services/notifications');
 
 const router = express.Router();
@@ -20,6 +20,28 @@ router.post('/admin/login', async (req, res) => {
   }
   const token = signToken({ id: admin.id, email: admin.email, role: 'admin', name: admin.name });
   res.json({ token, user: { id: admin.id, email: admin.email, name: admin.name, role: 'admin' } });
+});
+
+// ── Admin: view a contractor's portal (calendar/availability) directly ────────
+// Post-pivot, contractors are never issued a real password, so the old workflow
+// of "log into their account" is gone. This mints a short-lived, contractor-scoped
+// token so Jose can open their actual portal UI — e.g. to confirm hours propagated
+// correctly from the intake form — without any shared credentials existing.
+router.post('/admin/impersonate-contractor/:id', requireAdmin, async (req, res) => {
+  const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(req.params.id);
+  if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
+
+  const token = signImpersonationToken({
+    id: contractor.id, email: contractor.email, name: contractor.name, niche_id: contractor.niche_id,
+  });
+  res.json({
+    token,
+    user: {
+      id: contractor.id, email: contractor.email, name: contractor.name,
+      company_name: contractor.company_name, phone: contractor.phone || '',
+      role: 'contractor',
+    },
+  });
 });
 
 // ── Admin register (first-time setup only — disabled once any admin exists) ───

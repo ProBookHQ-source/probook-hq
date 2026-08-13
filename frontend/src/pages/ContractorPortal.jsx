@@ -245,7 +245,43 @@ function AppointmentCard({ appt, confirmCancelId, setConfirmCancelId, cancelAppt
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function ContractorPortal() {
-  const user = JSON.parse(localStorage.getItem('user'));
+  // ── Admin impersonation handoff ──────────────────────────────────────────
+  // If we just arrived from AdminDashboard's "View Calendar" link, the URL carries
+  // a one-time token + user blob. Move both into sessionStorage (tab-scoped — never
+  // touches localStorage, so it can't collide with the admin's own session in the
+  // tab they came from) and strip them from the visible URL immediately.
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const impToken = params.get('impersonate_token');
+    const impUser  = params.get('impersonate_user');
+    if (impToken && impUser) {
+      sessionStorage.setItem('impersonate_token', impToken);
+      sessionStorage.setItem('impersonate_user', impUser);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  } catch (e) {}
+
+  const impersonateUser = (() => {
+    try {
+      const raw = sessionStorage.getItem('impersonate_user');
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  })();
+  const user = impersonateUser || JSON.parse(localStorage.getItem('user'));
+
+  // Exiting an impersonation session must NEVER touch localStorage — that's the
+  // admin's real session, shared across every tab. Only clear the sessionStorage
+  // impersonation keys and go back to the admin dashboard instead of /login.
+  function exitPortal() {
+    if (impersonateUser) {
+      sessionStorage.removeItem('impersonate_token');
+      sessionStorage.removeItem('impersonate_user');
+      window.location.href = '/admin';
+    } else {
+      localStorage.clear();
+      window.location.href = '/login';
+    }
+  }
   const qc = useQueryClient();
 
   const [tab, setTab] = useState('home');
@@ -848,7 +884,15 @@ export default function ContractorPortal() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden font-sans w-full max-w-full">
+    <div className={`flex h-screen bg-gray-50 overflow-hidden font-sans w-full max-w-full ${impersonateUser ? 'pt-9' : ''}`}>
+
+      {/* ── Admin impersonation banner — unmistakable so it's never confused with your own portal ── */}
+      {impersonateUser && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-amber-500 text-white text-xs md:text-sm font-semibold px-4 py-2 flex items-center justify-between shadow-md">
+          <span>👁️ Admin view — {user.company_name || user.name}'s portal. Changes made here affect their real account.</span>
+          <button onClick={exitPortal} className="underline shrink-0 ml-3">Exit</button>
+        </div>
+      )}
 
       {/* ── Sidebar (desktop only) ─────────────────────────────────────────── */}
       <aside className="hidden md:flex w-56 bg-white border-r border-gray-100 flex-col shrink-0 shadow-sm">
@@ -895,11 +939,11 @@ export default function ContractorPortal() {
             <p className="text-xs text-gray-400 truncate">{user.company_name || user.email}</p>
           </div>
           <button
-            onClick={() => { localStorage.clear(); window.location.href = '/login'; }}
+            onClick={exitPortal}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-all"
           >
             <LogOut className="w-4 h-4" />
-            Sign out
+            {impersonateUser ? 'Back to admin' : 'Sign out'}
           </button>
         </div>
       </aside>
@@ -2309,7 +2353,7 @@ export default function ContractorPortal() {
           </button>
         ))}
         <button
-          onClick={() => { localStorage.clear(); window.location.href = '/login'; }}
+          onClick={exitPortal}
           className="flex-1 flex flex-col items-center gap-0.5 py-3 text-[11px] font-medium text-gray-400 transition-all"
         >
           <LogOut className="w-5 h-5" />

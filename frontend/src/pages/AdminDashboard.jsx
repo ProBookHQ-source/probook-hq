@@ -245,6 +245,15 @@ export default function AdminDashboard() {
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to save Twilio number'),
   });
 
+  const viewContractorCalendar = useMutation({
+    mutationFn: (id) => api.post(`/auth/admin/impersonate-contractor/${id}`),
+    onSuccess: ({ data }) => {
+      const url = `/contractor?impersonate_token=${encodeURIComponent(data.token)}&impersonate_user=${encodeURIComponent(JSON.stringify(data.user))}`;
+      window.open(url, '_blank');
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to open contractor portal'),
+  });
+
   const approveContractor = useMutation({
     mutationFn: (id) => api.put(`/auth/contractor/${id}/approve`),
     onSuccess: () => { toast.success('Contractor approved!'); qc.invalidateQueries(['admin-contractors']); },
@@ -756,6 +765,9 @@ export default function AdminDashboard() {
                         <Phone className="w-3 h-3" /> {c.twilio_number ? 'Change Twilio #' : 'Set Twilio #'}
                       </button>
                     )}
+                    <button onClick={() => viewContractorCalendar.mutate(c.id)} disabled={viewContractorCalendar.isPending} className="flex items-center gap-1 text-xs text-teal-600 hover:text-teal-800 font-medium disabled:opacity-40">
+                      <Calendar className="w-3 h-3" /> View Calendar
+                    </button>
                     {setPasswordFor === c.id ? (
                       <div className="flex items-center gap-2">
                         <div className="relative flex-1">

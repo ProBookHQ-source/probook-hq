@@ -47,4 +47,12 @@ function signToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn });
 }
 
-module.exports = { requireAuth, requireAdmin, requireContractor, signToken };
+// Short-lived, admin-minted token for viewing a contractor's portal (calendar,
+// availability) directly. Post-pivot, contractors are never issued a real password
+// — this is how Jose verifies things like "did their hours propagate correctly"
+// without any shared credentials existing. 2h expiry limits exposure if it leaks.
+function signImpersonationToken(payload) {
+  return jwt.sign({ ...payload, role: 'contractor' }, JWT_SECRET, { expiresIn: '2h' });
+}
+
+module.exports = { requireAuth, requireAdmin, requireContractor, signToken, signImpersonationToken };
