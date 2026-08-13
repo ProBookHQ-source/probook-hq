@@ -209,7 +209,21 @@ router.post('/', requireDeploySecret, async (req, res) => {
 
   log(`Contractor created: ${contractorId}`);
 
-  // ── Step 3: Pre-populate availability from submitted hours ────────────────
+  // ── Step 3: Create API key linked to contractor ────────────────────────────
+  // Still relevant post-pivot even with no per-contractor website: any external
+  // lead source (Facebook Lead Ads, Google Call-Only landing pages, future
+  // channels) can hit POST /api/leads/inbound with this key and route straight
+  // to this contractor, bypassing the matching engine. No site to restrict
+  // origins to anymore, so allowed_origins is left unrestricted.
+  const apiKey   = 'pb_' + crypto.randomBytes(24).toString('hex');
+  const apiKeyId = uuidv4();
+  await db.query(`
+    INSERT INTO inbound_api_keys (id, name, key, source_slug, is_active, contractor_id)
+    VALUES ($1,$2,$3,$4,1,$5)
+  `, [apiKeyId, data.businessName, apiKey, slug, contractorId]);
+  log(`API key created: ${apiKeyId}`);
+
+  // ── Step 4: Pre-populate availability from submitted hours ────────────────
   try {
     await seedAvailability(contractorId, data.hoursRaw);
   } catch (availErr) {
@@ -217,7 +231,7 @@ router.post('/', requireDeploySecret, async (req, res) => {
     // Non-fatal — hours can be confirmed/corrected over text later
   }
 
-  // ── Step 4: Alert admin — assigning a Twilio number is the next manual step,
+  // ── Step 5: Alert admin — assigning a Twilio number is the next manual step,
   // which automatically fires the SMS welcome conversation (contractors.js PUT /:id) ──
   try {
     await sendDeployAlertToAdmin({

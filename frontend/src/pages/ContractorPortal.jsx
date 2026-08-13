@@ -444,8 +444,10 @@ export default function ContractorPortal() {
       ? JSON.parse(data.onboarding_steps || '{}')
       : (data.onboarding_steps || {});
     setOnboardingSteps(steps);
+    // Never show the first-login modal when admin is viewing a contractor's
+    // portal — it's a first-time contractor onboarding prompt, not relevant here.
     const hasSeenModal = localStorage.getItem(`onboarding_modal_seen_${user.id}`);
-    if (!hasSeenModal && Object.keys(steps).length === 0) {
+    if (!impersonateUser && !hasSeenModal && Object.keys(steps).length === 0) {
       setShowOnboardingModal(true);
       localStorage.setItem(`onboarding_modal_seen_${user.id}`, '1');
     }
