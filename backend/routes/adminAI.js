@@ -306,12 +306,12 @@ Be direct. No fluff. Jose is running a business.`;
     },
     {
       name: 'update_contractor',
-      description: 'Update a contractor field: city, phone, company_name, name, or acquisition_source.',
+      description: 'Update a contractor field: city, phone, company_name, name, acquisition_source, twilio_number, or business_phone (the public number customers call, when different from their personal cell).',
       input_schema: {
         type: 'object',
         properties: {
           contractor_id: { type: 'string', description: 'Contractor UUID' },
-          field: { type: 'string', enum: ['city', 'phone', 'company_name', 'name', 'acquisition_source', 'twilio_number'], description: 'Field to update' },
+          field: { type: 'string', enum: ['city', 'phone', 'company_name', 'name', 'acquisition_source', 'twilio_number', 'business_phone'], description: 'Field to update' },
           value: { type: 'string', description: 'New value for the field' },
         },
         required: ['contractor_id', 'field', 'value'],
@@ -442,7 +442,7 @@ Be direct. No fluff. Jose is running a business.`;
 
       } else if (name === 'update_contractor') {
         const { contractor_id, field, value } = input;
-        const allowed = ['city', 'phone', 'company_name', 'name', 'acquisition_source', 'twilio_number'];
+        const allowed = ['city', 'phone', 'company_name', 'name', 'acquisition_source', 'twilio_number', 'business_phone'];
         if (!allowed.includes(field)) { toolResult = `Cannot update field "${field}". Allowed: ${allowed.join(', ')}`; }
         else {
           const check = await db.query('SELECT company_name, name FROM contractors WHERE id = $1', [contractor_id]);

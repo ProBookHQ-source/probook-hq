@@ -262,6 +262,11 @@ db._ready.then(async () => {
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS onboarding_started_at TIMESTAMPTZ`);
   // Prevent duplicate nudge emails — set after first nudge is sent
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS onboarding_nudge_sent_at TIMESTAMPTZ`);
+  // The public number customers actually call, when it's different from contractor.phone
+  // (their personal cell, collected at signup and used for all SMS/Brain 2). NULL means
+  // same number — most solo operators. Only set when the AI SMS drip's call-forwarding
+  // step surfaces a separate business line (office number, dispatcher, etc).
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS business_phone TEXT`);
 
   // Intake form step tracking — powers dropoff funnel in admin dashboard
   await db.query(`

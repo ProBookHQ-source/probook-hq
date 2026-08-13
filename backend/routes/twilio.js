@@ -138,7 +138,7 @@ router.post('/inbound-sms', async (req, res) => {
   const contractor = await db.prepare(`
     SELECT id, name, company_name, phone, booking_slug, twilio_number,
            onboarding_steps, sms_conversation, sms_welcome_sent,
-           sms_power_message_sent, sms_calendar_training_sent
+           sms_power_message_sent, sms_calendar_training_sent, business_phone
     FROM contractors
     WHERE twilio_number = ? AND is_active = 1
   `).get(To);
@@ -330,7 +330,7 @@ router.post('/test-sms', requireAdmin, async (req, res) => {
   const { rows } = await db.query(`
     SELECT id, name, company_name, phone, booking_slug, twilio_number,
            onboarding_steps, sms_conversation, sms_welcome_sent,
-           sms_power_message_sent, sms_calendar_training_sent
+           sms_power_message_sent, sms_calendar_training_sent, business_phone
     FROM contractors
     WHERE id = $1 AND is_active = 1
   `, [contractorId]);

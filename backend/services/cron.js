@@ -131,7 +131,7 @@ cron.schedule('30 * * * *', async () => {
     const { rows: candidates } = await db.query(`
       SELECT id, name, email, phone, company_name, booking_slug,
              twilio_number, onboarding_steps, sms_welcome_sent,
-             last_setup_sms_at
+             last_setup_sms_at, business_phone
       FROM contractors
       WHERE is_active = 1
         AND twilio_number IS NOT NULL

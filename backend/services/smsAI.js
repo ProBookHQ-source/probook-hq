@@ -122,6 +122,13 @@ async function handleContractorSms(contractor, incomingText) {
   const twilioNumber = contractor.twilio_number || '(not assigned yet)';
   const hasTwilioNumber = !!contractor.twilio_number;
 
+  // business_phone is NULL until the twilio step resolves whether customers call the
+  // same cell number we collected at signup or a separate business line. Once resolved
+  // (even to "same"), business_phone holds the number to actually forward — either a
+  // confirmed-different number, or contractor.phone itself if they confirmed it's the same.
+  const hasBusinessPhoneAnswer = !!contractor.business_phone;
+  const businessNumberForForwarding = contractor.business_phone || contractor.phone;
+
   const STEP_GUIDES = {
     availability: {
       label: 'Confirm your schedule',
@@ -131,7 +138,9 @@ async function handleContractorSms(contractor, incomingText) {
     twilio: {
       label: 'Set up missed call forwarding',
       done: !!completedSteps.twilio,
-      guide: `Forward unanswered calls to ${twilioNumber}. iPhone: Settings > Phone > Call Forwarding > When Unanswered > type ${twilioNumber} > on. Android: Phone app > menu > Settings > Call forwarding > When unanswered > ${twilioNumber}. Text DONE when set up.`,
+      guide: hasBusinessPhoneAnswer
+        ? `Forward unanswered calls on ${businessNumberForForwarding} to ${twilioNumber}. iPhone: Settings > Phone > Call Forwarding > When Unanswered > type ${twilioNumber} > on. Android: Phone app > menu > Settings > Call forwarding > When unanswered > ${twilioNumber}. Text DONE when set up.`
+        : `First find out: is ${contractor.phone} the number their customers actually call, or is their business line different? If they say it's the same, use set_business_phone with is_same=true, then give forwarding instructions for that number. If they give a different number, use set_business_phone to save it, then give forwarding instructions for THAT number instead.`,
     },
     gbp: {
       label: 'Add booking link to Google Business Profile',
@@ -179,7 +188,7 @@ CONTRACTOR:
 
 SETUP PROGRESS (${completedCount}/${totalSteps} channels active):
 ${Object.entries(STEP_GUIDES).map(([k, s]) => `  [${s.done ? 'done' : 'todo'}] ${s.label}`).join('\n')}
-${nextStep ? `\nNext step: "${nextStep[1].label}"` : '\nAll steps done!'}
+${nextStep ? `\nNext step: "${nextStep[1].label}"\nHow to guide them through it: ${nextStep[1].guide}` : '\nAll steps done!'}
 
 UPCOMING APPOINTMENTS:
 ${apptText}${pastApptText}
@@ -268,6 +277,24 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           closed_value: { type: 'number', description: 'Dollar amount if closed (e.g. 850). Omit or null if did_close is false.' },
         },
         required: ['appointment_id', 'did_close'],
+      },
+    },
+    {
+      name: 'set_business_phone',
+      description: 'Record which number customers actually call, as part of the call-forwarding setup step. Use this BEFORE giving forwarding instructions — it determines which number to forward. Call it whether they confirm it is the same number or give you a different one.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          is_same: {
+            type: 'boolean',
+            description: 'true if customers call the same personal cell number already on file. false if they gave a different business number.',
+          },
+          different_number: {
+            type: 'string',
+            description: 'The separate business phone number, in any reasonable format, if is_same is false. Omit if is_same is true.',
+          },
+        },
+        required: ['is_same'],
       },
     },
     {
@@ -448,6 +475,24 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
       } catch (err) {
         toolResult = `Error: ${err.message}`;
         console.error('[SMS-AI] log_job_outcome error:', err.message);
+      }
+
+    } else if (name === 'set_business_phone') {
+      try {
+        const { is_same, different_number } = input;
+        const resolvedNumber = is_same ? contractor.phone : (different_number || '').trim();
+        if (!resolvedNumber) {
+          toolResult = `Error: no number to save — ask them for the business number and try again.`;
+        } else {
+          await db.query(`UPDATE contractors SET business_phone = $1 WHERE id = $2`, [resolvedNumber, contractorId]);
+          toolResult = is_same
+            ? `Confirmed same number — ${resolvedNumber} is what gets forwarded. Now give the forwarding instructions for that number.`
+            : `Saved separate business number ${resolvedNumber}. Now give the forwarding instructions for THAT number, not their personal cell.`;
+          console.log(`[SMS-AI] business_phone set for ${contractorId}: ${resolvedNumber} (same=${is_same})`);
+        }
+      } catch (err) {
+        toolResult = `Error: ${err.message}`;
+        console.error('[SMS-AI] set_business_phone error:', err.message);
       }
 
     } else if (name === 'update_availability_slot') {
@@ -631,7 +676,9 @@ async function sendSetupStepText(contractor, twilioClient) {
   const STEP_TEXTS = {
     availability: `${firstName} — step 1 of 2. Here are the hours we loaded from your form: ${availabilityText}. Look right? Reply YES to confirm or text me any changes.`,
 
-    twilio: `Step 2 of 2. Every call you miss on a job — that homeowner is already calling your competitor. Forward unanswered calls to ${twilioNum} and we auto-text every missed caller before they dial someone else. iPhone: Settings > Phone > Call Forwarding > When Unanswered > enter ${twilioNum} > on. Reply DONE.`,
+    twilio: contractor.business_phone
+      ? `Step 2 of 2. Every call you miss on a job — that homeowner is already calling your competitor. Forward unanswered calls on ${contractor.business_phone} to ${twilioNum} and we auto-text every missed caller before they dial someone else. iPhone: Settings > Phone > Call Forwarding > When Unanswered > enter ${twilioNum} > on. Reply DONE.`
+      : `Step 2 of 2. Quick one first — is ${contractor.phone} the number your customers actually call, or is your business line different? Once I know which number, I'll send the exact forwarding steps so every missed call gets caught automatically.`,
 
     gbp: `Good news — your Google listing is already getting search traffic. But right now there's no Book button. Homeowners searching "HVAC near me" can see you but can't book. 60 seconds to fix: business.google.com > Edit Profile > Appointments > paste this: ${bookingLink} > Save. Reply DONE.`,
 
