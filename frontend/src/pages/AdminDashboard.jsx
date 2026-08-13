@@ -733,7 +733,8 @@ export default function AdminDashboard() {
                     </span>
                   </div>
                   <p className="text-xs text-gray-500 mb-1 truncate">{c.email}</p>
-                  <p className="text-xs text-gray-500 mb-2 truncate">{c.phone}</p>
+                  <p className={`text-xs text-gray-500 truncate ${c.address ? 'mb-1' : 'mb-2'}`}>{c.phone}</p>
+                  {c.address && <p className="text-xs text-gray-400 mb-2 truncate">{c.address}</p>}
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="badge bg-brand-100 text-brand-700">{c.niche_name}</span>
                     <span className="text-xs text-gray-400">

@@ -146,9 +146,12 @@ router.post('/', requireDeploySecret, async (req, res) => {
   const data = req.body;
 
   // Validate required fields — email is intentionally NOT required. The new
-  // intake form never collects one; contractors don't log in.
-  if (!data.businessName || !data.phone) {
-    return res.status(400).json({ error: 'businessName and phone are required' });
+  // intake form never collects one; contractors don't log in. niche IS required
+  // server-side too (not just client-side) because niche_id is NOT NULL on the
+  // contractors table — without this check, a missing niche would crash the
+  // INSERT below with an unhandled constraint violation instead of a clean 400.
+  if (!data.businessName || !data.phone || !data.niche) {
+    return res.status(400).json({ error: 'businessName, phone, and niche are required' });
   }
 
   const phoneDigits = (data.phone || '').replace(/\D/g, '');
