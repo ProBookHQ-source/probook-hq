@@ -196,6 +196,7 @@ async function initialize() {
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS place_id TEXT`).catch(() => {});
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS twilio_test_call_at TIMESTAMPTZ`).catch(() => {});
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS city TEXT`).catch(() => {});
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS address TEXT`).catch(() => {});
 
   // Migration: two-way AI SMS — conversation history + drip tracking
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS sms_conversation JSONB DEFAULT '[]'`).catch(() => {});

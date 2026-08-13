@@ -932,31 +932,32 @@ async function sendContractorWelcomeEmail({ name, email, company, siteUrl, porta
 }
 
 // ── Admin alert after auto-deploy ─────────────────────────────────────────────
-async function sendDeployAlertToAdmin({ businessName, contactEmail, siteUrl, contractorId, slug }) {
+async function sendDeployAlertToAdmin({ businessName, phone, address, niche, contractorId, slug }) {
   const html = emailBase({
-    label:    'New Contractor Deployed',
+    label:    'New Contractor Signup',
     headline: esc(businessName),
-    sub:      'Auto-deploy completed — review and optionally run ads.',
+    sub:      'Account created — assign a Twilio number to start the SMS setup conversation.',
     bodyContent: `
       <tr><td style="padding:0 0 20px;">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
                style="background:#f5f3ff;border-radius:10px;border-left:4px solid #6366f1;">
           <tr><td style="padding:18px 22px;">
             <p style="margin:0 0 6px;font-size:15px;font-weight:700;color:#1a1a2e;">${esc(businessName)}</p>
-            <p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>Email:</strong> ${esc(contactEmail)}</p>
-            <p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>Site:</strong> <a href="${esc(siteUrl)}" style="color:#6366f1;">${esc(siteUrl)}</a></p>
+            <p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>Phone:</strong> ${esc(phone)}</p>
+            <p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>Address:</strong> ${esc(address)}</p>
+            <p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>Niche:</strong> ${esc(niche)}</p>
             <p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>Slug:</strong> ${esc(slug)}</p>
             <p style="margin:0;font-size:14px;color:#374151;"><strong>Contractor ID:</strong> <code style="background:#ede9fe;padding:2px 6px;border-radius:4px;font-size:12px;">${esc(contractorId)}</code></p>
           </td></tr>
         </table>
       </td></tr>
       <tr><td style="padding:0 0 8px;">
-        <p style="margin:0;font-size:14px;color:#6b7280;">Next: decide if this contractor gets paid ad spend. If yes, run Facebook ads targeting their service zip codes. If the organic channels are strong (GBP, reviewers, Nextdoor) they may hit 5 jobs without ads.</p>
+        <p style="margin:0;font-size:14px;color:#6b7280;">Next: assign a Twilio number to this contractor in the admin dashboard — that automatically fires the welcome text and starts the SMS setup conversation. Then decide if this contractor gets paid ad spend behind them.</p>
       </td></tr>
     `,
   });
   const adminTo = process.env.ADMIN_EMAIL || 'bookings@tractifyhq.com';
-  await sendEmail(adminTo, `New contractor deployed: ${businessName}`, html);
+  await sendEmail(adminTo, `New contractor signup: ${businessName}`, html);
 }
 
 // ── Real-time trial booking alert to Jose ─────────────────────────────────────

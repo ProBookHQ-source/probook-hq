@@ -35,8 +35,8 @@ The realization: kill the website entirely. Tractify is not a website company, w
 - The HVAC website template (`hvac-template/index.html`, `backend/templates/hvac-template.html`) and the entire per-contractor Cloudflare Pages/Wrangler deploy pipeline built around it.
 - The Cloudflare Worker's role as a site-deploy trigger (`probook-upload-worker`) — the Worker itself may still be useful for lightweight tasks but the "deploy a whole website" responsibility goes away.
 - The 4-step intake form (branding, numbers/hours, services/coverage, review) — replaced by a radically simplified signup (see below).
-- Per-appointment billing ($75/booking, niche-adaptive pricing table, Stripe-fires-at-job-5 mechanic) — replaced by flat monthly retainer, priced by niche bucket, on a fixed trial-then-offer cycle (see Pricing below).
-- The "$2,000 setup fee" concept — no longer applies, there's no bespoke deploy work to recoup.
+- ~~Per-appointment billing~~ — **reversed as of session 25: per-appointment billing is back and final, not killed.** The Stripe-fires-at-job-5 trigger point is replaced by the 5-jobs-or-21-days trial trigger, and the flat rate becomes a niche-bucketed rate (or per-new-client for bucket 1), but the core mechanic — get paid when you deliver, not a subscription — is unchanged from the original model. See "Pricing — all per-delivery, no retainer anywhere" below. A flat monthly retainer was considered mid-pivot and explicitly rejected once the numbers were worked through — it caps revenue from the best-performing contractors and was never actually shipped.
+- ~~The "$2,000 setup fee" concept~~ — **reversed as of session 25: revived as a niche-bucketed one-time activation fee, due at conversion.** Same CAC-recovery logic as the original, just sized per bucket instead of one flat number. See Pricing below.
 - Track 1 / Track 2 manual contractor qualification and burst ad spend during trial — replaced by self-selection (see Trial below).
 - HVAC-only positioning across ads, content, and the niche roster — Tractify now supports any appointment-based vertical from day one, rolled out deliberately (see Go-to-market below).
 
@@ -73,7 +73,7 @@ Because a real, dedicated number shouldn't be purchased and permanently tied to 
 
 ### The offer — one moment, entirely by text, whichever trigger hits first
 
-When a contractor hits 5 booked jobs or reaches day 21 (whichever comes first), they get a message laying out both tiers, pricing, and what's included in each, plus the one-time activation fee (see Pricing below). If they want to continue, they put a card on file, pay the activation fee, and pick a tier. No card is collected before this point. No sales call, ever — this and the Growth opt-in path are both fully self-serve.
+When a contractor hits 5 booked jobs or reaches day 21 (whichever comes first), they get a message laying out the ongoing rate for their niche, plus the one-time activation fee (see Pricing below). If they want to continue, they put a card on file and pay the activation fee. No card is collected before this point. No sales call, ever, and no tier to choose — one product, one billing philosophy, self-serve.
 
 **How this gets communicated gracefully, so the 21-day cap never feels like a hidden catch:**
 - All acquisition materials (ads, the universal page, any content) only ever say "5 free booked jobs" — the day-cap is never part of the outward hook.
@@ -81,30 +81,38 @@ When a contractor hits 5 booked jobs or reaches day 21 (whichever comes first), 
 - If a contractor is approaching day 21 without yet hitting 5, a quiet heads-up a few days out avoids the ending ever feeling sudden: *"Quick update — you're at [X] of your 5 free jobs so far. A few more days left in your trial window, just keeping you in the loop, nothing you need to do."*
 - The actual offer message, whichever trigger fires: *"You've hit your 5 free jobs — that's the trial. If you want to keep this running, here's what it costs: [pricing]. No pressure, no contract — if it's not for you, no hard feelings and nothing else happens."* Ending on "no hard feelings" keeps the tone consistent even at the one moment money finally enters the conversation.
 
-### Two tiers — Tractify and Tractify Growth (reinstated August 11, 2026, session 25 — reverses the same-session decision to cut Growth entirely)
+### One product — Tractify Growth killed for good (final, August 12, 2026, session 25 — supersedes the same-session decision to reinstate it)
 
-**Growth is back. Tractify sells two things: Tractify (software only) and Tractify Growth (software plus active ad management), both billed as a flat monthly retainer priced by niche bucket — never pay-per-lead or pay-per-appointment.** The earlier reasoning for cutting Growth (it reintroduces manual labor per paying customer, a ceiling with Jose's name on it) still holds as a real risk, not dismissed — the fix isn't cutting Growth, it's staying deliberately selective about who gets accepted into it. Growth doesn't have to be sold to everyone who wants it; it can be offered and still capped by how much active ad-management capacity Jose is actually willing to take on at any given time. That preserves the upside (revenue and real help for low-demand contractors who need active demand generation) without quietly reintroducing an unbounded labor cost.
+**Growth is dead again, this time for a structural reason rather than a labor-cap workaround, and it's not coming back.** Growth existed to solve one problem: under flat-retainer billing, Tractify collects the same amount from a contractor whether they get 1 booking or 20 that month, so there was no built-in reason to invest in a low-performing account — Growth had to be a separate paid bolt-on because the base product had no natural mechanism to fix it.
 
-**Tractify (software only)** — the default tier. Flat monthly retainer, niche-bucketed. Zero ongoing work from Jose/Daniel beyond the product functioning.
+That problem doesn't exist once billing is fully per-delivery (see Pricing below — per appointment for buckets 2 and 3, per new client for bucket 1). Tractify's own revenue is now directly tied to how many bookings each contractor actually gets. That means Tractify already has a built-in, self-funding reason to put paid ad spend behind a contractor who's converting well — the same mechanic the original pre-pivot model used: a slice of every appointment/new-client fee gets reinvested into ads for whoever's producing, no separate product required to justify it. Ads become an internal capital-allocation decision Tractify makes with its own margin, not something a contractor buys.
 
-**Tractify Growth** — a self-serve opt-in (text or portal, "Want us to run ads for you? Reply YES," never a sales call), priced higher than the software-only retainer. Jose actively runs paid acquisition behind them — Google Call-Only ads first, then Facebook and Nextdoor. Accepted selectively, not automatically, to keep the labor cost bounded.
+**One Tractify. One billing philosophy — get paid when you deliver, nothing else.** No pricing-page tier decision, no "which plan am I on," no ad-management SKU. This is a cleaner "we are software, not an agency" position than Growth ever was, because there's no priced ad-management offering sitting on the page at all — Jose decides where to invest ad dollars the same way the trial's "ads as finisher" rule already works, just extended past conversion.
 
-**The agency partnership channel (considered, then explicitly killed) —** a plan to partner with marketing agencies who'd generate demand for contractors while Tractify captured and booked it was drafted earlier this same session as the solution to the "low-demand contractor" gap. Once Growth was reinstated, it made that channel redundant — Growth now solves the same problem directly and simpler. Killed in favor of Growth. The one thing lost by cutting it: agencies were also a leverage play for contractor acquisition itself (one partnership, many contractors at once via their existing client base) — not just a demand-generation channel. Worth reconsidering later purely as an acquisition channel if direct signup volume ever plateaus, but not part of the current plan.
+**The accepted cost, same one already accepted once this session:** a contractor with genuinely no organic signal at all — nothing for the per-delivery economics to work with — doesn't get rescued. There's no margin to reinvest if there's no volume to generate it. That's the honest tradeoff of staying pure software with no ad-management product, and it holds for the same reason it held the first time Growth was cut.
+
+**The agency partnership channel stays dead too** — it was killed in favor of Growth earlier this session, and Growth's death doesn't revive it. The per-delivery self-funding mechanic above solves the same low-demand-contractor gap the agency channel was meant to solve, without adding a partner dependency. Worth reconsidering later purely as an acquisition channel (leverage into an agency's existing client base) if direct signup volume ever plateaus, but not part of the current plan.
 
 ### Niches excluded from the initial rollout (locked August 11, 2026, session 25)
 
 Defer anything health, legal, or financial-adjacent from the first batch of niches — not just dental, the whole category. These are the verticals most likely to draw extra SMS carrier scrutiny and extra ad-platform scrutiny, and none of them are needed to prove the core model. Given how much of this build has already been slowed by Twilio compliance for one single, narrow, well-understood use case (home services booking), deliberately avoiding categories most likely to reintroduce that exact pain is the right early call. Keep the initial soft-launch batch (see "Go-to-market" above) to home services, personal care, and retail-adjacent trades. Revisit health/legal/financial-adjacent niches later, once there's account history and, ideally, direct clarity from Twilio on how they view mixed-vertical traffic under one business profile.
 
-### Pricing — niche-bucket, not bespoke per-niche
+### Pricing — all per-delivery, no retainer anywhere (revised August 12, 2026, session 25 — kills the flat monthly retainer entirely, including for bucket 1)
 
-Per-appointment/niche-adaptive pricing (the old $55-$300/booking table) is dead. There are now two separate niche-bucketed pricing mechanics:
+**The flat monthly retainer is gone, full stop — not just for Growth, everywhere.** The numbers get worse at scale with a retainer, not better: a contractor generating 40 bookings a month pays the same bucketed price as one generating 8, which caps revenue from exactly the accounts Tractify should be earning the most from. Per-delivery billing was the original pre-pivot model's core strength and it's back, structurally unchanged, just organized by bucket instead of fully bespoke per-niche for launch simplicity.
 
-**1. The flat monthly retainer** (Tractify or Tractify Growth), bucketed into roughly three tiers by how high-ticket the niche typically is: low-ticket/high-frequency (lawn care, pest control, cleaning), mid-ticket (HVAC, plumbing, electrical), high-ticket/low-frequency (solar, roofing, window tinting). A new niche gets dropped into a bucket, not individually priced — keeps expansion fast and keeps the whole model simple, matching the "as little work as possible" goal.
+**Two delivery-based mechanics, assigned per bucket, matching structure to how each niche actually generates revenue:**
 
-**2. A one-time activation fee, due at conversion (whichever trial trigger hits first), also niche-bucketed — brought back from the old model's $2,000-setup-fee mechanic, which is what gave Tractify same-week CAC recovery instead of waiting months for a retainer to pay back ad spend.** The old $2,000 number worked specifically for HVAC because a single closed job from the free trial can reasonably cover it — that same logic needs to size the fee per bucket, not use one flat number everywhere. Draft starting points, to be tuned against real close-rate data once live, not locked:
+**1. Per appointment — buckets 2 and 3 (mid-ticket and high-ticket/low-frequency).** HVAC, plumbing, electrical, solar, roofing, window tinting, and similar. Charged the day the appointment happens, exactly like the original model's day-of billing (cancel before the day = no charge, cancel same-day = charge still fires, reschedule moves the charge date). This is the original per-niche rate table already worked out in detail further down this file under "Niche-Adaptive Pricing — Per-Booking Rate by Niche" (HVAC $75, roofing $150, solar $300, plumbing/electrical $65, etc, each validated against the 8x-contractor-ROI / $30+-Tractify-margin test) — that table is revived as the live pricing mechanism, not historical reference. Launch default is bucket-level draft ranges until volume justifies going fully bespoke per niche again: mid-ticket ~$60-150/appointment, high-ticket/low-frequency ~$150-300/appointment.
+
+**2. Per new client — bucket 1 (low-ticket/high-frequency).** Lawn care, pest control, cleaning. A single visit in this bucket is too low-ticket ($50-150) for per-appointment billing to make sense structurally — charging per mow nickel-and-dimes a relationship actually worth $1,500-2,000/year to the contractor, and generates a much higher volume of tiny billing events than the other two buckets. Instead, Tractify charges once when it delivers a new recurring customer to the contractor — "we don't charge per mow, we charge for the new customer" — which is still fully delivery-based (no charge, no booking) but scoped to the relationship instead of the visit. This recovers the original model's lawn care structure ($125/new client) as the bucket-level default, draft range ~$100-300/new client depending on niche.
+
+**3. A one-time activation fee, due at conversion (whichever trial trigger hits first), also niche-bucketed — unchanged from the prior draft, still the old model's $2,000-setup-fee mechanic generalized per bucket for same-week CAC recovery instead of waiting on ongoing billing to pay back ad spend.** Draft starting points, to be tuned against real close-rate data once live, not locked:
 - Low-ticket/high-frequency (lawn care, pest control, cleaning) — **$150-300.** These niches don't have a single job worth $2,000, they have a new customer worth roughly $1,500-2,000/year — the fee should track that, not a per-visit price.
 - Mid-ticket (HVAC, plumbing, electrical) — **$1,500-2,000.** Keeps close to the number already proven to work in the old model.
 - High-ticket/low-frequency (solar, roofing, window tinting) — **$3,000-5,000.** A single closed job in this bucket is worth $8,000-30,000, so this bucket can comfortably absorb a higher fee than HVAC's, not the same number.
+
+**Build note:** per-appointment day-of billing (cancellation/reschedule logic) is meaningfully more complex to implement correctly than a subscription would have been — that complexity was the whole reason a retainer was briefly considered. It's being taken on anyway because the economics and the positioning both depend on it. Per-new-client billing for bucket 1 is simpler than per-appointment despite also being delivery-based — it only fires once per relationship (on first booking from a homeowner phone number new to that contractor), not on every recurring visit.
 
 ### Risk control without charging contractors for their own number
 
@@ -498,6 +506,8 @@ Tractify automatically texts each contractor's past customer list when seasons c
 
 ## Sales Strategy (Pivoted July 18, 2026)
 
+**⚠️ Superseded by THE PIVOT (session 25) — Track 1 / Track 2 manual contractor qualification described below is dead, replaced by self-selection (see "What's explicitly killed" near the top of this file). Left intact for historical build context; do not act on the Track 1/Track 2 targeting split below as current strategy.**
+
 **Current phase:** Finishing infrastructure first — all remaining build items (Google Reviews pull, Twilio unblock, debug log removal, pipeline polish) must be complete before shifting focus. Once infrastructure is done, full attention moves to ads and execution. Cold calling is retired permanently.
 
 **August execution focus — ads + job delivery:** Two-track ad strategy once infrastructure is complete:
@@ -590,6 +600,8 @@ This rewards high-volume contractors without introducing retainer complexity, an
 ---
 
 ### Niche-Adaptive Pricing — Per-Booking Rate by Niche (locked August 2, 2026)
+
+**⚠️ REVIVED, not historical — as of session 25 (August 12, 2026) this table is the live per-appointment pricing mechanism again, not dead pre-pivot content.** See "Pricing — all per-delivery, no retainer anywhere" under THE PIVOT section near the top of this file. Launch default is bucket-level ranges (mid-ticket ~$60-150, high-ticket ~$150-300) rather than the fully bespoke per-niche numbers below, but this table is exactly where those bespoke numbers come from once volume justifies moving past bucket-level pricing — the 8x-ROI/$30-margin test and every rate below still apply directly. Ignore the "superseded" framing on the general "What Tractify Is" section this table lives under; that framing applies to the website/per-appointment-only-for-HVAC business model, not to this specific pricing logic.
 
 The $75 flat rate was HVAC-specific. Tractify now operates on a niche-adaptive model. The price per booking is set per niche at intake and never changes mid-relationship. The number looks different per niche — the underlying logic is always identical.
 
@@ -3731,9 +3743,9 @@ The brain can't be built all at once. It has to be layered in the right order as
 - [ ] Jose expand availability in contractor portal (for /schedule/book — not blocking client onboarding)
 - [ ] Railway database backups — requires Pro plan ($20/month). Do NOT upgrade until first paying client.
 
-**Remaining — must do before first client converts (Aug 4 with Daniel):**
-- [ ] **Open business bank account** — EIN in hand (42-4017025, issued July 23). Do this first.
-- [ ] **Stripe integration** — self-serve conversion at job 5. Job 5 milestone trigger → Stripe payment page → $2,000 setup fee + $800/month retainer → system flips them to paid. No manual invoicing. Set up with Daniel on August 4th — this is the crowning piece of the whole business model.
+**Remaining — must do before first client converts:**
+- ✅ **Open business bank account** — done, no delay on this end.
+- [ ] **Stripe integration** — ⚠️ superseded, see "⚡ THE ACTUAL NEXT STEPS" near the bottom of this file for the current build order and structure (per-delivery billing, not job-5-only trigger, not flat $2,000+$800/month).
 - [ ] Job milestone trigger (job 3 + job 5) — portal notification + email, data-aware messaging (see Planned Features)
 - [ ] Revenue + outcome logging — "Did this job close? How much?" after each completed appointment
 
@@ -3767,7 +3779,36 @@ Full audit passed. Summary of what was verified:
 
 ---
 
-## ⚡ PICK UP HERE — Stripe + First Contractor
+## ⚡ PICK UP HERE — THE ACTUAL NEXT STEPS: Intake Form → Twilio/SMS Hardening → Stripe (locked August 12, 2026, session 25 — supersedes every older "what to build next" list in this file)
+
+**🎉 Twilio approved — manually, this morning, August 12, 2026.** The compliance block that's been open since session 23 (Error 18602 EIN-verification lag, then Error 18606 email-domain mismatch, then a stuck support ticket) is resolved. This unblocks real SMS/voice traffic for the first time ever in this project. Nothing has run on real Twilio traffic yet — everything to date has been simulated via `POST /api/twilio/test-sms`. Treat "Twilio approved" as "the door is open," not "the room is finished" — see the hardening list below before pointing real numbers at real homeowners.
+
+**Locked step-by-step order (added August 12, 2026 — read this list top to bottom to know exactly what's next and why). Each step names what it is, why it's in this position, and what unblocks after it's done. Mark steps done in place as they close.**
+
+**STEP 0 — Confirm A2P 10DLC / campaign registration status. Do this FIRST, in parallel with everything else, starting immediately.** ⬜ NOT STARTED.
+Why first, out of build order: this is the one external dependency in the whole list with unknown, uncontrollable lead time — Twilio compliance on this project has already taken multiple rounds (Error 18602 EIN lag, Error 18606 email-domain mismatch, a stuck support ticket). "Manually approved this morning" almost certainly refers to the Trust Hub Business Profile clearing, which is a different thing from A2P 10DLC campaign-level registration for actual SMS traffic. Do not assume the morning's approval covers both. If 10DLC isn't registered yet, start it today regardless of what else is in progress — it can run in the background while Steps 1-2 happen, but if it's not even started, it becomes the next multi-day (or multi-week) blocker at the worst possible time, i.e. right when everything else is finally ready.
+How to check: Twilio Console → Messaging → Regulatory Compliance → Campaigns (or "A2P 10DLC" in the search bar) — look for a registered Brand and at least one Campaign in "Verified"/"Active" status, not just "In Review." A Twilio MCP connector is available to check this programmatically instead of digging through the console by hand — ask to connect it if useful.
+If not registered: register immediately — this is the actual first build task, ahead of Step 1.
+
+**STEP 1 — Finish the intake form completely, end to end.** ⬜ NOT STARTED.
+What: not just "the file is correct" (already verified this session) — submit a real test signup on intake.tractifyhq.com, confirm the Cloudflare Worker fires, confirm the payload lands correctly on the backend (`clientId, businessName, phone, address, niche, placeId, hoursRaw, acquisitionSource`), confirm nothing 404s or silently drops a field.
+Why here: this is the only entry point every contractor passes through — if it leaks, nothing downstream (SMS, billing) ever gets tested with real data anyway.
+Unblocks: real contractor data flowing into Step 2's testing.
+
+**STEP 2 — Twilio/SMS hardening. The big one — the whole business runs through this layer, so "good enough" isn't good enough.** ⬜ NOT STARTED. Sub-steps, roughly in order:
+- 2a. Build the shared Twilio number pool — doesn't exist in code yet, this is new engineering. Currently one Twilio number gets manually assigned per contractor by Jose via the admin dashboard, permanently. THE PIVOT's signup design needs: a number auto-assigned instantly from a pre-purchased pool at signup, released back to the pool automatically on non-conversion/going dark, made permanent only on conversion.
+- 2b. Real end-to-end test with an actual phone, not just the simulator — `/api/twilio/test-sms` proves the AI logic works but nothing has gone through Twilio's real webhook path (signature validation, missed-call-to-text flow, real carrier delivery). Buy one real number, run a full contractor + homeowner conversation through it live.
+- 2c. Confirm the `business_phone` branching logic (built session 25) holds up in a real conversation, not just by reading the code — the call-forwarding step asking "same number or different" needs a live test.
+- 2d. Add basic monitoring/alerting for this layer — no alert currently exists if a webhook silently fails or the AI stops responding. A cheap cron check ("any inbound SMS in the last N hours with no AI reply logged") before this carries real contractors.
+- 2e. Build the 5-jobs-or-21-days trial trigger + offer text — pure SMS/cron work, no payment processing. Detect the trigger, fire the offer conversation. Build here, not deferred to Step 3, because it's fully decoupled from Stripe and can ship complete before any billing code exists.
+Why here, after Step 1 and Step 0 in parallel: Stripe (Step 3) depends on this layer reliably detecting triggers and reliably talking to the contractor — building billing on an unproven SMS layer means building on an unverified foundation.
+
+**STEP 3 — Stripe and billing, only after Step 2 is solid.** ⬜ NOT STARTED. Business bank account already open, no delay there.
+- 3a. One-time niche-bucketed activation fee flow — simpler piece, reuses existing SMS/webhook patterns. Est. 1-2 days.
+- 3b. Ongoing per-delivery billing — per-appointment for buckets 2/3, per-new-client for bucket 1. Off-session card charges, correct day-of/cancel/reschedule timing. Highest-risk piece, needs real edge-case testing. Est. 3-5 days.
+- Full estimate for Step 3 end to end: ~6-10 focused days, discussed and locked session 25.
+
+---
 
 **August 12, 2026 (session 25 continued) — new intake form live, favicon fixed, and the "which number is which" gap in the AI SMS drip closed.** After the pivot rewrite, `hvac-template/intake-form.html` was rebuilt down to a single-screen 4-field signup (business name, phone-confirm, address, "what do you do") and deployed to intake.tractifyhq.com. Two copy fixes made on the live form: the AI-branding leak ("This is how our AI knows what you do") was changed to "This is how our system knows what to do" — Tractify never tells contractors or homeowners it's AI, per the existing "show results, never the recipe" content principle. Favicon added — the tab icon now shows the actual Tractify logo (reused the exact base64 payload already embedded in the page's header logo `<img>`, verified byte-identical and PNG-valid via script rather than hand-retyped, since a first manual attempt at this introduced a transcription error in the base64 data that was caught before deploy).
 
@@ -3845,12 +3886,7 @@ curl -X POST https://tractifyhq.com/api/twilio/test-sms \
 # → returns { reply: "Got it. What's going on — heating, cooling...", sessionState: "awaiting_service" }
 ```
 
-**Next builds in order:**
-1. **SMS test endpoint** — tomorrow. Simulate contractor + homeowner conversations without Twilio.
-2. **Stripe integration** — August 4 with Daniel. Job 5 fires → automated Stripe payment page → $2,000 setup fee → per-appointment billing at $75/confirmed booking. No retainer, no contract.
-3. **Contractor dashboard live stats** — jobs by source, this month, upcoming. Churn prevention.
-4. **Job milestone trigger (job 3 + job 5)** — portal notification + data-aware email. Job 5 fires Stripe automatically.
-5. **Revenue + outcome logging** — post-appointment "did it close?" prompt in portal.
+**Next builds in order:** ⚠️ superseded — see "⚡ THE ACTUAL NEXT STEPS" near the bottom of this file for the current, correct build order (intake form → Twilio/SMS hardening → Stripe, per-delivery billing not job-5-only/flat-fee).
 
 **✅ Complete as of session 19 (SMS drip rewrite + Brain 3 final audit):**
 - **All smsAI.js drip messages rewritten** — urgency-first, no soft language, no portal references. Every step message is specific about cost of skipping, action is a 60-second win. Welcome, power message, calendar training, capabilities guide, and post-appointment close text all rewritten.
@@ -3998,10 +4034,7 @@ Connect to psql first: `railway run psql $DATABASE_URL` then paste at `=#`. (Pas
 **Ask the brain instead** — open 🧠 on the admin dashboard and ask "which channels are converting fastest?" — it runs the same query and answers in plain English.
 
 ### What to build next (in order)
-1. **Stripe integration** — August 4 with Daniel. Job 5 fires → automated Stripe payment page → $2,000 setup fee → system marks paid → $75/confirmed booking auto-billed after that. No retainer. No contract. Self-serve, no Jose involvement.
-2. **Contractor dashboard live stats** — jobs by source, jobs this month, upcoming, next appointment. Primary churn prevention — contractor who sees their own numbers every login never cancels.
-3. **Job milestone trigger (job 3 + job 5)** — portal notification + email, data-aware. Job 3: "You've made $X through Tractify — here's what happens at job 5." Job 5: Stripe fires automatically.
-4. **Revenue + outcome logging** — "Did this job close? YES $850 or NO" prompt in portal after appointment completed. Feeds monthly results report and case studies.
+⚠️ Superseded — see "⚡ THE ACTUAL NEXT STEPS" near the bottom of this file. Contractor dashboard live stats, job milestone triggers, and revenue/outcome logging are all still real, still needed, just resequenced behind Twilio/SMS hardening now that Stripe is no longer the immediate next build.
 
 **Already complete — do not rebuild:**
 - ✅ Real-time booking alert to Jose (session 14) — fires on every booking

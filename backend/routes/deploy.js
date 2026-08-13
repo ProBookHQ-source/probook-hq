@@ -4,8 +4,16 @@
  * POST /api/deploy
  *
  * Called by the Cloudflare Worker after a contractor submits the intake form.
- * Fully automates: contractor account creation → API key → HVAC site deploy →
- * Cloudflare Pages → CNAME → availability pre-population → welcome email.
+ *
+ * ⚠️ Rewritten August 13, 2026 for THE PIVOT (see CLAUDE.md). The old version of
+ * this file deployed a per-contractor HVAC website to Cloudflare Pages and required
+ * an email for portal login. Both of those are dead: there is no more per-contractor
+ * website, and contractors never log in — the entire relationship runs over SMS.
+ *
+ * What this does now: create the contractor account (no email required, no login
+ * intended), auto-match/create their niche from free text, pre-populate availability
+ * from their submitted hours, and alert Jose so he can assign a Twilio number — which
+ * is what actually kicks off the SMS welcome conversation (see contractors.js PUT /:id).
  *
  * Auth: Authorization: Bearer {DEPLOY_SECRET}
  */
@@ -13,47 +21,12 @@
 const express  = require('express');
 const bcrypt   = require('bcryptjs');
 const crypto   = require('crypto');
-const path     = require('path');
-const fs       = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
-const db           = require('../database/db');
-const { sendContractorWelcomeEmail, sendDeployAlertToAdmin } = require('../services/notifications');
-const { deployToPages, addPagesDomain } = require('../services/cloudflare');
+const db     = require('../database/db');
+const { sendDeployAlertToAdmin } = require('../services/notifications');
 
-const https  = require('https');
 const router = express.Router();
-
-// ── Fetch top Google reviews for a contractor via Places API ──────────────────
-async function fetchGoogleReviews(placeId) {
-  const PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
-  if (!placeId || !PLACES_API_KEY) return [];
-  return new Promise((resolve) => {
-    const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=reviews&key=${PLACES_API_KEY}`;
-    https.get(url, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(body);
-          const raw  = (json.result && json.result.reviews) || [];
-          const top3 = raw
-            .filter(r => r.rating >= 4)
-            .slice(0, 3)
-            .map(r => ({
-              name: r.author_name || 'Google Reviewer',
-              text: r.text       || '',
-              rating: r.rating   || 5,
-              date: r.relative_time_description || 'Recently',
-            }));
-          resolve(top3);
-        } catch(e) {
-          resolve([]);
-        }
-      });
-    }).on('error', () => resolve([]));
-  });
-}
 
 // ── Auth middleware — shared secret set in Railway env ────────────────────────
 function requireDeploySecret(req, res, next) {
@@ -73,6 +46,8 @@ function requireDeploySecret(req, res, next) {
 }
 
 // ── Slug generator — "Premier Comfort HVAC" → "premiercomforthvac" ────────────
+// No website hangs off this anymore, but booking_slug is still used elsewhere
+// (e.g. the personal /schedule/:slug booking page), so keep generating one.
 function generateSlug(businessName) {
   return (businessName || '')
     .toLowerCase()
@@ -93,132 +68,6 @@ function parseTime12h(timeStr) {
   return `${h.toString().padStart(2, '0')}:${min}:00`;
 }
 
-// ── Build the CLIENT config JavaScript block for injection into the template ──
-function buildClientConfig(data, apiKey, slug) {
-  function esc(s) {
-    return String(s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
-  }
-
-  const subdomainUrl = `https://${slug}.tractifyhq.com`;
-  const phoneRaw = (data.phone || '').replace(/\D/g, '');
-  const hrs = data.hoursRaw || {};
-
-  const wdOpen   = hrs.wdOpen   || '7:00 AM';
-  const wdClose  = hrs.wdClose  || '7:00 PM';
-  const satOpen  = hrs.satOpen  || '8:00 AM';
-  const satClose = hrs.satClose || '5:00 PM';
-  const sunOpen  = hrs.sunOpen  || 'Closed';
-  const sunClose = hrs.sunClose || 'Closed';
-
-  const wdStr  = wdOpen  === 'Closed' ? 'Closed' : `${wdOpen} – ${wdClose}`;
-  const satStr = satOpen === 'Closed' ? 'Closed' : `${satOpen} – ${satClose}`;
-  const sunStr = sunOpen === 'Closed' ? 'Closed' : `${sunOpen} – ${sunClose}`;
-
-  const zips = Array.isArray(data.zips) && data.zips.length > 0 ? data.zips : ['*'];
-  const zipChunks = [];
-  for (let i = 0; i < zips.length; i += 12) {
-    zipChunks.push('        ' + zips.slice(i, i + 12).map(z => `"${z}"`).join(', '));
-  }
-
-  const brands = Array.isArray(data.brands)
-    ? data.brands.join(', ')
-    : (data.brands || 'All major brands');
-
-  const social = data.social || {};
-
-  return `  <!-- TRACTIFY_CONFIG_START -->
-  <script>
-    const CLIENT = {
-
-      // ── COMPANY INFO ─────────────────────────────────────────
-      name:            "${esc(data.businessName)}",
-      phone:           "${esc(data.phone)}",
-      phoneRaw:        "${phoneRaw}",
-      city:            "${esc(data.city)}",
-      serviceArea:     "${esc(data.serviceArea || data.city)}",
-      serviceZips:     [
-${zipChunks.join(',\n')}
-      ],
-      address:         "${esc(data.address || '')}",
-
-      // ── LOGO & BRANDING ──────────────────────────────────────
-      logoTagline:     "Heating &amp; Cooling Specialists",
-      logoImg:         "${esc(data.logoUrl || '')}",
-      coverPhoto:      "${esc(data.coverUrl || './Coverphoto.jpg')}",
-      coverPhotoFocus: "center",
-
-      // ── SOCIAL PROOF ─────────────────────────────────────────
-      reviewScore:     "${esc(data.reviewScore || '5.0')}",
-      reviewCount:     "${esc(data.reviewCount || '')}",
-      yearsInBusiness: "${esc(data.years || '')}",
-
-      // ── CLAIMS & GUARANTEES ──────────────────────────────────
-      warrantyYears:   "${esc(data.warrantyYears || '')}",
-      responseTime:    "1 hour",
-
-      // ── FINANCING ────────────────────────────────────────────
-      financingFrom:   "${esc(data.financingFrom ? (String(data.financingFrom).startsWith('$') ? data.financingFrom : '$' + data.financingFrom) : '')}",
-
-      // ── HERO HEADLINE ────────────────────────────────────────
-      heroLine1:       "Comfort You Can",
-      heroLine2:       "Count On.",
-
-      // ── BRANDS SERVICED ──────────────────────────────────────
-      brands:          "${esc(brands)}",
-
-      // ── GOOGLE REVIEWS ───────────────────────────────────────
-      googleBusinessUrl: "${esc(data.googleUrl || '')}",
-      reviews: ${JSON.stringify(data.reviews || [])},
-      services: ${JSON.stringify(Array.isArray(data.services) ? data.services : [])},
-
-      // ── TRACTIFY INTEGRATION ─────────────────────────────────
-      tractifyKey:      "${esc(apiKey)}",
-      sourceSite:      "${esc(slug + '.tractifyhq.com')}",
-      siteUrl:         "${esc(subdomainUrl)}",
-      ogImage:         "${esc(data.coverUrl || '')}",
-      year:            new Date().getFullYear(),
-
-      // ── BUSINESS HOURS ───────────────────────────────────────
-      hours: {
-        weekdays: "Mon – Fri: ${esc(wdStr)}",
-        saturday: "Saturday: ${esc(satStr)}",
-        sunday:   "Sunday: ${esc(sunStr)}",
-      },
-
-      // ── FOOTER TAGLINE ───────────────────────────────────────
-      footerTagline:   "Licensed, insured, and dedicated to doing the job right. We treat every home like our own.",
-
-      // ── LICENSE & COMPLIANCE ─────────────────────────────────
-      licenseNumber:   "${esc(data.licenseNumber || '')}",
-
-      // ── SOCIAL LINKS ─────────────────────────────────────────
-      social: {
-        facebook:  "${esc(social.facebook  || '')}",
-        instagram: "${esc(social.instagram || '')}",
-        tiktok:    "${esc(social.tiktok    || '')}",
-        youtube:   "${esc(social.youtube   || '')}",
-        nextdoor:  "${esc(social.nextdoor  || '')}",
-        google:    "${esc(data.googleUrl   || '')}",
-      },
-
-      // ── FEATURE FLAGS ────────────────────────────────────────
-      // Defaults to enabled if not sent (backwards-compatible with old submissions)
-      features: {
-        nate:         ${data.nate         !== false},
-        emergency247: ${data.emergency    !== false},
-        financing:    ${data.financing    !== false},
-        commercial:   ${data.commercial   !== false},
-        faq:          true,
-        showMap:      ${data.address ? 'true' : 'false'},
-      },
-
-    };
-
-    const PRIMARY_COLOR = "#e85d26";
-  </script>
-  <!-- TRACTIFY_CONFIG_END -->`;
-}
-
 // ── Ensure slug is unique (add numeric suffix if taken) ───────────────────────
 async function uniqueSlug(baseSlug) {
   let slug = baseSlug;
@@ -229,6 +78,30 @@ async function uniqueSlug(baseSlug) {
     slug = `${baseSlug}${n++}`;
     if (n > 99) throw new Error('Could not generate unique slug after 99 attempts');
   }
+}
+
+// ── Find or create a niche from the contractor's free-text "what do you do" ───
+// The intake form no longer offers a dropdown — it's one line of free text.
+// Match case-insensitively against existing niches; if nothing matches, create
+// a new niche row from the raw text. This is the "database insert, not a code
+// change" niche-expansion model described in CLAUDE.md — no AI normalization
+// yet (that's a documented future enhancement), just a straightforward match.
+async function findOrCreateNiche(rawText) {
+  const cleaned = (rawText || '').trim();
+  if (!cleaned) return null;
+
+  const existing = await db.prepare(
+    'SELECT id FROM niches WHERE LOWER(name) = LOWER($1) LIMIT 1'
+  ).get(cleaned);
+  if (existing) return existing.id;
+
+  const id = uuidv4();
+  await db.query(
+    'INSERT INTO niches (id, name, description) VALUES ($1, $2, $3) ON CONFLICT (name) DO NOTHING',
+    [id, cleaned, `Auto-created from intake signup: "${cleaned}"`]
+  );
+  const row = await db.prepare('SELECT id FROM niches WHERE LOWER(name) = LOWER($1) LIMIT 1').get(cleaned);
+  return row ? row.id : id;
 }
 
 // ── Pre-populate availability slots from intake hours ─────────────────────────
@@ -272,169 +145,86 @@ async function seedAvailability(contractorId, hoursRaw) {
 router.post('/', requireDeploySecret, async (req, res) => {
   const data = req.body;
 
-  // Validate required fields
-  if (!data.businessName || !data.contactEmail) {
-    return res.status(400).json({ error: 'businessName and contactEmail are required' });
+  // Validate required fields — email is intentionally NOT required. The new
+  // intake form never collects one; contractors don't log in.
+  if (!data.businessName || !data.phone) {
+    return res.status(400).json({ error: 'businessName and phone are required' });
   }
 
-  const email = data.contactEmail.toLowerCase().trim();
-  const log   = (msg) => console.log(`[DEPLOY] [${data.businessName}] ${msg}`);
+  const phoneDigits = (data.phone || '').replace(/\D/g, '');
+  const log = (msg) => console.log(`[DEPLOY] [${data.businessName}] ${msg}`);
 
-  log(`Starting auto-deploy for ${email}`);
+  log(`Starting signup for ${data.phone}`);
 
-  // Check for duplicate email
-  const existing = await db.prepare('SELECT id FROM contractors WHERE email = $1').get(email);
+  // Check for duplicate signup by phone (the real identity key now, not email)
+  const existing = await db.prepare('SELECT id FROM contractors WHERE phone = $1').get(data.phone);
   if (existing) {
-    log(`Contractor already exists with email ${email} — skipping`);
-    return res.status(409).json({ error: 'Contractor already exists with this email', contractorId: existing.id });
+    log(`Contractor already exists with phone ${data.phone} — skipping`);
+    return res.status(409).json({ error: 'Contractor already exists with this phone number', contractorId: existing.id });
   }
 
   // ── Step 1: Generate slug & ensure uniqueness ──────────────────────────────
-  const baseSlug     = generateSlug(data.businessName);
-  const slug         = await uniqueSlug(baseSlug);
-  const projectName  = `tractify-${slug}`;
-  const subdomainUrl = `https://${slug}.tractifyhq.com`;
-
-  log(`Slug: ${slug} | Pages project: ${projectName}`);
+  const baseSlug = generateSlug(data.businessName);
+  const slug     = await uniqueSlug(baseSlug);
+  log(`Slug: ${slug}`);
 
   // ── Step 2: Create contractor account ─────────────────────────────────────
-  const tempPassword = crypto.randomBytes(10).toString('hex'); // 20-char hex
-  const contractorId = uuidv4();
-  const passwordHash = bcrypt.hashSync(tempPassword, 10);
+  // No real email exists — generate a synthetic, unique, never-shown placeholder
+  // purely to satisfy the DB's NOT NULL/UNIQUE constraint. Never emailed, never
+  // used for login. Password is a random value that's likewise never surfaced —
+  // the whole point is contractors never need to log in.
+  const syntheticEmail = `${phoneDigits}@sms.tractifyhq.com`;
+  const tempPassword   = crypto.randomBytes(10).toString('hex');
+  const contractorId   = uuidv4();
+  const passwordHash   = bcrypt.hashSync(tempPassword, 10);
 
-  // Look up HVAC niche ID
-  const hvacNiche = await db.prepare(
-    "SELECT id FROM niches WHERE LOWER(name) = 'hvac' LIMIT 1"
-  ).get();
-  const nicheId = hvacNiche?.id || null;
+  const nicheId = await findOrCreateNiche(data.niche);
+  log(`Niche resolved: ${data.niche || '(none)'} → ${nicheId || 'none'}`);
 
-  const zips = Array.isArray(data.zips) && data.zips.length > 0
-    ? JSON.stringify(data.zips)
-    : JSON.stringify(['*']);
+  // Service zips aren't collected on the new form — service area is meant to be
+  // derived from the geocoded address later. '*' is the existing "serves anywhere"
+  // fallback already used elsewhere in this codebase.
+  const zips = JSON.stringify(['*']);
 
   await db.query(`
     INSERT INTO contractors
       (id, email, password_hash, name, phone, company_name, niche_id,
        service_zip_codes, is_active, status, booking_slug, onboarding_started_at,
-       acquisition_source, city)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,1,'approved',$9,NOW(),$10,$11)
+       acquisition_source, address, place_id)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,1,'approved',$9,NOW(),$10,$11,$12)
   `, [
     contractorId,
-    email,
+    syntheticEmail,
     passwordHash,
-    data.contactName || data.businessName,
-    data.phone || null,
+    data.businessName,
+    data.phone,
     data.businessName,
     nicheId,
     zips,
     slug,
-    data.acquisitionSource || null,  // e.g. 'facebook_video_roof', 'google_ad', 'tiktok'
-    data.city || null,
+    data.acquisitionSource || null,
+    data.address || null,
+    data.placeId || null,
   ]);
 
   log(`Contractor created: ${contractorId}`);
 
-  // Save Google Places ID + city if provided
-  if (data.placeId || data.city) {
-    await db.query(
-      `UPDATE contractors SET place_id = COALESCE($1, place_id), city = COALESCE($2, city) WHERE id = $3`,
-      [data.placeId || null, data.city || null, contractorId]
-    ).catch(e => log(`place_id/city save warning: ${e.message}`));
-  }
-
-  // ── Step 3: Create API key linked to contractor ────────────────────────────
-  const apiKey      = 'pb_' + crypto.randomBytes(24).toString('hex');
-  const apiKeyId    = uuidv4();
-  const allowedOrigins = `${subdomainUrl},https://${slug}.tractifyhq.com`;
-
-  await db.query(`
-    INSERT INTO inbound_api_keys (id, name, key, source_slug, is_active, contractor_id, allowed_origins)
-    VALUES ($1,$2,$3,$4,1,$5,$6)
-  `, [apiKeyId, data.businessName, apiKey, slug, contractorId, allowedOrigins]);
-
-  log(`API key created: ${apiKeyId}`);
-
-  // ── Step 4: Build template HTML with injected CLIENT config ───────────────
-  const templatePath = path.join(__dirname, '../templates/hvac-template.html');
-  let templateHtml   = fs.readFileSync(templatePath, 'utf-8');
-
-  // Pull top 3 Google reviews if placeId was captured on intake form.
-  // Never blocks deploy — falls back to [] silently on any error.
-  data.reviews = await fetchGoogleReviews(data.placeId || '');
-  log(`Google reviews fetched: ${data.reviews.length} (placeId: ${data.placeId || 'none'})`);
-
-  const configBlock = buildClientConfig(data, apiKey, slug);
-
-  // Replace everything between the TRACTIFY_CONFIG markers
-  templateHtml = templateHtml.replace(
-    /<!--\s*TRACTIFY_CONFIG_START\s*-->[\s\S]*?<!--\s*TRACTIFY_CONFIG_END\s*-->/,
-    configBlock
-  );
-
-  log(`Template built (${templateHtml.length} bytes)`);
-
-  // ── Step 5: Deploy to Cloudflare Pages (via Wrangler CLI) ────────────────
-  // Non-fatal: if deploy fails, contractor account + emails still succeed.
-  // Jose gets the admin alert and can manually deploy if needed.
-  // Assets to deploy alongside index.html so relative URLs resolve correctly
-  const templatesDir = path.join(__dirname, '../templates');
-  const templateAssets = [
-    { src: path.join(templatesDir, 'Coverphoto.jpg'),  dest: 'Coverphoto.jpg'  },
-    { src: path.join(templatesDir, 'probooklogo.png'), dest: 'probooklogo.png' },
-  ];
-
-  let pagesResult;
-  try {
-    pagesResult = await deployToPages(projectName, templateHtml, templateAssets);
-    log(`Pages deployment complete: ${pagesResult.url || projectName}`);
-  } catch (cfError) {
-    log(`Pages deploy FAILED (non-fatal): ${cfError.message}`);
-    // Continue — emails and DB records are more important than the page deploy
-  }
-
-  // ── Step 6: Register custom domain with Pages ────────────────────────────
-  // addPagesDomain() handles everything: registers with Pages AND creates DNS.
-  // If already registered (retry), it removes and re-adds to refresh DNS.
-  // Do NOT call createCname() here — a proxied CNAME to .pages.dev conflicts
-  // with Pages' internal routing and causes HTTP 500.
-  try {
-    await addPagesDomain(projectName, `${slug}.tractifyhq.com`);
-    log(`Custom domain live: ${slug}.tractifyhq.com`);
-  } catch (dnsErr) {
-    log(`Custom domain error: ${dnsErr.message}`);
-  }
-
-  // ── Step 7: Pre-populate availability ────────────────────────────────────
+  // ── Step 3: Pre-populate availability from submitted hours ────────────────
   try {
     await seedAvailability(contractorId, data.hoursRaw);
   } catch (availErr) {
     log(`Availability seed warning: ${availErr.message}`);
-    // Non-fatal — contractor can set hours manually in portal
+    // Non-fatal — hours can be confirmed/corrected over text later
   }
 
-  // ── Step 8: Send welcome email to contractor ──────────────────────────────
-  try {
-    await sendContractorWelcomeEmail({
-      name:        data.contactName || data.businessName,
-      email,
-      company:     data.businessName,
-      siteUrl:     subdomainUrl,
-      portalUrl:   `${process.env.FRONTEND_URL || 'https://tractifyhq.com'}/contractor`,
-      loginEmail:  email,
-      password:    tempPassword,
-    });
-    log(`Welcome email sent to ${email}`);
-  } catch (emailErr) {
-    log(`Welcome email failed: ${emailErr.message}`);
-    // Non-fatal — Jose gets the admin alert below
-  }
-
-  // ── Step 9: Alert admin ───────────────────────────────────────────────────
+  // ── Step 4: Alert admin — assigning a Twilio number is the next manual step,
+  // which automatically fires the SMS welcome conversation (contractors.js PUT /:id) ──
   try {
     await sendDeployAlertToAdmin({
-      businessName:  data.businessName,
-      contactEmail:  email,
-      siteUrl:       subdomainUrl,
+      businessName: data.businessName,
+      phone:        data.phone,
+      address:      data.address || '',
+      niche:        data.niche || '',
       contractorId,
       slug,
     });
@@ -442,14 +232,12 @@ router.post('/', requireDeploySecret, async (req, res) => {
     log(`Admin alert failed: ${e.message}`);
   }
 
-  log(`Deploy complete ✓`);
+  log(`Signup complete ✓`);
 
   res.status(201).json({
-    ok:            true,
+    ok: true,
     contractorId,
     slug,
-    siteUrl:       subdomainUrl,
-    pagesProject:  projectName,
   });
 });
 
