@@ -51,6 +51,7 @@ app.use('/api/bookings/book',        externalClientCors('POST'));
 app.use('/api/bookings/book-direct', externalClientCors('POST'));
 app.use('/api/contractors/public',   externalClientCors('GET'));
 app.use('/api/niches/public',        externalClientCors('GET'));
+app.use('/api/intake/track',         externalClientCors('POST'));
 
 // Security headers
 app.use(helmet({
@@ -81,6 +82,8 @@ app.use((req, res, next) => {
     req.path.startsWith('/api/availability') ||
     req.path.startsWith('/api/bookings/book') ||
     req.path.startsWith('/api/contractors/public') ||
+    req.path.startsWith('/api/niches/public') ||
+    req.path.startsWith('/api/intake/track') ||
     req.path.startsWith('/api/twilio') ||      // Twilio webhooks — server-to-server
     req.path.startsWith('/api/leads/facebook') // Facebook webhooks — server-to-server
   ) return next();
