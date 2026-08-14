@@ -61,4 +61,15 @@ input, select, textarea {
   .badge {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
+
+  /* ── Pitch-deck gradient system (LandingPage.jsx) ──────────────────────── */
+  /* The deck's periwinkle-to-indigo diagonal gradient, reused across every
+     section on the redesigned homepage so the whole page reads as one
+     continuous deck rather than a website with a colored hero bolted on. */
+  .bg-tractify-gradient {
+    background: radial-gradient(ellipse 120% 100% at 15% 0%, #a9a7fb 0%, #6366f1 45%, #4338ca 80%, #282566 100%);
+  }
+  .font-display {
+    font-family: 'Archivo Black', sans-serif;
+  }
 }

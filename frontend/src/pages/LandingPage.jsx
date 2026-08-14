@@ -1,259 +1,420 @@
 import { useNavigate } from 'react-router-dom';
 import {
-  Zap, CheckCircle, Clock, Users, ArrowRight,
-  Star, Shield, TrendingUp, Calendar, Mail, Phone
+  Zap, ArrowRight, PhoneCall, MessageSquare, CalendarCheck,
+  Smartphone, LayoutGrid, KeyRound, CheckCircle2,
 } from 'lucide-react';
+
+// ── Reusable line-art SVGs — hand-drawn in the same thin white-stroke style
+// used throughout the pitch deck, built fresh rather than reusing the deck's
+// stock photography (per Jose's explicit instruction). ─────────────────────
+
+function SkylineArt({ className }) {
+  return (
+    <svg viewBox="0 0 320 200" fill="none" className={className}>
+      <g stroke="white" strokeOpacity="0.9" strokeWidth="1.5">
+        <rect x="24" y="90" width="46" height="90" />
+        <rect x="80" y="60" width="40" height="120" />
+        <rect x="130" y="105" width="36" height="75" />
+        <polygon points="148,105 148,80 165,105" />
+        <rect x="176" y="40" width="44" height="140" />
+        <polygon points="176,40 198,15 220,40" />
+        <rect x="230" y="75" width="38" height="105" />
+        <rect x="278" y="115" width="30" height="65" />
+        <line x1="10" y1="180" x2="312" y2="180" />
+        <line x1="90" y1="60" x2="90" y2="180" strokeOpacity="0.35" />
+        <line x1="188" y1="40" x2="188" y2="180" strokeOpacity="0.35" />
+      </g>
+    </svg>
+  );
+}
+
+function PeopleArt({ className }) {
+  return (
+    <svg viewBox="0 0 320 220" fill="none" className={className}>
+      <g stroke="white" strokeOpacity="0.9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <ellipse cx="160" cy="185" rx="120" ry="14" />
+        {[70, 160, 250].map((cx, i) => (
+          <g key={i}>
+            <circle cx={cx} cy="60" r="22" />
+            <path d={`M ${cx - 34} 150 Q ${cx - 34} 100 ${cx} 96 Q ${cx + 34} 100 ${cx + 34} 150 L ${cx + 34} 185 L ${cx - 34} 185 Z`} />
+          </g>
+        ))}
+        <rect x="40" y="150" width="240" height="14" rx="2" strokeOpacity="0.6" />
+      </g>
+    </svg>
+  );
+}
+
+function BlobArt({ className }) {
+  return (
+    <svg viewBox="0 0 300 180" fill="none" className={className}>
+      <g stroke="white" strokeOpacity="0.85" strokeWidth="1.5">
+        <ellipse cx="90" cy="110" rx="70" ry="46" />
+        <ellipse cx="200" cy="70" rx="46" ry="32" />
+        <circle cx="60" cy="140" r="7" />
+        <circle cx="230" cy="115" r="7" />
+        <path d="M 20 150 Q 90 170 160 150 T 280 150" strokeOpacity="0.5" />
+      </g>
+    </svg>
+  );
+}
+
+function PhoneChatArt({ className }) {
+  return (
+    <svg viewBox="0 0 220 260" fill="none" className={className}>
+      <g stroke="white" strokeOpacity="0.9" strokeWidth="1.5" strokeLinejoin="round">
+        <rect x="30" y="10" width="130" height="240" rx="18" />
+        <line x1="30" y1="40" x2="160" y2="40" strokeOpacity="0.4" />
+        <line x1="30" y1="210" x2="160" y2="210" strokeOpacity="0.4" />
+        <rect x="48" y="60" width="70" height="20" rx="10" strokeOpacity="0.7" />
+        <rect x="68" y="90" width="74" height="20" rx="10" strokeOpacity="0.7" />
+        <rect x="48" y="120" width="60" height="20" rx="10" strokeOpacity="0.7" />
+      </g>
+    </svg>
+  );
+}
+
+// ── Small shared building blocks ────────────────────────────────────────────
+
+function Eyebrow({ children, dark = false }) {
+  return (
+    <p className={`text-[11px] sm:text-xs font-bold tracking-[0.15em] uppercase ${dark ? 'text-brand-500' : 'text-white/70'}`}>
+      {children}
+    </p>
+  );
+}
+
+function PageNumber({ n }) {
+  return (
+    <span className="font-display text-2xl sm:text-3xl text-white/50 tracking-tight">
+      ({n})
+    </span>
+  );
+}
 
 export default function LandingPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-white w-full max-w-full overflow-x-hidden">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-tractify-gradient">
 
       {/* ── NAV ── */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 shrink-0">
+      <nav className="sticky top-0 z-50 bg-white/5 backdrop-blur-md border-b border-white/10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 shrink-0">
             <img src="/probook-icon-128.png" alt="Tractify" className="w-8 h-8 rounded-lg" />
-            <span className="font-bold text-gray-900 text-base sm:text-lg">Tractify</span>
+            <span className="font-display text-white text-base sm:text-lg tracking-tight">TRACTIFY</span>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate('/waitlist')}
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2 rounded-xl hover:bg-gray-50 transition-all whitespace-nowrap"
-            >
-              Waitlist
-            </button>
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => navigate('/login')}
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2 rounded-xl hover:bg-gray-50 transition-all whitespace-nowrap"
+              className="text-sm font-semibold text-white/80 hover:text-white px-3 py-2 rounded-xl hover:bg-white/10 transition-all whitespace-nowrap"
             >
               <span className="hidden sm:inline">Contractor </span>Login
             </button>
             <button
-              onClick={() => navigate('/get-quote')}
-              className="btn-primary text-sm py-2 px-4 whitespace-nowrap"
+              onClick={() => navigate('/waitlist')}
+              className="inline-flex items-center gap-2 bg-white text-brand-700 text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-brand-50 transition-all shadow-sm whitespace-nowrap"
             >
-              <span className="hidden sm:inline">Get a Free </span>Quote
+              Join the Waitlist
             </button>
           </div>
         </div>
       </nav>
 
-      {/* ── HERO ── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-brand-50 via-white to-purple-50 pt-14 pb-20 sm:pt-20 sm:pb-28">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-brand-100/40 via-transparent to-transparent pointer-events-none" />
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center relative">
-          <div className="inline-flex items-center gap-2 bg-brand-100 text-brand-700 text-xs sm:text-sm font-semibold px-3 py-1.5 sm:px-4 rounded-full mb-5 sm:mb-6">
+      {/* ── HERO (cover) ── */}
+      <section className="relative pt-16 pb-20 sm:pt-24 sm:pb-28 px-4 sm:px-6 overflow-hidden">
+        <div className="max-w-5xl mx-auto text-center relative">
+          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-white text-xs sm:text-sm font-semibold px-3.5 py-1.5 rounded-full mb-7 sm:mb-9">
             <Zap className="w-3.5 h-3.5" />
-            Instant Lead Matching
+            Bringing billion-dollar solutions to everyday contractors
           </div>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-gray-900 mb-4 sm:mb-6 leading-tight tracking-tight">
-            Home Services,<br />
-            <span className="text-brand-500">Booked Instantly.</span>
+          <h1 className="font-display text-white text-5xl sm:text-7xl md:text-8xl leading-[0.95] tracking-tight mb-6 sm:mb-8">
+            STOP MISSING<br />CALLS.
           </h1>
-          <p className="text-base sm:text-lg md:text-xl text-gray-500 mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed px-2">
-            Tractify connects homeowners with top local contractors in seconds — no phone calls, no waiting. Get matched, pick a time, done.
+          <p className="text-white/80 text-base sm:text-xl max-w-2xl mx-auto leading-relaxed mb-9 sm:mb-11 px-2">
+            Tractify captures every missed call, texts the homeowner back, and books the job
+            straight onto your calendar — automatically. No app. No dashboard. No login required.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4 sm:px-0">
             <button
-              onClick={() => navigate('/get-quote')}
-              className="btn-primary text-base px-8 py-3.5 shadow-lg shadow-brand-200"
+              onClick={() => navigate('/waitlist')}
+              className="inline-flex items-center justify-center gap-2 bg-white text-brand-700 text-base font-bold px-8 py-3.5 rounded-xl hover:bg-brand-50 transition-all shadow-lg shadow-brand-900/30"
             >
-              Get a Free Quote <ArrowRight className="w-5 h-5" />
+              Join the Waitlist <ArrowRight className="w-5 h-5" />
             </button>
             <button
               onClick={() => navigate('/login')}
-              className="btn-secondary text-base px-8 py-3.5"
+              className="inline-flex items-center justify-center gap-2 border border-white/30 text-white text-base font-semibold px-8 py-3.5 rounded-xl hover:bg-white/10 transition-all"
             >
               I'm a Contractor
             </button>
           </div>
-          <p className="text-xs text-gray-400 mt-4 sm:mt-5">No credit card required · Takes 60 seconds</p>
+          <p className="text-white/50 text-xs sm:text-sm mt-5">
+            Your first 5 booked jobs are free — no card required to start.
+          </p>
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ── */}
-      <section className="py-14 md:py-24 bg-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-10 sm:mb-16">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">How it works</h2>
-            <p className="text-gray-500 text-sm sm:text-base">From request to booked appointment in minutes</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                step: '01',
-                icon: Mail,
-                title: 'Tell us what you need',
-                desc: 'Fill out a quick form describing your project, location, and preferred timing.',
-              },
-              {
-                step: '02',
-                icon: Zap,
-                title: 'Get instantly matched',
-                desc: 'Our engine finds the best available contractor in your area for your specific job.',
-              },
-              {
-                step: '03',
-                icon: Calendar,
-                title: 'Pick your time slot',
-                desc: "Choose a time that works for you from the contractor's live availability. Done.",
-              },
-            ].map(({ step, icon: Icon, title, desc }) => (
-              <div key={step} className="relative flex md:block gap-4 items-start">
-                <div className="flex items-center gap-3 mb-0 md:mb-4 shrink-0">
-                  <div className="w-10 h-10 bg-brand-500 rounded-xl flex items-center justify-center shrink-0">
-                    <Icon className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-4xl font-black text-gray-100 md:block hidden">{step}</span>
-                </div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-1 sm:mb-2">{title}</h3>
-                  <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── SERVICES ── */}
-      <section className="py-14 md:py-24 bg-gray-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-10 sm:mb-16">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Services we cover</h2>
-            <p className="text-gray-500 text-sm sm:text-base">Trusted professionals across all major home services</p>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-            {[
-              '🏠 Roofing', '❄️ HVAC', '⚡ Electrical', '🔧 Plumbing',
-              '🎨 Painting', '🌿 Landscaping', '🪟 Windows', '🏗️ General Contractor',
-            ].map(service => (
-              <div key={service} className="bg-white rounded-2xl p-3 sm:p-4 text-center border border-gray-100 hover:border-brand-200 hover:shadow-sm transition-all text-xs sm:text-sm font-medium text-gray-700">
-                {service}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── WHY TRACTIFY ── */}
-      <section className="py-14 md:py-24 bg-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-5 sm:mb-6">Why homeowners choose Tractify</h2>
-              <div className="space-y-4 sm:space-y-5">
-                {[
-                  { icon: Clock, title: 'Instant matching', desc: 'No waiting days for a callback. Get matched in seconds.' },
-                  { icon: Shield, title: 'Vetted contractors', desc: 'Every contractor on our platform is screened and reviewed.' },
-                  { icon: TrendingUp, title: 'Real availability', desc: "Book directly into the contractor's live calendar. No double-booking." },
-                  { icon: CheckCircle, title: 'Confirmation emails', desc: 'Both you and your contractor get instant confirmation with all the details.' },
-                ].map(({ icon: Icon, title, desc }) => (
-                  <div key={title} className="flex gap-3 sm:gap-4">
-                    <div className="w-9 h-9 bg-brand-50 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-                      <Icon className="w-4 h-4 text-brand-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900 text-sm">{title}</p>
-                      <p className="text-gray-500 text-sm mt-0.5">{desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+      {/* ── (01) WHO WE ARE ── */}
+      <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+          <div>
+            <div className="flex items-center gap-4 mb-4">
+              <PageNumber n="01" />
+              <Eyebrow>Who We Are</Eyebrow>
             </div>
-            <div className="bg-gradient-to-br from-brand-500 to-purple-600 rounded-3xl p-6 sm:p-8 text-white">
-              <div className="flex items-center gap-1.5 mb-4 sm:mb-6">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-300 fill-yellow-300" />
-                ))}
+            <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
+              WHO<br />WE ARE
+            </h2>
+            <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-8 max-w-lg">
+              Tractify exists because contractors were losing jobs to a missed phone call.
+              We built a system that captures every missed call, texts the homeowner back,
+              and books the job straight onto the calendar — automatically, with no app,
+              no dashboard, and no login required.
+            </p>
+            <div className="space-y-4 max-w-md">
+              <div className="border-t border-white/15 pt-3">
+                <p className="text-white text-xs font-bold uppercase tracking-wide mb-1">Mission</p>
+                <p className="text-white/70 text-sm">Turn every missed call into a booked job.</p>
               </div>
-              <blockquote className="text-base sm:text-lg font-medium leading-relaxed mb-4 sm:mb-6">
-                "I submitted my roofing request and had an appointment booked within 10 minutes. Incredible service."
-              </blockquote>
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white/20 rounded-full flex items-center justify-center font-bold text-sm">S</div>
-                <div>
-                  <p className="font-semibold text-sm">Sarah M.</p>
-                  <p className="text-white/70 text-xs">Homeowner · Seattle, WA</p>
-                </div>
+              <div className="border-t border-white/15 pt-3">
+                <p className="text-white text-xs font-bold uppercase tracking-wide mb-1">Vision</p>
+                <p className="text-white/70 text-sm">Become the booking layer for every home service contractor in America.</p>
               </div>
             </div>
           </div>
+          <PeopleArt className="w-full max-w-md mx-auto opacity-90" />
         </div>
       </section>
 
-      {/* ── FOR CONTRACTORS ── */}
-      <section className="py-14 md:py-24 bg-gray-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-10 sm:mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Are you a contractor?</h2>
-            <p className="text-gray-500 text-sm sm:text-base max-w-xl mx-auto">Join Tractify and get qualified leads delivered straight to your calendar — no cold calling, no chasing.</p>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-10">
-            {[
-              { icon: Users, title: 'Qualified leads only', desc: 'Every lead has already said yes to your trade. No tire-kickers.' },
-              { icon: Calendar, title: 'Automatic scheduling', desc: 'Homeowners book directly into your availability. You just show up.' },
-              { icon: TrendingUp, title: 'Grow your business', desc: 'More bookings, less admin. Focus on the work, not the paperwork.' },
-            ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="bg-white rounded-2xl p-5 sm:p-6 border border-gray-100">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-brand-50 rounded-xl flex items-center justify-center mb-3 sm:mb-4">
-                  <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600" />
-                </div>
-                <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">{title}</h3>
-                <p className="text-gray-500 text-sm">{desc}</p>
-              </div>
-            ))}
-          </div>
-          <div className="text-center">
-            <button
-              onClick={() => navigate('/apply')}
-              className="btn-primary text-base px-8 py-3.5"
-            >
-              Apply to Join <ArrowRight className="w-5 h-5" />
-            </button>
-            <p className="text-sm text-gray-400 mt-3">
-              Already have an account?{' '}
-              <button onClick={() => navigate('/login')} className="text-brand-500 font-semibold hover:underline">
-                Sign in
-              </button>
+      {/* ── (02) MARKET INSIGHT ── */}
+      <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+          <SkylineArt className="w-full max-w-md mx-auto opacity-90 order-2 md:order-1" />
+          <div className="order-1 md:order-2">
+            <div className="flex items-center gap-4 mb-4">
+              <PageNumber n="02" />
+              <Eyebrow>Market Insight</Eyebrow>
+            </div>
+            <h2 className="font-display text-white text-2xl sm:text-4xl leading-[1.05] tracking-tight mb-5">
+              A MISSED CALL TODAY IS A BOOKED JOB FOR YOUR COMPETITOR TOMORROW.
+            </h2>
+            <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg">
+              Customers don't wait. If a business doesn't answer, they call the next name on
+              the list within minutes. Tractify closes that gap automatically — every missed
+              call gets a reply before the customer ever picks up the phone again.
             </p>
           </div>
         </div>
       </section>
 
-      {/* ── CTA ── */}
-      <section className="py-16 md:py-24 bg-gradient-to-br from-brand-500 to-purple-600">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-3 sm:mb-4">Ready to get started?</h2>
-          <p className="text-brand-100 text-base sm:text-lg mb-8 sm:mb-10">Tell us about your project and we'll match you with the right contractor today.</p>
+      {/* ── (03) WHAT WE DO ── */}
+      <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center gap-4 mb-4">
+            <PageNumber n="03" />
+            <Eyebrow>Services We Offer</Eyebrow>
+          </div>
+          <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
+            SERVICES<br />WE OFFER
+          </h2>
+          <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-12 max-w-2xl">
+            From the first missed call to the final booked appointment, Tractify runs the
+            entire pipeline automatically — over text message, with zero dashboard required.
+          </p>
+          <div className="grid sm:grid-cols-3 gap-5">
+            {[
+              { icon: PhoneCall, title: 'Missed Call Text-Back', desc: 'Every missed call triggers an instant, friendly text — before the homeowner ever calls your competitor.' },
+              { icon: MessageSquare, title: 'SMS Booking', desc: 'The homeowner picks a time right in the text thread. No link, no app, no waiting on hold.' },
+              { icon: CalendarCheck, title: 'Calendar Automation', desc: 'The job lands straight on your calendar, confirmed — you just show up.' },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="bg-white/10 border border-white/15 rounded-2xl p-6 backdrop-blur-sm">
+                <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center mb-4">
+                  <Icon className="w-5 h-5 text-white" />
+                </div>
+                <p className="text-white font-bold text-sm mb-2 tracking-tight">{title}</p>
+                <p className="text-white/70 text-sm leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── (04) WHY TRACTIFY ── */}
+      <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+          <div>
+            <div className="flex items-center gap-4 mb-4">
+              <PageNumber n="04" />
+              <Eyebrow>Why Tractify</Eyebrow>
+            </div>
+            <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
+              WHY<br />TRACTIFY
+            </h2>
+            <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg">
+              Every business owner we talk to says the same thing: "I'm too busy doing jobs to
+              spend the day chained to a phone." What sets Tractify apart is a system built
+              entirely around text message — no app, no login, no learning curve — so booked
+              jobs show up without changing how a business already works.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-3 sm:gap-4">
+            {[
+              { icon: Smartphone, label: 'No app' },
+              { icon: LayoutGrid, label: 'No dashboard' },
+              { icon: KeyRound, label: 'No login' },
+            ].map(({ icon: Icon, label }) => (
+              <div key={label} className="bg-white/10 border border-white/15 rounded-2xl p-5 flex flex-col items-center text-center gap-3">
+                <Icon className="w-7 h-7 text-white" />
+                <p className="text-white/80 text-xs font-semibold">{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── (05) OUR TEAM ── */}
+      <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center gap-4 mb-4">
+            <PageNumber n="05" />
+            <Eyebrow>The Team Behind The System</Eyebrow>
+          </div>
+          <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
+            OUR TEAM
+          </h2>
+          <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-12 max-w-2xl">
+            Two founders and a system that runs the backend. Jose owns product, strategy, and
+            growth. Daniel owns content and distribution. That's the entire team it takes to
+            book jobs for contractors nationwide.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-5 max-w-2xl">
+            {[
+              { initials: 'J', name: 'Jose', role: 'Product & Strategy' },
+              { initials: 'D', name: 'Daniel', role: 'Content & Growth' },
+            ].map(({ initials, name, role }) => (
+              <div key={name} className="bg-white/10 border border-white/15 rounded-2xl p-6 flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/15 border border-white/25 flex items-center justify-center shrink-0">
+                  <span className="font-display text-white text-lg">{initials}</span>
+                </div>
+                <div>
+                  <p className="text-white font-bold text-base">{name}</p>
+                  <p className="text-white/60 text-xs font-semibold uppercase tracking-wide">{role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── (06) PROOF BEFORE YOU PAY ── */}
+      <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+          <div>
+            <div className="flex items-center gap-4 mb-4">
+              <PageNumber n="06" />
+              <Eyebrow>Proof Before You Pay</Eyebrow>
+            </div>
+            <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
+              PROOF<br />BEFORE<br />YOU PAY
+            </h2>
+            <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg">
+              Every new contractor gets 5 booked jobs completely free. Proof before a dollar
+              changes hands.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-5">
+            <span className="font-display text-white text-8xl sm:text-9xl leading-none">5</span>
+            <span className="text-white font-bold text-lg sm:text-2xl uppercase tracking-wide leading-tight max-w-[8rem]">
+              Free<br />Booked<br />Jobs!
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* ── (07) PERFORMANCE ── */}
+      <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+          <div>
+            <div className="flex items-center gap-4 mb-4">
+              <PageNumber n="07" />
+              <Eyebrow>Our Performance</Eyebrow>
+            </div>
+            <h2 className="font-display text-white text-2xl sm:text-4xl leading-[1.05] tracking-tight mb-6">
+              TRACTIFY IS BUILT TO PUT BOOKED JOBS ON YOUR CALENDAR WITHIN DAYS OF SIGNING UP — NOT MONTHS.
+            </h2>
+            <p className="text-white/60 text-xs font-bold uppercase tracking-wide mb-4">By the numbers:</p>
+            <div className="space-y-3 max-w-lg">
+              {[
+                '5 free booked jobs before any money changes hands',
+                '0 apps, logins, or dashboards required to get started',
+                'Missed calls answered by text in under 60 seconds',
+              ].map(item => (
+                <div key={item} className="flex items-start gap-3 border-t border-white/15 pt-3">
+                  <CheckCircle2 className="w-4 h-4 text-white/70 shrink-0 mt-0.5" />
+                  <p className="text-white/80 text-sm">{item}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <BlobArt className="w-full max-w-md mx-auto opacity-90" />
+        </div>
+      </section>
+
+      {/* ── (08) WHAT'S NEXT ── */}
+      <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+          <div>
+            <div className="flex items-center gap-4 mb-4">
+              <PageNumber n="08" />
+              <Eyebrow>What's Next For Tractify</Eyebrow>
+            </div>
+            <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight">
+              WHAT'S NEXT<br />FOR TRACTIFY
+            </h2>
+          </div>
+          <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg">
+            We're expanding beyond HVAC into plumbing, electrical, roofing, landscaping, and
+            more — same system, same promise. The goal: the default way every home service
+            business gets booked.
+          </p>
+        </div>
+      </section>
+
+      {/* ── CLOSING CTA ── */}
+      <section className="border-t border-white/10 px-4 sm:px-6 py-20 sm:py-32">
+        <div className="max-w-5xl mx-auto text-center relative">
+          <PhoneChatArt className="hidden md:block w-28 absolute -left-4 top-1/2 -translate-y-1/2 opacity-70" />
+          <h2 className="font-display text-white text-4xl sm:text-6xl md:text-7xl leading-[0.98] tracking-tight mb-9">
+            STOP MISSING CALLS.<br />START BOOKING JOBS.
+          </h2>
           <button
-            onClick={() => navigate('/get-quote')}
-            className="inline-flex items-center gap-2 bg-white text-brand-600 font-bold px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl hover:bg-brand-50 transition-all shadow-xl text-base sm:text-lg"
+            onClick={() => navigate('/waitlist')}
+            className="inline-flex items-center justify-center gap-2 bg-white text-brand-700 text-base font-bold px-8 py-3.5 rounded-xl hover:bg-brand-50 transition-all shadow-lg shadow-brand-900/30"
           >
-            Get a Free Quote <ArrowRight className="w-5 h-5" />
+            Join the Waitlist <ArrowRight className="w-5 h-5" />
           </button>
         </div>
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="bg-gray-900 py-8 sm:py-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <footer className="border-t border-white/10 px-4 sm:px-6 py-10">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2.5">
             <img src="/probook-icon-128.png" alt="Tractify" className="w-7 h-7 rounded-lg" />
-            <span className="font-bold text-white">Tractify</span>
+            <span className="font-display text-white text-sm tracking-tight">TRACTIFY</span>
           </div>
-          <p className="text-gray-500 text-sm">© {new Date().getFullYear()} Tractify. All rights reserved.</p>
-          <div className="flex gap-5 text-sm text-gray-500">
-            <a href="/get-quote" className="hover:text-white transition-colors">Get a Quote</a>
-            <a href="/apply" className="hover:text-white transition-colors">Join as Contractor</a>
-            <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
-            <a href="/terms" className="hover:text-white transition-colors">Terms</a>
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-semibold text-white/60">
+            <button onClick={() => navigate('/waitlist')} className="hover:text-white transition-colors">Waitlist</button>
+            <button onClick={() => navigate('/login')} className="hover:text-white transition-colors">Contractor Login</button>
+            <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">Privacy</button>
+            <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">Terms</button>
+            <a href="mailto:support@tractifyhq.com" className="hover:text-white transition-colors">support@tractifyhq.com</a>
           </div>
+          <p className="text-xs text-white/40">© {new Date().getFullYear()} OMNIANCEGROUP LLC</p>
         </div>
       </footer>
-
     </div>
   );
 }
