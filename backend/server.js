@@ -169,6 +169,14 @@ const twilioSmsLimiter = rateLimit({
 });
 app.use('/api/twilio/inbound-sms', twilioSmsLimiter);
 
+// Rate limiting — waitlist signup (5 per hour per IP — marketing capture form, not a login)
+const waitlistLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many signups from this IP. Please try again later.' },
+});
+app.use('/api/waitlist', (req, res, next) => (req.method === 'POST' ? waitlistLimiter(req, res, next) : next()));
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth',         require('./routes/auth'));
 app.use('/api/contractors',  require('./routes/contractors'));
@@ -181,6 +189,7 @@ app.use('/api/intake',       require('./routes/intake'));
 app.use('/api/twilio',       require('./routes/twilio'));
 app.use('/api/leads/facebook', require('./routes/facebook')); // Facebook Lead Ads webhook
 app.use('/api/deploy',       require('./routes/deploy'));   // ← Cloudflare Worker calls this after intake form submit
+app.use('/api/waitlist',     require('./routes/waitlist')); // ← waitlist signup while Twilio compliance is pending
 app.use('/api/contractor/ai-chat', require('./routes/aiChat'));
 app.use('/api/admin/ai-chat',     require('./routes/adminAI')); // Jose's business intelligence brain
 
@@ -338,6 +347,24 @@ db._ready.then(async () => {
 
   // Brain 3 email capture — optional email stored on homeowner session
   await db.query(`ALTER TABLE homeowner_sms_sessions ADD COLUMN IF NOT EXISTS email TEXT`);
+
+  // Waitlist — added session 26 (August 14, 2026). Lets contractors sign up while
+  // Twilio A2P compliance is still pending, without the intake form's SMS promises
+  // being false. Captures name + phone only. Jose promotes a row to a real
+  // contractor account (via services/contractorSignup.js) once compliance clears.
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS waitlist_signups (
+      id TEXT PRIMARY KEY,
+      business_name TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      acquisition_source TEXT,
+      status TEXT NOT NULL DEFAULT 'waiting',
+      promoted_contractor_id TEXT REFERENCES contractors(id) ON DELETE SET NULL,
+      promoted_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS waitlist_signups_phone_idx ON waitlist_signups (phone)`);
 
   // Start scheduled jobs (appointment reminders, etc.)
   require('./services/cron');

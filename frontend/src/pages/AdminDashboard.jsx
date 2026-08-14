@@ -16,7 +16,7 @@ import api from '../api/client';
 import {
   LayoutDashboard, Users, FileText, Calendar, LogOut, Zap,
   Plus, RefreshCw, CheckCircle, XCircle, Search, Trash2, Send, Phone, AlignLeft, KeyRound,
-  Eye, EyeOff, Copy, ShieldCheck, BarChart2, Shuffle
+  Eye, EyeOff, Copy, ShieldCheck, BarChart2, Shuffle, ClipboardList
 } from 'lucide-react';
 
 const STATUS_BADGE = {
@@ -45,6 +45,8 @@ export default function AdminDashboard() {
   const [twilioNumberInput, setTwilioNumberInput] = useState('');
   const [resolveNicheFor, setResolveNicheFor] = useState(null);
   const [resolveNicheValue, setResolveNicheValue] = useState('');
+  const [promoteFor, setPromoteFor] = useState(null);
+  const [promoteNicheValue, setPromoteNicheValue] = useState('');
   const [showTempPw, setShowTempPw] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeySlug, setNewKeySlug] = useState('');
@@ -132,6 +134,11 @@ export default function AdminDashboard() {
     queryKey: ['performance'],
     queryFn: () => api.get('/contractors/admin/performance').then(r => r.data),
     enabled: tab === 'performance',
+  });
+
+  const { data: waitlist = [] } = useQuery({
+    queryKey: ['waitlist'],
+    queryFn: () => api.get('/waitlist').then(r => r.data),
   });
 
   const [newNicheName, setNewNicheName] = useState('');
@@ -255,6 +262,21 @@ export default function AdminDashboard() {
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to assign niche'),
   });
 
+  // Turn a waitlist row into a real contractor account — uses the exact same
+  // signup logic the intake form uses (services/contractorSignup.js on the
+  // backend). A niche must be picked here since the waitlist form never asks for one.
+  const promoteWaitlist = useMutation({
+    mutationFn: ({ id, niche_id }) => api.post(`/waitlist/${id}/promote`, { nicheId: niche_id }),
+    onSuccess: () => {
+      toast.success('Promoted to contractor — set their Twilio number next to kick off the SMS welcome.');
+      setPromoteFor(null);
+      setPromoteNicheValue('');
+      qc.invalidateQueries(['waitlist']);
+      qc.invalidateQueries(['admin-contractors']);
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to promote'),
+  });
+
   const viewContractorCalendar = useMutation({
     mutationFn: (id) => api.post(`/auth/admin/impersonate-contractor/${id}`),
     onSuccess: ({ data }) => {
@@ -308,6 +330,7 @@ export default function AdminDashboard() {
     { id: 'leads',         label: 'Leads',         icon: FileText,    badge: leads.filter(l => l.status === 'new').length },
     { id: 'contractors',   label: 'Contractors',   icon: Users,       badge: pendingContractors.length },
     { id: 'appointments',  label: 'Appointments',  icon: Calendar },
+    { id: 'waitlist',      label: 'Waitlist',      icon: ClipboardList, badge: waitlist.filter(w => w.status === 'waiting').length },
     { id: 'apikeys',       label: 'API Keys',      icon: ShieldCheck },
     { id: 'performance',   label: 'Performance',   icon: BarChart2 },
     { id: 'niches',        label: 'Niches',        icon: Zap },
@@ -1249,6 +1272,118 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* ── WAITLIST ── */}
+        {tab === 'waitlist' && (
+          <div>
+            <div className="mb-5">
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Waitlist</h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Signups from /waitlist while Twilio compliance is pending. Promote a row once we're live —
+                it creates a real contractor account the same way the intake form does, and Jose still
+                needs to assign a Twilio number afterward to kick off the SMS welcome.
+              </p>
+            </div>
+
+            {/* Mobile list */}
+            <div className="md:hidden space-y-3">
+              {waitlist.map(w => (
+                <div key={w.id} className="card p-4">
+                  <div className="flex items-start justify-between mb-1">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{w.business_name}</p>
+                    <span className={`badge shrink-0 ml-2 ${w.status === 'promoted' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {w.status === 'promoted' ? 'Promoted' : 'Waiting'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-2">{formatPhone(w.phone)} · {w.created_at ? format(parseISO(w.created_at), 'MMM d, h:mm a') : ''}</p>
+                  {w.status === 'promoted' ? (
+                    <p className="text-xs text-gray-400">Contractor ID: {w.promoted_contractor_id}</p>
+                  ) : promoteFor === w.id ? (
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        value={promoteNicheValue}
+                        onChange={e => setPromoteNicheValue(e.target.value)}
+                        className="input text-xs py-1 px-1.5 h-7 flex-1"
+                        autoFocus
+                      >
+                        <option value="">Pick a niche…</option>
+                        {niches.filter(n => n.name !== 'Pending Review').map(n => (
+                          <option key={n.id} value={n.id}>{n.name}</option>
+                        ))}
+                      </select>
+                      <button onClick={() => promoteNicheValue && promoteWaitlist.mutate({ id: w.id, niche_id: promoteNicheValue })} disabled={!promoteNicheValue || promoteWaitlist.isPending} className="text-xs bg-brand-600 text-white px-2 py-1 rounded font-medium hover:bg-brand-700 disabled:opacity-40">
+                        {promoteWaitlist.isPending ? '…' : 'Promote'}
+                      </button>
+                      <button onClick={() => { setPromoteFor(null); setPromoteNicheValue(''); }} className="text-xs text-gray-500 hover:text-gray-700 font-medium">Cancel</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setPromoteFor(w.id); setPromoteNicheValue(''); }} className="text-xs font-semibold text-brand-600 hover:text-brand-700 underline">
+                      Promote to contractor →
+                    </button>
+                  )}
+                </div>
+              ))}
+              {waitlist.length === 0 && <p className="text-center py-10 text-gray-400 text-sm">No waitlist signups yet</p>}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block card p-0 overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    {['Business', 'Phone', 'Signed Up', 'Status', 'Action'].map(h => (
+                      <th key={h} className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {waitlist.map(w => (
+                    <tr key={w.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3"><p className="text-sm font-medium text-gray-900">{w.business_name}</p></td>
+                      <td className="px-4 py-3"><p className="text-sm text-gray-500">{formatPhone(w.phone)}</p></td>
+                      <td className="px-4 py-3"><p className="text-sm text-gray-500">{w.created_at ? format(parseISO(w.created_at), 'MMM d, h:mm a') : '—'}</p></td>
+                      <td className="px-4 py-3">
+                        <span className={`badge ${w.status === 'promoted' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {w.status === 'promoted' ? 'Promoted' : 'Waiting'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {w.status === 'promoted' ? (
+                          <p className="text-xs text-gray-400">Contractor ID: {w.promoted_contractor_id}</p>
+                        ) : promoteFor === w.id ? (
+                          <div className="flex items-center gap-1.5">
+                            <select
+                              value={promoteNicheValue}
+                              onChange={e => setPromoteNicheValue(e.target.value)}
+                              className="input text-xs py-1 px-1.5 h-7"
+                              autoFocus
+                            >
+                              <option value="">Pick a niche…</option>
+                              {niches.filter(n => n.name !== 'Pending Review').map(n => (
+                                <option key={n.id} value={n.id}>{n.name}</option>
+                              ))}
+                            </select>
+                            <button onClick={() => promoteNicheValue && promoteWaitlist.mutate({ id: w.id, niche_id: promoteNicheValue })} disabled={!promoteNicheValue || promoteWaitlist.isPending} className="text-xs bg-brand-600 text-white px-2 py-1 rounded font-medium hover:bg-brand-700 disabled:opacity-40">
+                              {promoteWaitlist.isPending ? '…' : 'Promote'}
+                            </button>
+                            <button onClick={() => { setPromoteFor(null); setPromoteNicheValue(''); }} className="text-xs text-gray-500 hover:text-gray-700 font-medium">Cancel</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setPromoteFor(w.id); setPromoteNicheValue(''); }} className="text-xs font-semibold text-brand-600 hover:text-brand-700 underline">
+                            Promote to contractor →
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {waitlist.length === 0 && (
+                    <tr><td colSpan={5} className="text-center py-10 text-gray-400 text-sm">No waitlist signups yet</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* ── PERFORMANCE ── */}
         {tab === 'performance' && (
           <div>
@@ -1355,6 +1490,7 @@ export default function AdminDashboard() {
         <div className="md:hidden fixed bottom-16 left-0 right-0 z-50 bg-white border-t border-gray-100 shadow-2xl rounded-t-2xl px-4 py-3">
           <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
           {[
+            { id: 'waitlist',    label: 'Waitlist',    icon: ClipboardList },
             { id: 'apikeys',     label: 'API Keys',   icon: ShieldCheck },
             { id: 'performance', label: 'Performance', icon: BarChart2 },
             { id: 'niches',      label: 'Niches',      icon: Zap },
@@ -1585,7 +1721,7 @@ export default function AdminDashboard() {
           <button
             onClick={() => setShowMoreMenu(v => !v)}
             className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-all ${
-              ['apikeys','performance','niches'].includes(tab) ? 'text-brand-500' : 'text-gray-400'
+              ['waitlist','apikeys','performance','niches'].includes(tab) ? 'text-brand-500' : 'text-gray-400'
             }`}
           >
             <div className="relative">
@@ -1594,7 +1730,7 @@ export default function AdminDashboard() {
                 <circle cx="12" cy="12" r="1.5" fill="currentColor" />
                 <circle cx="19" cy="12" r="1.5" fill="currentColor" />
               </svg>
-              {['apikeys','performance','niches'].includes(tab) && (
+              {['waitlist','apikeys','performance','niches'].includes(tab) && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-brand-500 rounded-full" />
               )}
             </div>
