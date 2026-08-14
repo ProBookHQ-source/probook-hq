@@ -19,6 +19,12 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => navigate('/waitlist')}
+              className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2 rounded-xl hover:bg-gray-50 transition-all whitespace-nowrap"
+            >
+              Waitlist
+            </button>
+            <button
               onClick={() => navigate('/login')}
               className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2 rounded-xl hover:bg-gray-50 transition-all whitespace-nowrap"
             >
