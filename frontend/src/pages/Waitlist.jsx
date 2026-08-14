@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import api from '../api/client';
 import { formatPhone } from '../utils/formatPhone';
 
@@ -39,101 +40,113 @@ export default function Waitlist() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Nav */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-gray-100">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <button onClick={() => navigate('/')} className="flex items-center gap-2">
-            <img src="/probook-icon-128.png" alt="Tractify" className="w-7 h-7 rounded-lg" />
-            <span className="font-bold text-gray-900">Tractify</span>
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-tractify-gradient flex flex-col">
+
+      {/* ── NAV — matches LandingPage.jsx exactly ── */}
+      <nav className="sticky top-0 z-50 bg-white/5 backdrop-blur-md border-b border-white/10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+          <button onClick={() => navigate('/')} className="flex items-center gap-2.5 shrink-0">
+            <img src="/probook-icon-128.png" alt="Tractify" className="w-8 h-8 rounded-lg" />
+            <span className="font-display text-white text-base sm:text-lg tracking-tight">TRACTIFY</span>
+          </button>
+          <button
+            onClick={() => navigate('/login')}
+            className="text-sm font-semibold text-white/80 hover:text-white px-3 py-2 rounded-xl hover:bg-white/10 transition-all whitespace-nowrap"
+          >
+            <span className="hidden sm:inline">Contractor </span>Login
           </button>
         </div>
       </nav>
 
-      <div className="max-w-lg mx-auto px-4 sm:px-6 py-16">
-        {!done ? (
-          <>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-3 tracking-tight">
-              Get on the list.
-            </h1>
-            <p className="text-gray-600 mb-8 leading-relaxed">
-              We're finishing up a few things behind the scenes before we can start texting new
-              businesses. Drop your info below and we'll reach out the moment we're ready to get
-              you set up — first 5 booked jobs are free.
-            </p>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                  Business name
-                </label>
-                <input
-                  type="text"
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder="e.g. Premier Comfort HVAC"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-base"
-                  autoComplete="organization"
-                  required
-                />
+      <div className="flex-1 flex items-center px-4 sm:px-6 py-16 sm:py-24">
+        <div className="max-w-lg mx-auto w-full">
+          {!done ? (
+            <>
+              <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-white text-xs font-semibold px-3.5 py-1.5 rounded-full mb-6">
+                Get on the list
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                  Your phone number
-                </label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(formatPhone(e.target.value))}
-                  placeholder="(555) 123-4567"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-base"
-                  autoComplete="tel"
-                  inputMode="tel"
-                  required
-                />
-                <p className="text-xs text-gray-400 mt-1.5">
-                  The number you personally carry — this is how we'll text you when we're live.
-                </p>
-              </div>
-
-              {error && (
-                <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                  {error}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                className="w-full py-3.5 rounded-xl bg-indigo-600 text-white font-semibold text-base hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {submitting ? 'Joining...' : 'Join the waitlist'}
-              </button>
-
-              <p className="text-xs text-gray-400 text-center leading-relaxed">
-                By joining you agree to receive a text from us when we're ready to onboard you.
-                No spam, no obligation. See our{' '}
-                <a href="/terms" className="text-indigo-600 hover:underline">Terms</a> and{' '}
-                <a href="/privacy" className="text-indigo-600 hover:underline">Privacy Policy</a>.
+              <h1 className="font-display text-white text-4xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
+                GET ON<br />THE LIST.
+              </h1>
+              <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-9">
+                We're finishing up a few things behind the scenes before we can start texting new
+                businesses. Drop your info below and we'll reach out the moment we're ready to get
+                you set up — first 5 booked jobs are free.
               </p>
-            </form>
-          </>
-        ) : (
-          <div className="text-center py-8">
-            <div className="w-14 h-14 rounded-full bg-indigo-50 flex items-center justify-center mx-auto mb-5">
-              <svg className="w-7 h-7 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wide text-white/70 mb-2">
+                    Business name
+                  </label>
+                  <input
+                    type="text"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    placeholder="e.g. Premier Comfort HVAC"
+                    className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40 focus:border-transparent text-base"
+                    autoComplete="organization"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wide text-white/70 mb-2">
+                    Your phone number
+                  </label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(formatPhone(e.target.value))}
+                    placeholder="(555) 123-4567"
+                    className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40 focus:border-transparent text-base"
+                    autoComplete="tel"
+                    inputMode="tel"
+                    required
+                  />
+                  <p className="text-xs text-white/50 mt-2">
+                    The number you personally carry — this is how we'll text you when we're live.
+                  </p>
+                </div>
+
+                {error && (
+                  <p className="text-sm text-white bg-red-500/20 border border-red-400/30 rounded-lg px-3 py-2">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className="w-full inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-bold text-base py-3.5 rounded-xl hover:bg-brand-50 transition-all shadow-lg shadow-brand-900/30 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+                >
+                  {submitting ? 'Joining...' : <>Join the Waitlist <ArrowRight className="w-5 h-5" /></>}
+                </button>
+
+                <p className="text-xs text-white/50 text-center leading-relaxed">
+                  By joining you agree to receive a text from us when we're ready to onboard you.
+                  No spam, no obligation. See our{' '}
+                  <a href="/terms" className="text-white hover:underline">Terms</a> and{' '}
+                  <a href="/privacy" className="text-white hover:underline">Privacy Policy</a>.
+                </p>
+              </form>
+            </>
+          ) : (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 rounded-full bg-white/10 border border-white/20 flex items-center justify-center mx-auto mb-6">
+                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h1 className="font-display text-white text-3xl sm:text-4xl leading-tight tracking-tight mb-4">
+                {alreadyOnWaitlist ? <>YOU'RE ALREADY<br />ON THE LIST.</> : <>YOU'RE ON<br />THE LIST.</>}
+              </h1>
+              <p className="text-white/75 leading-relaxed">
+                We'll text you the moment we're ready to get you set up. Nothing else to do right now.
+              </p>
             </div>
-            <h1 className="text-2xl font-extrabold text-gray-900 mb-2">
-              {alreadyOnWaitlist ? "You're already on the list." : "You're on the list."}
-            </h1>
-            <p className="text-gray-600 leading-relaxed">
-              We'll text you the moment we're ready to get you set up. Nothing else to do right now.
-            </p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
