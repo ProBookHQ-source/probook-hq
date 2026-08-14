@@ -43,6 +43,8 @@ export default function AdminDashboard() {
   const [showPw, setShowPw] = useState(false);
   const [setTwilioFor, setSetTwilioFor] = useState(null);
   const [twilioNumberInput, setTwilioNumberInput] = useState('');
+  const [resolveNicheFor, setResolveNicheFor] = useState(null);
+  const [resolveNicheValue, setResolveNicheValue] = useState('');
   const [showTempPw, setShowTempPw] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeySlug, setNewKeySlug] = useState('');
@@ -243,6 +245,14 @@ export default function AdminDashboard() {
     mutationFn: ({ id, twilio_number }) => api.put(`/contractors/${id}`, { twilio_number }),
     onSuccess: () => { toast.success('Twilio number saved'); setSetTwilioFor(null); setTwilioNumberInput(''); qc.invalidateQueries(['admin-contractors']); },
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to save Twilio number'),
+  });
+
+  // Resolve a pending-niche-review contractor — assigns a real niche and clears
+  // requested_niche_text server-side in the same UPDATE (see contractors.js PUT /:id).
+  const resolveNiche = useMutation({
+    mutationFn: ({ id, niche_id }) => api.put(`/contractors/${id}`, { niche_id }),
+    onSuccess: () => { toast.success('Niche assigned'); setResolveNicheFor(null); qc.invalidateQueries(['admin-contractors']); },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to assign niche'),
   });
 
   const viewContractorCalendar = useMutation({
@@ -732,6 +742,33 @@ export default function AdminDashboard() {
                       {c.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </div>
+                  {c.requested_niche_text && (
+                    <div className="mb-2 px-2.5 py-1.5 rounded-md bg-amber-50 border border-amber-200">
+                      <p className="text-xs font-semibold text-amber-800">⚠️ Niche needs review</p>
+                      <p className="text-xs text-amber-700 truncate mb-1.5">They typed: "{c.requested_niche_text}"</p>
+                      {resolveNicheFor === c.id ? (
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            value={resolveNicheValue}
+                            onChange={e => setResolveNicheValue(e.target.value)}
+                            className="input text-xs py-1 px-1.5 h-7 flex-1"
+                            autoFocus
+                          >
+                            <option value="">Assign to…</option>
+                            {niches.filter(n => n.name !== 'Pending Review').map(n => (
+                              <option key={n.id} value={n.id}>{n.name}</option>
+                            ))}
+                          </select>
+                          <button onClick={() => resolveNicheValue && resolveNiche.mutate({ id: c.id, niche_id: resolveNicheValue })} disabled={!resolveNicheValue || resolveNiche.isPending} className="text-xs bg-amber-600 text-white px-2 py-1 rounded font-medium hover:bg-amber-700 disabled:opacity-40">Save</button>
+                          <button onClick={() => { setResolveNicheFor(null); setResolveNicheValue(''); }} className="text-xs text-gray-500 hover:text-gray-700 font-medium">Cancel</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => { setResolveNicheFor(c.id); setResolveNicheValue(''); }} className="text-xs font-semibold text-amber-800 hover:text-amber-900 underline">
+                          Assign a niche →
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <p className="text-xs text-gray-500 mb-1 truncate">{c.email}</p>
                   <p className={`text-xs text-gray-500 truncate ${c.address ? 'mb-1' : 'mb-2'}`}>{c.phone}</p>
                   {c.address && <p className="text-xs text-gray-400 mb-2 truncate">{c.address}</p>}

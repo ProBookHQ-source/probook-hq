@@ -50,6 +50,7 @@ app.use('/api/availability',         externalClientCors('GET'));
 app.use('/api/bookings/book',        externalClientCors('POST'));
 app.use('/api/bookings/book-direct', externalClientCors('POST'));
 app.use('/api/contractors/public',   externalClientCors('GET'));
+app.use('/api/niches/public',        externalClientCors('GET'));
 
 // Security headers
 app.use(helmet({
@@ -267,6 +268,43 @@ db._ready.then(async () => {
   // same number — most solo operators. Only set when the AI SMS drip's call-forwarding
   // step surfaces a separate business line (office number, dispatcher, etc).
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS business_phone TEXT`);
+
+  // Niche curation — 'active' niches are the only ones offered on the intake form's
+  // niche picker. Default is 'inactive' so old auto-seeded/dropped niches (Painting,
+  // General Contracting, etc.) never silently reappear. 'internal' is reserved for the
+  // fixed Pending Review placeholder used when a contractor's business type doesn't
+  // match anything on the list — see deploy.js.
+  await db.query(`ALTER TABLE niches ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'inactive'`);
+  // Raw free-text business description a contractor typed when nothing on the curated
+  // niche list matched. NULL for every normal signup. Set only while niche_id points at
+  // the Pending Review placeholder, cleared once Jose resolves it to a real niche.
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS requested_niche_text TEXT`);
+
+  // Promote the curated, RAG-ready niche roster to 'active'. This is the exact set the
+  // intake form's niche picker offers — every one already has diagnostic knowledge
+  // seeded and a locked pricing bucket. Insert if missing, activate if already present.
+  const ACTIVE_NICHE_ROSTER = [
+    'HVAC', 'Roofing', 'Electrical', 'Plumbing', 'Landscaping', 'Solar',
+    'Water Damage', 'Tree Service', 'Lawn Care', 'Pool Service', 'Pest Control',
+  ];
+  for (const nicheName of ACTIVE_NICHE_ROSTER) {
+    const { rows: nicheRows } = await db.query('SELECT id FROM niches WHERE LOWER(name) = LOWER($1)', [nicheName]);
+    if (nicheRows.length) {
+      await db.query(`UPDATE niches SET status = 'active' WHERE id = $1`, [nicheRows[0].id]);
+    } else {
+      await db.query(`INSERT INTO niches (id, name, status) VALUES ($1, $2, 'active')`, [require('crypto').randomUUID(), nicheName]);
+    }
+  }
+
+  // Fixed placeholder niche for contractors whose business type is awaiting manual
+  // review (see deploy.js). Never shown on the intake form or booking pages.
+  const { rows: pendingNicheRows } = await db.query(`SELECT id FROM niches WHERE name = $1`, ['Pending Review']);
+  if (!pendingNicheRows.length) {
+    await db.query(
+      `INSERT INTO niches (id, name, description, status) VALUES ($1, $2, $3, 'internal')`,
+      [require('crypto').randomUUID(), 'Pending Review', 'Placeholder niche for contractors whose business type needs manual review before a real niche is assigned.']
+    );
+  }
 
   // Intake form step tracking — powers dropoff funnel in admin dashboard
   await db.query(`

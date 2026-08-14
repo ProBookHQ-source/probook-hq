@@ -80,28 +80,50 @@ async function uniqueSlug(baseSlug) {
   }
 }
 
-// ── Find or create a niche from the contractor's free-text "what do you do" ───
-// The intake form no longer offers a dropdown — it's one line of free text.
-// Match case-insensitively against existing niches; if nothing matches, create
-// a new niche row from the raw text. This is the "database insert, not a code
-// change" niche-expansion model described in CLAUDE.md — no AI normalization
-// yet (that's a documented future enhancement), just a straightforward match.
-async function findOrCreateNiche(rawText) {
-  const cleaned = (rawText || '').trim();
-  if (!cleaned) return null;
+// ── Niche resolution — canonical list only, never auto-created from free text ─
+// ⚠️ Rewritten August 14, 2026. The previous version matched/created niches from
+// whatever free text the contractor typed. That silently broke three things at
+// once for anything that didn't exact-match a seeded niche name: no RAG diagnostic
+// knowledge (Brain 3 has nothing to retrieve), no locked pricing bucket, and
+// duplicate/fragmented niche rows ("HVAC" vs "hvac repair" vs "heating and air").
+//
+// The intake form now sends either:
+//   - data.nicheId   — the contractor picked a real niche off the curated list
+//                       (Places-category auto-suggest or typeahead search)
+//   - data.nicheOther — the "something else" fallback, raw free text, used only
+//                        when nothing on the list matched
+// Exactly one of these should be present. nicheOther never creates a niche —
+// it queues the contractor on a placeholder niche and always requires Jose to
+// resolve it by hand (map to an existing niche or approve a genuinely new one).
+// This is the deliberate tradeoff: slower per new niche, but nothing — including
+// an excluded category like a med spa or a bookkeeper — can ever slip through
+// automatically.
 
-  const existing = await db.prepare(
-    'SELECT id FROM niches WHERE LOWER(name) = LOWER($1) LIMIT 1'
-  ).get(cleaned);
-  if (existing) return existing.id;
+// Lightweight heuristic only — flags the admin alert email with a warning, does
+// NOT block anything. Jose is the actual gate on every pending-review niche
+// regardless of this match. Mirrors the excluded-category list in CLAUDE.md
+// ("Niches excluded from the initial rollout" — health, legal, financial-adjacent).
+const EXCLUDED_KEYWORD_HINTS = [
+  'dental', 'dentist', 'orthodont', 'medical', 'doctor', 'physician', 'clinic', 'health',
+  'therapy', 'therapist', 'counsel', 'psych', 'chiropract', 'med spa', 'medspa', 'urgent care',
+  'legal', 'lawyer', 'attorney', 'law firm', 'notary',
+  'financial', 'accountant', 'cpa', 'tax prep', 'insurance', 'bank', 'lending', 'loan',
+  'mortgage broker', 'investment', 'wealth',
+];
+function looksLikeExcludedCategory(text) {
+  const t = (text || '').toLowerCase();
+  return EXCLUDED_KEYWORD_HINTS.some(k => t.includes(k));
+}
 
-  const id = uuidv4();
-  await db.query(
-    'INSERT INTO niches (id, name, description) VALUES ($1, $2, $3) ON CONFLICT (name) DO NOTHING',
-    [id, cleaned, `Auto-created from intake signup: "${cleaned}"`]
-  );
-  const row = await db.prepare('SELECT id FROM niches WHERE LOWER(name) = LOWER($1) LIMIT 1').get(cleaned);
-  return row ? row.id : id;
+async function getActiveNicheById(nicheId) {
+  if (!nicheId) return null;
+  return db.prepare(`SELECT id FROM niches WHERE id = $1 AND status = 'active'`).get(nicheId);
+}
+
+async function getPendingReviewNicheId() {
+  const row = await db.prepare(`SELECT id FROM niches WHERE name = 'Pending Review'`).get();
+  if (!row) throw new Error('Pending Review placeholder niche is missing — check server.js migrations ran');
+  return row.id;
 }
 
 // ── Pre-populate availability slots from intake hours ─────────────────────────
@@ -146,12 +168,13 @@ router.post('/', requireDeploySecret, async (req, res) => {
   const data = req.body;
 
   // Validate required fields — email is intentionally NOT required. The new
-  // intake form never collects one; contractors don't log in. niche IS required
-  // server-side too (not just client-side) because niche_id is NOT NULL on the
-  // contractors table — without this check, a missing niche would crash the
-  // INSERT below with an unhandled constraint violation instead of a clean 400.
-  if (!data.businessName || !data.phone || !data.niche) {
-    return res.status(400).json({ error: 'businessName, phone, and niche are required' });
+  // intake form never collects one; contractors don't log in. Exactly one of
+  // nicheId / nicheOther must be present — this is required server-side too
+  // (not just client-side) because niche_id is NOT NULL on the contractors
+  // table; without this check, a missing niche would crash the INSERT below
+  // with an unhandled constraint violation instead of a clean 400.
+  if (!data.businessName || !data.phone || (!data.nicheId && !data.nicheOther)) {
+    return res.status(400).json({ error: 'businessName, phone, and a niche (nicheId or nicheOther) are required' });
   }
 
   const phoneDigits = (data.phone || '').replace(/\D/g, '');
@@ -181,8 +204,30 @@ router.post('/', requireDeploySecret, async (req, res) => {
   const contractorId   = uuidv4();
   const passwordHash   = bcrypt.hashSync(tempPassword, 10);
 
-  const nicheId = await findOrCreateNiche(data.niche);
-  log(`Niche resolved: ${data.niche || '(none)'} → ${nicheId || 'none'}`);
+  // ── Resolve niche — canonical id preferred, free-text always queues for review ──
+  let nicheId;
+  let requestedNicheText = null;
+  let nichePendingReview = false;
+
+  if (data.nicheId) {
+    const active = await getActiveNicheById(data.nicheId);
+    if (active) {
+      nicheId = active.id;
+      log(`Niche resolved: canonical id ${nicheId}`);
+    } else {
+      // A stale/tampered/deactivated id was sent — fall back to pending review
+      // rather than rejecting the whole signup.
+      log(`Niche id ${data.nicheId} is not a valid active niche — queuing for review`);
+      nicheId = await getPendingReviewNicheId();
+      requestedNicheText = data.nicheOther || `(invalid niche id: ${data.nicheId})`;
+      nichePendingReview = true;
+    }
+  } else {
+    nicheId = await getPendingReviewNicheId();
+    requestedNicheText = data.nicheOther.trim();
+    nichePendingReview = true;
+    log(`No canonical niche match — queued for review: "${requestedNicheText}"`);
+  }
 
   // Service zips aren't collected on the new form — service area is meant to be
   // derived from the geocoded address later. '*' is the existing "serves anywhere"
@@ -193,8 +238,8 @@ router.post('/', requireDeploySecret, async (req, res) => {
     INSERT INTO contractors
       (id, email, password_hash, name, phone, company_name, niche_id,
        service_zip_codes, is_active, status, booking_slug, onboarding_started_at,
-       acquisition_source, address, place_id)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,1,'approved',$9,NOW(),$10,$11,$12)
+       acquisition_source, address, place_id, requested_niche_text)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,1,'approved',$9,NOW(),$10,$11,$12,$13)
   `, [
     contractorId,
     syntheticEmail,
@@ -208,6 +253,7 @@ router.post('/', requireDeploySecret, async (req, res) => {
     data.acquisitionSource || null,
     data.address || null,
     data.placeId || null,
+    requestedNicheText,
   ]);
 
   log(`Contractor created: ${contractorId}`);
@@ -237,13 +283,17 @@ router.post('/', requireDeploySecret, async (req, res) => {
   // ── Step 5: Alert admin — assigning a Twilio number is the next manual step,
   // which automatically fires the SMS welcome conversation (contractors.js PUT /:id) ──
   try {
+    const nicheRow = await db.prepare('SELECT name FROM niches WHERE id = $1').get(nicheId);
     await sendDeployAlertToAdmin({
       businessName: data.businessName,
       phone:        data.phone,
       address:      data.address || '',
-      niche:        data.niche || '',
+      niche:        nicheRow?.name || '',
       contractorId,
       slug,
+      nichePendingReview,
+      requestedNicheText,
+      excludedCategoryWarning: nichePendingReview ? looksLikeExcludedCategory(requestedNicheText) : false,
     });
   } catch (e) {
     log(`Admin alert failed: ${e.message}`);

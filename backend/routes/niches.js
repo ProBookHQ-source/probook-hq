@@ -11,6 +11,17 @@ router.get('/', async (req, res) => {
   res.json(niches);
 });
 
+// ── List ACTIVE niches only (public — used by the intake form's niche picker) ─
+// This is the curated, RAG-ready roster (see server.js migration). Anything
+// 'inactive', 'excluded', or 'internal' (like the Pending Review placeholder)
+// never reaches this endpoint — the intake form can only offer a real niche.
+router.get('/public', async (req, res) => {
+  const niches = await db.prepare(
+    `SELECT id, name FROM niches WHERE status = 'active' ORDER BY name`
+  ).all();
+  res.json(niches);
+});
+
 // ── Create niche (admin) ──────────────────────────────────────────────────────
 router.post('/', requireAdmin, async (req, res) => {
   const { name, description } = req.body;

@@ -12,7 +12,8 @@ router.get('/', requireAdmin, async (req, res) => {
     SELECT c.id, c.email, c.name, c.phone, c.company_name, c.niche_id,
            c.service_zip_codes, c.google_calendar_id, c.is_active, c.created_at,
            c.service_radius_miles, c.max_appointments_per_day, c.applied_at, c.declined_at,
-           c.twilio_number, c.business_phone, c.address, n.name as niche_name
+           c.twilio_number, c.business_phone, c.address, c.requested_niche_text,
+           n.name as niche_name
     FROM contractors c
     LEFT JOIN niches n ON c.niche_id = n.id
     ORDER BY c.created_at DESC
@@ -158,7 +159,7 @@ router.put('/:id', requireContractor, async (req, res) => {
   const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(id);
   if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
 
-  const { name, phone, company_name, service_zip_codes, is_active, service_radius_miles, max_appointments_per_day, twilio_number, business_phone } = req.body;
+  const { name, phone, company_name, service_zip_codes, is_active, service_radius_miles, max_appointments_per_day, twilio_number, business_phone, niche_id } = req.body;
 
   // Capture previous twilio_number to detect first-time assignment
   const prevTwilioNumber = contractor.twilio_number;
@@ -173,7 +174,9 @@ router.put('/:id', requireContractor, async (req, res) => {
       service_radius_miles = COALESCE($6, service_radius_miles),
       max_appointments_per_day = $7,
       twilio_number = COALESCE($9, twilio_number),
-      business_phone = COALESCE($10, business_phone)
+      business_phone = COALESCE($10, business_phone),
+      niche_id = COALESCE($11, niche_id),
+      requested_niche_text = CASE WHEN $11::TEXT IS NOT NULL THEN NULL ELSE requested_niche_text END
     WHERE id = $8
   `).run(
     name || null,
@@ -185,7 +188,8 @@ router.put('/:id', requireContractor, async (req, res) => {
     max_appointments_per_day !== undefined ? (parseInt(max_appointments_per_day) || null) : null,
     id,
     twilio_number || null,
-    business_phone || null
+    business_phone || null,
+    niche_id || null
   );
 
   // ── Welcome SMS — fires when Twilio number is first assigned ─────────────────

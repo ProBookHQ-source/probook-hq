@@ -932,12 +932,28 @@ async function sendContractorWelcomeEmail({ name, email, company, siteUrl, porta
 }
 
 // ── Admin alert after auto-deploy ─────────────────────────────────────────────
-async function sendDeployAlertToAdmin({ businessName, phone, address, niche, contractorId, slug }) {
+async function sendDeployAlertToAdmin({ businessName, phone, address, niche, contractorId, slug, nichePendingReview, requestedNicheText, excludedCategoryWarning }) {
+  const reviewBanner = nichePendingReview ? `
+      <tr><td style="padding:0 0 20px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+               style="background:${excludedCategoryWarning ? '#fef2f2' : '#fffbeb'};border-radius:10px;border-left:4px solid ${excludedCategoryWarning ? '#ef4444' : '#f59e0b'};">
+          <tr><td style="padding:16px 22px;">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:${excludedCategoryWarning ? '#991b1b' : '#92400e'};">
+              ${excludedCategoryWarning ? '⚠️ NICHE NEEDS REVIEW — possible excluded category' : '🆕 Niche needs review — no match on the curated list'}
+            </p>
+            <p style="margin:0 0 4px;font-size:14px;color:#374151;">They typed: <strong>"${esc(requestedNicheText || '')}"</strong></p>
+            ${excludedCategoryWarning ? `<p style="margin:0;font-size:13px;color:#991b1b;">This looks like it could be health, legal, or financial-adjacent — categories currently excluded from the roster. Check carefully before mapping this to a real niche.</p>` : `<p style="margin:0;font-size:13px;color:#92400e;">Map this contractor to an existing niche, or approve it as a new one, from the admin dashboard. They're onboarded on a placeholder niche in the meantime — no RAG diagnostic knowledge or pricing bucket assigned until you resolve this.</p>`}
+          </td></tr>
+        </table>
+      </td></tr>
+  ` : '';
+
   const html = emailBase({
     label:    'New Contractor Signup',
     headline: esc(businessName),
-    sub:      'Account created — assign a Twilio number to start the SMS setup conversation.',
+    sub:      nichePendingReview ? 'Account created — niche needs your review before this contractor is fully set up.' : 'Account created — assign a Twilio number to start the SMS setup conversation.',
     bodyContent: `
+      ${reviewBanner}
       <tr><td style="padding:0 0 20px;">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
                style="background:#f5f3ff;border-radius:10px;border-left:4px solid #6366f1;">
@@ -957,7 +973,8 @@ async function sendDeployAlertToAdmin({ businessName, phone, address, niche, con
     `,
   });
   const adminTo = process.env.ADMIN_EMAIL || 'bookings@tractifyhq.com';
-  await sendEmail(adminTo, `New contractor signup: ${businessName}`, html);
+  const subjectPrefix = nichePendingReview ? '⚠️ ' : '';
+  await sendEmail(adminTo, `${subjectPrefix}New contractor signup: ${businessName}`, html);
 }
 
 // ── Real-time trial booking alert to Jose ─────────────────────────────────────
