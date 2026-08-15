@@ -8,23 +8,13 @@ import {
 // used throughout the pitch deck, built fresh rather than reusing the deck's
 // stock photography (per Jose's explicit instruction). ─────────────────────
 
-function SkylineArt({ className }) {
+// White card wrapper for the full-color unDraw illustrations Jose uploaded —
+// keeps them readable against the indigo gradient instead of floating loose.
+function Illustration({ src, alt, className = '', imgClassName = 'w-full h-auto' }) {
   return (
-    <svg viewBox="0 0 320 200" fill="none" className={className}>
-      <g stroke="white" strokeOpacity="0.9" strokeWidth="1.5">
-        <rect x="24" y="90" width="46" height="90" />
-        <rect x="80" y="60" width="40" height="120" />
-        <rect x="130" y="105" width="36" height="75" />
-        <polygon points="148,105 148,80 165,105" />
-        <rect x="176" y="40" width="44" height="140" />
-        <polygon points="176,40 198,15 220,40" />
-        <rect x="230" y="75" width="38" height="105" />
-        <rect x="278" y="115" width="30" height="65" />
-        <line x1="10" y1="180" x2="312" y2="180" />
-        <line x1="90" y1="60" x2="90" y2="180" strokeOpacity="0.35" />
-        <line x1="188" y1="40" x2="188" y2="180" strokeOpacity="0.35" />
-      </g>
-    </svg>
+    <div className={`bg-white rounded-3xl shadow-xl shadow-brand-900/25 p-6 sm:p-8 ${className}`}>
+      <img src={src} alt={alt} className={imgClassName} />
+    </div>
   );
 }
 
@@ -40,35 +30,6 @@ function PeopleArt({ className }) {
           </g>
         ))}
         <rect x="40" y="150" width="240" height="14" rx="2" strokeOpacity="0.6" />
-      </g>
-    </svg>
-  );
-}
-
-function BlobArt({ className }) {
-  return (
-    <svg viewBox="0 0 300 180" fill="none" className={className}>
-      <g stroke="white" strokeOpacity="0.85" strokeWidth="1.5">
-        <ellipse cx="90" cy="110" rx="70" ry="46" />
-        <ellipse cx="200" cy="70" rx="46" ry="32" />
-        <circle cx="60" cy="140" r="7" />
-        <circle cx="230" cy="115" r="7" />
-        <path d="M 20 150 Q 90 170 160 150 T 280 150" strokeOpacity="0.5" />
-      </g>
-    </svg>
-  );
-}
-
-function PhoneChatArt({ className }) {
-  return (
-    <svg viewBox="0 0 220 260" fill="none" className={className}>
-      <g stroke="white" strokeOpacity="0.9" strokeWidth="1.5" strokeLinejoin="round">
-        <rect x="30" y="10" width="130" height="240" rx="18" />
-        <line x1="30" y1="40" x2="160" y2="40" strokeOpacity="0.4" />
-        <line x1="30" y1="210" x2="160" y2="210" strokeOpacity="0.4" />
-        <rect x="48" y="60" width="70" height="20" rx="10" strokeOpacity="0.7" />
-        <rect x="68" y="90" width="74" height="20" rx="10" strokeOpacity="0.7" />
-        <rect x="48" y="120" width="60" height="20" rx="10" strokeOpacity="0.7" />
       </g>
     </svg>
   );
@@ -153,6 +114,11 @@ export default function LandingPage() {
           <p className="text-white/50 text-xs sm:text-sm mt-5">
             Your first 5 booked jobs are free — no card required to start.
           </p>
+          <Illustration
+            src="/illustrations/undraw_under-construction_c2y1.svg"
+            alt="Contractor at work"
+            className="mt-14 sm:mt-16 max-w-2xl mx-auto"
+          />
         </div>
       </section>
 
@@ -191,7 +157,11 @@ export default function LandingPage() {
       {/* ── (02) MARKET INSIGHT ── */}
       <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center">
-          <SkylineArt className="w-full max-w-md mx-auto opacity-90 order-2 md:order-1" />
+          <Illustration
+            src="/illustrations/undraw_questions_52ic.svg"
+            alt="Homeowner deciding who to call"
+            className="w-full max-w-md mx-auto order-2 md:order-1"
+          />
           <div className="order-1 md:order-2">
             <div className="flex items-center gap-4 mb-4">
               <PageNumber n="02" />
@@ -212,17 +182,26 @@ export default function LandingPage() {
       {/* ── (03) WHAT WE DO ── */}
       <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-4 mb-4">
-            <PageNumber n="03" />
-            <Eyebrow>Services We Offer</Eyebrow>
+          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center mb-12">
+            <div>
+              <div className="flex items-center gap-4 mb-4">
+                <PageNumber n="03" />
+                <Eyebrow>Services We Offer</Eyebrow>
+              </div>
+              <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
+                SERVICES<br />WE OFFER
+              </h2>
+              <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg">
+                From the first missed call to the final booked appointment, Tractify runs the
+                entire pipeline automatically — over text message, with zero dashboard required.
+              </p>
+            </div>
+            <Illustration
+              src="/illustrations/undraw_booking_8vl5.svg"
+              alt="Booking an appointment"
+              className="w-full max-w-md mx-auto"
+            />
           </div>
-          <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
-            SERVICES<br />WE OFFER
-          </h2>
-          <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-12 max-w-2xl">
-            From the first missed call to the final booked appointment, Tractify runs the
-            entire pipeline automatically — over text message, with zero dashboard required.
-          </p>
           <div className="grid sm:grid-cols-3 gap-5">
             {[
               { icon: PhoneCall, title: 'Missed Call Text-Back', desc: 'Every missed call triggers an instant, friendly text — before the homeowner ever calls your competitor.' },
@@ -331,6 +310,11 @@ export default function LandingPage() {
             </span>
           </div>
         </div>
+        <Illustration
+          src="/illustrations/undraw_contract-signed_vutk.svg"
+          alt="Trial agreement, no contract"
+          className="max-w-sm mx-auto mt-12 sm:mt-16"
+        />
       </section>
 
       {/* ── (07) PERFORMANCE ── */}
@@ -358,34 +342,52 @@ export default function LandingPage() {
               ))}
             </div>
           </div>
-          <BlobArt className="w-full max-w-md mx-auto opacity-90" />
+          <Illustration
+            src="/illustrations/undraw_ai-data-extraction_soxc.svg"
+            alt="Automated data and reporting"
+            className="w-full max-w-md mx-auto"
+          />
         </div>
       </section>
 
       {/* ── (08) WHAT'S NEXT ── */}
       <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center">
-          <div>
-            <div className="flex items-center gap-4 mb-4">
-              <PageNumber n="08" />
-              <Eyebrow>What's Next For Tractify</Eyebrow>
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center mb-12">
+            <div>
+              <div className="flex items-center gap-4 mb-4">
+                <PageNumber n="08" />
+                <Eyebrow>What's Next For Tractify</Eyebrow>
+              </div>
+              <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight">
+                WHAT'S NEXT<br />FOR TRACTIFY
+              </h2>
             </div>
-            <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight">
-              WHAT'S NEXT<br />FOR TRACTIFY
-            </h2>
+            <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg">
+              We're expanding beyond HVAC into plumbing, electrical, roofing, landscaping, and
+              more — same system, same promise. The goal: the default way every home service
+              business gets booked.
+            </p>
           </div>
-          <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg">
-            We're expanding beyond HVAC into plumbing, electrical, roofing, landscaping, and
-            more — same system, same promise. The goal: the default way every home service
-            business gets booked.
-          </p>
+          <Illustration
+            src="/illustrations/undraw_under-construction_hdrn.svg"
+            alt="Expanding to new trades"
+            className="max-w-2xl mx-auto"
+            imgClassName="w-full h-auto max-h-40"
+          />
         </div>
       </section>
 
       {/* ── CLOSING CTA ── */}
       <section className="border-t border-white/10 px-4 sm:px-6 py-20 sm:py-32">
+        <div className="max-w-3xl mx-auto mb-12">
+          <Illustration
+            src="/illustrations/undraw_text-messages_p6bk.svg"
+            alt="Text message booking"
+            className="max-w-sm mx-auto"
+          />
+        </div>
         <div className="max-w-5xl mx-auto text-center relative">
-          <PhoneChatArt className="hidden md:block w-28 absolute -left-4 top-1/2 -translate-y-1/2 opacity-70" />
           <h2 className="font-display text-white text-4xl sm:text-6xl md:text-7xl leading-[0.98] tracking-tight mb-9">
             STOP MISSING CALLS.<br />START BOOKING JOBS.
           </h2>
