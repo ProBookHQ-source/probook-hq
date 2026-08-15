@@ -69,7 +69,12 @@ input, select, textarea {
   .bg-tractify-gradient {
     background: radial-gradient(ellipse 120% 100% at 15% 0%, #a9a7fb 0%, #6366f1 45%, #4338ca 80%, #282566 100%);
   }
+  /* Matches the pitch deck's actual headline weight/tracking — a heavy grotesk,
+     not a slab face like Archivo Black. Inter at 900 with tight negative tracking
+     replicates it closely without loading a second typeface. */
   .font-display {
-    font-family: 'Archivo Black', sans-serif;
+    font-family: 'Inter', sans-serif;
+    font-weight: 900;
+    letter-spacing: -0.03em;
   }
 }

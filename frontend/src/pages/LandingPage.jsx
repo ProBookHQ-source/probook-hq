@@ -28,40 +28,6 @@ function SkylineArt({ className }) {
   );
 }
 
-// Three contractors in hard hats leaning over a table/blueprint — hand-drawn
-// recreation (not the deck's actual Canva stock element) in the same thin
-// one-line white-stroke style, for the hero section.
-function WorkersArt({ className }) {
-  const worker = (x, y, scale, flip = false) => (
-    <g transform={`translate(${x} ${y}) scale(${flip ? -scale : scale} ${scale})`}>
-      {/* hard hat */}
-      <path d="M -20 -6 Q -20 -26 0 -26 Q 20 -26 20 -6" />
-      <path d="M -26 -6 L 26 -6" />
-      <circle cx="0" cy="-30" r="2.4" fill="white" stroke="none" />
-      {/* torso leaning forward */}
-      <path d="M -14 -2 Q -18 30 -6 58 L -30 58" />
-      <path d="M 14 -2 Q 22 24 18 50 L 44 62" />
-      <path d="M -14 -2 Q 0 12 14 -2" />
-      {/* arm reaching down to the table */}
-      <path d="M 10 6 Q 30 20 34 46" />
-      <path d="M -12 8 Q -26 22 -30 46" />
-    </g>
-  );
-  return (
-    <svg viewBox="0 0 420 300" fill="none" className={className}>
-      <g stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        {worker(120, 70, 1.05, true)}
-        {worker(230, 55, 1.25)}
-        {worker(330, 78, 1.0)}
-        {/* table / blueprint surface, in perspective */}
-        <path d="M 20 190 L 190 150 L 400 168 L 340 232 L 60 250 Z" />
-        <path d="M 190 150 L 190 210" strokeOpacity="0.4" />
-        <path d="M 90 205 L 300 190" strokeOpacity="0.4" />
-      </g>
-    </svg>
-  );
-}
-
 function PeopleArt({ className }) {
   return (
     <svg viewBox="0 0 320 220" fill="none" className={className}>
@@ -158,7 +124,6 @@ export default function LandingPage() {
 
       {/* ── HERO (cover) ── */}
       <section className="relative pt-16 pb-20 sm:pt-24 sm:pb-28 px-4 sm:px-6 overflow-hidden">
-        <WorkersArt className="pointer-events-none select-none absolute -bottom-6 -right-6 sm:right-0 sm:-bottom-10 w-[420px] sm:w-[560px] md:w-[680px] opacity-20 sm:opacity-25" />
         <div className="max-w-5xl mx-auto text-center relative">
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-white text-xs sm:text-sm font-semibold px-3.5 py-1.5 rounded-full mb-7 sm:mb-9">
             <Zap className="w-3.5 h-3.5" />

@@ -19,11 +19,6 @@ export default {
           900: '#282566',
         },
       },
-      fontFamily: {
-        // Heavy display face for the pitch-deck-style oversized uppercase headlines.
-        // Body copy stays on Inter (set globally in index.css).
-        display: ['"Archivo Black"', 'sans-serif'],
-      },
     },
   },
   plugins: [],
