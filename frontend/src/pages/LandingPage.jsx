@@ -167,6 +167,92 @@ function SmsDemo({ className = '' }) {
   );
 }
 
+// Animated trial tracker for "Proof Before You Pay" — jobs land one at a time
+// until the trial hits 5, then a "trial complete, $0 charged" state holds
+// before looping. Same idea as the hero SMS demo: show the mechanism instead
+// of describing it.
+const TRIAL_JOBS = [
+  { job: 'AC Repair', place: 'Bellevue, WA' },
+  { job: 'Furnace Tune-Up', place: 'Renton, WA' },
+  { job: 'Duct Cleaning', place: 'Kirkland, WA' },
+  { job: 'Heat Pump Install', place: 'Redmond, WA' },
+  { job: 'AC Repair', place: 'Tacoma, WA' },
+];
+
+function TrialTracker({ className = '' }) {
+  const [count, setCount] = useState(0);
+  const [complete, setComplete] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      while (!cancelled) {
+        for (let i = 0; i < TRIAL_JOBS.length; i++) {
+          if (cancelled) return;
+          await sleep(1100);
+          if (cancelled) return;
+          setCount(i + 1);
+        }
+        await sleep(700);
+        if (cancelled) return;
+        setComplete(true);
+        await sleep(3200);
+        if (cancelled) return;
+        setComplete(false);
+        setCount(0);
+        await sleep(600);
+      }
+    }
+    run();
+    return () => { cancelled = true; };
+  }, []);
+
+  return (
+    <div className={`relative ${className}`}>
+      <div className="glow-orb w-2/3 h-2/3 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-brand-100/60" />
+      <div className="relative bg-white rounded-3xl shadow-2xl shadow-brand-900/30 p-6 sm:p-7">
+        <div className="flex items-center justify-between mb-5">
+          <p className="text-brand-900 font-bold text-sm">Your free trial</p>
+          <p className="font-display text-brand-500 text-lg tracking-tight">{count}<span className="text-gray-300">/5</span></p>
+        </div>
+        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-5">
+          <div
+            className="h-full bg-brand-500 rounded-full transition-all duration-700 ease-out"
+            style={{ width: `${(count / TRIAL_JOBS.length) * 100}%` }}
+          />
+        </div>
+        <div className="space-y-2">
+          {TRIAL_JOBS.map((j, i) => {
+            const done = i < count;
+            return (
+              <div
+                key={i}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 border transition-all duration-500 ${
+                  done ? 'bg-brand-50 border-brand-100 opacity-100 translate-x-0' : 'bg-gray-50 border-gray-100 opacity-40 -translate-x-1'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${done ? 'bg-brand-500' : 'bg-gray-200'}`}>
+                  {done && <CheckCircle2 className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-gray-800 text-xs font-semibold truncate">Job {i + 1} — {j.job}</p>
+                  <p className="text-gray-400 text-[10px]">{j.place}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {complete && (
+          <div className="mt-4 flex items-center gap-2 bg-brand-500 text-white text-xs font-bold px-3 py-2.5 rounded-xl">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            Trial complete — $0 charged
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PeopleArt({ className }) {
   return (
     <svg viewBox="0 0 320 220" fill="none" className={className}>
@@ -472,12 +558,7 @@ export default function LandingPage() {
                 </span>
               </div>
             </div>
-            <Illustration
-              src="/illustrations/undraw_contract-signed_vutk.svg"
-              alt="Trial agreement, no contract"
-              className="w-full max-w-[15rem] sm:max-w-xs mx-auto"
-              light
-            />
+            <TrialTracker className="w-full max-w-xs mx-auto" />
           </div>
         </section>
       </Reveal>
