@@ -77,4 +77,64 @@ input, select, textarea {
     font-weight: 900;
     letter-spacing: -0.03em;
   }
+
+  /* Subtle film-grain overlay — the single biggest cheap trick for making a flat
+     gradient read as "designed" instead of "CSS gradient." Sits fixed above the
+     whole page at very low opacity, mix-blend-overlay so it never washes out text. */
+  .bg-grain {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* Soft blurred glow orbs used behind headlines/illustrations for depth —
+     the layered-light look every agency deck uses instead of a flat gradient. */
+  .glow-orb {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(90px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Scroll-reveal — sections fade + rise into place instead of just appearing.
+     Toggled by the Reveal wrapper component via IntersectionObserver. */
+  .reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .reveal-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Primary CTA sheen — a soft diagonal highlight sweep on hover, the kind of
+     micro-detail that separates "styled button" from "agency-polished button." */
+  .btn-sheen {
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .btn-sheen:hover {
+    transform: translateY(-2px);
+  }
+  .btn-sheen::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -60%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(99, 102, 241, 0.18), transparent);
+    transform: skewX(-20deg);
+    transition: left 0.6s ease;
+  }
+  .btn-sheen:hover::after {
+    left: 130%;
+  }
 }

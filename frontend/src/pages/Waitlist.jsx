@@ -40,7 +40,10 @@ export default function Waitlist() {
   }
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-tractify-gradient flex flex-col">
+    <div className="relative min-h-screen w-full max-w-full overflow-x-hidden bg-tractify-gradient flex flex-col">
+      <div className="bg-grain" />
+      <div className="glow-orb w-96 h-96 -top-20 -left-20 bg-white/10" />
+      <div className="glow-orb w-80 h-80 bottom-0 right-0 bg-brand-300/20" />
 
       {/* ── NAV — matches LandingPage.jsx exactly ── */}
       <nav className="sticky top-0 z-50 bg-white/5 backdrop-blur-md border-b border-white/10">
@@ -58,7 +61,7 @@ export default function Waitlist() {
         </div>
       </nav>
 
-      <div className="flex-1 flex items-center px-4 sm:px-6 py-16 sm:py-24">
+      <div className="relative flex-1 flex items-center px-4 sm:px-6 py-16 sm:py-24">
         <div className="max-w-lg mx-auto w-full">
           {!done ? (
             <>
@@ -118,7 +121,7 @@ export default function Waitlist() {
                 <button
                   type="submit"
                   disabled={!canSubmit}
-                  className="w-full inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-bold text-base py-3.5 rounded-xl hover:bg-brand-50 transition-all shadow-lg shadow-brand-900/30 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+                  className="btn-sheen w-full inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-bold text-base py-3.5 rounded-xl hover:shadow-xl transition-all shadow-lg shadow-brand-900/30 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
                 >
                   {submitting ? 'Joining...' : <>Join the Waitlist <ArrowRight className="w-5 h-5" /></>}
                 </button>
