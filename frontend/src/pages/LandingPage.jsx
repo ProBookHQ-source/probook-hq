@@ -79,33 +79,35 @@ export default function LandingPage() {
 
       {/* ── HERO (cover) ── */}
       <section className="relative pt-16 pb-20 sm:pt-24 sm:pb-28 px-4 sm:px-6 overflow-hidden">
-        <div className="max-w-5xl mx-auto text-center relative">
-          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-white text-xs sm:text-sm font-semibold px-3.5 py-1.5 rounded-full mb-7 sm:mb-9">
-            <Zap className="w-3.5 h-3.5" />
-            Bringing billion-dollar solutions to everyday contractors
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center relative">
+          <div className="text-center md:text-left">
+            <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-white text-xs sm:text-sm font-semibold px-3.5 py-1.5 rounded-full mb-7 sm:mb-9">
+              <Zap className="w-3.5 h-3.5" />
+              Bringing billion-dollar solutions to everyday contractors
+            </div>
+            <h1 className="font-display text-white text-5xl sm:text-7xl leading-[0.95] tracking-tight mb-6 sm:mb-8">
+              STOP MISSING<br />CALLS.
+            </h1>
+            <p className="text-white/80 text-base sm:text-xl max-w-xl mx-auto md:mx-0 leading-relaxed mb-9 sm:mb-11">
+              Tractify captures every missed call, texts the homeowner back, and books the job
+              straight onto your calendar — automatically. No app. No dashboard. No login required.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center md:justify-start">
+              <button
+                onClick={() => navigate('/waitlist')}
+                className="inline-flex items-center justify-center gap-2 bg-white text-brand-700 text-base font-bold px-8 py-3.5 rounded-xl hover:bg-brand-50 transition-all shadow-lg shadow-brand-900/30"
+              >
+                Join the Waitlist <ArrowRight className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-white/50 text-xs sm:text-sm mt-5">
+              Your first 5 booked jobs are free — no card required to start.
+            </p>
           </div>
-          <h1 className="font-display text-white text-5xl sm:text-7xl md:text-8xl leading-[0.95] tracking-tight mb-6 sm:mb-8">
-            STOP MISSING<br />CALLS.
-          </h1>
-          <p className="text-white/80 text-base sm:text-xl max-w-2xl mx-auto leading-relaxed mb-9 sm:mb-11 px-2">
-            Tractify captures every missed call, texts the homeowner back, and books the job
-            straight onto your calendar — automatically. No app. No dashboard. No login required.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4 sm:px-0">
-            <button
-              onClick={() => navigate('/waitlist')}
-              className="inline-flex items-center justify-center gap-2 bg-white text-brand-700 text-base font-bold px-8 py-3.5 rounded-xl hover:bg-brand-50 transition-all shadow-lg shadow-brand-900/30"
-            >
-              Join the Waitlist <ArrowRight className="w-5 h-5" />
-            </button>
-          </div>
-          <p className="text-white/50 text-xs sm:text-sm mt-5">
-            Your first 5 booked jobs are free — no card required to start.
-          </p>
           <img
             src="/illustrations/undraw_text-messages_p6bk.svg"
             alt="Text message booking"
-            className="mt-14 sm:mt-16 w-60 sm:w-72 mx-auto h-auto drop-shadow-2xl"
+            className="w-56 sm:w-72 md:w-80 mx-auto h-auto drop-shadow-2xl"
           />
         </div>
       </section>
