@@ -68,12 +68,6 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <button
-              onClick={() => navigate('/login')}
-              className="text-sm font-semibold text-white/80 hover:text-white px-3 py-2 rounded-xl hover:bg-white/10 transition-all whitespace-nowrap"
-            >
-              <span className="hidden sm:inline">Contractor </span>Login
-            </button>
-            <button
               onClick={() => navigate('/waitlist')}
               className="inline-flex items-center gap-2 bg-white text-brand-700 text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-brand-50 transition-all shadow-sm whitespace-nowrap"
             >
@@ -103,12 +97,6 @@ export default function LandingPage() {
               className="inline-flex items-center justify-center gap-2 bg-white text-brand-700 text-base font-bold px-8 py-3.5 rounded-xl hover:bg-brand-50 transition-all shadow-lg shadow-brand-900/30"
             >
               Join the Waitlist <ArrowRight className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => navigate('/login')}
-              className="inline-flex items-center justify-center gap-2 border border-white/30 text-white text-base font-semibold px-8 py-3.5 rounded-xl hover:bg-white/10 transition-all"
-            >
-              I'm a Contractor
             </button>
           </div>
           <p className="text-white/50 text-xs sm:text-sm mt-5">
