@@ -163,7 +163,7 @@ export default function LandingPage() {
           <div className="max-w-5xl mx-auto grid grid-cols-3 divide-x divide-white/15 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm">
             {[
               { value: '5', label: 'Free booked jobs' },
-              { value: '<60s', label: 'Missed-call response' },
+              { value: '60 sec', label: 'Missed-call response' },
               { value: '0', label: 'Apps or logins' },
             ].map(({ value, label }) => (
               <div key={label} className="text-center px-3 py-6 sm:py-8">
