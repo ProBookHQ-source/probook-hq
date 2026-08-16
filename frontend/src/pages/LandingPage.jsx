@@ -57,6 +57,110 @@ function Illustration({ src, alt, className = '', imgClassName = 'w-full h-auto'
   );
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// The actual product demo — a phone mockup that plays out a real Brain 3
+// missed-call-to-booked-job text exchange on a loop. Lives in the hero where
+// the static phone illustration used to be, so visitors see the thing work
+// instead of reading a description of it.
+const SMS_CONVO = [
+  { from: 'system', text: '📵 Missed call — (206) 555-0182' },
+  { from: 'ai', text: "Hey! Sorry we missed you at Premier Comfort HVAC — I'm their scheduling assistant. What's the address that needs service?" },
+  { from: 'homeowner', text: '1234 Maple Ave, Bellevue' },
+  { from: 'ai', text: "Got it. What's going on — heating or cooling?" },
+  { from: 'homeowner', text: "AC isn't cooling the house" },
+  { from: 'ai', text: 'Mike has openings Tue 10am, Tue 2pm, or Wed 9am. Which works best?' },
+  { from: 'homeowner', text: 'Tuesday 2pm' },
+  { from: 'ai', text: "You're booked! Mike will be there Tuesday at 2pm. 🎉" },
+];
+
+function SmsDemo({ className = '' }) {
+  const [count, setCount] = useState(0);
+  const [typing, setTyping] = useState(false);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      while (!cancelled) {
+        for (let i = 0; i < SMS_CONVO.length; i++) {
+          if (cancelled) return;
+          const msg = SMS_CONVO[i];
+          if (msg.from === 'ai') {
+            setTyping(true);
+            await sleep(900 + Math.random() * 400);
+            if (cancelled) return;
+            setTyping(false);
+          } else {
+            await sleep(500);
+          }
+          if (cancelled) return;
+          setCount(i + 1);
+          await sleep(700);
+        }
+        await sleep(2800);
+        if (cancelled) return;
+        setCount(0);
+        setTyping(false);
+        await sleep(700);
+      }
+    }
+    run();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [count, typing]);
+
+  const visible = SMS_CONVO.slice(0, count);
+
+  return (
+    <div className={`relative ${className}`}>
+      <div className="glow-orb w-64 h-64 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/15" />
+      <div className="relative mx-auto w-56 sm:w-72 md:w-80">
+        <div className="relative rounded-[2.5rem] border-[10px] border-[#1f1d3a] bg-[#1f1d3a] shadow-2xl shadow-brand-900/40">
+          <div className="absolute left-1/2 top-0 -translate-x-1/2 w-20 h-5 bg-[#1f1d3a] rounded-b-2xl z-10" />
+          <div
+            ref={scrollRef}
+            className="scrollbar-none h-[360px] sm:h-[440px] md:h-[480px] bg-white rounded-[1.75rem] overflow-y-auto px-3 pt-8 pb-3 flex flex-col gap-2"
+          >
+            {visible.map((m, i) =>
+              m.from === 'system' ? (
+                <div key={i} className="text-center text-[9px] sm:text-[10px] font-semibold text-gray-400 uppercase tracking-wide py-1">
+                  {m.text}
+                </div>
+              ) : (
+                <div
+                  key={i}
+                  className={`max-w-[82%] px-3 py-2 rounded-2xl text-[11px] sm:text-xs leading-snug ${
+                    m.from === 'ai'
+                      ? 'self-end bg-brand-500 text-white rounded-br-sm'
+                      : 'self-start bg-gray-100 text-gray-800 rounded-bl-sm'
+                  }`}
+                >
+                  {m.text}
+                </div>
+              )
+            )}
+            {typing && (
+              <div className="self-end bg-brand-500/70 px-3 py-2.5 rounded-2xl rounded-br-sm flex gap-1">
+                <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:-0.3s]" />
+                <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:-0.15s]" />
+                <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" />
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="inline-flex items-center gap-1.5 bg-white/10 border border-white/20 text-white/80 text-[10px] sm:text-xs font-semibold px-3 py-1.5 rounded-full mt-4 mx-auto w-fit">
+          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+          Live example — no client info used
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PeopleArt({ className }) {
   return (
     <svg viewBox="0 0 320 220" fill="none" className={className}>
@@ -146,14 +250,7 @@ export default function LandingPage() {
               Your first 5 booked jobs are free — no card required to start.
             </p>
           </div>
-          <div className="relative">
-            <div className="glow-orb w-64 h-64 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/15" />
-            <img
-              src="/illustrations/undraw_text-messages_p6bk.svg"
-              alt="Text message booking"
-              className="relative w-56 sm:w-72 md:w-80 mx-auto h-auto drop-shadow-2xl"
-            />
-          </div>
+          <SmsDemo />
         </div>
       </section>
 
@@ -275,12 +372,13 @@ export default function LandingPage() {
 
       {/* ── (04) WHY TRACTIFY ── */}
       <Reveal>
-        <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
-          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+        <section className="relative border-t border-white/10 bg-tractify-ink px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
+          <div className="glow-orb w-96 h-96 -top-32 right-0 bg-amber-400/10" />
+          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center relative">
             <div>
               <div className="flex items-center gap-4 mb-4">
                 <PageNumber n="04" />
-                <Eyebrow>Why Tractify</Eyebrow>
+                <p className="text-[11px] sm:text-xs font-bold tracking-[0.15em] uppercase text-amber-400">Why Tractify</p>
               </div>
               <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
                 WHY<br />TRACTIFY
@@ -298,8 +396,8 @@ export default function LandingPage() {
                 { icon: LayoutGrid, label: 'No dashboard' },
                 { icon: KeyRound, label: 'No login' },
               ].map(({ icon: Icon, label }) => (
-                <div key={label} className="bg-white/10 border border-white/15 rounded-2xl p-5 flex flex-col items-center text-center gap-3 transition-all hover:bg-white/15 hover:-translate-y-1">
-                  <Icon className="w-7 h-7 text-white" />
+                <div key={label} className="bg-amber-400/10 border border-amber-400/20 rounded-2xl p-5 flex flex-col items-center text-center gap-3 transition-all hover:bg-amber-400/15 hover:-translate-y-1">
+                  <Icon className="w-7 h-7 text-amber-400" />
                   <p className="text-white/80 text-xs font-semibold">{label}</p>
                 </div>
               ))}
@@ -379,17 +477,18 @@ export default function LandingPage() {
 
       {/* ── (07) PERFORMANCE ── */}
       <Reveal>
-        <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
-          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+        <section className="relative border-t border-white/10 bg-tractify-ink px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
+          <div className="glow-orb w-96 h-96 -bottom-32 -left-20 bg-amber-400/10" />
+          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center relative">
             <div>
               <div className="flex items-center gap-4 mb-4">
                 <PageNumber n="07" />
-                <Eyebrow>Our Performance</Eyebrow>
+                <p className="text-[11px] sm:text-xs font-bold tracking-[0.15em] uppercase text-amber-400">Our Performance</p>
               </div>
               <h2 className="font-display text-white text-2xl sm:text-4xl leading-[1.05] tracking-tight mb-6">
                 TRACTIFY IS BUILT TO PUT BOOKED JOBS ON YOUR CALENDAR WITHIN DAYS OF SIGNING UP — NOT MONTHS.
               </h2>
-              <p className="text-white/60 text-xs font-bold uppercase tracking-wide mb-4">By the numbers:</p>
+              <p className="text-amber-400/80 text-xs font-bold uppercase tracking-wide mb-4">By the numbers:</p>
               <div className="space-y-3 max-w-lg">
                 {[
                   '5 free booked jobs before any money changes hands',
@@ -397,7 +496,7 @@ export default function LandingPage() {
                   'Missed calls answered by text in under 60 seconds',
                 ].map(item => (
                   <div key={item} className="flex items-start gap-3 border-t border-white/15 pt-3">
-                    <CheckCircle2 className="w-4 h-4 text-white/70 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     <p className="text-white/80 text-sm">{item}</p>
                   </div>
                 ))}
