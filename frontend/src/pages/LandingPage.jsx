@@ -117,7 +117,7 @@ export default function LandingPage() {
           <img
             src="/illustrations/undraw_text-messages_p6bk.svg"
             alt="Text message booking"
-            className="mt-14 sm:mt-16 w-40 sm:w-48 mx-auto h-auto drop-shadow-2xl"
+            className="mt-14 sm:mt-16 w-60 sm:w-72 mx-auto h-auto drop-shadow-2xl"
           />
         </div>
       </section>
