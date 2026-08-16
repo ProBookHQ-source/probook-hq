@@ -349,31 +349,31 @@ export default function LandingPage() {
         <section className="relative border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
           <div className="glow-orb w-96 h-96 top-0 -left-32 bg-brand-300/20" />
           <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center relative">
-            <div className="flex items-center justify-center gap-5 order-2 md:order-1">
-              <span className="font-display text-white text-8xl sm:text-9xl leading-none">5</span>
-              <span className="text-white font-bold text-lg sm:text-2xl uppercase tracking-wide leading-tight max-w-[8rem]">
-                Free<br />Booked<br />Jobs!
-              </span>
-            </div>
-            <div className="order-1 md:order-2">
-              <div className="flex items-center gap-4 mb-4">
+            <div className="text-center md:text-left">
+              <div className="flex items-center justify-center md:justify-start gap-4 mb-4">
                 <PageNumber n="06" />
                 <Eyebrow>Proof Before You Pay</Eyebrow>
               </div>
               <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
                 PROOF<br />BEFORE<br />YOU PAY
               </h2>
-              <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg">
+              <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg mx-auto md:mx-0 mb-8">
                 Every new contractor gets 5 booked jobs completely free. Proof before a dollar
                 changes hands.
               </p>
+              <div className="flex items-center justify-center md:justify-start gap-5">
+                <span className="font-display text-white text-7xl sm:text-8xl leading-none">5</span>
+                <span className="text-white font-bold text-lg sm:text-xl uppercase tracking-wide leading-tight max-w-[8rem]">
+                  Free<br />Booked<br />Jobs!
+                </span>
+              </div>
             </div>
+            <Illustration
+              src="/illustrations/undraw_contract-signed_vutk.svg"
+              alt="Trial agreement, no contract"
+              className="w-full max-w-md mx-auto"
+            />
           </div>
-          <Illustration
-            src="/illustrations/undraw_contract-signed_vutk.svg"
-            alt="Trial agreement, no contract"
-            className="relative max-w-sm mx-auto mt-12 sm:mt-16"
-          />
         </section>
       </Reveal>
 
