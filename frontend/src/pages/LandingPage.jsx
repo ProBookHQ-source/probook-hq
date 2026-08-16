@@ -430,7 +430,7 @@ export default function LandingPage() {
             </p>
             <div className="grid sm:grid-cols-2 gap-5 max-w-xl">
               {[
-                { photo: '/team/jose-crop.jpg', name: 'Jose', role: 'Product & Strategy', ratio: '1 / 1' },
+                { photo: '/team/jose-crop2.jpg', name: 'Jose', role: 'Product & Strategy', ratio: '594 / 664' },
                 { photo: '/team/daniel.png', name: 'Daniel', role: 'Content & Growth', ratio: '594 / 664' },
               ].map(({ photo, name, role, ratio }) => (
                 <div key={name} className="bg-white/10 border border-white/15 rounded-2xl overflow-hidden transition-all hover:bg-white/15 hover:-translate-y-1">
