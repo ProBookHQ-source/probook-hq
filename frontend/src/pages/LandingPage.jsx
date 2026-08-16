@@ -114,10 +114,10 @@ export default function LandingPage() {
           <p className="text-white/50 text-xs sm:text-sm mt-5">
             Your first 5 booked jobs are free — no card required to start.
           </p>
-          <Illustration
+          <img
             src="/illustrations/undraw_under-construction_c2y1.svg"
             alt="Contractor at work"
-            className="mt-14 sm:mt-16 max-w-2xl mx-auto"
+            className="mt-14 sm:mt-16 w-full max-w-2xl mx-auto h-auto drop-shadow-2xl"
           />
         </div>
       </section>
