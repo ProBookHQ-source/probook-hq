@@ -428,7 +428,7 @@ export default function LandingPage() {
               growth. Daniel owns content and distribution. That's the entire team it takes to
               book jobs for contractors nationwide.
             </p>
-            <div className="grid sm:grid-cols-2 gap-6 max-w-3xl">
+            <div className="grid sm:grid-cols-2 gap-5 max-w-xl">
               {[
                 { photo: '/team/jose.jpg', name: 'Jose', role: 'Product & Strategy', ratio: '1 / 1' },
                 { photo: '/team/daniel.png', name: 'Daniel', role: 'Content & Growth', ratio: '594 / 664' },
