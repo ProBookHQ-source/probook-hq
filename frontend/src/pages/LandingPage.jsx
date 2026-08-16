@@ -424,9 +424,9 @@ export default function LandingPage() {
               OUR TEAM
             </h2>
             <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-12 max-w-2xl">
-              Two founders and a system that runs the backend. Jose owns product, strategy, and
-              growth. Daniel owns content and distribution. That's the entire team it takes to
-              book jobs for contractors nationwide.
+              Two founders and a system that runs the backend. Jose owns product and strategy.
+              Daniel owns content and growth. That's the entire team it takes to book jobs for
+              contractors nationwide.
             </p>
             <div className="grid sm:grid-cols-2 gap-5 max-w-xl">
               {[
