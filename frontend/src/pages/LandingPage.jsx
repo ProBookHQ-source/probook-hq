@@ -313,18 +313,19 @@ export default function LandingPage() {
         </section>
       </Reveal>
 
-      {/* ── (02) MARKET INSIGHT ── */}
+      {/* ── (02) MARKET INSIGHT — white panel ── */}
       <Reveal>
-        <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
-          <div className="max-w-4xl mx-auto text-center">
+        <section className="relative bg-white px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
+          <div className="glow-orb w-96 h-96 -top-32 left-1/2 -translate-x-1/2 bg-brand-100/60" />
+          <div className="max-w-4xl mx-auto text-center relative">
             <div className="flex items-center justify-center gap-4 mb-4">
-              <PageNumber n="02" />
-              <Eyebrow>Market Insight</Eyebrow>
+              <PageNumber n="02" dark />
+              <Eyebrow dark>Market Insight</Eyebrow>
             </div>
-            <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.05] tracking-tight mb-5">
+            <h2 className="font-display text-brand-900 text-3xl sm:text-5xl leading-[1.05] tracking-tight mb-5">
               A MISSED CALL TODAY IS A BOOKED JOB FOR YOUR COMPETITOR TOMORROW.
             </h2>
-            <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg mx-auto">
+            <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg mx-auto">
               Customers don't wait. If a business doesn't answer, they call the next name on
               the list within minutes. Tractify closes that gap automatically — every missed
               call gets a reply before the customer ever picks up the phone again.
@@ -448,26 +449,26 @@ export default function LandingPage() {
         </section>
       </Reveal>
 
-      {/* ── (06) PROOF BEFORE YOU PAY ── */}
+      {/* ── (06) PROOF BEFORE YOU PAY — white panel ── */}
       <Reveal>
-        <section className="relative border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
-          <div className="glow-orb w-96 h-96 top-0 -left-32 bg-brand-300/20" />
+        <section className="relative bg-white px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
+          <div className="glow-orb w-96 h-96 top-0 -left-32 bg-brand-100/60" />
           <div className="max-w-6xl mx-auto grid md:grid-cols-[1.15fr_0.85fr] gap-10 md:gap-14 items-center relative">
             <div className="text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start gap-4 mb-4">
-                <PageNumber n="06" />
-                <Eyebrow>Proof Before You Pay</Eyebrow>
+                <PageNumber n="06" dark />
+                <Eyebrow dark>Proof Before You Pay</Eyebrow>
               </div>
-              <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
+              <h2 className="font-display text-brand-900 text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
                 PROOF<br />BEFORE<br />YOU PAY
               </h2>
-              <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg mx-auto md:mx-0 mb-8">
+              <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg mx-auto md:mx-0 mb-8">
                 Every new contractor gets 5 booked jobs completely free. Proof before a dollar
                 changes hands.
               </p>
               <div className="flex items-center justify-center md:justify-start gap-5">
-                <span className="font-display text-white text-7xl sm:text-8xl leading-none">5</span>
-                <span className="text-white font-bold text-lg sm:text-xl uppercase tracking-wide leading-tight max-w-[8rem]">
+                <span className="font-display text-brand-700 text-7xl sm:text-8xl leading-none">5</span>
+                <span className="text-brand-900 font-bold text-lg sm:text-xl uppercase tracking-wide leading-tight max-w-[8rem]">
                   Free<br />Booked<br />Jobs!
                 </span>
               </div>
@@ -476,34 +477,35 @@ export default function LandingPage() {
               src="/illustrations/undraw_contract-signed_vutk.svg"
               alt="Trial agreement, no contract"
               className="w-full max-w-[15rem] sm:max-w-xs mx-auto"
+              light
             />
           </div>
         </section>
       </Reveal>
 
-      {/* ── (07) PERFORMANCE — white panel ── */}
+      {/* ── (07) PERFORMANCE ── */}
       <Reveal>
-        <section className="relative bg-white px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
-          <div className="glow-orb w-96 h-96 -bottom-32 -left-20 bg-brand-100/60" />
+        <section className="relative border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
+          <div className="glow-orb w-96 h-96 -bottom-32 -left-20 bg-brand-300/20" />
           <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center relative">
             <div>
               <div className="flex items-center gap-4 mb-4">
-                <PageNumber n="07" dark />
-                <Eyebrow dark>Our Performance</Eyebrow>
+                <PageNumber n="07" />
+                <Eyebrow>Our Performance</Eyebrow>
               </div>
-              <h2 className="font-display text-brand-900 text-2xl sm:text-4xl leading-[1.05] tracking-tight mb-6">
+              <h2 className="font-display text-white text-2xl sm:text-4xl leading-[1.05] tracking-tight mb-6">
                 TRACTIFY IS BUILT TO PUT BOOKED JOBS ON YOUR CALENDAR WITHIN DAYS OF SIGNING UP — NOT MONTHS.
               </h2>
-              <p className="text-brand-500 text-xs font-bold uppercase tracking-wide mb-4">By the numbers:</p>
+              <p className="text-white/60 text-xs font-bold uppercase tracking-wide mb-4">By the numbers:</p>
               <div className="space-y-3 max-w-lg">
                 {[
                   '5 free booked jobs before any money changes hands',
                   '0 apps, logins, or dashboards required to get started',
                   'Missed calls answered by text in under 60 seconds',
                 ].map(item => (
-                  <div key={item} className="flex items-start gap-3 border-t border-gray-100 pt-3">
-                    <CheckCircle2 className="w-4 h-4 text-brand-500 shrink-0 mt-0.5" />
-                    <p className="text-gray-600 text-sm">{item}</p>
+                  <div key={item} className="flex items-start gap-3 border-t border-white/15 pt-3">
+                    <CheckCircle2 className="w-4 h-4 text-white/70 shrink-0 mt-0.5" />
+                    <p className="text-white/80 text-sm">{item}</p>
                   </div>
                 ))}
               </div>
@@ -512,39 +514,40 @@ export default function LandingPage() {
               src="/illustrations/undraw_ai-data-extraction_soxc.svg"
               alt="Automated data and reporting"
               className="w-full max-w-md mx-auto"
-              light
             />
           </div>
         </section>
       </Reveal>
 
-      {/* ── (08) WHAT'S NEXT ── */}
+      {/* ── (08) WHAT'S NEXT — white panel ── */}
       <Reveal>
-        <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center mb-12">
-            <div>
-              <div className="flex items-center gap-4 mb-4">
-                <PageNumber n="08" />
-                <Eyebrow>What's Next For Tractify</Eyebrow>
+        <section className="relative bg-white px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
+          <div className="glow-orb w-96 h-96 -top-20 right-0 bg-brand-100/60" />
+          <div className="max-w-6xl mx-auto relative">
+            <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center mb-12">
+              <div>
+                <div className="flex items-center gap-4 mb-4">
+                  <PageNumber n="08" dark />
+                  <Eyebrow dark>What's Next For Tractify</Eyebrow>
+                </div>
+                <h2 className="font-display text-brand-900 text-3xl sm:text-5xl leading-[1.02] tracking-tight">
+                  WHAT'S NEXT<br />FOR TRACTIFY
+                </h2>
               </div>
-              <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight">
-                WHAT'S NEXT<br />FOR TRACTIFY
-              </h2>
+              <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg">
+                We're expanding beyond HVAC into plumbing, electrical, roofing, landscaping, and
+                more — same system, same promise. The goal: the default way every home service
+                business gets booked.
+              </p>
             </div>
-            <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg">
-              We're expanding beyond HVAC into plumbing, electrical, roofing, landscaping, and
-              more — same system, same promise. The goal: the default way every home service
-              business gets booked.
-            </p>
+            <Illustration
+              src="/illustrations/undraw_under-construction_hdrn.svg"
+              alt="Expanding to new trades"
+              className="max-w-2xl mx-auto"
+              imgClassName="w-full h-auto max-h-40"
+              light
+            />
           </div>
-          <Illustration
-            src="/illustrations/undraw_under-construction_hdrn.svg"
-            alt="Expanding to new trades"
-            className="max-w-2xl mx-auto"
-            imgClassName="w-full h-auto max-h-40"
-          />
-        </div>
         </section>
       </Reveal>
 
