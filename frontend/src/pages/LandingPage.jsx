@@ -42,15 +42,21 @@ function Reveal({ children, className = '', delay = 0 }) {
   );
 }
 
-// White card wrapper for the full-color unDraw illustrations Jose uploaded —
-// keeps them readable against the indigo gradient instead of floating loose.
-// A soft brand-colored glow sits behind the card so it doesn't read as a flat
-// clip-art box dropped on a gradient.
-function Illustration({ src, alt, className = '', imgClassName = 'w-full h-auto' }) {
+// Card wrapper for the full-color unDraw illustrations Jose uploaded — keeps
+// them readable whether they're sitting on the indigo gradient (white card +
+// glow) or inside one of the white section panels (soft brand-tinted card,
+// since a white card on white background would just disappear).
+function Illustration({ src, alt, className = '', imgClassName = 'w-full h-auto', light = false }) {
   return (
     <div className={`relative ${className}`}>
-      <div className="glow-orb w-2/3 h-2/3 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/25" />
-      <div className="relative bg-white rounded-3xl shadow-2xl shadow-brand-900/30 p-6 sm:p-8">
+      {!light && <div className="glow-orb w-2/3 h-2/3 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/25" />}
+      <div
+        className={
+          light
+            ? 'relative bg-brand-50 border border-brand-100 rounded-3xl p-6 sm:p-8'
+            : 'relative bg-white rounded-3xl shadow-2xl shadow-brand-900/30 p-6 sm:p-8'
+        }
+      >
         <img src={src} alt={alt} className={imgClassName} />
       </div>
     </div>
@@ -188,9 +194,9 @@ function Eyebrow({ children, dark = false }) {
   );
 }
 
-function PageNumber({ n }) {
+function PageNumber({ n, dark = false }) {
   return (
-    <span className="font-display text-2xl sm:text-3xl text-white/50 tracking-tight">
+    <span className={`font-display text-2xl sm:text-3xl tracking-tight ${dark ? 'text-brand-100' : 'text-white/50'}`}>
       ({n})
     </span>
   );
@@ -370,20 +376,20 @@ export default function LandingPage() {
         </section>
       </Reveal>
 
-      {/* ── (04) WHY TRACTIFY ── */}
+      {/* ── (04) WHY TRACTIFY — white panel, breaks up the blue ── */}
       <Reveal>
-        <section className="relative border-t border-white/10 bg-tractify-ink px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
-          <div className="glow-orb w-96 h-96 -top-32 right-0 bg-amber-400/10" />
+        <section className="relative bg-white px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
+          <div className="glow-orb w-96 h-96 -top-32 right-0 bg-brand-100/60" />
           <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center relative">
             <div>
               <div className="flex items-center gap-4 mb-4">
-                <PageNumber n="04" />
-                <p className="text-[11px] sm:text-xs font-bold tracking-[0.15em] uppercase text-amber-400">Why Tractify</p>
+                <PageNumber n="04" dark />
+                <Eyebrow dark>Why Tractify</Eyebrow>
               </div>
-              <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
+              <h2 className="font-display text-brand-900 text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
                 WHY<br />TRACTIFY
               </h2>
-              <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg">
+              <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg">
                 Every business owner we talk to says the same thing: "I'm too busy doing jobs to
                 spend the day chained to a phone." What sets Tractify apart is a system built
                 entirely around text message — no app, no login, no learning curve — so booked
@@ -396,9 +402,9 @@ export default function LandingPage() {
                 { icon: LayoutGrid, label: 'No dashboard' },
                 { icon: KeyRound, label: 'No login' },
               ].map(({ icon: Icon, label }) => (
-                <div key={label} className="bg-amber-400/10 border border-amber-400/20 rounded-2xl p-5 flex flex-col items-center text-center gap-3 transition-all hover:bg-amber-400/15 hover:-translate-y-1">
-                  <Icon className="w-7 h-7 text-amber-400" />
-                  <p className="text-white/80 text-xs font-semibold">{label}</p>
+                <div key={label} className="bg-brand-50 border border-brand-100 rounded-2xl p-5 flex flex-col items-center text-center gap-3 transition-all hover:bg-brand-100/70 hover:-translate-y-1">
+                  <Icon className="w-7 h-7 text-brand-500" />
+                  <p className="text-gray-700 text-xs font-semibold">{label}</p>
                 </div>
               ))}
             </div>
@@ -475,29 +481,29 @@ export default function LandingPage() {
         </section>
       </Reveal>
 
-      {/* ── (07) PERFORMANCE ── */}
+      {/* ── (07) PERFORMANCE — white panel ── */}
       <Reveal>
-        <section className="relative border-t border-white/10 bg-tractify-ink px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
-          <div className="glow-orb w-96 h-96 -bottom-32 -left-20 bg-amber-400/10" />
+        <section className="relative bg-white px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
+          <div className="glow-orb w-96 h-96 -bottom-32 -left-20 bg-brand-100/60" />
           <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center relative">
             <div>
               <div className="flex items-center gap-4 mb-4">
-                <PageNumber n="07" />
-                <p className="text-[11px] sm:text-xs font-bold tracking-[0.15em] uppercase text-amber-400">Our Performance</p>
+                <PageNumber n="07" dark />
+                <Eyebrow dark>Our Performance</Eyebrow>
               </div>
-              <h2 className="font-display text-white text-2xl sm:text-4xl leading-[1.05] tracking-tight mb-6">
+              <h2 className="font-display text-brand-900 text-2xl sm:text-4xl leading-[1.05] tracking-tight mb-6">
                 TRACTIFY IS BUILT TO PUT BOOKED JOBS ON YOUR CALENDAR WITHIN DAYS OF SIGNING UP — NOT MONTHS.
               </h2>
-              <p className="text-amber-400/80 text-xs font-bold uppercase tracking-wide mb-4">By the numbers:</p>
+              <p className="text-brand-500 text-xs font-bold uppercase tracking-wide mb-4">By the numbers:</p>
               <div className="space-y-3 max-w-lg">
                 {[
                   '5 free booked jobs before any money changes hands',
                   '0 apps, logins, or dashboards required to get started',
                   'Missed calls answered by text in under 60 seconds',
                 ].map(item => (
-                  <div key={item} className="flex items-start gap-3 border-t border-white/15 pt-3">
-                    <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                    <p className="text-white/80 text-sm">{item}</p>
+                  <div key={item} className="flex items-start gap-3 border-t border-gray-100 pt-3">
+                    <CheckCircle2 className="w-4 h-4 text-brand-500 shrink-0 mt-0.5" />
+                    <p className="text-gray-600 text-sm">{item}</p>
                   </div>
                 ))}
               </div>
@@ -506,6 +512,7 @@ export default function LandingPage() {
               src="/illustrations/undraw_ai-data-extraction_soxc.svg"
               alt="Automated data and reporting"
               className="w-full max-w-md mx-auto"
+              light
             />
           </div>
         </section>

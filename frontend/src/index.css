@@ -69,13 +69,6 @@ input, select, textarea {
   .bg-tractify-gradient {
     background: radial-gradient(ellipse 120% 100% at 15% 0%, #a9a7fb 0%, #6366f1 45%, #4338ca 80%, #282566 100%);
   }
-  /* Deep ink panel — used to break up two or three sections on the homepage so
-     it doesn't read as one uninterrupted wall of blue. Same gradient family,
-     just pulled almost to black, with a warm amber accent used only inside
-     these panels for contrast against the rest of the page's cool palette. */
-  .bg-tractify-ink {
-    background: radial-gradient(ellipse 120% 100% at 85% 0%, #2a2760 0%, #17152f 55%, #0c0a1c 100%);
-  }
   /* Hides scrollbars on the SMS demo phone mockup while staying scrollable. */
   .scrollbar-none {
     scrollbar-width: none;
