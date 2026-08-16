@@ -213,26 +213,19 @@ export default function LandingPage() {
       {/* ── (02) MARKET INSIGHT ── */}
       <Reveal>
         <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
-          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center">
-            <Illustration
-              src="/illustrations/undraw_questions_52ic.svg"
-              alt="Homeowner deciding who to call"
-              className="w-full max-w-md mx-auto order-2 md:order-1"
-            />
-            <div className="order-1 md:order-2">
-              <div className="flex items-center gap-4 mb-4">
-                <PageNumber n="02" />
-                <Eyebrow>Market Insight</Eyebrow>
-              </div>
-              <h2 className="font-display text-white text-2xl sm:text-4xl leading-[1.05] tracking-tight mb-5">
-                A MISSED CALL TODAY IS A BOOKED JOB FOR YOUR COMPETITOR TOMORROW.
-              </h2>
-              <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg">
-                Customers don't wait. If a business doesn't answer, they call the next name on
-                the list within minutes. Tractify closes that gap automatically — every missed
-                call gets a reply before the customer ever picks up the phone again.
-              </p>
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <PageNumber n="02" />
+              <Eyebrow>Market Insight</Eyebrow>
             </div>
+            <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.05] tracking-tight mb-5">
+              A MISSED CALL TODAY IS A BOOKED JOB FOR YOUR COMPETITOR TOMORROW.
+            </h2>
+            <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg mx-auto">
+              Customers don't wait. If a business doesn't answer, they call the next name on
+              the list within minutes. Tractify closes that gap automatically — every missed
+              call gets a reply before the customer ever picks up the phone again.
+            </p>
           </div>
         </section>
       </Reveal>
@@ -356,7 +349,13 @@ export default function LandingPage() {
         <section className="relative border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
           <div className="glow-orb w-96 h-96 top-0 -left-32 bg-brand-300/20" />
           <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center relative">
-            <div>
+            <div className="flex items-center justify-center gap-5 order-2 md:order-1">
+              <span className="font-display text-white text-8xl sm:text-9xl leading-none">5</span>
+              <span className="text-white font-bold text-lg sm:text-2xl uppercase tracking-wide leading-tight max-w-[8rem]">
+                Free<br />Booked<br />Jobs!
+              </span>
+            </div>
+            <div className="order-1 md:order-2">
               <div className="flex items-center gap-4 mb-4">
                 <PageNumber n="06" />
                 <Eyebrow>Proof Before You Pay</Eyebrow>
@@ -368,12 +367,6 @@ export default function LandingPage() {
                 Every new contractor gets 5 booked jobs completely free. Proof before a dollar
                 changes hands.
               </p>
-            </div>
-            <div className="flex items-center justify-center gap-5">
-              <span className="font-display text-white text-8xl sm:text-9xl leading-none">5</span>
-              <span className="text-white font-bold text-lg sm:text-2xl uppercase tracking-wide leading-tight max-w-[8rem]">
-                Free<br />Booked<br />Jobs!
-              </span>
             </div>
           </div>
           <Illustration
