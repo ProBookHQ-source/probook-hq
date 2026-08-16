@@ -348,7 +348,7 @@ export default function LandingPage() {
       <Reveal>
         <section className="relative border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
           <div className="glow-orb w-96 h-96 top-0 -left-32 bg-brand-300/20" />
-          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center relative">
+          <div className="max-w-6xl mx-auto grid md:grid-cols-[1.15fr_0.85fr] gap-10 md:gap-14 items-center relative">
             <div className="text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start gap-4 mb-4">
                 <PageNumber n="06" />
@@ -371,7 +371,7 @@ export default function LandingPage() {
             <Illustration
               src="/illustrations/undraw_contract-signed_vutk.svg"
               alt="Trial agreement, no contract"
-              className="w-full max-w-md mx-auto"
+              className="w-full max-w-[15rem] sm:max-w-xs mx-auto"
             />
           </div>
         </section>
