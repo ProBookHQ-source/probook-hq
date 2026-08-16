@@ -428,18 +428,16 @@ export default function LandingPage() {
               growth. Daniel owns content and distribution. That's the entire team it takes to
               book jobs for contractors nationwide.
             </p>
-            <div className="grid sm:grid-cols-2 gap-5 max-w-2xl">
+            <div className="grid sm:grid-cols-2 gap-6 max-w-3xl">
               {[
-                { photo: '/team/jose.jpg', name: 'Jose', role: 'Product & Strategy' },
-                { photo: '/team/daniel-crop.png', name: 'Daniel', role: 'Content & Growth' },
-              ].map(({ photo, name, role }) => (
-                <div key={name} className="bg-white/10 border border-white/15 rounded-2xl p-6 flex items-center gap-4 transition-all hover:bg-white/15 hover:-translate-y-1">
-                  <img
-                    src={photo}
-                    alt={name}
-                    className="w-16 h-16 rounded-full object-cover object-top border-2 border-white/25 shrink-0"
-                  />
-                  <div>
+                { photo: '/team/jose.jpg', name: 'Jose', role: 'Product & Strategy', ratio: '1 / 1' },
+                { photo: '/team/daniel.png', name: 'Daniel', role: 'Content & Growth', ratio: '594 / 664' },
+              ].map(({ photo, name, role, ratio }) => (
+                <div key={name} className="bg-white/10 border border-white/15 rounded-2xl overflow-hidden transition-all hover:bg-white/15 hover:-translate-y-1">
+                  <div className="bg-black/20" style={{ aspectRatio: ratio }}>
+                    <img src={photo} alt={name} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="p-5">
                     <p className="text-white font-bold text-base">{name}</p>
                     <p className="text-white/60 text-xs font-semibold uppercase tracking-wide">{role}</p>
                   </div>
