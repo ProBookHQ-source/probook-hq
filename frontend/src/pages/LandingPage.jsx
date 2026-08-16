@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Zap, ArrowRight, PhoneCall, MessageSquare, CalendarCheck,
+  ArrowRight, PhoneCall, MessageSquare, CalendarCheck,
   Smartphone, LayoutGrid, KeyRound, CheckCircle2,
 } from 'lucide-react';
 
@@ -234,7 +234,6 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center relative">
           <div className="text-center md:text-left">
             <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-white text-xs sm:text-sm font-semibold px-3.5 py-1.5 rounded-full mb-7 sm:mb-9">
-              <Zap className="w-3.5 h-3.5" />
               Bringing billion-dollar solutions to everyday contractors
             </div>
             <h1 className="font-display text-white text-5xl sm:text-7xl leading-[0.95] tracking-tight mb-6 sm:mb-8">
