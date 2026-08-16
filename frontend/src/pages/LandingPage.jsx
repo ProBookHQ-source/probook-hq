@@ -212,7 +212,7 @@ function TrialTracker({ className = '' }) {
       <div className="glow-orb w-2/3 h-2/3 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-brand-100/60" />
       <div className="relative bg-white rounded-3xl shadow-2xl shadow-brand-900/30 p-6 sm:p-7">
         <div className="flex items-center justify-between mb-5">
-          <p className="text-brand-900 font-bold text-sm">Your free trial</p>
+          <p className="text-brand-900 font-bold text-sm">Sample trial timeline</p>
           <p className="font-display text-brand-500 text-lg tracking-tight">{count}<span className="text-gray-300">/5</span></p>
         </div>
         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-5">
@@ -235,7 +235,7 @@ function TrialTracker({ className = '' }) {
                   {done && <CheckCircle2 className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-gray-800 text-xs font-semibold truncate">Job {i + 1} — {j.job}</p>
+                  <p className="text-gray-800 text-xs font-semibold truncate">Appointment {i + 1} — {j.job}</p>
                   <p className="text-gray-400 text-[10px]">{j.place}</p>
                 </div>
               </div>
@@ -249,6 +249,9 @@ function TrialTracker({ className = '' }) {
           </div>
         )}
       </div>
+      <p className="text-gray-400 text-[10px] text-center mt-3">
+        Example for illustration — actual jobs are booked appointments and vary by niche and market.
+      </p>
     </div>
   );
 }
