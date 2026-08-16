@@ -115,8 +115,8 @@ export default function LandingPage() {
             Your first 5 booked jobs are free — no card required to start.
           </p>
           <img
-            src="/illustrations/undraw_under-construction_c2y1.svg"
-            alt="Contractor at work"
+            src="/illustrations/undraw_text-messages_p6bk.svg"
+            alt="Text message booking"
             className="mt-14 sm:mt-16 w-full max-w-2xl mx-auto h-auto drop-shadow-2xl"
           />
         </div>
@@ -382,8 +382,8 @@ export default function LandingPage() {
       <section className="border-t border-white/10 px-4 sm:px-6 py-20 sm:py-32">
         <div className="max-w-3xl mx-auto mb-12">
           <Illustration
-            src="/illustrations/undraw_text-messages_p6bk.svg"
-            alt="Text message booking"
+            src="/illustrations/undraw_under-construction_c2y1.svg"
+            alt="Contractor at work"
             className="max-w-sm mx-auto"
           />
         </div>
