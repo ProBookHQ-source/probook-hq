@@ -430,13 +430,15 @@ export default function LandingPage() {
             </p>
             <div className="grid sm:grid-cols-2 gap-5 max-w-2xl">
               {[
-                { initials: 'J', name: 'Jose', role: 'Product & Strategy' },
-                { initials: 'D', name: 'Daniel', role: 'Content & Growth' },
-              ].map(({ initials, name, role }) => (
+                { photo: '/team/jose.jpg', name: 'Jose', role: 'Product & Strategy' },
+                { photo: '/team/daniel-crop.png', name: 'Daniel', role: 'Content & Growth' },
+              ].map(({ photo, name, role }) => (
                 <div key={name} className="bg-white/10 border border-white/15 rounded-2xl p-6 flex items-center gap-4 transition-all hover:bg-white/15 hover:-translate-y-1">
-                  <div className="w-14 h-14 rounded-full bg-white/15 border border-white/25 flex items-center justify-center shrink-0">
-                    <span className="font-display text-white text-lg">{initials}</span>
-                  </div>
+                  <img
+                    src={photo}
+                    alt={name}
+                    className="w-16 h-16 rounded-full object-cover object-top border-2 border-white/25 shrink-0"
+                  />
                   <div>
                     <p className="text-white font-bold text-base">{name}</p>
                     <p className="text-white/60 text-xs font-semibold uppercase tracking-wide">{role}</p>
