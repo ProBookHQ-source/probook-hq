@@ -672,7 +672,7 @@ export default function LandingPage() {
                 <div className="p-5">
                   <p className="text-white font-bold text-base">The AI</p>
                   <p className="text-white/75 text-xs font-semibold uppercase tracking-wide mb-2">Every Missed Call</p>
-                  <p className="text-white/60 text-xs leading-relaxed">Reads the text, books the job, alerts the contractor. No shift, no day off.</p>
+                  <p className="text-white/60 text-xs leading-relaxed">Reads the text, books the job, alerts the contractor. No breaks, no day off.</p>
                 </div>
               </div>
             </div>
