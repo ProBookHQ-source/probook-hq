@@ -46,7 +46,13 @@ function Reveal({ children, className = '', delay = 0 }) {
 // them readable whether they're sitting on the indigo gradient (white card +
 // glow) or inside one of the white section panels (soft brand-tinted card,
 // since a white card on white background would just disappear).
-function Illustration({ src, alt, className = '', imgClassName = 'w-full h-auto', light = false }) {
+// width/height are the SVG's own intrinsic pixel dimensions (not display size) —
+// passing them as real HTML attributes lets the browser reserve the correct box
+// height via its default `img[width][height] { aspect-ratio: ... }` UA rule
+// *before* the file finishes loading. Without this, height:auto collapses to 0
+// until the SVG loads, then the section snaps to full height and shoves every
+// section below it down mid-scroll — that's the "page jumps around" bug.
+function Illustration({ src, alt, className = '', imgClassName = 'w-full h-auto', light = false, width = 960, height = 690 }) {
   return (
     <div className={`relative ${className}`}>
       {!light && <div className="glow-orb w-2/3 h-2/3 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/25" />}
@@ -57,7 +63,7 @@ function Illustration({ src, alt, className = '', imgClassName = 'w-full h-auto'
             : 'relative bg-white rounded-3xl shadow-2xl shadow-brand-900/30 p-6 sm:p-8'
         }
       >
-        <img src={src} alt={alt} className={imgClassName} />
+        <img src={src} alt={alt} className={imgClassName} width={width} height={height} />
       </div>
     </div>
   );
@@ -242,12 +248,20 @@ function TrialTracker({ className = '' }) {
             );
           })}
         </div>
-        {complete && (
-          <div className="mt-4 flex items-center gap-2 bg-brand-500 text-white text-xs font-bold px-3 py-2.5 rounded-xl">
+        {/* Always mounted (not conditionally rendered) so the card's height never
+            changes when this appears/disappears — swapping opacity/max-height
+            instead of adding/removing the node avoids reflowing everything below
+            it every ~10s, which is what was causing the page to visibly "jump". */}
+        <div
+          className={`overflow-hidden transition-all duration-500 ease-out ${
+            complete ? 'max-h-20 opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'
+          }`}
+        >
+          <div className="flex items-center gap-2 bg-brand-500 text-white text-xs font-bold px-3 py-2.5 rounded-xl">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             Trial complete — $0 charged
           </div>
-        )}
+        </div>
       </div>
       <p className="text-gray-400 text-[10px] text-center mt-3">
         Example for illustration — actual jobs are booked appointments and vary by niche and market.
@@ -560,6 +574,8 @@ export default function LandingPage() {
                 src="/illustrations/undraw_booking_8vl5.svg"
                 alt="Booking an appointment"
                 className="w-full max-w-md mx-auto"
+                width={960}
+                height={691}
               />
             </div>
             <div className="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-2">
@@ -745,6 +761,8 @@ export default function LandingPage() {
               src="/illustrations/undraw_plug-in_hy0z.svg"
               alt="Automated setup, running in the background"
               className="w-full max-w-md mx-auto"
+              width={960}
+              height={644}
             />
           </div>
         </section>
@@ -806,6 +824,8 @@ export default function LandingPage() {
               src="/illustrations/undraw_under-construction_c2y1.svg"
               alt="Contractor at work"
               className="max-w-sm mx-auto"
+              width={1178}
+              height={724}
             />
           </div>
           <div className="max-w-5xl mx-auto text-center relative">
