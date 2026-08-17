@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   ArrowRight, PhoneCall, MessageSquare, CalendarCheck,
-  Smartphone, LayoutGrid, KeyRound, CheckCircle2, X,
+  Smartphone, LayoutGrid, KeyRound, CheckCircle2, X, BrainCircuit,
 } from 'lucide-react';
 
 // ── Reusable line-art SVGs — hand-drawn in the same thin white-stroke style
@@ -665,8 +665,12 @@ export default function LandingPage() {
                     </span>
                     <p className="text-white/70 text-[10px] font-bold uppercase tracking-wide">Always On</p>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center mb-5">
-                    <MessageSquare className="w-6 h-6 text-white" strokeWidth={2.2} />
+                  <div className="relative w-20 h-20 flex items-center justify-center mb-5">
+                    <div className="absolute inset-0 rounded-full bg-white/10 blur-md" />
+                    <BrainCircuit className="w-14 h-14 text-white relative" strokeWidth={1.4} />
+                    <span className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+                    <span className="absolute bottom-3 left-0 w-1 h-1 rounded-full bg-brand-100 animate-pulse" style={{ animationDelay: '0.4s' }} />
+                    <span className="absolute top-6 left-1 w-1 h-1 rounded-full bg-emerald-300 animate-pulse" style={{ animationDelay: '0.8s' }} />
                   </div>
                   <p className="text-white font-bold text-lg mb-2">The Third Team Member</p>
                   <p className="text-white/75 text-sm leading-relaxed mb-5">
