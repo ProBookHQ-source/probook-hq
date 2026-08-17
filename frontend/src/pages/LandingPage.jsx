@@ -266,9 +266,9 @@ function TeamRoster({ className = '' }) {
   const [shown, setShown] = useState(0);
 
   const rows = [
-    { role: 'Missed-call follow-up', icon: PhoneCall, typical: 'Sales rep — if they call back', ours: 'AI — texts back in seconds' },
-    { role: 'After-hours support', icon: MessageSquare, typical: 'Voicemail', ours: 'AI — answers 24 / 7' },
-    { role: 'Scheduling', icon: CalendarCheck, typical: 'Office manager, juggling a calendar', ours: 'AI — books straight to the job' },
+    { role: 'Missed-call follow-up', icon: PhoneCall, typical: 'Sales rep — if they call back', ours: 'Never on another call' },
+    { role: 'After-hours support', icon: MessageSquare, typical: 'Voicemail', ours: "Doesn't clock out" },
+    { role: 'Scheduling', icon: CalendarCheck, typical: 'Office manager, juggling a calendar', ours: 'Never double-books' },
     { role: 'Content & growth', icon: LayoutGrid, typical: 'Marketing agency retainer', ours: 'Daniel' },
     { role: 'Product & strategy', icon: KeyRound, typical: 'Outside consultant', ours: 'Jose' },
   ];
