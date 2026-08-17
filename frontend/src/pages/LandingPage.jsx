@@ -339,36 +339,55 @@ function TeamRoster({ className = '' }) {
   );
 }
 
-// Hand-drawn brain sketch for the "AI team member" card — a generic icon-library
-// glyph (lucide's BrainCircuit) read as clip art. This matches the thin white-
-// stroke line-art style used elsewhere on the page instead.
-function BrainSketch({ className }) {
+// Tiny looping chat demo for the "AI team member" card — illustrations (icons,
+// sketches) kept falling flat here. Showing the actual product doing its job in
+// miniature — the same instinct behind the hero's SmsDemo — reads far stronger
+// than any static picture of a brain.
+const AI_CARD_MESSAGES = [
+  { from: 'them', text: 'Missed call — (206) 555-0148' },
+  { from: 'ai', text: "Sorry we missed you! What's the address?" },
+  { from: 'them', text: '412 Birch St' },
+  { from: 'ai', text: "You're booked for Tue 2pm ✓" },
+];
+
+function AIChatLoop({ className = '' }) {
+  const [visible, setVisible] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    let i = 0;
+    const step = async () => {
+      while (!cancelled) {
+        i += 1;
+        if (i > AI_CARD_MESSAGES.length) {
+          i = 0;
+          setVisible(0);
+          await sleep(1100);
+        } else {
+          setVisible(i);
+          await sleep(1400);
+        }
+      }
+    };
+    step();
+    return () => { cancelled = true; };
+  }, []);
+
   return (
-    <svg viewBox="0 0 100 88" fill="none" className={className}>
-      <g stroke="white" strokeLinecap="round" strokeLinejoin="round">
-        <path
-          strokeWidth="2.2"
-          d="M31 10
-             C20 8 9 17 10 29
-             C4 33 3 44 9 50
-             C6 59 13 67 22 68
-             C25 77 36 82 45 77
-             C51 84 63 83 69 76
-             C79 78 90 69 88 59
-             C94 54 94 42 87 37
-             C89 26 80 16 68 16
-             C63 8 51 5 43 10
-             C39 7 34 8 31 10 Z"
-        />
-        <path strokeWidth="1.3" opacity="0.65" d="M23 27c6-4 13 0 11 6 6-2 11 4 7 9" />
-        <path strokeWidth="1.3" opacity="0.65" d="M46 18c5 3 4 9-1 11" />
-        <path strokeWidth="1.3" opacity="0.65" d="M56 23c7-1 12 5 8 10 6 1 8 9 2 12" />
-        <path strokeWidth="1.3" opacity="0.65" d="M29 48c6-2 11 4 6 9" />
-        <path strokeWidth="1.3" opacity="0.65" d="M49 54c6-3 12 1 9 7" />
-        <path strokeWidth="1.3" opacity="0.65" d="M69 43c6 1 8 7 3 11" />
-        <path strokeWidth="2.2" d="M45 77.5 46 87M64 75 64 87" />
-      </g>
-    </svg>
+    <div className={`flex flex-col justify-end gap-1.5 ${className}`}>
+      {AI_CARD_MESSAGES.slice(0, visible).map((m, i) => (
+        <div
+          key={i}
+          className={`px-2.5 py-1.5 rounded-xl text-[10px] leading-snug max-w-[88%] ${
+            m.from === 'ai'
+              ? 'self-end bg-white text-brand-700 font-semibold'
+              : 'self-start bg-white/15 text-white/90'
+          }`}
+        >
+          {m.text}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -687,9 +706,9 @@ export default function LandingPage() {
                   shape as Jose/Daniel (image block + name/role block) so all three
                   read as one matched set instead of two photos plus an odd panel. */}
               <div className="bg-white/10 border border-white/15 rounded-2xl overflow-hidden transition-all hover:bg-white/15 hover:-translate-y-1">
-                <div className="relative flex items-center justify-center bg-gradient-to-br from-brand-600 to-brand-900" style={{ aspectRatio: '4 / 5' }}>
+                <div className="relative flex flex-col justify-end p-3 bg-gradient-to-br from-brand-600 to-brand-900 overflow-hidden" style={{ aspectRatio: '4 / 5' }}>
                   <div className="glow-orb w-40 h-40 bg-brand-300/30" />
-                  <BrainSketch className="w-16 h-16 relative opacity-90" />
+                  <AIChatLoop className="relative" />
                   <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/25 backdrop-blur-sm rounded-full pl-1.5 pr-2.5 py-1">
                     <span className="relative flex h-1.5 w-1.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
