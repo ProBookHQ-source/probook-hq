@@ -248,19 +248,17 @@ function TrialTracker({ className = '' }) {
             );
           })}
         </div>
-        {/* Always mounted (not conditionally rendered) so the card's height never
-            changes when this appears/disappears — swapping opacity/max-height
-            instead of adding/removing the node avoids reflowing everything below
-            it every ~10s, which is what was causing the page to visibly "jump". */}
-        <div
-          className={`overflow-hidden transition-all duration-500 ease-out ${
-            complete ? 'max-h-20 opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'
-          }`}
+        {/* Space for this banner is reserved permanently (fixed height, opacity-only
+            toggle) — NOT max-height/margin animated — because the parent grid row
+            (section 06) uses items-center. Any height change here, even a smoothly
+            animated one, re-centers the whole row and visibly shifts the section's
+            top edge every ~10s. Keeping total card height truly constant across the
+            entire loop is what actually stops the page from jumping. */}
+        <div className="mt-4 h-[42px] flex items-center gap-2 bg-brand-500 text-white text-xs font-bold px-3 py-2.5 rounded-xl transition-opacity duration-500 ease-out"
+          style={{ opacity: complete ? 1 : 0 }}
         >
-          <div className="flex items-center gap-2 bg-brand-500 text-white text-xs font-bold px-3 py-2.5 rounded-xl">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            Trial complete — $0 charged
-          </div>
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          Trial complete — $0 charged
         </div>
       </div>
       <p className="text-gray-400 text-[10px] text-center mt-3">
