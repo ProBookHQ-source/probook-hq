@@ -339,58 +339,6 @@ function TeamRoster({ className = '' }) {
   );
 }
 
-// Tiny looping chat demo for the "AI team member" card — illustrations (icons,
-// sketches) kept falling flat here. Showing the actual product doing its job in
-// miniature — the same instinct behind the hero's SmsDemo — reads far stronger
-// than any static picture of a brain.
-const AI_CARD_MESSAGES = [
-  { from: 'them', text: 'Missed call — (206) 555-0148' },
-  { from: 'ai', text: "Sorry we missed you! What's the address?" },
-  { from: 'them', text: '412 Birch St' },
-  { from: 'ai', text: "You're booked for Tue 2pm ✓" },
-];
-
-function AIChatLoop({ className = '' }) {
-  const [visible, setVisible] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    let i = 0;
-    const step = async () => {
-      while (!cancelled) {
-        i += 1;
-        if (i > AI_CARD_MESSAGES.length) {
-          i = 0;
-          setVisible(0);
-          await sleep(1100);
-        } else {
-          setVisible(i);
-          await sleep(1400);
-        }
-      }
-    };
-    step();
-    return () => { cancelled = true; };
-  }, []);
-
-  return (
-    <div className={`flex flex-col justify-end gap-1.5 ${className}`}>
-      {AI_CARD_MESSAGES.slice(0, visible).map((m, i) => (
-        <div
-          key={i}
-          className={`px-2.5 py-1.5 rounded-xl text-[10px] leading-snug max-w-[88%] ${
-            m.from === 'ai'
-              ? 'self-end bg-white text-brand-700 font-semibold'
-              : 'self-start bg-white/15 text-white/90'
-          }`}
-        >
-          {m.text}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ── Small shared building blocks ────────────────────────────────────────────
 
 // "Why Tractify" proof-point list — was a flat 3-box icon grid (looked like
@@ -706,9 +654,13 @@ export default function LandingPage() {
                   shape as Jose/Daniel (image block + name/role block) so all three
                   read as one matched set instead of two photos plus an odd panel. */}
               <div className="bg-white/10 border border-white/15 rounded-2xl overflow-hidden transition-all hover:bg-white/15 hover:-translate-y-1">
-                <div className="relative flex flex-col justify-end p-3 bg-gradient-to-br from-brand-600 to-brand-900 overflow-hidden" style={{ aspectRatio: '4 / 5' }}>
+                <div className="relative flex items-center justify-center p-5 bg-gradient-to-br from-brand-600 to-brand-900 overflow-hidden" style={{ aspectRatio: '4 / 5' }}>
                   <div className="glow-orb w-40 h-40 bg-brand-300/30" />
-                  <AIChatLoop className="relative" />
+                  <img
+                    src="/illustrations/undraw_ai-data-extraction_soxc.svg"
+                    alt="Automation running in the background"
+                    className="relative w-full h-full object-contain"
+                  />
                   <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/25 backdrop-blur-sm rounded-full pl-1.5 pr-2.5 py-1">
                     <span className="relative flex h-1.5 w-1.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
