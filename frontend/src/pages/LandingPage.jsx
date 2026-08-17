@@ -634,21 +634,49 @@ export default function LandingPage() {
               Daniel owns content and growth. That's the entire team it takes to book jobs for
               contractors nationwide.
             </p>
-            <div className="grid sm:grid-cols-2 gap-5 max-w-xl">
-              {[
-                { photo: '/team/jose.jpg', name: 'Jose', role: 'Product & Strategy', ratio: '4 / 5' },
-                { photo: '/team/daniel.png', name: 'Daniel', role: 'Content & Growth', ratio: '4 / 5' },
-              ].map(({ photo, name, role, ratio }) => (
-                <div key={name} className="bg-white/10 border border-white/15 rounded-2xl overflow-hidden transition-all hover:bg-white/15 hover:-translate-y-1">
-                  <div className="bg-black/20" style={{ aspectRatio: ratio }}>
-                    <img src={photo} alt={name} className="w-full h-full object-cover" />
+            <div className="grid md:grid-cols-2 gap-8 md:gap-10 items-stretch">
+              <div className="grid sm:grid-cols-2 gap-5">
+                {[
+                  { photo: '/team/jose.jpg', name: 'Jose', role: 'Product & Strategy', ratio: '4 / 5' },
+                  { photo: '/team/daniel.png', name: 'Daniel', role: 'Content & Growth', ratio: '4 / 5' },
+                ].map(({ photo, name, role, ratio }) => (
+                  <div key={name} className="bg-white/10 border border-white/15 rounded-2xl overflow-hidden transition-all hover:bg-white/15 hover:-translate-y-1">
+                    <div className="bg-black/20" style={{ aspectRatio: ratio }}>
+                      <img src={photo} alt={name} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="p-5">
+                      <p className="text-white font-bold text-base">{name}</p>
+                      <p className="text-white/75 text-xs font-semibold uppercase tracking-wide">{role}</p>
+                    </div>
                   </div>
-                  <div className="p-5">
-                    <p className="text-white font-bold text-base">{name}</p>
-                    <p className="text-white/75 text-xs font-semibold uppercase tracking-wide">{role}</p>
+                ))}
+              </div>
+
+              {/* Third "team member" — the AI brain running the backend. Fills what
+                  was empty space next to the two founder photos, and reintroduces
+                  the AI fact honestly without repeating the old org-chart framing. */}
+              <div className="relative bg-gradient-to-br from-brand-500/25 to-brand-800/25 border border-white/15 rounded-2xl p-6 sm:p-8 overflow-hidden">
+                <div className="glow-orb w-56 h-56 -top-16 -right-16 bg-brand-300/25" />
+                <div className="relative flex flex-col h-full">
+                  <div className="flex items-center gap-2 mb-5">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                    </span>
+                    <p className="text-white/70 text-[10px] font-bold uppercase tracking-wide">Always On</p>
                   </div>
+                  <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center mb-5">
+                    <MessageSquare className="w-6 h-6 text-white" strokeWidth={2.2} />
+                  </div>
+                  <p className="text-white font-bold text-lg mb-2">The Third Team Member</p>
+                  <p className="text-white/75 text-sm leading-relaxed mb-5">
+                    Every missed call, every text, every booking — answered the second it happens.
+                    It reads the conversation, books the job, and alerts the contractor. No shift,
+                    no day off, never distracted.
+                  </p>
+                  <p className="text-white/50 text-xs mt-auto">It doesn't take a photo. It just doesn't stop working.</p>
                 </div>
-              ))}
+              </div>
             </div>
           </div>
         </section>
