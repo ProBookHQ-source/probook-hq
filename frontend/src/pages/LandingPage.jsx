@@ -648,7 +648,7 @@ export default function LandingPage() {
               <div className="space-y-3 max-w-lg">
                 {[
                   'Join the waitlist — takes about 30 seconds',
-                  "Forward your calls — the only setup step that matters",
+                  'Forward your calls — the biggest immediate step',
                   'Missed calls start turning into booked jobs, automatically',
                 ].map((item, i) => (
                   <div key={item} className="flex items-start gap-3 border-t border-white/15 pt-3">
