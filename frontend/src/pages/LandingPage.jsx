@@ -256,21 +256,21 @@ function TrialTracker({ className = '' }) {
   );
 }
 
-// "Everyone else" vs "Tractify" org-chart card — replaces generic stick-figure
-// art with the actual, distinctive fact about the company: it's two founders
-// and AI doing the work a normal agency needs a whole team for. Rows build in
-// one at a time on scroll so the "headcount gap" lands as a reveal, not a wall
-// of text dumped on the page at once.
+// "Without Tractify" vs "With Tractify" card. Earlier version compared company
+// org charts (job roles) — replaced because contractors don't care who's doing
+// the work, they care what they get back. The real product being sold here is
+// time: evenings, weekends, dinner without the phone going off. Rows build in
+// one at a time on scroll so it lands as a reveal, not a wall of text.
 function TeamRoster({ className = '' }) {
   const rootRef = useRef(null);
   const [shown, setShown] = useState(0);
 
   const rows = [
-    { role: 'Missed-call follow-up', icon: PhoneCall, typical: 'Sales rep — if they call back', ours: 'Never on another call' },
-    { role: 'After-hours support', icon: MessageSquare, typical: 'Voicemail', ours: "Doesn't clock out" },
-    { role: 'Scheduling', icon: CalendarCheck, typical: 'Office manager, juggling a calendar', ours: 'Never double-books' },
-    { role: 'Content & growth', icon: LayoutGrid, typical: 'Marketing agency retainer', ours: 'Daniel' },
-    { role: 'Product & strategy', icon: KeyRound, typical: 'Outside consultant', ours: 'Jose' },
+    { role: 'Evenings', icon: Smartphone, typical: 'Checking for missed calls', ours: 'Phone stays off' },
+    { role: 'Weekends', icon: CalendarCheck, typical: 'One eye on the job site', ours: 'Actually off the clock' },
+    { role: 'Family dinner', icon: MessageSquare, typical: 'Interrupted mid-bite', ours: 'Nobody interrupts it' },
+    { role: 'A missed call', icon: PhoneCall, typical: 'A lost job', ours: 'A booked job you never saw happen' },
+    { role: 'Vacation', icon: LayoutGrid, typical: "Can't really leave", ours: 'The business runs without you' },
   ];
 
   useEffect(() => {
@@ -295,12 +295,12 @@ function TeamRoster({ className = '' }) {
     <div ref={rootRef} className={`bg-white/10 border border-white/15 rounded-2xl overflow-hidden shadow-2xl shadow-brand-900/20 ${className}`}>
       <div className="grid grid-cols-2 px-5 sm:px-6 py-4 border-b border-white/15">
         <div>
-          <p className="text-white/45 text-[10px] font-bold uppercase tracking-wide mb-1">Everyone else</p>
-          <p className="text-white/70 text-base font-display tracking-tight">5–8 people</p>
+          <p className="text-white/45 text-[10px] font-bold uppercase tracking-wide mb-1">Without Tractify</p>
+          <p className="text-white/70 text-base font-display tracking-tight">Chained to your phone</p>
         </div>
         <div>
-          <p className="text-white text-[10px] font-bold uppercase tracking-wide mb-1">Tractify</p>
-          <p className="text-white text-base font-display tracking-tight">2 people</p>
+          <p className="text-white text-[10px] font-bold uppercase tracking-wide mb-1">With Tractify</p>
+          <p className="text-white text-base font-display tracking-tight">Your time back</p>
         </div>
       </div>
       <div className="divide-y divide-white/10">
@@ -333,7 +333,7 @@ function TeamRoster({ className = '' }) {
           shown >= rows.length ? 'opacity-100' : 'opacity-0'
         }`}
       >
-        <p className="text-white text-sm font-bold text-center">Two founders. Everything else runs itself.</p>
+        <p className="text-white text-sm font-bold text-center">This is what you're actually buying — your time back.</p>
       </div>
     </div>
   );
@@ -446,14 +446,14 @@ export default function LandingPage() {
                 WHO<br />WE ARE
               </h2>
               <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-4 max-w-lg">
-                Tractify exists because contractors were losing jobs to a missed phone call.
-                We built a system that captures every missed call, texts the homeowner back,
-                and books the job straight onto the calendar — automatically, with no app,
-                no dashboard, and no login required.
+                Tractify exists because contractors were losing jobs to a missed phone call —
+                and losing their evenings to a phone that never stops ringing. We built a system
+                that captures every missed call, texts the homeowner back, and books the job
+                automatically. No app, no dashboard, no login required.
               </p>
               <p className="text-white/60 text-sm leading-relaxed max-w-lg">
-                Most companies doing this need a sales team, a support desk, and an ops
-                coordinator. Here's what it actually takes to run Tractify:
+                What you're actually buying isn't software. It's not being the guy who checks
+                his phone at dinner. Here's what changes:
               </p>
             </div>
             <TeamRoster className="w-full max-w-md mx-auto" />
