@@ -3,6 +3,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   ArrowRight, PhoneCall, MessageSquare, CalendarCheck,
   Smartphone, LayoutGrid, KeyRound, CheckCircle2, X,
+  Search, Share2, ArrowDown,
 } from 'lucide-react';
 
 // ── Reusable line-art SVGs — hand-drawn in the same thin white-stroke style
@@ -540,9 +541,10 @@ export default function LandingPage() {
               STOP MISSING<br />CALLS.
             </h1>
             <p className="text-white/80 text-base sm:text-xl max-w-xl mx-auto md:mx-0 leading-relaxed mb-9 sm:mb-11">
-              Tractify will capture every missed call, text the homeowner back, and book the job
-              straight onto your calendar — automatically. No app. No dashboard. No login required.
-              So you can be at your kid's game instead of your desk.
+              Every missed call, every Google search, every Facebook and Instagram message —
+              Tractify turns all of it into a text conversation that books the job straight onto
+              your calendar. No app. No dashboard. No login required. So you can be at your kid's
+              game instead of your desk.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center md:justify-start">
               <button
@@ -629,22 +631,24 @@ export default function LandingPage() {
         </section>
       </Reveal>
 
-      {/* ── (03) WHAT WE DO ── */}
+      {/* ── (03) WHAT WE DO — every channel converges on one text system ── */}
       <Reveal>
         <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
           <div className="max-w-6xl mx-auto">
-            <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center mb-12">
+            <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center mb-14">
               <div>
                 <div className="flex items-center gap-4 mb-4">
                   <PageNumber n="03" />
-                  <Eyebrow>Services We Offer</Eyebrow>
+                  <Eyebrow>One System, Every Channel</Eyebrow>
                 </div>
                 <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
-                  SERVICES<br />WE OFFER
+                  ONE SYSTEM.<br />EVERY CHANNEL.
                 </h2>
                 <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg">
-                  From the first missed call to the final booked appointment, Tractify runs the
-                  entire pipeline automatically — over text message, with zero dashboard required.
+                  A missed call, a Google search, a Facebook or Instagram message — however a
+                  homeowner finds you, it all lands in the same place: a text conversation that
+                  books the job. You're not running three different tools. It's one system with
+                  more doors into it.
                 </p>
               </div>
               <Illustration
@@ -655,11 +659,13 @@ export default function LandingPage() {
                 height={691}
               />
             </div>
-            <div className="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-2">
+
+            {/* Entry channels — where the conversation starts */}
+            <div className="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-2 mb-8">
               {[
-                { icon: PhoneCall, title: 'Missed Call Text-Back', desc: 'Every missed call triggers an instant, friendly text — before the homeowner ever calls your competitor.' },
-                { icon: MessageSquare, title: 'SMS Booking', desc: 'The homeowner picks a time right in the text thread. No link, no app, no waiting on hold.' },
-                { icon: CalendarCheck, title: 'Calendar Automation', desc: 'The job lands straight on your calendar, confirmed — you just show up.' },
+                { icon: PhoneCall, title: 'Missed Calls', desc: "You're on a job, the phone rings, nobody picks up. That's the trigger, not the loss." },
+                { icon: Search, title: 'Google Business Profile', desc: 'Homeowners searching "near me" tap Book and go straight into the same text thread.' },
+                { icon: Share2, title: 'Facebook & Instagram', desc: 'Ad replies and DMs get an instant booking link — nobody waits on a callback.' },
               ].map(({ icon: Icon, title, desc }, i) => (
                 <Fragment key={title}>
                   <Reveal delay={i * 130} className="flex-1">
@@ -682,6 +688,49 @@ export default function LandingPage() {
                 </Fragment>
               ))}
             </div>
+
+            <Reveal>
+              <div className="flex flex-col items-center gap-3 mb-10">
+                <ArrowDown className="w-5 h-5 text-white/30" strokeWidth={2.5} />
+                <p className="text-white/50 text-xs font-bold uppercase tracking-wide">Every one of them becomes this</p>
+              </div>
+            </Reveal>
+
+            {/* The shared engine every channel feeds into */}
+            <div className="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-2 mb-10">
+              {[
+                { icon: MessageSquare, title: 'SMS Booking', desc: 'The homeowner picks a time right in the text thread. No link, no app, no waiting on hold.' },
+                { icon: CalendarCheck, title: 'Calendar Automation', desc: 'The job lands straight on your calendar, confirmed — you just show up.' },
+              ].map(({ icon: Icon, title, desc }, i) => (
+                <Fragment key={title}>
+                  <Reveal delay={i * 130} className="flex-1">
+                    <div className="group relative h-full bg-brand-500/15 border border-brand-300/25 rounded-2xl p-6 backdrop-blur-sm transition-all duration-300 hover:bg-brand-500/25 hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-brand-900/30">
+                      <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center mb-5 shadow-lg shadow-black/20 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
+                        <Icon className="w-6 h-6 text-brand-600" strokeWidth={2.2} />
+                      </div>
+                      <p className="text-white font-bold text-sm mb-2 tracking-tight">{title}</p>
+                      <p className="text-white/80 text-sm leading-relaxed">{desc}</p>
+                    </div>
+                  </Reveal>
+                  {i < 1 && (
+                    <div className="hidden sm:flex items-center justify-center shrink-0 w-6">
+                      <ArrowRight className="w-5 h-5 text-white/25" strokeWidth={2.5} />
+                    </div>
+                  )}
+                </Fragment>
+              ))}
+            </div>
+
+            <Reveal>
+              <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-5 flex items-start gap-3 max-w-3xl mx-auto">
+                <KeyRound className="w-5 h-5 text-white/50 shrink-0 mt-0.5" strokeWidth={2.2} />
+                <p className="text-white/70 text-sm leading-relaxed">
+                  <span className="text-white font-semibold">Turning a channel on is a text, not a handover.</span>{' '}
+                  We text you the exact steps for Google Business Profile and Facebook/Instagram — a couple
+                  minutes each, done inside your own accounts. We never ask for your logins.
+                </p>
+              </div>
+            </Reveal>
           </div>
         </section>
       </Reveal>
