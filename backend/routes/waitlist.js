@@ -22,6 +22,7 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../database/db');
 const { requireAdmin } = require('../middleware/auth');
 const { createContractorAccount } = require('../services/contractorSignup');
+const { sendWaitlistSignupAlert } = require('../services/notifications');
 
 const router = express.Router();
 
@@ -52,6 +53,13 @@ router.post('/', async (req, res) => {
 
   console.log(`[WAITLIST] New signup: ${businessName.trim()} (${phone.trim()})`);
   res.status(201).json({ ok: true, id });
+
+  // Fire-and-forget — never block or fail the signup response on an email hiccup.
+  sendWaitlistSignupAlert({
+    businessName: businessName.trim(),
+    phone: phone.trim(),
+    acquisitionSource: acquisitionSource || null,
+  }).catch(err => console.error('[WAITLIST] Alert email failed:', err.message));
 });
 
 // ── GET /api/waitlist — admin list ─────────────────────────────────────────────

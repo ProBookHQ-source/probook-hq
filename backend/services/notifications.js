@@ -1085,4 +1085,38 @@ async function sendBrain3BookingConfirmation({ to, name, businessName, date, tim
   await sendEmail(to, `Appointment confirmed — ${biz} on ${dt}`, html);
 }
 
-module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset, sendDirectBookingConfirmation, sendDirectBookingContractorAlert, sendOnboardingNudge, sendContractorWelcomeEmail, sendDeployAlertToAdmin, sendTrialBookingAlertToJose, sendTrialSilenceAlertToJose, sendBrain3BookingConfirmation };
+// ── Waitlist signup alert (added session 26 follow-up) ─────────────────────────
+// Every other capture flow in the app (contractor applications, bookings, deploys)
+// fires an alert to Jose the moment it happens. The waitlist route never got one,
+// which is why a real signup landed in the DB correctly but felt like it "went
+// nowhere" — there was nothing telling Jose/Daniel it had happened short of
+// opening the admin dashboard and checking. This closes that gap.
+async function sendWaitlistSignupAlert({ businessName, phone, acquisitionSource }) {
+  const html = emailBase({
+    accentColor: '#6366f1',
+    label: 'NEW WAITLIST SIGNUP',
+    headline: `New waitlist signup`,
+    sub: `${esc(businessName)} joined the waitlist.`,
+    bodyContent: `
+      <tr><td style="padding:0 0 20px;">
+        <p style="margin:0;font-size:15px;color:#4b5563;line-height:1.6;">
+          A business joined the waitlist. Promote them to a real contractor account from
+          the admin dashboard once Twilio compliance clears.
+        </p>
+      </td></tr>
+
+      ${sectionLabel('Signup Details')}
+      <tr><td style="padding:0 0 20px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+          ${infoRow('Business',  esc(businessName), true)}
+          ${infoRow('Phone',     esc(phone))}
+          ${infoRow('Source',    esc(acquisitionSource || 'Direct'), true)}
+        </table>
+      </td></tr>
+
+      ${ctaBtn(`${APP_URL}/admin`, 'View Waitlist')}`,
+  });
+  return sendEmail(ADMIN_EMAIL, `[Waitlist] ${businessName} | ${BRAND}`, html);
+}
+
+module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset, sendDirectBookingConfirmation, sendDirectBookingContractorAlert, sendOnboardingNudge, sendContractorWelcomeEmail, sendDeployAlertToAdmin, sendTrialBookingAlertToJose, sendTrialSilenceAlertToJose, sendBrain3BookingConfirmation, sendWaitlistSignupAlert };
