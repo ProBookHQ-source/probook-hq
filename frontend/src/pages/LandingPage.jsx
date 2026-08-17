@@ -742,7 +742,7 @@ export default function LandingPage() {
               </div>
             </div>
             <Illustration
-              src="/illustrations/undraw_ai-data-extraction_soxc.svg"
+              src="/illustrations/undraw_plug-in_hy0z.svg"
               alt="Automated setup, running in the background"
               className="w-full max-w-md mx-auto"
             />
