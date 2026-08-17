@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight, PhoneCall, MessageSquare, CalendarCheck,
-  Smartphone, LayoutGrid, KeyRound, CheckCircle2,
+  Smartphone, LayoutGrid, KeyRound, CheckCircle2, X,
 } from 'lucide-react';
 
 // ── Reusable line-art SVGs — hand-drawn in the same thin white-stroke style
@@ -256,20 +256,44 @@ function TrialTracker({ className = '' }) {
   );
 }
 
-function PeopleArt({ className }) {
+// "Everyone else" vs "Tractify" org-chart card — replaces generic stick-figure
+// art with the actual, distinctive fact about the company: it's two founders
+// and AI doing the work a normal agency needs a whole team for.
+function TeamRoster({ className = '' }) {
+  const rows = [
+    { role: 'Missed-call follow-up', typical: 'Sales rep — if they call back', ours: 'AI — texts back in seconds' },
+    { role: 'After-hours support', typical: 'Voicemail', ours: 'AI — answers 24 / 7' },
+    { role: 'Scheduling', typical: 'Office manager, juggling a calendar', ours: 'AI — books straight to the job' },
+    { role: 'Content & growth', typical: 'Marketing agency retainer', ours: 'Daniel' },
+    { role: 'Product & strategy', typical: 'Outside consultant', ours: 'Jose' },
+  ];
   return (
-    <svg viewBox="0 0 320 220" fill="none" className={className}>
-      <g stroke="white" strokeOpacity="0.9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <ellipse cx="160" cy="185" rx="120" ry="14" />
-        {[70, 160, 250].map((cx, i) => (
-          <g key={i}>
-            <circle cx={cx} cy="60" r="22" />
-            <path d={`M ${cx - 34} 150 Q ${cx - 34} 100 ${cx} 96 Q ${cx + 34} 100 ${cx + 34} 150 L ${cx + 34} 185 L ${cx - 34} 185 Z`} />
-          </g>
+    <div className={`bg-white/10 border border-white/15 rounded-2xl overflow-hidden ${className}`}>
+      <div className="grid grid-cols-2 px-5 sm:px-6 py-3.5 border-b border-white/15">
+        <p className="text-white/45 text-[10px] font-bold uppercase tracking-wide">Everyone else</p>
+        <p className="text-white text-[10px] font-bold uppercase tracking-wide">Tractify</p>
+      </div>
+      <div className="divide-y divide-white/10">
+        {rows.map((r) => (
+          <div key={r.role} className="px-5 sm:px-6 py-3.5">
+            <p className="text-white/35 text-[10px] font-semibold uppercase tracking-wide mb-1.5">{r.role}</p>
+            <div className="grid grid-cols-2 gap-3 items-start">
+              <div className="flex items-start gap-1.5">
+                <X className="w-3.5 h-3.5 text-white/25 shrink-0 mt-0.5" />
+                <p className="text-white/40 text-xs leading-snug line-through decoration-white/20">{r.typical}</p>
+              </div>
+              <div className="flex items-start gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-brand-200 shrink-0 mt-0.5" />
+                <p className="text-white text-xs font-semibold leading-snug">{r.ours}</p>
+              </div>
+            </div>
+          </div>
         ))}
-        <rect x="40" y="150" width="240" height="14" rx="2" strokeOpacity="0.6" />
-      </g>
-    </svg>
+      </div>
+      <div className="px-5 sm:px-6 py-4 bg-white/5 border-t border-white/15">
+        <p className="text-white text-sm font-bold text-center">Two founders. Everything else runs itself.</p>
+      </div>
+    </div>
   );
 }
 
@@ -379,24 +403,18 @@ export default function LandingPage() {
               <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
                 WHO<br />WE ARE
               </h2>
-              <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-8 max-w-lg">
+              <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-4 max-w-lg">
                 Tractify exists because contractors were losing jobs to a missed phone call.
                 We built a system that captures every missed call, texts the homeowner back,
                 and books the job straight onto the calendar — automatically, with no app,
                 no dashboard, and no login required.
               </p>
-              <div className="space-y-4 max-w-md">
-                <div className="border-t border-white/15 pt-3">
-                  <p className="text-white text-xs font-bold uppercase tracking-wide mb-1">Mission</p>
-                  <p className="text-white/70 text-sm">Turn every missed call into a booked job.</p>
-                </div>
-                <div className="border-t border-white/15 pt-3">
-                  <p className="text-white text-xs font-bold uppercase tracking-wide mb-1">Vision</p>
-                  <p className="text-white/70 text-sm">Become the booking layer for every home service contractor in America.</p>
-                </div>
-              </div>
+              <p className="text-white/60 text-sm leading-relaxed max-w-lg">
+                Most companies doing this need a sales team, a support desk, and an ops
+                coordinator. Here's what it actually takes to run Tractify:
+              </p>
             </div>
-            <PeopleArt className="w-full max-w-md mx-auto opacity-90" />
+            <TeamRoster className="w-full max-w-md mx-auto" />
           </div>
         </section>
       </Reveal>
