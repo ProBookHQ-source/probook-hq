@@ -531,8 +531,8 @@ export default function LandingPage() {
             <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg mx-auto">
               Customers don't wait. If a business doesn't answer, they call the next name on
               the list within minutes. Tractify closes that gap automatically — every missed
-              call gets a reply before the customer ever picks up the phone again. Be unavailable
-              without ever being unreachable.
+              call gets a reply before the customer ever picks up the phone again. You don't
+              have to answer. They still get an answer.
             </p>
           </div>
         </section>
