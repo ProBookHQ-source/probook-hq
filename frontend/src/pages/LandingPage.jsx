@@ -836,10 +836,7 @@ export default function LandingPage() {
             <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">Terms</button>
             <a href="mailto:support@tractifyhq.com" className="hover:text-white transition-colors">support@tractifyhq.com</a>
           </div>
-          <p className="text-xs text-white/55 text-center sm:text-right">
-            © {new Date().getFullYear()} OMNIANCEGROUP LLC<br className="sm:hidden" />
-            <span className="hidden sm:inline"> · </span>Expanding beyond HVAC soon
-          </p>
+          <p className="text-xs text-white/55">© {new Date().getFullYear()} OMNIANCEGROUP LLC</p>
         </div>
       </footer>
     </div>
