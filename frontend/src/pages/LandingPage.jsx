@@ -341,6 +341,60 @@ function TeamRoster({ className = '' }) {
 
 // ── Small shared building blocks ────────────────────────────────────────────
 
+// "Why Tractify" proof-point list — was a flat 3-box icon grid (looked like
+// generic SaaS filler). Rebuilt as horizontal rows with gradient icon badges,
+// real supporting copy per point, and a slide-in reveal so it carries the same
+// visual weight as the rest of the page instead of feeling like an afterthought.
+function WhyTractifyList({ className = '' }) {
+  const rootRef = useRef(null);
+  const [shown, setShown] = useState(0);
+
+  const items = [
+    { icon: Smartphone, title: 'Grows on its own', desc: "New bookings land while you're on a job — not because you checked anything." },
+    { icon: LayoutGrid, title: 'Never chains you to it', desc: 'No dashboard to babysit, no tab to keep open, nothing to log into.' },
+    { icon: KeyRound, title: 'Runs while you live your life', desc: "Evenings, weekends, vacation — it doesn't clock out when you do." },
+  ];
+
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        io.disconnect();
+        items.forEach((_, i) => {
+          setTimeout(() => setShown((s) => Math.max(s, i + 1)), 150 + i * 180);
+        });
+      },
+      { threshold: 0.3 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div ref={rootRef} className={`space-y-4 ${className}`}>
+      {items.map((it, i) => (
+        <div
+          key={it.title}
+          className={`group flex items-start gap-4 bg-white border border-gray-100 rounded-2xl p-5 shadow-sm transition-all duration-500 ease-out hover:shadow-xl hover:shadow-brand-900/10 hover:-translate-y-1 hover:border-brand-200 ${
+            i < shown ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-3'
+          }`}
+        >
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shrink-0 shadow-md shadow-brand-500/25 transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3">
+            <it.icon className="w-6 h-6 text-white" strokeWidth={2.2} />
+          </div>
+          <div>
+            <p className="text-gray-900 font-bold text-sm sm:text-base mb-1">{it.title}</p>
+            <p className="text-gray-500 text-xs sm:text-sm leading-relaxed">{it.desc}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Eyebrow({ children, dark = false }) {
   return (
     <p className={`text-[11px] sm:text-xs font-bold tracking-[0.15em] uppercase ${dark ? 'text-brand-500' : 'text-white/85'}`}>
@@ -547,18 +601,7 @@ export default function LandingPage() {
                 business grows, and you get more time back, not less.
               </p>
             </div>
-            <div className="grid grid-cols-3 gap-3 sm:gap-4">
-              {[
-                { icon: Smartphone, label: 'Grows on its own' },
-                { icon: LayoutGrid, label: 'Never chains you to it' },
-                { icon: KeyRound, label: 'Runs while you live your life' },
-              ].map(({ icon: Icon, label }) => (
-                <div key={label} className="bg-brand-50 border border-brand-100 rounded-2xl p-5 flex flex-col items-center text-center gap-3 transition-all hover:bg-brand-100/70 hover:-translate-y-1">
-                  <Icon className="w-7 h-7 text-brand-500" />
-                  <p className="text-gray-700 text-xs font-semibold">{label}</p>
-                </div>
-              ))}
-            </div>
+            <WhyTractifyList className="w-full" />
           </div>
         </section>
       </Reveal>
