@@ -427,11 +427,9 @@ Every city has local Facebook groups ("Seattle Neighbors," "Bellevue Community B
 **Channel 7: Facebook Messenger + Instagram DM Auto-Reply → Captured Inbound Interest**
 Most contractors have a Facebook Business page and Instagram. Homeowners DM them constantly and get no response for days — those leads die. Facebook and Instagram both allow automatic instant replies to every incoming DM.
 - Auto-reply message: *"Thanks for reaching out to [Business Name]! You can book a time that works for you here: [booking link] — takes 60 seconds and we'll confirm right away."*
-- Set up once per contractor during onboarding week via Meta Business Suite — runs forever after that
-- Zero cost, zero ongoing effort — every DM becomes a potential booking automatically
+- Zero cost, zero ongoing effort once set up — every DM becomes a potential booking automatically
 - Works 24/7: homeowner messages at 11pm, they get the booking link instantly instead of waiting until morning
-- **Build status: No code needed on Tractify side.** Set up manually by Jose/Daniel in Meta Business Suite during contractor's first week. Takes 5 minutes per contractor.
-- ⚠️ **Onboarding checklist:** Add as Step 7 in the contractor portal checklist with exact instructions + copy-paste reply text
+- **Build status, reconfirmed final session 27 (August 17, 2026): self-serve, not Jose/Daniel-managed.** ⚠️ Supersedes the earlier "set up manually by Jose/Daniel in Meta Business Suite" line — Jose does not want Tractify configuring or touching a contractor's Facebook/Instagram accounts, on their behalf or via granted access (see the superseded "access-first channel strategy" entries in the Living Playbook Log). No code needed on Tractify side. The AI SMS drip (`smsAI.js`) texts the contractor exact copy-paste steps to turn this on themselves inside their own Meta Business Suite — same self-serve pattern already used for the GBP booking button step. This is the onboarding checklist step Jose/Daniel never touch.
 
 **Channel 8: Facebook Pixel + Retargeting → Homeowners Who Almost Booked**
 Every homeowner who visits the contractor's Tractify subdomain but doesn't fill out the form is a warm lead that currently disappears. The Facebook Pixel captures them and lets retargeting ads follow them automatically.
@@ -489,7 +487,7 @@ The result: a contractor goes live on a Friday. By Monday, jobs are appearing on
 - ✅ Paid ads — no code needed, just a Facebook ad account and budget
 - ✅ Missed call text-back via Twilio — built July 21 (see Twilio section below)
 - ✅ Google Business Profile, Nextdoor, Facebook groups, Google reviewers — no code needed, done on onboarding call
-- ⬜ Facebook Messenger + Instagram DM auto-reply — no Tractify code needed; set up in Meta Business Suite per contractor. Add as Step 7 to onboarding checklist UI.
+- ⬜ Facebook Messenger + Instagram DM auto-reply — ⚠️ this line is pre-pivot and describes Jose/Daniel setting it up manually in Meta Business Suite. Superseded — current plan (locked session 27, see "Channel 7" under Planned Features below) is self-serve only: the AI SMS drip texts the contractor copy-paste setup steps, they do it in their own Meta Business Suite. Tractify never touches a contractor's Facebook/Instagram account.
 - ⬜ Facebook Pixel + retargeting — small template + deploy.js change. Add `fbPixelId` to CLIENT config. Jose runs retargeting campaign from his Business Manager.
 - ⬜ Missed call follow-up text at 2 hours (if no booking) — backend change in `backend/routes/twilio.js`
 - ✅ Facebook Lead Ads webhook — `backend/routes/facebook.js`. Webhook verification (GET), lead receiver (POST), Graph API call to get name/phone/email, lead created in DB, booking token generated, instant SMS from contractor's Twilio number + email backup. Hidden field `contractor_slug` in each Lead Ad form routes lead to correct contractor. Needs `FB_PAGE_ACCESS_TOKEN` + `FB_VERIFY_TOKEN` in Railway env vars.
@@ -2019,6 +2017,8 @@ Channels ranked by reliability (no contractor involvement needed):
 
 Burst spend ($150-200/day across the three paid channels for days 1-3) compresses the trial into 3-5 days instead of 10. Get data fast, optimize fast, close the trial fast. Slow burn is the wrong strategy — speed is what makes the product feel magical.
 
+**⚠️ SUPERSEDED (session 14, confirmed final August 17, 2026, session 27) — the entire access-grant model below (GBP Manager access, Facebook Page Editor access, "post-access automation") was never built and is not the plan.** It was already scratched once — see "Gap 3 — Post-access channel automation ✅ SCRATCHED (session 14)" further down this file. Jose reconfirmed this as final in session 27: Tractify never asks a contractor for account access to Google Business Profile or Facebook/Instagram, and never configures those channels on a contractor's behalf, manually or via granted API access. The actual, current model is the AI SMS drip texting the contractor step-by-step instructions and the contractor doing it themselves in their own accounts — the "AI SMS handles low-friction channels" paragraph a few lines down in this same entry was actually right, it just didn't go far enough; there is no separate access-required tier for GBP reviewer outreach or Facebook group posting either, those are Jose-manual or dropped, not access-automated. Left intact below for the reasoning trail (the "revoke-first" transparency framing was good thinking, just applied to a mechanism that got cut) — do not build any of the "post-access automation" API integrations described here.
+
 **July 28, 2026 — Trust gap model + access-first channel strategy locked.**
 The original checklist asked contractors to set up 7 channels themselves. Problem: ad-sourced contractors are low-commitment and most won't follow through. The new model flips who does the work: contractor grants access, Tractify does the setup.
 
@@ -2701,8 +2701,8 @@ These are quick wins that strengthen job delivery for the first free trial contr
 **A. Facebook Pixel + Retargeting on HVAC Template**
 Add `fbPixelId: ""` to `buildClientConfig()` in `deploy.js`. Add pixel snippet to `hvac-template/index.html` — only fires when `fbPixelId` is non-empty. Jose sets the pixel ID per contractor when deploying. Run one retargeting campaign from Jose's Business Manager using URL-based custom audiences per contractor subdomain. Retargeting CPCs are 50-70% cheaper than cold traffic and convert 2-3x better.
 
-**B. Messenger + Instagram DM Auto-Reply (Step 7 in Onboarding Checklist)**
-No Tractify code needed. Jose/Daniel sets up the auto-reply in Meta Business Suite during the contractor's first week (5 min per contractor). Add Step 7 to the onboarding checklist UI in `ContractorPortal.jsx` with copy-paste reply text pre-filled with their booking link. Reply text: *"Thanks for reaching out to [Business Name]! Book a time here: [slug] — takes 60 seconds."*
+**B. Messenger + Instagram DM Auto-Reply (Step 7 in Onboarding Checklist) — self-serve, reconfirmed final session 27**
+No Tractify code needed, and Tractify never sets this up on the contractor's behalf — the contractor does it themselves in their own Meta Business Suite, walked through it by the AI SMS drip (same pattern as the GBP step — see "GBP Booking Button Setup" above). Step 7 in the onboarding checklist UI in `ContractorPortal.jsx` gives copy-paste reply text pre-filled with their booking link, which the drip also texts them directly. Reply text: *"Thanks for reaching out to [Business Name]! Book a time here: [slug] — takes 60 seconds."*
 
 **C. Missed Call Follow-Up Text (2 Hours, No Booking)**
 After the initial missed call SMS fires, schedule a 2-hour delayed check. If the caller hasn't booked → send one follow-up text: *"Just checking in — still happy to help. Here's that booking link: [slug]"*. One follow-up only, never a third. Implementation: `setTimeout` or a lightweight queue in the Twilio webhook handler (`backend/routes/twilio.js`). Check `appointments` table for a booking tied to that caller phone + contractor within the 2-hour window before sending.
@@ -4030,7 +4030,7 @@ Two alerts live:
 - Files changed: `backend/services/notifications.js` (`sendTrialBookingAlertToJose`, `sendTrialSilenceAlertToJose`), `backend/routes/bookings.js` (both booking routes), `backend/services/cron.js` (every-6h silence job), `backend/database/db.js` (migration).
 
 **Gap 3 — Post-access channel automation ✅ SCRATCHED (session 14)**
-Decision: do not build this. The AI SMS drip handles channel setup. Self-filtering is intentional — a contractor who won't text back is not a client Tractify wants. GBP API also blocked at 0 QPM until Google approves. Revisit only if manual overhead becomes a real problem at 10+ contractors.
+Decision: do not build this. The AI SMS drip handles channel setup. Self-filtering is intentional — a contractor who won't text back is not a client Tractify wants. GBP API also blocked at 0 QPM until Google approves. Revisit only if manual overhead becomes a real problem at 10+ contractors. **Reconfirmed final, session 27 (August 17, 2026):** Jose explicitly does not want Tractify managing a contractor's GBP or Facebook/Instagram accounts, on their behalf or via granted access — self-serve via AI SMS instructions only. This closes the loop on the "access-first channel strategy" entries earlier in this file, which are now marked superseded.
 
 **Gap 4 — Track 1 contractor economics risk ✅ IRRELEVANT (session 14)**
 Burst ad spend model was scratched. New model: organic channels first, ads as finishers only when signal exists. Economics are naturally protected — no blind $150/day commitment to any contractor. This gap no longer exists.
@@ -4189,20 +4189,18 @@ Connect to psql first: `railway run psql $DATABASE_URL` then paste at `=#`. (Pas
 ### Jose's only post-deploy decisions
 - [ ] Decide whether this contractor gets paid ad spend (selective — not automatic for everyone)
 - [ ] If Twilio is approved: buy local number, set webhook, set number in admin → contractor handles forwarding themselves via checklist
-- [ ] Set GBP booking button manually (2 min — see Manual GBP Booking Button Setup below)
 
-### Manual GBP Booking Button Setup (do for every trial contractor, first week)
-GBP API automation is blocked pending Google approval. Set the booking button manually:
-1. Go to business.google.com and sign in with the contractor's Google account (or ask them to do it — takes 2 min)
-2. Click on their business listing → Edit profile
+### GBP Booking Button Setup — self-serve via AI SMS, not a Jose task (reconfirmed final session 27, August 17, 2026)
+**⚠️ Supersedes the earlier version of this section, which had Jose manually logging into a contractor's Google account and setting the booking button himself, with the self-serve path noted only as a secondary "alternative (preferred)."** That's flipped now — self-serve is the only path. Jose never touches a contractor's Google Business Profile. The AI SMS drip (`smsAI.js`) texts the contractor these steps directly and marks the checklist step complete when they reply "done":
+1. Go to business.google.com and sign in with your own Google account
+2. Click your business listing → Edit profile
 3. Scroll to "Booking" or click "Contact" section
 4. Find "Add a booking button" or "Links" → "Appointment links"
-5. Paste their Tractify booking URL: `tractifyhq.com/schedule/{slug}`
+5. Paste the link the text gave you
 6. Save
-That's it. The "Book" button now appears on their Google listing and Maps entry — highest-intent free traffic immediately active.
+That's it — the "Book" button then appears on their Google listing and Maps entry, highest-intent free traffic immediately active, and Jose was never in their account.
 
-**Alternative if contractor does it themselves (preferred):**
-The AI SMS drip already prompts them on this step. If they reply "done" the AI marks it complete. Fastest path: let the AI handle it via the checklist SMS — zero Jose involvement.
+**Note on the booking URL:** the instructions above (and the AI SMS copy that mirrors them) predate THE PIVOT and still reference a per-contractor `tractifyhq.com/schedule/{slug}` booking page. Post-pivot there's no more per-contractor website — the correct link to text a contractor for this step is the universal landing page described under "The new signup flow" in THE PIVOT section (name/niche inserted as text, "text us to book"), not a schedule page. Flagging this as a real gap to close in `smsAI.js`'s GBP step guide text, not yet fixed.
 
 ### Conversion (paid — stays on subdomain)
 Contractor stays on their Tractify subdomain permanently — no domain purchase, no DNS changes, no extra build. The only thing that changes at conversion:
