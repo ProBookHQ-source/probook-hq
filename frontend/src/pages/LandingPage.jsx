@@ -636,17 +636,20 @@ export default function LandingPage() {
             <div>
               <div className="flex items-center gap-4 mb-4">
                 <PageNumber n="07" />
-                <Eyebrow>Our Performance</Eyebrow>
+                <Eyebrow>No Catches</Eyebrow>
               </div>
               <h2 className="font-display text-white text-2xl sm:text-4xl leading-[1.05] tracking-tight mb-6">
-                TRACTIFY IS BUILT TO PUT BOOKED JOBS ON YOUR CALENDAR WITHIN DAYS OF SIGNING UP — NOT MONTHS.
+                YOU DON'T PAY UNLESS IT WORKS.
               </h2>
-              <p className="text-white/75 text-xs font-bold uppercase tracking-wide mb-4">By the numbers:</p>
+              <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-6 max-w-lg">
+                Most software wants a monthly check whether it delivers or not. Tractify doesn't
+                work that way — the deal only makes sense if we keep earning it.
+              </p>
               <div className="space-y-3 max-w-lg">
                 {[
-                  '5 free booked jobs before any money changes hands',
-                  'Missed calls answered by text in under 60 seconds',
-                  'Your book of business grows without growing your hours',
+                  'No contract. Cancel anytime, no hard feelings.',
+                  "You're charged the day a job actually happens — not before.",
+                  'If the jobs stop coming, so does the bill.',
                 ].map(item => (
                   <div key={item} className="flex items-start gap-3 border-t border-white/15 pt-3">
                     <CheckCircle2 className="w-4 h-4 text-white/70 shrink-0 mt-0.5" />
@@ -656,8 +659,8 @@ export default function LandingPage() {
               </div>
             </div>
             <Illustration
-              src="/illustrations/undraw_ai-data-extraction_soxc.svg"
-              alt="Automated data and reporting"
+              src="/illustrations/undraw_contract-signed_vutk.svg"
+              alt="A simple, fair agreement"
               className="w-full max-w-md mx-auto"
             />
           </div>
