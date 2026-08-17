@@ -160,7 +160,7 @@ function SmsDemo({ className = '' }) {
         </div>
         <div className="inline-flex items-center gap-1.5 bg-white/10 border border-white/20 text-white/80 text-[10px] sm:text-xs font-semibold px-3 py-1.5 rounded-full mt-4 mx-auto w-fit">
           <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-          Live example — no client info used
+          What it'll look like once you're live
         </div>
       </div>
     </div>
@@ -449,7 +449,7 @@ export default function LandingPage() {
               STOP MISSING<br />CALLS.
             </h1>
             <p className="text-white/80 text-base sm:text-xl max-w-xl mx-auto md:mx-0 leading-relaxed mb-9 sm:mb-11">
-              Tractify captures every missed call, texts the homeowner back, and books the job
+              Tractify will capture every missed call, text the homeowner back, and book the job
               straight onto your calendar — automatically. No app. No dashboard. No login required.
               So you can be at your kid's game instead of your desk.
             </p>
@@ -631,8 +631,8 @@ export default function LandingPage() {
             </h2>
             <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-12 max-w-2xl">
               Two founders and a system that runs the backend. Jose owns product and strategy.
-              Daniel owns content and growth. That's the entire team it takes to book jobs for
-              contractors nationwide.
+              Daniel owns content and growth. That's the entire team it takes to run this — the
+              backend does the rest.
             </p>
             <div className="grid sm:grid-cols-3 gap-5">
               {[
@@ -750,34 +750,49 @@ export default function LandingPage() {
         </section>
       </Reveal>
 
-      {/* ── (08) WHAT'S NEXT — white panel ── */}
+      {/* ── (08) FAQ — white panel, objection-handling before the final ask ── */}
       <Reveal>
         <section className="relative bg-white px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
           <div className="glow-orb w-96 h-96 -top-20 right-0 bg-brand-100/60" />
-          <div className="max-w-6xl mx-auto relative">
-            <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center mb-12">
-              <div>
-                <div className="flex items-center gap-4 mb-4">
-                  <PageNumber n="08" dark />
-                  <Eyebrow dark>What's Next For Tractify</Eyebrow>
-                </div>
-                <h2 className="font-display text-brand-900 text-3xl sm:text-5xl leading-[1.02] tracking-tight">
-                  WHAT'S NEXT<br />FOR TRACTIFY
-                </h2>
-              </div>
-              <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg">
-                We're expanding beyond HVAC into plumbing, electrical, roofing, landscaping, and
-                more — same system, same promise. The goal: the default way every home service
-                business gets booked.
-              </p>
+          <div className="max-w-4xl mx-auto relative">
+            <div className="flex items-center gap-4 mb-4">
+              <PageNumber n="08" dark />
+              <Eyebrow dark>Before You Join</Eyebrow>
             </div>
-            <Illustration
-              src="/illustrations/undraw_under-construction_hdrn.svg"
-              alt="Expanding to new trades"
-              className="max-w-2xl mx-auto"
-              imgClassName="w-full h-auto max-h-40"
-              light
-            />
+            <h2 className="font-display text-brand-900 text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-10">
+              QUESTIONS<br />YOU'D ASK
+            </h2>
+            <div className="space-y-3">
+              {[
+                {
+                  q: "If it's not live yet, why join now?",
+                  a: 'Because the moment we\'re ready, we go straight down the waitlist in order. Joining now just means you\'re not starting from zero when we text you — you\'re first in line for the 5 free booked jobs.',
+                },
+                {
+                  q: 'What actually happens after I join?',
+                  a: 'Nothing, until we text the number you gave us. No calls, no sales pitch, no follow-up emails in the meantime. When we\'re ready to onboard you, that text is the whole process.',
+                },
+                {
+                  q: 'Is my phone number safe with you?',
+                  a: 'It\'s used for one thing: texting you when we\'re ready to set you up. We don\'t sell it, share it, or use it for anything else. See our Privacy Policy for the specifics.',
+                },
+                {
+                  q: 'What if I already use another tool for missed calls or booking?',
+                  a: 'Tractify doesn\'t replace your calendar or your phone — it sits on top of a forwarded number and catches what you\'re already missing. Most contractors run it alongside whatever they already have.',
+                },
+                {
+                  q: 'What does it cost?',
+                  a: 'Your first 5 booked jobs are free, no card required. We\'ll walk you through pricing before anything is charged — you decide if it\'s worth keeping after you\'ve seen it work.',
+                },
+              ].map(({ q, a }, i) => (
+                <Reveal key={q} delay={i * 90}>
+                  <div className="border border-gray-100 rounded-2xl p-5 sm:p-6 hover:border-brand-200 transition-colors">
+                    <p className="text-brand-900 font-bold text-sm sm:text-base mb-1.5">{q}</p>
+                    <p className="text-gray-500 text-sm leading-relaxed">{a}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
           </div>
         </section>
       </Reveal>
@@ -821,7 +836,10 @@ export default function LandingPage() {
             <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">Terms</button>
             <a href="mailto:support@tractifyhq.com" className="hover:text-white transition-colors">support@tractifyhq.com</a>
           </div>
-          <p className="text-xs text-white/55">© {new Date().getFullYear()} OMNIANCEGROUP LLC</p>
+          <p className="text-xs text-white/55 text-center sm:text-right">
+            © {new Date().getFullYear()} OMNIANCEGROUP LLC<br className="sm:hidden" />
+            <span className="hidden sm:inline"> · </span>Expanding beyond HVAC soon
+          </p>
         </div>
       </footer>
     </div>
