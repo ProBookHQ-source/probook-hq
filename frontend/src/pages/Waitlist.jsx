@@ -59,9 +59,6 @@ export default function Waitlist() {
         <div className="max-w-lg mx-auto w-full">
           {!done ? (
             <>
-              <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-white text-xs font-semibold px-3.5 py-1.5 rounded-full mb-6">
-                Get on the list
-              </div>
               <h1 className="font-display text-white text-4xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
                 GET ON<br />THE LIST.
               </h1>
