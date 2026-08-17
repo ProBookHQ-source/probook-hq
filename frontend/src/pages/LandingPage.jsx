@@ -266,11 +266,11 @@ function TeamRoster({ className = '' }) {
   const [shown, setShown] = useState(0);
 
   const rows = [
-    { role: 'Evenings', icon: Smartphone, typical: 'Checking for missed calls', ours: 'Phone stays off' },
+    { role: 'Evenings', icon: Smartphone, typical: 'Checking for missed calls', ours: 'Stays in your pocket' },
     { role: 'Weekends', icon: CalendarCheck, typical: 'One eye on the job site', ours: 'Actually off the clock' },
     { role: 'Family dinner', icon: MessageSquare, typical: 'Interrupted mid-bite', ours: 'Nobody interrupts it' },
     { role: 'A missed call', icon: PhoneCall, typical: 'A lost job', ours: 'A booked job you never saw happen' },
-    { role: 'Vacation', icon: LayoutGrid, typical: "Can't really leave", ours: 'The business runs without you' },
+    { role: 'Vacation', icon: LayoutGrid, typical: "Can't really leave", ours: 'Customer acquisition runs without you' },
   ];
 
   useEffect(() => {
@@ -316,11 +316,11 @@ function TeamRoster({ className = '' }) {
               <p className="text-white/40 text-[10px] font-semibold uppercase tracking-wide">{r.role}</p>
             </div>
             <div className="grid grid-cols-2 gap-2.5 items-start">
-              <div className="flex items-start gap-1.5">
-                <X className="w-3.5 h-3.5 text-white/25 shrink-0 mt-0.5" />
-                <p className="text-white/40 text-xs leading-snug line-through decoration-white/20">{r.typical}</p>
+              <div className="flex items-start gap-1.5 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5">
+                <X className="w-3.5 h-3.5 text-white/35 shrink-0 mt-0.5" />
+                <p className="text-white/55 text-xs leading-snug">{r.typical}</p>
               </div>
-              <div className="flex items-start gap-1.5 bg-brand-400/10 border border-brand-200/20 rounded-lg px-2 py-1.5 -my-1">
+              <div className="flex items-start gap-1.5 bg-brand-400/10 border border-brand-200/20 rounded-lg px-2 py-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-brand-100 shrink-0 mt-0.5" />
                 <p className="text-white text-xs font-semibold leading-snug">{r.ours}</p>
               </div>
