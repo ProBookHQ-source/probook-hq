@@ -634,51 +634,41 @@ export default function LandingPage() {
               Daniel owns content and growth. That's the entire team it takes to book jobs for
               contractors nationwide.
             </p>
-            <div className="grid md:grid-cols-2 gap-8 md:gap-10 items-stretch">
-              <div className="grid sm:grid-cols-2 gap-5">
-                {[
-                  { photo: '/team/jose-final.jpg', name: 'Jose', role: 'Product & Strategy', ratio: '4 / 5', position: 'center 88%' },
-                  { photo: '/team/daniel.png', name: 'Daniel', role: 'Content & Growth', ratio: '4 / 5', position: 'center' },
-                ].map(({ photo, name, role, ratio, position }) => (
-                  <div key={name} className="bg-white/10 border border-white/15 rounded-2xl overflow-hidden transition-all hover:bg-white/15 hover:-translate-y-1">
-                    <div className="bg-black/20" style={{ aspectRatio: ratio }}>
-                      <img src={photo} alt={name} className="w-full h-full object-cover" style={{ objectPosition: position }} />
-                    </div>
-                    <div className="p-5">
-                      <p className="text-white font-bold text-base">{name}</p>
-                      <p className="text-white/75 text-xs font-semibold uppercase tracking-wide">{role}</p>
-                    </div>
+            <div className="grid sm:grid-cols-3 gap-5">
+              {[
+                { photo: '/team/jose-final.jpg', name: 'Jose', role: 'Product & Strategy', position: 'center 88%' },
+                { photo: '/team/daniel.png', name: 'Daniel', role: 'Content & Growth', position: 'center' },
+              ].map(({ photo, name, role, position }) => (
+                <div key={name} className="bg-white/10 border border-white/15 rounded-2xl overflow-hidden transition-all hover:bg-white/15 hover:-translate-y-1">
+                  <div className="bg-black/20" style={{ aspectRatio: '4 / 5' }}>
+                    <img src={photo} alt={name} className="w-full h-full object-cover" style={{ objectPosition: position }} />
                   </div>
-                ))}
-              </div>
+                  <div className="p-5">
+                    <p className="text-white font-bold text-base">{name}</p>
+                    <p className="text-white/75 text-xs font-semibold uppercase tracking-wide">{role}</p>
+                  </div>
+                </div>
+              ))}
 
-              {/* Third "team member" — the AI brain running the backend. Fills what
-                  was empty space next to the two founder photos, and reintroduces
-                  the AI fact honestly without repeating the old org-chart framing. */}
-              <div className="relative bg-gradient-to-br from-brand-500/25 to-brand-800/25 border border-white/15 rounded-2xl p-6 sm:p-8 overflow-hidden">
-                <div className="glow-orb w-56 h-56 -top-16 -right-16 bg-brand-300/25" />
-                <div className="relative flex flex-col h-full">
-                  <div className="flex items-center gap-2 mb-5">
-                    <span className="relative flex h-2 w-2">
+              {/* Third "team member" — the AI brain running the backend. Same card
+                  shape as Jose/Daniel (image block + name/role block) so all three
+                  read as one matched set instead of two photos plus an odd panel. */}
+              <div className="bg-white/10 border border-white/15 rounded-2xl overflow-hidden transition-all hover:bg-white/15 hover:-translate-y-1">
+                <div className="relative flex items-center justify-center bg-gradient-to-br from-brand-600 to-brand-900" style={{ aspectRatio: '4 / 5' }}>
+                  <div className="glow-orb w-40 h-40 bg-brand-300/30" />
+                  <BrainCircuit className="w-14 h-14 text-white relative" strokeWidth={1.5} />
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/25 backdrop-blur-sm rounded-full pl-1.5 pr-2.5 py-1">
+                    <span className="relative flex h-1.5 w-1.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
                     </span>
-                    <p className="text-white/70 text-[10px] font-bold uppercase tracking-wide">Always On</p>
+                    <p className="text-white text-[9px] font-bold uppercase tracking-wide">Always On</p>
                   </div>
-                  <div className="relative w-20 h-20 flex items-center justify-center mb-5">
-                    <div className="absolute inset-0 rounded-full bg-white/10 blur-md" />
-                    <BrainCircuit className="w-14 h-14 text-white relative" strokeWidth={1.4} />
-                    <span className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
-                    <span className="absolute bottom-3 left-0 w-1 h-1 rounded-full bg-brand-100 animate-pulse" style={{ animationDelay: '0.4s' }} />
-                    <span className="absolute top-6 left-1 w-1 h-1 rounded-full bg-emerald-300 animate-pulse" style={{ animationDelay: '0.8s' }} />
-                  </div>
-                  <p className="text-white font-bold text-lg mb-2">The Third Team Member</p>
-                  <p className="text-white/75 text-sm leading-relaxed mb-5">
-                    Every missed call, every text, every booking — answered the second it happens.
-                    It reads the conversation, books the job, and alerts the contractor. No shift,
-                    no day off, never distracted.
-                  </p>
-                  <p className="text-white/50 text-xs mt-auto">It doesn't take a photo. It just doesn't stop working.</p>
+                </div>
+                <div className="p-5">
+                  <p className="text-white font-bold text-base">The AI</p>
+                  <p className="text-white/75 text-xs font-semibold uppercase tracking-wide mb-2">Every Missed Call</p>
+                  <p className="text-white/60 text-xs leading-relaxed">Reads the text, books the job, alerts the contractor. No shift, no day off.</p>
                 </div>
               </div>
             </div>
