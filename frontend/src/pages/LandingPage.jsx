@@ -258,39 +258,81 @@ function TrialTracker({ className = '' }) {
 
 // "Everyone else" vs "Tractify" org-chart card — replaces generic stick-figure
 // art with the actual, distinctive fact about the company: it's two founders
-// and AI doing the work a normal agency needs a whole team for.
+// and AI doing the work a normal agency needs a whole team for. Rows build in
+// one at a time on scroll so the "headcount gap" lands as a reveal, not a wall
+// of text dumped on the page at once.
 function TeamRoster({ className = '' }) {
+  const rootRef = useRef(null);
+  const [shown, setShown] = useState(0);
+
   const rows = [
-    { role: 'Missed-call follow-up', typical: 'Sales rep — if they call back', ours: 'AI — texts back in seconds' },
-    { role: 'After-hours support', typical: 'Voicemail', ours: 'AI — answers 24 / 7' },
-    { role: 'Scheduling', typical: 'Office manager, juggling a calendar', ours: 'AI — books straight to the job' },
-    { role: 'Content & growth', typical: 'Marketing agency retainer', ours: 'Daniel' },
-    { role: 'Product & strategy', typical: 'Outside consultant', ours: 'Jose' },
+    { role: 'Missed-call follow-up', icon: PhoneCall, typical: 'Sales rep — if they call back', ours: 'AI — texts back in seconds' },
+    { role: 'After-hours support', icon: MessageSquare, typical: 'Voicemail', ours: 'AI — answers 24 / 7' },
+    { role: 'Scheduling', icon: CalendarCheck, typical: 'Office manager, juggling a calendar', ours: 'AI — books straight to the job' },
+    { role: 'Content & growth', icon: LayoutGrid, typical: 'Marketing agency retainer', ours: 'Daniel' },
+    { role: 'Product & strategy', icon: KeyRound, typical: 'Outside consultant', ours: 'Jose' },
   ];
+
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        io.disconnect();
+        rows.forEach((_, i) => {
+          setTimeout(() => setShown((s) => Math.max(s, i + 1)), 160 + i * 220);
+        });
+      },
+      { threshold: 0.35 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <div className={`bg-white/10 border border-white/15 rounded-2xl overflow-hidden ${className}`}>
-      <div className="grid grid-cols-2 px-5 sm:px-6 py-3.5 border-b border-white/15">
-        <p className="text-white/45 text-[10px] font-bold uppercase tracking-wide">Everyone else</p>
-        <p className="text-white text-[10px] font-bold uppercase tracking-wide">Tractify</p>
+    <div ref={rootRef} className={`bg-white/10 border border-white/15 rounded-2xl overflow-hidden shadow-2xl shadow-brand-900/20 ${className}`}>
+      <div className="grid grid-cols-2 px-5 sm:px-6 py-4 border-b border-white/15">
+        <div>
+          <p className="text-white/45 text-[10px] font-bold uppercase tracking-wide mb-1">Everyone else</p>
+          <p className="text-white/70 text-base font-display tracking-tight">5–8 people</p>
+        </div>
+        <div>
+          <p className="text-white text-[10px] font-bold uppercase tracking-wide mb-1">Tractify</p>
+          <p className="text-white text-base font-display tracking-tight">2 people</p>
+        </div>
       </div>
       <div className="divide-y divide-white/10">
-        {rows.map((r) => (
-          <div key={r.role} className="px-5 sm:px-6 py-3.5">
-            <p className="text-white/35 text-[10px] font-semibold uppercase tracking-wide mb-1.5">{r.role}</p>
-            <div className="grid grid-cols-2 gap-3 items-start">
+        {rows.map((r, i) => (
+          <div
+            key={r.role}
+            className={`px-5 sm:px-6 py-3.5 transition-all duration-500 ease-out ${
+              i < shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+            }`}
+          >
+            <div className="flex items-center gap-1.5 mb-2">
+              <r.icon className="w-3 h-3 text-white/40" strokeWidth={2.5} />
+              <p className="text-white/40 text-[10px] font-semibold uppercase tracking-wide">{r.role}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 items-start">
               <div className="flex items-start gap-1.5">
                 <X className="w-3.5 h-3.5 text-white/25 shrink-0 mt-0.5" />
                 <p className="text-white/40 text-xs leading-snug line-through decoration-white/20">{r.typical}</p>
               </div>
-              <div className="flex items-start gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-brand-200 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-1.5 bg-brand-400/10 border border-brand-200/20 rounded-lg px-2 py-1.5 -my-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-brand-100 shrink-0 mt-0.5" />
                 <p className="text-white text-xs font-semibold leading-snug">{r.ours}</p>
               </div>
             </div>
           </div>
         ))}
       </div>
-      <div className="px-5 sm:px-6 py-4 bg-white/5 border-t border-white/15">
+      <div
+        className={`px-5 sm:px-6 py-4 bg-white/5 border-t border-white/15 transition-opacity duration-700 ${
+          shown >= rows.length ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
         <p className="text-white text-sm font-bold text-center">Two founders. Everything else runs itself.</p>
       </div>
     </div>
