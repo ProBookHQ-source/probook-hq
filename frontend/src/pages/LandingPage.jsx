@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   ArrowRight, PhoneCall, MessageSquare, CalendarCheck,
   Smartphone, LayoutGrid, KeyRound, CheckCircle2, X,
@@ -562,19 +562,31 @@ export default function LandingPage() {
                 className="w-full max-w-md mx-auto"
               />
             </div>
-            <div className="grid sm:grid-cols-3 gap-5">
+            <div className="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-2">
               {[
                 { icon: PhoneCall, title: 'Missed Call Text-Back', desc: 'Every missed call triggers an instant, friendly text — before the homeowner ever calls your competitor.' },
                 { icon: MessageSquare, title: 'SMS Booking', desc: 'The homeowner picks a time right in the text thread. No link, no app, no waiting on hold.' },
                 { icon: CalendarCheck, title: 'Calendar Automation', desc: 'The job lands straight on your calendar, confirmed — you just show up.' },
-              ].map(({ icon: Icon, title, desc }) => (
-                <div key={title} className="group bg-white/10 border border-white/15 rounded-2xl p-6 backdrop-blur-sm transition-all hover:bg-white/15 hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-900/20">
-                  <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center mb-4 transition-colors group-hover:bg-white/25">
-                    <Icon className="w-5 h-5 text-white" />
-                  </div>
-                  <p className="text-white font-bold text-sm mb-2 tracking-tight">{title}</p>
-                  <p className="text-white/80 text-sm leading-relaxed">{desc}</p>
-                </div>
+              ].map(({ icon: Icon, title, desc }, i) => (
+                <Fragment key={title}>
+                  <Reveal delay={i * 130} className="flex-1">
+                    <div className="group relative h-full bg-white/10 border border-white/15 rounded-2xl p-6 backdrop-blur-sm transition-all duration-300 hover:bg-white/15 hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-brand-900/30 hover:border-white/25">
+                      <span className="absolute top-5 right-6 font-display text-white/15 text-3xl tracking-tight select-none">
+                        0{i + 1}
+                      </span>
+                      <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center mb-5 shadow-lg shadow-black/20 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
+                        <Icon className="w-6 h-6 text-brand-600" strokeWidth={2.2} />
+                      </div>
+                      <p className="text-white font-bold text-sm mb-2 tracking-tight">{title}</p>
+                      <p className="text-white/80 text-sm leading-relaxed">{desc}</p>
+                    </div>
+                  </Reveal>
+                  {i < 2 && (
+                    <div className="hidden sm:flex items-center justify-center shrink-0 w-6">
+                      <ArrowRight className="w-5 h-5 text-white/25" strokeWidth={2.5} />
+                    </div>
+                  )}
+                </Fragment>
               ))}
             </div>
           </div>
