@@ -637,12 +637,12 @@ export default function LandingPage() {
             <div className="grid md:grid-cols-2 gap-8 md:gap-10 items-stretch">
               <div className="grid sm:grid-cols-2 gap-5">
                 {[
-                  { photo: '/team/jose.jpg', name: 'Jose', role: 'Product & Strategy', ratio: '4 / 5' },
-                  { photo: '/team/daniel.png', name: 'Daniel', role: 'Content & Growth', ratio: '4 / 5' },
-                ].map(({ photo, name, role, ratio }) => (
+                  { photo: '/team/jose-final.jpg', name: 'Jose', role: 'Product & Strategy', ratio: '4 / 5', position: 'center 88%' },
+                  { photo: '/team/daniel.png', name: 'Daniel', role: 'Content & Growth', ratio: '4 / 5', position: 'center' },
+                ].map(({ photo, name, role, ratio, position }) => (
                   <div key={name} className="bg-white/10 border border-white/15 rounded-2xl overflow-hidden transition-all hover:bg-white/15 hover:-translate-y-1">
                     <div className="bg-black/20" style={{ aspectRatio: ratio }}>
-                      <img src={photo} alt={name} className="w-full h-full object-cover" />
+                      <img src={photo} alt={name} className="w-full h-full object-cover" style={{ objectPosition: position }} />
                     </div>
                     <div className="p-5">
                       <p className="text-white font-bold text-base">{name}</p>
