@@ -407,6 +407,85 @@ function WhyTractifyList({ className = '' }) {
   );
 }
 
+// FAQ accordion for section 08 — single-open, chevron rotates, numbered badge
+// per item to match the page's icon-badge language (WhyTractifyList, services
+// cards) instead of sitting as a flat unstyled list. Only one panel open at a
+// time keeps the section from sprawling. This lives in a single-column section
+// (no items-center grid sibling), so its height changing on click is a normal,
+// user-triggered expand — not the auto-looping reflow bug fixed earlier.
+const FAQS = [
+  {
+    q: "If it's not live yet, why join now?",
+    a: "Because the moment we're ready, we go straight down the waitlist in order. Joining now just means you're not starting from zero when we text you — you're first in line for the 5 free booked jobs.",
+  },
+  {
+    q: 'What actually happens after I join?',
+    a: "Nothing, until we text the number you gave us. No calls, no sales pitch, no follow-up emails in the meantime. When we're ready to onboard you, that text is the whole process.",
+  },
+  {
+    q: 'Is my phone number safe with you?',
+    a: "It's used for one thing: texting you when we're ready to set you up. We don't sell it, share it, or use it for anything else. See our Privacy Policy for the specifics.",
+  },
+  {
+    q: 'What if I already use another tool for missed calls or booking?',
+    a: "Tractify doesn't replace your calendar or your phone — it sits on top of a forwarded number and catches what you're already missing. Most contractors run it alongside whatever they already have.",
+  },
+  {
+    q: 'What does it cost?',
+    a: "Your first 5 booked jobs are free, no card required. We'll walk you through pricing before anything is charged — you decide if it's worth keeping after you've seen it work.",
+  },
+];
+
+function FaqAccordion({ className = '' }) {
+  const [open, setOpen] = useState(0);
+
+  return (
+    <div className={`space-y-3 ${className}`}>
+      {FAQS.map(({ q, a }, i) => {
+        const isOpen = open === i;
+        return (
+          <Reveal key={q} delay={i * 90}>
+            <div
+              className={`group rounded-2xl border bg-white transition-all duration-300 ${
+                isOpen ? 'border-brand-200 shadow-lg shadow-brand-900/5' : 'border-gray-100 hover:border-brand-200 hover:shadow-md'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => setOpen(isOpen ? -1 : i)}
+                className="w-full flex items-center gap-4 text-left p-5 sm:p-6"
+              >
+                <span
+                  className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center font-display text-sm tracking-tight transition-colors duration-300 ${
+                    isOpen ? 'bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-md shadow-brand-500/25' : 'bg-brand-50 text-brand-600'
+                  }`}
+                >
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <p className="flex-1 text-brand-900 font-bold text-sm sm:text-base">{q}</p>
+                <svg
+                  className={`shrink-0 w-5 h-5 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-45 text-brand-500' : ''}`}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+              </button>
+              <div
+                className="grid transition-all duration-300 ease-out"
+                style={{ gridTemplateRows: isOpen ? '1fr' : '0fr' }}
+              >
+                <div className="overflow-hidden">
+                  <p className="text-gray-500 text-sm leading-relaxed pl-[3.25rem] pr-6 pb-5 sm:pb-6">{a}</p>
+                </div>
+              </div>
+            </div>
+          </Reveal>
+        );
+      })}
+    </div>
+  );
+}
+
 function Eyebrow({ children, dark = false }) {
   return (
     <p className={`text-[11px] sm:text-xs font-bold tracking-[0.15em] uppercase ${dark ? 'text-brand-500' : 'text-white/85'}`}>
@@ -778,37 +857,7 @@ export default function LandingPage() {
             <h2 className="font-display text-brand-900 text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-10">
               QUESTIONS<br />YOU'D ASK
             </h2>
-            <div className="space-y-3">
-              {[
-                {
-                  q: "If it's not live yet, why join now?",
-                  a: 'Because the moment we\'re ready, we go straight down the waitlist in order. Joining now just means you\'re not starting from zero when we text you — you\'re first in line for the 5 free booked jobs.',
-                },
-                {
-                  q: 'What actually happens after I join?',
-                  a: 'Nothing, until we text the number you gave us. No calls, no sales pitch, no follow-up emails in the meantime. When we\'re ready to onboard you, that text is the whole process.',
-                },
-                {
-                  q: 'Is my phone number safe with you?',
-                  a: 'It\'s used for one thing: texting you when we\'re ready to set you up. We don\'t sell it, share it, or use it for anything else. See our Privacy Policy for the specifics.',
-                },
-                {
-                  q: 'What if I already use another tool for missed calls or booking?',
-                  a: 'Tractify doesn\'t replace your calendar or your phone — it sits on top of a forwarded number and catches what you\'re already missing. Most contractors run it alongside whatever they already have.',
-                },
-                {
-                  q: 'What does it cost?',
-                  a: 'Your first 5 booked jobs are free, no card required. We\'ll walk you through pricing before anything is charged — you decide if it\'s worth keeping after you\'ve seen it work.',
-                },
-              ].map(({ q, a }, i) => (
-                <Reveal key={q} delay={i * 90}>
-                  <div className="border border-gray-100 rounded-2xl p-5 sm:p-6 hover:border-brand-200 transition-colors">
-                    <p className="text-brand-900 font-bold text-sm sm:text-base mb-1.5">{q}</p>
-                    <p className="text-gray-500 text-sm leading-relaxed">{a}</p>
-                  </div>
-                </Reveal>
-              ))}
-            </div>
+            <FaqAccordion />
           </div>
         </section>
       </Reveal>
