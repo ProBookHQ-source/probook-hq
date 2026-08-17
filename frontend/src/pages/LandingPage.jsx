@@ -580,65 +580,14 @@ export default function LandingPage() {
         </section>
       </Reveal>
 
-      {/* ── (01) WHO WE ARE ── */}
+      {/* ── (01) WHAT WE DO — every channel converges on one text system ── */}
       <Reveal>
         <section className="relative border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
-          <div className="glow-orb w-80 h-80 -bottom-20 -right-20 bg-brand-400/20" />
-          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center relative">
-            <div>
-              <div className="flex items-center gap-4 mb-4">
-                <PageNumber n="01" />
-                <Eyebrow>Who We Are</Eyebrow>
-              </div>
-              <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
-                WHO<br />WE ARE
-              </h2>
-              <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-4 max-w-lg">
-                Tractify exists because contractors were losing jobs to a missed phone call —
-                and losing their evenings to a phone that never stops ringing. We built a system
-                that captures every missed call, texts the homeowner back, and books the job
-                automatically. No app, no dashboard, no login required.
-              </p>
-              <p className="text-white/75 text-sm leading-relaxed max-w-lg">
-                What you're actually buying isn't software. It's not being the guy who checks
-                his phone at dinner. Here's what changes:
-              </p>
-            </div>
-            <TeamRoster className="w-full max-w-md mx-auto" />
-          </div>
-        </section>
-      </Reveal>
-
-      {/* ── (02) MARKET INSIGHT — white panel ── */}
-      <Reveal>
-        <section className="relative bg-white px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
-          <div className="glow-orb w-96 h-96 -top-32 left-1/2 -translate-x-1/2 bg-brand-100/60" />
-          <div className="max-w-4xl mx-auto text-center relative">
-            <div className="flex items-center justify-center gap-4 mb-4">
-              <PageNumber n="02" dark />
-              <Eyebrow dark>Market Insight</Eyebrow>
-            </div>
-            <h2 className="font-display text-brand-900 text-3xl sm:text-5xl leading-[1.05] tracking-tight mb-5">
-              A MISSED CALL TODAY IS A BOOKED JOB FOR YOUR COMPETITOR TOMORROW.
-            </h2>
-            <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg mx-auto">
-              Customers don't wait. If a business doesn't answer, they call the next name on
-              the list within minutes. Tractify closes that gap automatically — every missed
-              call gets a reply before the customer ever picks up the phone again. You don't
-              have to answer. They still get an answer.
-            </p>
-          </div>
-        </section>
-      </Reveal>
-
-      {/* ── (03) WHAT WE DO — every channel converges on one text system ── */}
-      <Reveal>
-        <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
           <div className="max-w-6xl mx-auto">
             <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center mb-14">
               <div>
                 <div className="flex items-center gap-4 mb-4">
-                  <PageNumber n="03" />
+                  <PageNumber n="01" />
                   <Eyebrow>One System, Every Channel</Eyebrow>
                 </div>
                 <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
@@ -731,6 +680,56 @@ export default function LandingPage() {
                 </p>
               </div>
             </Reveal>
+          </div>
+        </section>
+      </Reveal>
+
+      {/* ── (02) MARKET INSIGHT — white panel ── */}
+      <Reveal>
+        <section className="relative bg-white px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
+          <div className="glow-orb w-96 h-96 -top-32 left-1/2 -translate-x-1/2 bg-brand-100/60" />
+          <div className="max-w-4xl mx-auto text-center relative">
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <PageNumber n="02" dark />
+              <Eyebrow dark>Market Insight</Eyebrow>
+            </div>
+            <h2 className="font-display text-brand-900 text-3xl sm:text-5xl leading-[1.05] tracking-tight mb-5">
+              A MISSED CALL TODAY IS A BOOKED JOB FOR YOUR COMPETITOR TOMORROW.
+            </h2>
+            <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg mx-auto">
+              Customers don't wait. If a business doesn't answer, they call the next name on
+              the list within minutes. Tractify closes that gap automatically — every missed
+              call gets a reply before the customer ever picks up the phone again. You don't
+              have to answer. They still get an answer.
+            </p>
+          </div>
+        </section>
+      </Reveal>
+
+      {/* ── (03) WHO WE ARE ── */}
+      <Reveal>
+        <section className="border-t border-white/10 px-4 sm:px-6 py-16 sm:py-24">
+          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center relative">
+            <div>
+              <div className="flex items-center gap-4 mb-4">
+                <PageNumber n="03" />
+                <Eyebrow>Who We Are</Eyebrow>
+              </div>
+              <h2 className="font-display text-white text-3xl sm:text-5xl leading-[1.02] tracking-tight mb-5">
+                WHO<br />WE ARE
+              </h2>
+              <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-4 max-w-lg">
+                Tractify exists because contractors were losing jobs to a missed phone call —
+                and losing their evenings to a phone that never stops ringing. We built a system
+                that captures every missed call, texts the homeowner back, and books the job
+                automatically. No app, no dashboard, no login required.
+              </p>
+              <p className="text-white/75 text-sm leading-relaxed max-w-lg">
+                What you're actually buying isn't software. It's not being the guy who checks
+                his phone at dinner. Here's what changes:
+              </p>
+            </div>
+            <TeamRoster className="w-full max-w-md mx-auto" />
           </div>
         </section>
       </Reveal>
