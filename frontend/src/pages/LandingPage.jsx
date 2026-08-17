@@ -397,6 +397,7 @@ export default function LandingPage() {
             <p className="text-white/80 text-base sm:text-xl max-w-xl mx-auto md:mx-0 leading-relaxed mb-9 sm:mb-11">
               Tractify captures every missed call, texts the homeowner back, and books the job
               straight onto your calendar — automatically. No app. No dashboard. No login required.
+              So you can be at your kid's game instead of your desk.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center md:justify-start">
               <button
@@ -476,7 +477,8 @@ export default function LandingPage() {
             <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg mx-auto">
               Customers don't wait. If a business doesn't answer, they call the next name on
               the list within minutes. Tractify closes that gap automatically — every missed
-              call gets a reply before the customer ever picks up the phone again.
+              call gets a reply before the customer ever picks up the phone again. Be unavailable
+              without ever being unreachable.
             </p>
           </div>
         </section>
@@ -539,17 +541,17 @@ export default function LandingPage() {
                 WHY<br />TRACTIFY
               </h2>
               <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg">
-                Every business owner we talk to says the same thing: "I'm too busy doing jobs to
-                spend the day chained to a phone." What sets Tractify apart is a system built
-                entirely around text message — no app, no login, no learning curve — so booked
-                jobs show up without changing how a business already works.
+                Every business owner we talk to wants the same thing: to grow without it costing
+                them more of their life. Most tools ask you to work more to get more — check a
+                dashboard, log in, manage another app. Tractify is built to do the opposite: the
+                business grows, and you get more time back, not less.
               </p>
             </div>
             <div className="grid grid-cols-3 gap-3 sm:gap-4">
               {[
-                { icon: Smartphone, label: 'No app' },
-                { icon: LayoutGrid, label: 'No dashboard' },
-                { icon: KeyRound, label: 'No login' },
+                { icon: Smartphone, label: 'Grows on its own' },
+                { icon: LayoutGrid, label: 'Never chains you to it' },
+                { icon: KeyRound, label: 'Runs while you live your life' },
               ].map(({ icon: Icon, label }) => (
                 <div key={label} className="bg-brand-50 border border-brand-100 rounded-2xl p-5 flex flex-col items-center text-center gap-3 transition-all hover:bg-brand-100/70 hover:-translate-y-1">
                   <Icon className="w-7 h-7 text-brand-500" />
@@ -643,8 +645,8 @@ export default function LandingPage() {
               <div className="space-y-3 max-w-lg">
                 {[
                   '5 free booked jobs before any money changes hands',
-                  '0 apps, logins, or dashboards required to get started',
                   'Missed calls answered by text in under 60 seconds',
+                  'Your book of business grows without growing your hours',
                 ].map(item => (
                   <div key={item} className="flex items-start gap-3 border-t border-white/15 pt-3">
                     <CheckCircle2 className="w-4 h-4 text-white/70 shrink-0 mt-0.5" />
@@ -707,7 +709,7 @@ export default function LandingPage() {
           </div>
           <div className="max-w-5xl mx-auto text-center relative">
             <h2 className="font-display text-white text-4xl sm:text-6xl md:text-7xl leading-[0.98] tracking-tight mb-9">
-              STOP MISSING CALLS.<br />START BOOKING JOBS.
+              GROW YOUR BUSINESS.<br />GET YOUR LIFE BACK.
             </h2>
             <button
               onClick={() => navigate('/waitlist')}
