@@ -295,7 +295,7 @@ function TeamRoster({ className = '' }) {
     <div ref={rootRef} className={`bg-white/10 border border-white/15 rounded-2xl overflow-hidden shadow-2xl shadow-brand-900/20 ${className}`}>
       <div className="grid grid-cols-2 px-5 sm:px-6 py-4 border-b border-white/15">
         <div>
-          <p className="text-white/45 text-[10px] font-bold uppercase tracking-wide mb-1">Without Tractify</p>
+          <p className="text-white/60 text-[10px] font-bold uppercase tracking-wide mb-1">Without Tractify</p>
           <p className="text-white/70 text-base font-display tracking-tight">Chained to your phone</p>
         </div>
         <div>
@@ -312,13 +312,13 @@ function TeamRoster({ className = '' }) {
             }`}
           >
             <div className="flex items-center gap-1.5 mb-2">
-              <r.icon className="w-3 h-3 text-white/40" strokeWidth={2.5} />
-              <p className="text-white/40 text-[10px] font-semibold uppercase tracking-wide">{r.role}</p>
+              <r.icon className="w-3 h-3 text-white/55" strokeWidth={2.5} />
+              <p className="text-white/55 text-[10px] font-semibold uppercase tracking-wide">{r.role}</p>
             </div>
             <div className="grid grid-cols-2 gap-2.5 items-start">
               <div className="flex items-start gap-1.5 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5">
                 <X className="w-3.5 h-3.5 text-white/35 shrink-0 mt-0.5" />
-                <p className="text-white/55 text-xs leading-snug">{r.typical}</p>
+                <p className="text-white/70 text-xs leading-snug">{r.typical}</p>
               </div>
               <div className="flex items-start gap-1.5 bg-brand-400/10 border border-brand-200/20 rounded-lg px-2 py-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-brand-100 shrink-0 mt-0.5" />
@@ -343,7 +343,7 @@ function TeamRoster({ className = '' }) {
 
 function Eyebrow({ children, dark = false }) {
   return (
-    <p className={`text-[11px] sm:text-xs font-bold tracking-[0.15em] uppercase ${dark ? 'text-brand-500' : 'text-white/70'}`}>
+    <p className={`text-[11px] sm:text-xs font-bold tracking-[0.15em] uppercase ${dark ? 'text-brand-500' : 'text-white/85'}`}>
       {children}
     </p>
   );
@@ -351,7 +351,7 @@ function Eyebrow({ children, dark = false }) {
 
 function PageNumber({ n, dark = false }) {
   return (
-    <span className={`font-display text-2xl sm:text-3xl tracking-tight ${dark ? 'text-brand-100' : 'text-white/50'}`}>
+    <span className={`font-display text-2xl sm:text-3xl tracking-tight ${dark ? 'text-brand-100' : 'text-white/65'}`}>
       ({n})
     </span>
   );
@@ -407,7 +407,7 @@ export default function LandingPage() {
                 Join the Waitlist <ArrowRight className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-white/50 text-xs sm:text-sm mt-5">
+            <p className="text-white/70 text-xs sm:text-sm mt-5">
               Your first 5 booked jobs are free — no card required to start.
             </p>
           </div>
@@ -426,7 +426,7 @@ export default function LandingPage() {
             ].map(({ value, label }) => (
               <div key={label} className="text-center px-3 py-6 sm:py-8">
                 <p className="font-display text-white text-3xl sm:text-4xl tracking-tight mb-1">{value}</p>
-                <p className="text-white/60 text-[11px] sm:text-xs font-semibold uppercase tracking-wide">{label}</p>
+                <p className="text-white/75 text-[11px] sm:text-xs font-semibold uppercase tracking-wide">{label}</p>
               </div>
             ))}
           </div>
@@ -452,7 +452,7 @@ export default function LandingPage() {
                 that captures every missed call, texts the homeowner back, and books the job
                 automatically. No app, no dashboard, no login required.
               </p>
-              <p className="text-white/60 text-sm leading-relaxed max-w-lg">
+              <p className="text-white/75 text-sm leading-relaxed max-w-lg">
                 What you're actually buying isn't software. It's not being the guy who checks
                 his phone at dinner. Here's what changes:
               </p>
@@ -519,7 +519,7 @@ export default function LandingPage() {
                     <Icon className="w-5 h-5 text-white" />
                   </div>
                   <p className="text-white font-bold text-sm mb-2 tracking-tight">{title}</p>
-                  <p className="text-white/70 text-sm leading-relaxed">{desc}</p>
+                  <p className="text-white/80 text-sm leading-relaxed">{desc}</p>
                 </div>
               ))}
             </div>
@@ -590,7 +590,7 @@ export default function LandingPage() {
                   </div>
                   <div className="p-5">
                     <p className="text-white font-bold text-base">{name}</p>
-                    <p className="text-white/60 text-xs font-semibold uppercase tracking-wide">{role}</p>
+                    <p className="text-white/75 text-xs font-semibold uppercase tracking-wide">{role}</p>
                   </div>
                 </div>
               ))}
@@ -641,7 +641,7 @@ export default function LandingPage() {
               <h2 className="font-display text-white text-2xl sm:text-4xl leading-[1.05] tracking-tight mb-6">
                 TRACTIFY IS BUILT TO PUT BOOKED JOBS ON YOUR CALENDAR WITHIN DAYS OF SIGNING UP — NOT MONTHS.
               </h2>
-              <p className="text-white/60 text-xs font-bold uppercase tracking-wide mb-4">By the numbers:</p>
+              <p className="text-white/75 text-xs font-bold uppercase tracking-wide mb-4">By the numbers:</p>
               <div className="space-y-3 max-w-lg">
                 {[
                   '5 free booked jobs before any money changes hands',
@@ -728,14 +728,14 @@ export default function LandingPage() {
             <img src="/probook-icon-128.png" alt="Tractify" className="w-7 h-7 rounded-lg" />
             <span className="font-display text-white text-sm tracking-tight">TRACTIFY</span>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-semibold text-white/60">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-semibold text-white/75">
             <button onClick={() => navigate('/waitlist')} className="hover:text-white transition-colors">Waitlist</button>
             <button onClick={() => navigate('/login')} className="hover:text-white transition-colors">Contractor Login</button>
             <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">Privacy</button>
             <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">Terms</button>
             <a href="mailto:support@tractifyhq.com" className="hover:text-white transition-colors">support@tractifyhq.com</a>
           </div>
-          <p className="text-xs text-white/40">© {new Date().getFullYear()} OMNIANCEGROUP LLC</p>
+          <p className="text-xs text-white/55">© {new Date().getFullYear()} OMNIANCEGROUP LLC</p>
         </div>
       </footer>
     </div>
