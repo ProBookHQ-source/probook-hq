@@ -636,31 +636,33 @@ export default function LandingPage() {
             <div>
               <div className="flex items-center gap-4 mb-4">
                 <PageNumber n="07" />
-                <Eyebrow>No Catches</Eyebrow>
+                <Eyebrow>Getting Started</Eyebrow>
               </div>
               <h2 className="font-display text-white text-2xl sm:text-4xl leading-[1.05] tracking-tight mb-6">
-                YOU DON'T PAY UNLESS IT WORKS.
+                LIVE IN DAYS. NOT MONTHS.
               </h2>
               <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-6 max-w-lg">
-                Most software wants a monthly check whether it delivers or not. Tractify doesn't
-                work that way — the deal only makes sense if we keep earning it.
+                No onboarding calls, no implementation team, nothing to configure. Most contractors
+                go from signing up to their first booked job in under a week.
               </p>
               <div className="space-y-3 max-w-lg">
                 {[
-                  'No contract. Cancel anytime, no hard feelings.',
-                  "You're charged the day a job actually happens — not before.",
-                  'If the jobs stop coming, so does the bill.',
-                ].map(item => (
+                  'Join the waitlist — takes about 30 seconds',
+                  "Forward your calls — the only setup step that matters",
+                  'Missed calls start turning into booked jobs, automatically',
+                ].map((item, i) => (
                   <div key={item} className="flex items-start gap-3 border-t border-white/15 pt-3">
-                    <CheckCircle2 className="w-4 h-4 text-white/70 shrink-0 mt-0.5" />
+                    <span className="w-4 h-4 rounded-full bg-white/15 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                      {i + 1}
+                    </span>
                     <p className="text-white/80 text-sm">{item}</p>
                   </div>
                 ))}
               </div>
             </div>
             <Illustration
-              src="/illustrations/undraw_contract-signed_vutk.svg"
-              alt="A simple, fair agreement"
+              src="/illustrations/undraw_ai-data-extraction_soxc.svg"
+              alt="Automated setup, running in the background"
               className="w-full max-w-md mx-auto"
             />
           </div>
