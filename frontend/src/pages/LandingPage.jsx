@@ -683,11 +683,11 @@ export default function LandingPage() {
         </section>
       </Reveal>
 
-      {/* ── (02) MARKET INSIGHT — white panel ── */}
+      {/* ── (02) MARKET INSIGHT — white panel, lead stat + 3 supporting points ── */}
       <Reveal>
         <section className="relative bg-white px-4 sm:px-6 py-16 sm:py-24 overflow-hidden">
           <div className="glow-orb w-96 h-96 -top-32 left-1/2 -translate-x-1/2 bg-brand-100/60" />
-          <div className="max-w-4xl mx-auto text-center relative">
+          <div className="max-w-4xl mx-auto text-center relative mb-14">
             <div className="flex items-center justify-center gap-4 mb-4">
               <PageNumber n="02" dark />
               <Eyebrow dark>Market Insight</Eyebrow>
@@ -701,6 +701,42 @@ export default function LandingPage() {
               the job's gone. Tractify responds the moment the call is missed. You don't have to
               answer. They still get an answer.
             </p>
+          </div>
+
+          <div className="max-w-6xl mx-auto grid sm:grid-cols-3 gap-5 relative">
+            <Reveal delay={0}>
+              <div className="group h-full bg-white border border-gray-100 rounded-2xl p-6 shadow-sm transition-all duration-300 hover:shadow-xl hover:shadow-brand-900/10 hover:-translate-y-1.5 hover:border-brand-200">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-brand-500 mb-3">In The Moment</p>
+                <p className="text-gray-700 text-sm sm:text-base leading-relaxed">
+                  You're under a house. Your phone's in the truck. That call just{' '}
+                  <mark className="bg-brand-100 text-brand-800 px-1.5 rounded-md font-semibold">
+                    went to your competitor
+                  </mark>.
+                </p>
+              </div>
+            </Reveal>
+            <Reveal delay={130}>
+              <div className="group h-full bg-white border border-gray-100 rounded-2xl p-6 shadow-sm transition-all duration-300 hover:shadow-xl hover:shadow-brand-900/10 hover:-translate-y-1.5 hover:border-brand-200">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-brand-500 mb-3">Not About Skill</p>
+                <p className="text-gray-700 text-sm sm:text-base leading-relaxed">
+                  You don't lose jobs to better contractors. You lose them to{' '}
+                  <mark className="bg-brand-100 text-brand-800 px-1.5 rounded-md font-semibold">
+                    whoever picked up the phone
+                  </mark>.
+                </p>
+              </div>
+            </Reveal>
+            <Reveal delay={260}>
+              <div className="group h-full bg-white border border-gray-100 rounded-2xl p-6 shadow-sm transition-all duration-300 hover:shadow-xl hover:shadow-brand-900/10 hover:-translate-y-1.5 hover:border-brand-200">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-brand-500 mb-3">One Shot</p>
+                <p className="text-gray-700 text-sm sm:text-base leading-relaxed">
+                  <mark className="bg-brand-100 text-brand-800 px-1.5 rounded-md font-semibold">
+                    76% of customers never come back
+                  </mark>{' '}
+                  after one bad experience. A missed call is one bad experience.
+                </p>
+              </div>
+            </Reveal>
           </div>
         </section>
       </Reveal>
