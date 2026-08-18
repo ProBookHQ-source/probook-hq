@@ -543,8 +543,7 @@ export default function LandingPage() {
             <p className="text-white/80 text-base sm:text-xl max-w-xl mx-auto md:mx-0 leading-relaxed mb-9 sm:mb-11">
               Every missed call, every Google search, every Facebook and Instagram message —
               Tractify turns all of it into a text conversation that books the job straight onto
-              your calendar. No app. No dashboard. No login required. So you can be at your kid's
-              game instead of your desk.
+              your calendar. No app. No dashboard. No login required. So you can be anywhere else.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center md:justify-start">
               <button
@@ -596,8 +595,8 @@ export default function LandingPage() {
                 <p className="text-white/75 text-sm sm:text-base leading-relaxed max-w-lg">
                   A missed call, a Google search, a Facebook or Instagram message — however a
                   homeowner finds you, it all lands in the same place: a text conversation that
-                  books the job. You're not running three different tools. It's one system with
-                  more doors into it.
+                  books the job. You're not running three different tools. Same system. Just
+                  more ways for a job to reach it.
                 </p>
               </div>
               <Illustration
