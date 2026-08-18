@@ -1036,7 +1036,7 @@ export default function LandingPage() {
               </a>
             </div>
           </div>
-          <p className="text-xs text-white/55 text-center sm:text-left">© {new Date().getFullYear()} OMNIANCEGROUP LLC</p>
+          <p className="text-xs text-white/55 text-center">© {new Date().getFullYear()} OMNIANCEGROUP LLC</p>
         </div>
       </footer>
     </div>
