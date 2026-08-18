@@ -693,14 +693,13 @@ export default function LandingPage() {
               <Eyebrow dark>Market Insight</Eyebrow>
             </div>
             <h2 className="font-display text-brand-900 text-3xl sm:text-5xl leading-[1.05] tracking-tight mb-5">
-              27% OF CALLS TO HOME SERVICE BUSINESSES GO UNANSWERED — AND UNDER 3% OF THOSE
-              CALLERS EVER LEAVE A VOICEMAIL.
+              RESPOND IN 5 MINUTES AND YOU'RE 100X MORE LIKELY TO REACH THE CUSTOMER THAN IF
+              YOU WAIT 30.
             </h2>
             <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg mx-auto">
-              They just call the next name on the list. Businesses that do eventually call back
-              average 42 hours to respond — by then the job's already gone. Tractify closes that
-              gap the moment the call is missed. You don't have to answer. They still get an
-              answer.
+              The average business takes 42 hours to call a lead back. By then it's not close —
+              the job's gone. Tractify responds the moment the call is missed. You don't have to
+              answer. They still get an answer.
             </p>
           </div>
         </section>
