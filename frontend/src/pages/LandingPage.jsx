@@ -3,8 +3,18 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   ArrowRight, PhoneCall, MessageSquare, CalendarCheck,
   Smartphone, LayoutGrid, KeyRound, CheckCircle2, X,
-  Search, Share2, ArrowDown,
+  Search, Share2, ArrowDown, Instagram, Youtube, Facebook,
 } from 'lucide-react';
+
+// Lucide doesn't ship a TikTok glyph — minimal inline SVG sized/styled to match
+// the lucide icons it sits next to in the footer (same 24x24 box, currentColor fill).
+function TikTokIcon({ className = '' }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1Z" />
+    </svg>
+  );
+}
 
 // ── Reusable line-art SVGs — hand-drawn in the same thin white-stroke style
 // used throughout the pitch deck, built fresh rather than reusing the deck's
@@ -974,19 +984,59 @@ export default function LandingPage() {
 
       {/* ── FOOTER ── */}
       <footer className="relative border-t border-white/10 px-4 sm:px-6 py-10">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2.5">
-            <img src="/probook-icon-128.png" alt="Tractify" className="w-7 h-7 rounded-lg" />
-            <span className="font-display text-white text-sm tracking-tight">TRACTIFY</span>
+        <div className="max-w-6xl mx-auto flex flex-col gap-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-2.5">
+              <img src="/probook-icon-128.png" alt="Tractify" className="w-7 h-7 rounded-lg" />
+              <span className="font-display text-white text-sm tracking-tight">TRACTIFY</span>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-semibold text-white/75">
+              <button onClick={() => navigate('/waitlist')} className="hover:text-white transition-colors">Waitlist</button>
+              <button onClick={() => navigate('/login')} className="hover:text-white transition-colors">Contractor Login</button>
+              <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">Privacy</button>
+              <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">Terms</button>
+              <a href="mailto:support@tractifyhq.com" className="hover:text-white transition-colors">support@tractifyhq.com</a>
+            </div>
+            <div className="flex items-center gap-4">
+              <a
+                href="https://www.tiktok.com/@tractifyhq?lang=en"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Tractify on TikTok"
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                <TikTokIcon className="w-[18px] h-[18px]" />
+              </a>
+              <a
+                href="https://www.instagram.com/tractifyhq/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Tractify on Instagram"
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                <Instagram className="w-5 h-5" strokeWidth={2} />
+              </a>
+              <a
+                href="https://www.youtube.com/channel/UCiJJBoCtNttSut2lzANSLZg"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Tractify on YouTube"
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                <Youtube className="w-5 h-5" strokeWidth={2} />
+              </a>
+              <a
+                href="https://www.facebook.com/profile.php?id=61593232138680"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Tractify on Facebook"
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                <Facebook className="w-5 h-5" strokeWidth={2} />
+              </a>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-semibold text-white/75">
-            <button onClick={() => navigate('/waitlist')} className="hover:text-white transition-colors">Waitlist</button>
-            <button onClick={() => navigate('/login')} className="hover:text-white transition-colors">Contractor Login</button>
-            <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">Privacy</button>
-            <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">Terms</button>
-            <a href="mailto:support@tractifyhq.com" className="hover:text-white transition-colors">support@tractifyhq.com</a>
-          </div>
-          <p className="text-xs text-white/55">© {new Date().getFullYear()} OMNIANCEGROUP LLC</p>
+          <p className="text-xs text-white/55 text-center sm:text-left">© {new Date().getFullYear()} OMNIANCEGROUP LLC</p>
         </div>
       </footer>
     </div>
