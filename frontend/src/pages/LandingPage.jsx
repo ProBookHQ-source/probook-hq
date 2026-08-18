@@ -693,13 +693,14 @@ export default function LandingPage() {
               <Eyebrow dark>Market Insight</Eyebrow>
             </div>
             <h2 className="font-display text-brand-900 text-3xl sm:text-5xl leading-[1.05] tracking-tight mb-5">
-              A MISSED CALL TODAY IS A BOOKED JOB FOR YOUR COMPETITOR TOMORROW.
+              27% OF CALLS TO HOME SERVICE BUSINESSES GO UNANSWERED — AND UNDER 3% OF THOSE
+              CALLERS EVER LEAVE A VOICEMAIL.
             </h2>
             <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg mx-auto">
-              Customers don't wait. If a business doesn't answer, they call the next name on
-              the list within minutes. Tractify closes that gap automatically — every missed
-              call gets a reply before the customer ever picks up the phone again. You don't
-              have to answer. They still get an answer.
+              They just call the next name on the list. Businesses that do eventually call back
+              average 42 hours to respond — by then the job's already gone. Tractify closes that
+              gap the moment the call is missed. You don't have to answer. They still get an
+              answer.
             </p>
           </div>
         </section>
