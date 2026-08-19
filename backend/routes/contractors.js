@@ -204,10 +204,14 @@ router.put('/:id', requireContractor, async (req, res) => {
       if (poolRow && poolRow.phone_number !== twilio_number) {
         const { releasePoolNumber } = require('../services/twilioPool');
         await releasePoolNumber(id, 'manually_overridden');
-        // releasePoolNumber also clears contractors.twilio_number — restore the
-        // admin's intended override, which the UPDATE above already applied but
-        // this cleanup would otherwise wipe out.
-        await db.prepare('UPDATE contractors SET twilio_number = $1 WHERE id = $2').run(twilio_number, id);
+        // releasePoolNumber clears both twilio_number and sms_welcome_sent —
+        // restore twilio_number to the admin's intended override, and restore
+        // sms_welcome_sent to 1 since this contractor already had a real number
+        // before this edit and has already been through the welcome flow. Leaving
+        // it reset to 0 wouldn't cause a duplicate send via this route (the welcome
+        // trigger below only fires on null→value transitions), but it would cause
+        // one if this contractor is ever pool-reassigned a number later.
+        await db.prepare('UPDATE contractors SET twilio_number = $1, sms_welcome_sent = 1 WHERE id = $2').run(twilio_number, id);
       }
     } catch (err) {
       console.error('[CONTRACTORS] Twilio pool consistency guard failed (non-fatal):', err.message);

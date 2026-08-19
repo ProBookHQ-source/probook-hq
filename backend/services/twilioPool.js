@@ -135,12 +135,18 @@ async function markPoolNumberConverted(contractorId) {
 async function addNumberToPool(phoneNumber) {
   const { v4: uuidv4 } = require('uuid');
   const id = uuidv4();
-  await db.query(`
+  // ON CONFLICT DO NOTHING would silently no-op on a duplicate phone number and
+  // still hand back the freshly-generated id as if a row had been created —
+  // that id wouldn't point at anything real. DO UPDATE SET (a harmless no-op
+  // update) with RETURNING id guarantees we always get back the id of whichever
+  // row actually exists for this number, new or pre-existing.
+  const { rows } = await db.query(`
     INSERT INTO twilio_number_pool (id, phone_number, status)
     VALUES ($1, $2, 'available')
-    ON CONFLICT (phone_number) DO NOTHING
+    ON CONFLICT (phone_number) DO UPDATE SET phone_number = EXCLUDED.phone_number
+    RETURNING id
   `, [id, phoneNumber]);
-  return id;
+  return rows[0].id;
 }
 
 /** Admin visibility — counts by status, plus the full row list. */

@@ -15,14 +15,30 @@ router.get('/', requireAdmin, async (req, res) => {
   res.json(stats);
 });
 
+// Cleans "+1 206-555-1234", "(206) 555-1234", "12065551234", etc. down to a real
+// E.164 string. A naive `startsWith('+') ? asIs : '+1' + digits` (the first draft
+// of this) would leave stray spaces/dashes in place whenever the input already
+// had a leading +, and would double-prefix an already-11-digit US number with no
+// +. Both would produce a stored number that doesn't exact-match what Twilio's
+// webhook sends, breaking every lookup that depends on it.
+function normalizePhoneNumber(raw) {
+  const trimmed = String(raw || '').trim();
+  const hasPlus = trimmed.startsWith('+');
+  const digits = trimmed.replace(/\D/g, '');
+  if (hasPlus) return `+${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  return `+1${digits}`;
+}
+
 // POST / — register a number Jose already bought in the Twilio console.
 // Body: { phoneNumber: "+12065551234" }
 router.post('/', requireAdmin, async (req, res) => {
   const { phoneNumber } = req.body || {};
-  if (!phoneNumber || !/^\+?[1-9]\d{7,14}$/.test(phoneNumber.replace(/[\s\-().]/g, ''))) {
+  const digitCount = String(phoneNumber || '').replace(/\D/g, '').length;
+  if (!phoneNumber || digitCount < 10 || digitCount > 15) {
     return res.status(400).json({ error: 'phoneNumber is required and must look like a real phone number (E.164 preferred, e.g. +12065551234)' });
   }
-  const normalized = phoneNumber.startsWith('+') ? phoneNumber : `+1${phoneNumber.replace(/\D/g, '')}`;
+  const normalized = normalizePhoneNumber(phoneNumber);
   const id = await addNumberToPool(normalized);
   res.json({ ok: true, id, phoneNumber: normalized });
 });

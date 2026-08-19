@@ -385,6 +385,11 @@ db._ready.then(async () => {
     )
   `);
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS twilio_pool_id TEXT REFERENCES twilio_number_pool(id) ON DELETE SET NULL`);
+  // payment_status is documented throughout CLAUDE.md (Stripe conversion, churn/
+  // offboarding) but was never actually migrated into the DB before now — added
+  // here because the pool's "gone dark" cron sweep below needs it to never touch
+  // a converted/paying contractor's number.
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'trial'`);
 
   // Start scheduled jobs (appointment reminders, etc.)
   require('./services/cron');
