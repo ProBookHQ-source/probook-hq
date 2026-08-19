@@ -374,7 +374,7 @@ cron.schedule('50 * * * *', async () => {
         const business    = appt.company_name || appt.contractor_name;
         const greeting    = firstName ? `Hey ${firstName}! ` : 'Hey! ';
         const reviewLink  = `https://search.google.com/local/writereview?placeid=${appt.place_id}`;
-        const body = `${greeting}Hope the service with ${business} went great! A quick Google review would mean a lot to them — takes 30 seconds: ${reviewLink}`;
+        const body = `${greeting}Hope the service with ${business} went great! A quick Google review would mean a lot to them — takes 30 seconds: ${reviewLink} Reply STOP to opt out.`;
 
         const digits = appt.lead_phone.replace(/\D/g, '');
         const e164   = digits.length === 10 ? `+1${digits}` : `+${digits}`;
