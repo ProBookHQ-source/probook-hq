@@ -192,6 +192,28 @@ router.put('/:id', requireContractor, async (req, res) => {
     niche_id || null
   );
 
+  // ── Twilio pool consistency guard ─────────────────────────────────────────────
+  // If an admin manually overrides twilio_number here (porting a number, fixing
+  // a mistake, etc.) to something other than what the pool currently has this
+  // contractor linked to, release the old pool row back to 'available' rather
+  // than leaving it silently stuck as "assigned" to a contractor that no longer
+  // has it. Only matters if this contractor was pool-assigned in the first place.
+  if (twilio_number && contractor.twilio_pool_id) {
+    try {
+      const poolRow = await db.prepare('SELECT phone_number FROM twilio_number_pool WHERE id = $1').get(contractor.twilio_pool_id);
+      if (poolRow && poolRow.phone_number !== twilio_number) {
+        const { releasePoolNumber } = require('../services/twilioPool');
+        await releasePoolNumber(id, 'manually_overridden');
+        // releasePoolNumber also clears contractors.twilio_number — restore the
+        // admin's intended override, which the UPDATE above already applied but
+        // this cleanup would otherwise wipe out.
+        await db.prepare('UPDATE contractors SET twilio_number = $1 WHERE id = $2').run(twilio_number, id);
+      }
+    } catch (err) {
+      console.error('[CONTRACTORS] Twilio pool consistency guard failed (non-fatal):', err.message);
+    }
+  }
+
   // ── Welcome SMS — fires when Twilio number is first assigned ─────────────────
   // Twilio number was just assigned (null → value) and contractor has a phone number
   // and hasn't already received a welcome text.

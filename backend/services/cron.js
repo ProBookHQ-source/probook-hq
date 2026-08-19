@@ -395,4 +395,50 @@ cron.schedule('50 * * * *', async () => {
   }
 });
 
-console.log('✅ Cron jobs started (appointment reminders every hour, onboarding nudge daily at 10am, SMS drip hourly at :30, 72h silence check every 6h, post-job check-in hourly at :45, morning confirmation at 7:30am, review SMS hourly at :50)');
+// ── Twilio pool — "gone dark" auto-release ────────────────────────────────────
+// Runs daily at 2am. Session 27 (August 17, 2026) — see backend/services/twilioPool.js
+// and CLAUDE.md STEP 2a: numbers assigned to a trial contractor should release
+// back to the pool automatically if the contractor never engages. Task #10 (the
+// dedicated 5-jobs-or-21-days trial trigger) will eventually own the primary
+// trial-expiry release path — this is a broader safety net underneath that for
+// accounts that go completely silent well past any reasonable trial window:
+// live 30+ days, never converted, zero bookings ever. Adjust the 30-day window
+// down to match #10's 21-day trigger once that's built, if it turns out this
+// net is catching contractors #10 should have already released.
+cron.schedule('0 2 * * *', async () => {
+  console.log('⏰ [cron] Running Twilio pool "gone dark" sweep…');
+  try {
+    const cutoff30d = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+
+    const { rows: dark } = await db.query(`
+      SELECT c.id, c.name, c.company_name, c.twilio_pool_id
+      FROM contractors c
+      WHERE c.twilio_pool_id IS NOT NULL
+        AND c.is_active = 1
+        AND (c.payment_status IS NULL OR c.payment_status = 'trial')
+        AND c.created_at < $1
+        AND NOT EXISTS (
+          SELECT 1 FROM appointments a
+          WHERE a.contractor_id = c.id AND a.status != 'cancelled'
+        )
+    `, [cutoff30d]);
+
+    if (!dark.length) return;
+
+    const { releasePoolNumber } = require('./twilioPool');
+    for (const contractor of dark) {
+      try {
+        const released = await releasePoolNumber(contractor.id, 'inactive_30d');
+        if (released) {
+          console.log(`⏰ [cron] Released dark trial number — ${contractor.company_name || contractor.name} (30+ days live, 0 bookings)`);
+        }
+      } catch (err) {
+        console.error(`⏰ [cron] Pool release failed for ${contractor.id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('⏰ [cron] Twilio pool sweep job error:', err.message);
+  }
+});
+
+console.log('✅ Cron jobs started (appointment reminders every hour, onboarding nudge daily at 10am, SMS drip hourly at :30, 72h silence check every 6h, post-job check-in hourly at :45, morning confirmation at 7:30am, review SMS hourly at :50, Twilio pool sweep daily at 2am)');

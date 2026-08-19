@@ -150,6 +150,11 @@ router.put('/contractor/:id/decline', requireAdmin, async (req, res) => {
 
   await db.prepare('UPDATE contractors SET declined_at = NOW() WHERE id = $1').run(req.params.id);
 
+  // Release any pool-assigned Twilio number back to 'available' for the next
+  // trial signup — a declined contractor never gets to keep it.
+  const { releasePoolNumber } = require('../services/twilioPool');
+  releasePoolNumber(req.params.id, 'declined').catch(console.error);
+
   const notifications = require('../services/notifications');
   notifications.sendContractorDeclined(contractor).catch(console.error);
 

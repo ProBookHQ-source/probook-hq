@@ -236,8 +236,22 @@ async function createContractorAccount(data) {
     log(`Availability seed warning: ${availErr.message}`);
   }
 
-  // ── Alert admin — assigning a Twilio number is the next manual step, which
-  // automatically fires the SMS welcome conversation (contractors.js PUT /:id) ──
+  // ── Assign a Twilio number from the shared trial pool (non-fatal) ──────────
+  // Session 27: replaces the old "assigning a Twilio number is the next manual
+  // step" flow. If a number is available it's assigned instantly and the
+  // welcome SMS fires immediately — signup to first text with zero Jose
+  // involvement, per THE PIVOT's "under 30 seconds, no landing page, no login"
+  // design. If the pool is empty this does NOT fail the signup — the admin
+  // alert below still fires either way so Jose knows to buy more numbers.
+  let assignedTwilioNumber = null;
+  try {
+    const { assignPoolNumber } = require('./twilioPool');
+    assignedTwilioNumber = await assignPoolNumber(contractorId);
+  } catch (e) {
+    log(`Twilio pool assignment failed (non-fatal): ${e.message}`);
+  }
+
+  // ── Alert admin ─────────────────────────────────────────────────────────
   try {
     const nicheRow = await db.prepare('SELECT name FROM niches WHERE id = $1').get(nicheId);
     await sendDeployAlertToAdmin({
@@ -250,6 +264,8 @@ async function createContractorAccount(data) {
       nichePendingReview,
       requestedNicheText,
       excludedCategoryWarning: nichePendingReview ? looksLikeExcludedCategory(requestedNicheText) : false,
+      twilioNumberAssigned: assignedTwilioNumber,
+      poolExhausted: !assignedTwilioNumber,
     });
   } catch (e) {
     log(`Admin alert failed: ${e.message}`);

@@ -435,6 +435,7 @@ Be direct. No fluff. Jose is running a business.`;
         else {
           await db.query(`UPDATE contractors SET is_active = 0, declined_at = NOW() WHERE id = $1`, [input.contractor_id]);
           const c = check.rows[0];
+          require('../services/twilioPool').releasePoolNumber(input.contractor_id, 'declined').catch(console.error);
           notifications.sendContractorDeclined(c).catch(console.error);
           toolResult = `Declined ${c.company_name || c.name}. Decline email sent.`;
           actionTaken = { type: 'decline_contractor', contractor_id: input.contractor_id };

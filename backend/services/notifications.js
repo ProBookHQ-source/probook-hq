@@ -932,7 +932,7 @@ async function sendContractorWelcomeEmail({ name, email, company, siteUrl, porta
 }
 
 // ── Admin alert after auto-deploy ─────────────────────────────────────────────
-async function sendDeployAlertToAdmin({ businessName, phone, address, niche, contractorId, slug, nichePendingReview, requestedNicheText, excludedCategoryWarning }) {
+async function sendDeployAlertToAdmin({ businessName, phone, address, niche, contractorId, slug, nichePendingReview, requestedNicheText, excludedCategoryWarning, twilioNumberAssigned, poolExhausted }) {
   const reviewBanner = nichePendingReview ? `
       <tr><td style="padding:0 0 20px;">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
@@ -948,12 +948,31 @@ async function sendDeployAlertToAdmin({ businessName, phone, address, niche, con
       </td></tr>
   ` : '';
 
+  const poolBanner = poolExhausted ? `
+      <tr><td style="padding:0 0 20px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+               style="background:#fef2f2;border-radius:10px;border-left:4px solid #ef4444;">
+          <tr><td style="padding:16px 22px;">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#991b1b;">📵 Twilio number pool is empty</p>
+            <p style="margin:0;font-size:13px;color:#991b1b;">No number was assigned to this contractor — buy more numbers in the Twilio console and register them via POST /api/twilio-pool, or set one manually on this contractor's card.</p>
+          </td></tr>
+        </table>
+      </td></tr>
+  ` : '';
+
+  const twilioLine = twilioNumberAssigned
+    ? `<p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>Twilio #:</strong> ${esc(twilioNumberAssigned)} <span style="color:#16a34a;">(auto-assigned from pool — welcome text already sent)</span></p>`
+    : '';
+
   const html = emailBase({
     label:    'New Contractor Signup',
     headline: esc(businessName),
-    sub:      nichePendingReview ? 'Account created — niche needs your review before this contractor is fully set up.' : 'Account created — assign a Twilio number to start the SMS setup conversation.',
+    sub:      nichePendingReview
+      ? 'Account created — niche needs your review before this contractor is fully set up.'
+      : (twilioNumberAssigned ? 'Account created — Twilio number auto-assigned, welcome text already sent.' : 'Account created — no Twilio number available, see below.'),
     bodyContent: `
       ${reviewBanner}
+      ${poolBanner}
       <tr><td style="padding:0 0 20px;">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
                style="background:#f5f3ff;border-radius:10px;border-left:4px solid #6366f1;">
@@ -963,17 +982,18 @@ async function sendDeployAlertToAdmin({ businessName, phone, address, niche, con
             <p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>Address:</strong> ${esc(address)}</p>
             <p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>Niche:</strong> ${esc(niche)}</p>
             <p style="margin:0 0 4px;font-size:14px;color:#374151;"><strong>Slug:</strong> ${esc(slug)}</p>
+            ${twilioLine}
             <p style="margin:0;font-size:14px;color:#374151;"><strong>Contractor ID:</strong> <code style="background:#ede9fe;padding:2px 6px;border-radius:4px;font-size:12px;">${esc(contractorId)}</code></p>
           </td></tr>
         </table>
       </td></tr>
       <tr><td style="padding:0 0 8px;">
-        <p style="margin:0;font-size:14px;color:#6b7280;">Next: assign a Twilio number to this contractor in the admin dashboard — that automatically fires the welcome text and starts the SMS setup conversation. Then decide if this contractor gets paid ad spend behind them.</p>
+        <p style="margin:0;font-size:14px;color:#6b7280;">${twilioNumberAssigned ? 'Nothing else to do here — decide if this contractor gets paid ad spend behind them.' : 'Assign a Twilio number to this contractor in the admin dashboard once one is available — that fires the welcome text and starts the SMS setup conversation.'}</p>
       </td></tr>
     `,
   });
   const adminTo = process.env.ADMIN_EMAIL || 'bookings@tractifyhq.com';
-  const subjectPrefix = nichePendingReview ? '⚠️ ' : '';
+  const subjectPrefix = nichePendingReview ? '⚠️ ' : (poolExhausted ? '📵 ' : '');
   await sendEmail(adminTo, `${subjectPrefix}New contractor signup: ${businessName}`, html);
 }
 

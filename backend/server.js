@@ -190,6 +190,7 @@ app.use('/api/twilio',       require('./routes/twilio'));
 app.use('/api/leads/facebook', require('./routes/facebook')); // Facebook Lead Ads webhook
 app.use('/api/deploy',       require('./routes/deploy'));   // ← Cloudflare Worker calls this after intake form submit
 app.use('/api/waitlist',     require('./routes/waitlist')); // ← waitlist signup while Twilio compliance is pending
+app.use('/api/twilio-pool',  require('./routes/twilioPool')); // ← shared trial-number pool admin CRUD
 app.use('/api/contractor/ai-chat', require('./routes/aiChat'));
 app.use('/api/admin/ai-chat',     require('./routes/adminAI')); // Jose's business intelligence brain
 
@@ -365,6 +366,25 @@ db._ready.then(async () => {
     )
   `);
   await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS waitlist_signups_phone_idx ON waitlist_signups (phone)`);
+
+  // Shared Twilio number pool — added session 27 (August 17, 2026), see
+  // backend/services/twilioPool.js and CLAUDE.md "⚡ PICK UP HERE" STEP 2a.
+  // status: 'available' (ready to assign) | 'assigned' (a trial contractor is
+  // using it) | 'converted' (a paying contractor's — permanent, never reused)
+  // | 'disabled' (bad number, pulled from rotation by hand).
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS twilio_number_pool (
+      id TEXT PRIMARY KEY,
+      phone_number TEXT UNIQUE NOT NULL,
+      status TEXT NOT NULL DEFAULT 'available',
+      assigned_contractor_id TEXT REFERENCES contractors(id) ON DELETE SET NULL,
+      assigned_at TIMESTAMPTZ,
+      released_at TIMESTAMPTZ,
+      release_reason TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS twilio_pool_id TEXT REFERENCES twilio_number_pool(id) ON DELETE SET NULL`);
 
   // Start scheduled jobs (appointment reminders, etc.)
   require('./services/cron');
