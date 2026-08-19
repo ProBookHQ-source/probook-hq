@@ -88,16 +88,20 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-3">4. SMS Communications</h2>
             <p>
-              By providing your phone number and submitting a service request or booking form on a Tractify-powered site, you expressly consent to receive text messages (SMS) from or on behalf of the contractor you are contacting. These messages may include:
+              If you are a homeowner, by calling or texting a contractor's business number, or by submitting a service request or booking form on a Tractify-powered site, you expressly consent to receive text messages (SMS) from or on behalf of the contractor you are contacting. If you are a contractor, by registering for Tractify's service you expressly consent to receive text messages (SMS) from Tractify to help manage your account. These messages may include:
             </p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
-              <li>Booking link messages after a missed call or form submission</li>
+              <li>Scheduling replies after a missed call, inbound text, or form submission</li>
               <li>Appointment confirmation and reminder messages</li>
               <li>Cancellation and rescheduling notifications</li>
               <li>Follow-up messages if you did not complete your booking</li>
+              <li>For contractors: calendar setup, appointment alerts, and account notifications</li>
             </ul>
             <p className="mt-3">
               <strong>To opt out:</strong> Reply <strong>STOP</strong> to any SMS message you receive. You will be removed from future messages immediately. Reply <strong>HELP</strong> for assistance. Message and data rates may apply. Message frequency varies.
+            </p>
+            <p className="mt-3">
+              No mobile information will be shared with third parties or affiliates for marketing or promotional purposes. Mobile opt-in data and consent will not be shared with any third parties, except as necessary to provide the SMS service itself (see "Service Providers" below).
             </p>
             <p className="mt-3">
               We comply with the Telephone Consumer Protection Act (TCPA) and CTIA messaging guidelines. Contractors using our platform are responsible for their own compliance with applicable SMS marketing laws.
