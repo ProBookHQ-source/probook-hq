@@ -441,4 +441,19 @@ cron.schedule('0 2 * * *', async () => {
   }
 });
 
-console.log('✅ Cron jobs started (appointment reminders every hour, onboarding nudge daily at 10am, SMS drip hourly at :30, 72h silence check every 6h, post-job check-in hourly at :45, morning confirmation at 7:30am, review SMS hourly at :50, Twilio pool sweep daily at 2am)');
+// ── Call-forwarding test timeout sweep ────────────────────────────────────────
+// Runs every 2 minutes. Catches forwarding tests (session 28 —
+// services/forwardingTest.js) that never resolved either way within 2 minutes
+// (contractor's phone was off, the outbound call never connected, a webhook
+// got lost, etc) and lets them know so they aren't left wondering.
+cron.schedule('*/2 * * * *', async () => {
+  try {
+    const { sweepTimeouts } = require('./forwardingTest');
+    const n = await sweepTimeouts();
+    if (n) console.log(`⏰ [cron] Forwarding-test timeout sweep — resolved ${n} stuck test(s)`);
+  } catch (err) {
+    console.error('⏰ [cron] Forwarding-test timeout sweep error:', err.message);
+  }
+});
+
+console.log('✅ Cron jobs started (appointment reminders every hour, onboarding nudge daily at 10am, SMS drip hourly at :30, 72h silence check every 6h, post-job check-in hourly at :45, morning confirmation at 7:30am, review SMS hourly at :50, Twilio pool sweep daily at 2am, forwarding-test timeout sweep every 2min)');

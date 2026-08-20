@@ -49,6 +49,25 @@ router.post('/missed-call', async (req, res) => {
   db.query(`UPDATE contractors SET twilio_test_call_at = NOW() WHERE id = $1`, [contractor.id])
     .catch(e => console.warn('[TWILIO] Failed to stamp test call timestamp:', e.message));
 
+  // ── Automated forwarding-test correlation (session 28) ──────────────────────
+  // If Tractify itself just placed an outbound test call to this contractor's
+  // real number, this inbound (forwarded) call is very likely that same call
+  // bouncing back to us. Claim it as the test result and respond with a short
+  // message instead of running the real missed-call/Brain-3 flow. If there's
+  // no in-flight test (or it was already resolved by the status-callback path),
+  // resolveFromForwardedCall returns null and we fall through to normal handling.
+  try {
+    const { resolveFromForwardedCall } = require('../services/forwardingTest');
+    const testResult = await resolveFromForwardedCall(contractor.id);
+    if (testResult) {
+      console.log(`[TWILIO] Inbound call claimed as forwarding test for ${contractor.id}: ${testResult}`);
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="alice">Test received. Check your texts.</Say><Hangup/></Response>`);
+    }
+  } catch (e) {
+    console.error('[TWILIO] Forwarding-test correlation check failed (continuing as normal call):', e.message);
+  }
+
   const businessName = contractor.company_name || contractor.name || 'us';
   const bookingSlug  = contractor.booking_slug;
   // ?src=missed_call tags this booking so the AI brain knows which channel drove it
@@ -103,6 +122,31 @@ router.post('/missed-call', async (req, res) => {
   <Say voice="alice">Thanks for calling ${safeName}. We're out on a job right now but we just texted you a link to book a time that works for you. Check your messages!</Say>
   <Hangup/>
 </Response>`);
+});
+
+// ── POST /api/twilio/forwarding-test-status ──────────────────────────────────
+// Twilio's statusCallback for the OUTBOUND test call placed by
+// services/forwardingTest.js's startForwardingTest(). If this call's own
+// status comes back as completed/no-answer/busy/failed, it means the call
+// actually reached (rang/was answered on) the contractor's real phone rather
+// than being redirected away by carrier-level forwarding — proof forwarding
+// isn't active. If forwarding IS active, the carrier redirects the call away
+// before it ever reaches this status naturally, and the /missed-call webhook
+// (the forwarded leg landing back on the Twilio number) resolves the test
+// instead — whichever webhook fires first claims the result, the other is a
+// no-op (see the atomic WHERE fwd_test_result IS NULL in forwardingTest.js).
+router.post('/forwarding-test-status', async (req, res) => {
+  const contractorId = req.query.contractorId;
+  const { CallStatus } = req.body;
+  try {
+    if (contractorId) {
+      const { resolveFromOutboundStatus } = require('../services/forwardingTest');
+      await resolveFromOutboundStatus(contractorId, CallStatus);
+    }
+  } catch (e) {
+    console.error('[TWILIO] forwarding-test-status error:', e.message);
+  }
+  res.sendStatus(200);
 });
 
 // ── POST /api/twilio/inbound-sms ─────────────────────────────────────────────

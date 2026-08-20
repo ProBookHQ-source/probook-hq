@@ -148,7 +148,7 @@ async function handleContractorSms(contractor, incomingText) {
       label: 'Set up missed call forwarding',
       done: !!completedSteps.twilio,
       guide: hasBusinessPhoneAnswer
-        ? `First ask: iPhone or Android, AND which carrier (AT&T, T-Mobile, Verizon, or other)? Then give the CORRECT device+carrier-specific steps for TRUE conditional (no-answer-only) forwarding — NEVER the plain Settings toggle, which forwards ALL calls immediately with zero rings and would break their phone line. iPhone has no true "forward when unanswered" option in Settings — it must be done with a carrier code dialed like a phone call, and the code is DIFFERENT per carrier: AT&T/T-Mobile use **61*${twilioNumber}*11*20# then press the green call button (it will connect briefly then hang up on its own — that's normal, it means it worked). Verizon uses a simpler code: *71${twilioNumber} then press call. After dialing either code, ALWAYS have them place one real test call to their own number from a different phone (or ask a friend to call) to confirm it only forwards after it rings a few times, not instantly — this is the only way to know it's actually set to conditional and not accidentally unconditional. To turn OFF forwarding later if anything seems wrong: AT&T/T-Mobile dial ##61# then call, Verizon dial *73 then call. Android: Phone app > 3-dot menu > Settings > Calling accounts (or Supplementary services) > Call forwarding > "When unanswered" > enter ${twilioNumber} > turn on — this IS a true conditional option built into Android's own Settings, no dial code needed. Always tell them to tap and hold the number in your text to copy it instead of retyping it. If they're on iPhone and running iOS 17 or newer, mention that the "Live Voicemail" feature can silently block conditional forwarding from working — if forwarding doesn't seem to catch missed calls after setup, tell them to check Settings > Phone > Live Voicemail and turn it off. Text DONE when set up AND the test call confirmed it works.`
+        ? `First ask: iPhone or Android, AND which carrier (AT&T, T-Mobile, Verizon, or other)? Then give the CORRECT device+carrier-specific steps for TRUE conditional (no-answer-only) forwarding — NEVER the plain Settings toggle, which forwards ALL calls immediately with zero rings and would break their phone line. iPhone has no true "forward when unanswered" option in Settings — it must be done with a carrier code dialed like a phone call, and the code is DIFFERENT per carrier: AT&T/T-Mobile use **61*${twilioNumber}*11*20# then press the green call button (it will connect briefly then hang up on its own — that's normal, it means it worked). Verizon uses a simpler code: *71${twilioNumber} then press call. To turn OFF forwarding later if anything seems wrong: AT&T/T-Mobile dial ##61# then call, Verizon dial *73 then call. Android: Phone app > 3-dot menu > Settings > Calling accounts (or Supplementary services) > Call forwarding > "When unanswered" > enter ${twilioNumber} > turn on — this IS a true conditional option built into Android's own Settings, no dial code needed. Always tell them to tap and hold the number in your text to copy it instead of retyping it. If they're on iPhone and running iOS 17 or newer, mention that the "Live Voicemail" feature can silently block conditional forwarding from working — if forwarding doesn't seem to catch missed calls after setup, tell them to check Settings > Phone > Live Voicemail and turn it off. IMPORTANT — do NOT ask them to test it themselves by calling from a second phone. Once they say they've dialed the code / turned it on, tell them "Give me about a minute, I'm going to test that myself" and immediately call the run_forwarding_test tool — Tractify places a real test call and texts them the result automatically (and marks this step done automatically if it passes). Do not mark the step done yourself and do not ask them to text DONE again unless the test comes back showing a problem.`
         : `First find out: is ${contractor.phone} the number their customers actually call, or is their business line different? If they say it's the same, use set_business_phone with is_same=true, then give forwarding instructions for that number. If they give a different number, use set_business_phone to save it, then give forwarding instructions for THAT number instead.`,
     },
     gbp: {
@@ -215,7 +215,7 @@ RULES — CRITICAL:
 - No bullet points, no asterisks, no markdown, no numbered lists. One sentence flows into the next.
 - One thing at a time. Guide them through one step, wait for done, move to the next.
 - "Yes" or "done" only confirms the step YOU just described in your immediately-previous message. Never treat a generic yes (like a reply to "ready to start?") as confirming a specific thing (like their hours) that you haven't actually stated yet in this conversation. If you're not sure what they're saying yes to, ask.
-- When they clearly confirm the specific thing you just asked about ("done", "yes", "ok", "finished", "set it up" in direct response to your instruction) — mark the current step complete immediately using complete_setup_step.
+- When they clearly confirm the specific thing you just asked about ("done", "yes", "ok", "finished", "set it up" in direct response to your instruction) — mark the current step complete immediately using complete_setup_step. EXCEPTION: the call-forwarding (twilio) step is NEVER marked done this way — see that step's guide for what to do instead (run_forwarding_test).
 - After marking a step done: one short congratulations sentence, then IMMEDIATELY give the first instruction for the next incomplete step in the SAME message — don't just ask "ready to keep going?" and wait. Keep momentum, walk them straight into it.
 - When guiding a step: give ONE clear instruction, end with "Reply DONE when set." Never assume they know a term or menu path — spell it out exactly, as if they've never done this before.
 - Whenever you give them a phone number to use (for forwarding, calling, etc), tell them to tap and hold it to copy it rather than retyping it by hand.
@@ -302,6 +302,14 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           },
         },
         required: ['is_same'],
+      },
+    },
+    {
+      name: 'run_forwarding_test',
+      description: 'Test whether call forwarding is actually set up correctly, by having Tractify place a real test call to the contractor\'s own number. Use this the moment the contractor says they\'ve dialed the forwarding code / turned on the toggle — do NOT ask them to test it themselves by calling from another phone, Tractify tests it automatically now. Do not mark the twilio step done yourself — the test result (sent as a separate text within about a minute) marks it done automatically if it passes.',
+      input_schema: {
+        type: 'object',
+        properties: {},
       },
     },
     {
@@ -508,6 +516,22 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
       } catch (err) {
         toolResult = `Error: ${err.message}`;
         console.error('[SMS-AI] set_business_phone error:', err.message);
+      }
+
+    } else if (name === 'run_forwarding_test') {
+      try {
+        const { startForwardingTest } = require('./forwardingTest');
+        const result = await startForwardingTest(contractor);
+        if (result.started) {
+          toolResult = `Test call placed. Tell the contractor you're testing it now and they'll get a text with the result in under a minute — no further action needed from them right now.`;
+        } else if (result.reason === 'missing_number') {
+          toolResult = `Error: no phone number on file to test — resolve set_business_phone first.`;
+        } else {
+          toolResult = `Error starting test: ${result.reason}. Tell the contractor to just text DONE again in a minute and you'll retry.`;
+        }
+      } catch (err) {
+        toolResult = `Error: ${err.message}`;
+        console.error('[SMS-AI] run_forwarding_test error:', err.message);
       }
 
     } else if (name === 'update_availability_slot') {

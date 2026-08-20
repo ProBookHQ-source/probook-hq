@@ -197,6 +197,12 @@ async function initialize() {
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS twilio_test_call_at TIMESTAMPTZ`).catch(() => {});
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS city TEXT`).catch(() => {});
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS address TEXT`).catch(() => {});
+  // Automated call-forwarding verification (session 28) — Tractify places a real
+  // outbound test call to the contractor's real number right after they say the
+  // forwarding code is set up, instead of trusting their word. See services/forwardingTest.js.
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS fwd_test_started_at TIMESTAMPTZ`).catch(() => {});
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS fwd_test_result TEXT`).catch(() => {}); // 'conditional_ok' | 'unconditional_broken' | 'not_forwarding' | 'timeout'
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS fwd_test_completed_at TIMESTAMPTZ`).catch(() => {});
 
   // Migration: two-way AI SMS — conversation history + drip tracking
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS sms_conversation JSONB DEFAULT '[]'`).catch(() => {});
