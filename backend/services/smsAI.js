@@ -120,23 +120,53 @@ async function handleContractorSms(contractor, incomingText) {
       ).join('\n')
     : '';
 
-  const completedSteps = typeof contractor.onboarding_steps === 'string'
-    ? JSON.parse(contractor.onboarding_steps || '{}')
-    : (contractor.onboarding_steps || {});
+  // ── System prompt builder ────────────────────────────────────────────────────
+  // A function, not a one-time const, because it must be called AGAIN after every
+  // tool call inside the loop below — not just once at the top of the turn.
+  //
+  // Real bug found live (Aug 20, 2026): a contractor answered the call-forwarding
+  // step's "same number or different?" question, the AI correctly called
+  // set_business_phone mid-turn, but the system prompt handed to the NEXT model
+  // call in that same turn was still the one built at the very start — before
+  // business_phone existed — so the detailed carrier-specific forwarding guide
+  // (which only unlocks once business_phone is set) never actually reached the
+  // model that turn. It fell through to the vague fallback wording and
+  // improvised a wrong dial code and the wrong destination number from general
+  // knowledge instead. Re-fetching fresh state and rebuilding the prompt after
+  // every tool call closes that gap — whatever a tool just wrote to the DB
+  // (business_phone, onboarding_steps, availability_slots) is reflected in the
+  // very next model call, same turn, not one turn behind.
+  async function buildSystemPrompt() {
+    const freshRow = await db.prepare(
+      'SELECT onboarding_steps, business_phone, twilio_number, booking_slug, company_name, name, phone FROM contractors WHERE id = $1'
+    ).get(contractorId);
+    const liveContractor = { ...contractor, ...(freshRow || {}) };
 
-  const bookingLink = contractor.booking_slug
-    ? `https://tractifyhq.com/schedule/${contractor.booking_slug}`
-    : 'https://tractifyhq.com/schedule';
+    const freshSlotsResult = await db.query(
+      'SELECT * FROM availability_slots WHERE contractor_id = $1 ORDER BY day_of_week',
+      [contractorId]
+    );
+    const liveScheduleText = freshSlotsResult.rows.length
+      ? freshSlotsResult.rows.map(s => `${DAYS[s.day_of_week]}: ${fmtTime(s.start_time)}-${fmtTime(s.end_time)}`).join(', ')
+      : 'No schedule set';
 
-  const twilioNumber = contractor.twilio_number || '(not assigned yet)';
-  const hasTwilioNumber = !!contractor.twilio_number;
+    const completedSteps = typeof liveContractor.onboarding_steps === 'string'
+      ? JSON.parse(liveContractor.onboarding_steps || '{}')
+      : (liveContractor.onboarding_steps || {});
+
+    const bookingLink = liveContractor.booking_slug
+      ? `https://tractifyhq.com/schedule/${liveContractor.booking_slug}`
+      : 'https://tractifyhq.com/schedule';
+
+    const twilioNumber = liveContractor.twilio_number || '(not assigned yet)';
+    const hasTwilioNumber = !!liveContractor.twilio_number;
 
   // business_phone is NULL until the twilio step resolves whether customers call the
   // same cell number we collected at signup or a separate business line. Once resolved
   // (even to "same"), business_phone holds the number to actually forward — either a
   // confirmed-different number, or contractor.phone itself if they confirmed it's the same.
-  const hasBusinessPhoneAnswer = !!contractor.business_phone;
-  const businessNumberForForwarding = contractor.business_phone || contractor.phone;
+  const hasBusinessPhoneAnswer = !!liveContractor.business_phone;
+  const businessNumberForForwarding = liveContractor.business_phone || liveContractor.phone;
 
   const STEP_GUIDES = {
     availability: {
@@ -149,7 +179,7 @@ async function handleContractorSms(contractor, incomingText) {
       done: !!completedSteps.twilio,
       guide: hasBusinessPhoneAnswer
         ? `First ask: iPhone or Android, AND which carrier (AT&T, T-Mobile, Verizon, or other)? Then give the CORRECT device+carrier-specific steps for TRUE conditional (no-answer-only) forwarding — NEVER the plain Settings toggle, which forwards ALL calls immediately with zero rings and would break their phone line. iPhone has no true "forward when unanswered" option in Settings — it must be done with a carrier code dialed like a phone call, and the code is DIFFERENT per carrier: AT&T/T-Mobile use **61*${twilioNumber}*11*20# then press the green call button (it will connect briefly then hang up on its own — that's normal, it means it worked). Verizon uses a simpler code: *71${twilioNumber} then press call. To turn OFF forwarding later if anything seems wrong: AT&T/T-Mobile dial ##61# then call, Verizon dial *73 then call. Android: Phone app > 3-dot menu > Settings > Calling accounts (or Supplementary services) > Call forwarding > "When unanswered" > enter ${twilioNumber} > turn on — this IS a true conditional option built into Android's own Settings, no dial code needed. Always tell them to tap and hold the number in your text to copy it instead of retyping it. If they're on iPhone and running iOS 17 or newer, mention that the "Live Voicemail" feature can silently block conditional forwarding from working — if forwarding doesn't seem to catch missed calls after setup, tell them to check Settings > Phone > Live Voicemail and turn it off. IMPORTANT — do NOT ask them to test it themselves by calling from a second phone. Once they say they've dialed the code / turned it on, tell them "Give me about a minute, I'm going to test that myself" and immediately call the run_forwarding_test tool — Tractify places a real test call and texts them the result automatically (and marks this step done automatically if it passes). Do not mark the step done yourself and do not ask them to text DONE again unless the test comes back showing a problem.`
-        : `First find out: is ${contractor.phone} the number their customers actually call, or is their business line different? If they say it's the same, use set_business_phone with is_same=true, then give forwarding instructions for that number. If they give a different number, use set_business_phone to save it, then give forwarding instructions for THAT number instead.`,
+        : `First find out: is ${liveContractor.phone} the number their customers actually call, or is their business line different? If they say it's the same, call set_business_phone with is_same=true. If they give a different number, call set_business_phone with that number. Do NOT give any forwarding code or instructions yourself here — once set_business_phone runs, you will immediately get the correct detailed guide (with the real carrier codes) for your very next message, so just confirm the number back to them and continue straight into asking device + carrier, exactly as that guide says.`,
     },
     gbp: {
       label: 'Add booking link to Google Business Profile',
@@ -159,7 +189,7 @@ async function handleContractorSms(contractor, incomingText) {
     facebook: {
       label: 'Post in a local Facebook group',
       done: !!completedSteps.facebook,
-      guide: `Search Facebook for your city + "neighbors" or "community" groups. Post: "Hi everyone! I run ${contractor.company_name || contractor.name} and just launched online booking. No phone tag — just pick a time: ${bookingLink}." Text DONE when posted.`,
+      guide: `Search Facebook for your city + "neighbors" or "community" groups. Post: "Hi everyone! I run ${liveContractor.company_name || liveContractor.name} and just launched online booking. No phone tag — just pick a time: ${bookingLink}." Text DONE when posted.`,
     },
     reviewers: {
       label: 'Message your Google reviewers',
@@ -169,7 +199,7 @@ async function handleContractorSms(contractor, incomingText) {
     messenger: {
       label: 'Set up Messenger + Instagram auto-reply',
       done: !!completedSteps.messenger,
-      guide: `Go to business.facebook.com > Inbox > Automation > Instant Replies > toggle on > paste: "Thanks for reaching out to ${contractor.company_name || contractor.name}! Book a time here: ${bookingLink} — takes 60 seconds." > Save. Text DONE when done.`,
+      guide: `Go to business.facebook.com > Inbox > Automation > Instant Replies > toggle on > paste: "Thanks for reaching out to ${liveContractor.company_name || liveContractor.name}! Book a time here: ${bookingLink} — takes 60 seconds." > Save. Text DONE when done.`,
     },
   };
 
@@ -178,12 +208,12 @@ async function handleContractorSms(contractor, incomingText) {
   const totalSteps = Object.keys(STEP_GUIDES).length;
   const nextStep = incompleteSteps[0];
 
-  const todayName = DAYS[new Date().getDay()];
-  // Post-pivot the intake form no longer collects a separate personal contact
-  // name — contractor.name and contractor.company_name are both just the
-  // business name (e.g. "Roofing Guys"). Never split this to fake a first
-  // name ("Hey Roofing") — address them plainly instead.
-  const businessName = contractor.company_name || contractor.name || 'there';
+    const todayName = DAYS[new Date().getDay()];
+    // Post-pivot the intake form no longer collects a separate personal contact
+    // name — contractor.name and contractor.company_name are both just the
+    // business name (e.g. "Roofing Guys"). Never split this to fake a first
+    // name ("Hey Roofing") — address them plainly instead.
+    const businessName = liveContractor.company_name || liveContractor.name || 'there';
 
   // ── System prompt ───────────────────────────────────────────────────────────
   const systemPrompt = `You are the Tractify assistant texting with the owner of ${businessName}. There is no separate personal name on file — never invent one or address them by a fragment of the business name. You communicate via SMS — short, conversational, no bullet points, no markdown, no asterisks, no numbered lists. Write like a real text message.
@@ -201,7 +231,7 @@ UPCOMING APPOINTMENTS:
 ${apptText}${pastApptText}
 
 REGULAR SCHEDULE:
-${scheduleText}
+${liveScheduleText}
 
 ${!hasTwilioNumber ? `NOTE: Their Tractify phone number hasn't been assigned yet. If they ask about call forwarding (step 2), tell them it's being set up and you'll text when ready.` : ''}
 
@@ -227,6 +257,7 @@ RULES — CRITICAL:
 - Calendar questions: reply with day, time, name — brief and clear.
 - If they reply YES $amount or NO to a check-in about a past job — use log_job_outcome immediately.
 - If a contractor seems stuck, confused, or asks "what do you mean" / "where do I go" — never just repeat the same instruction. Ask what they're actually seeing on their screen and walk them through it from there, or offer to explain it a different way.
+- NEVER say "give me a second," "let me get that saved," "I'll have that ready shortly," or anything implying an action is in progress unless you are calling the matching tool in that exact same response. If a contractor gives you a full schedule correction covering multiple days, call update_availability_slot once for EVERY affected day in that same turn — do not defer any of them to "next" and do not narrate that you're working on it across multiple messages. Either the tool call happens now, in this response, or say nothing implying it will.
 
 CALENDAR RESPONSE FORMAT:
 When they ask about jobs or their schedule, show each job on its own line:
@@ -235,6 +266,9 @@ The map link is tappable and opens navigation. The phone number is tap-to-call.
 Show max 3 jobs. If 4+ say "+ X more not shown."
 Calendar responses may use up to 450 characters — the extra room is only for job lists.
 Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.apple.com/?q=98004+WA"`;
+
+    return systemPrompt;
+  } // end buildSystemPrompt()
 
   // ── Tools ──────────────────────────────────────────────────────────────────
   const tools = [
@@ -354,7 +388,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
   let response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 300,
-    system: systemPrompt,
+    system: await buildSystemPrompt(),
     tools,
     messages,
   });
@@ -572,10 +606,16 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
     toolMessages.push({ role: 'assistant', content: response.content });
     toolMessages.push({ role: 'user', content: toolResultBlocks });
 
+    // Rebuild the system prompt fresh — a tool call above (set_business_phone,
+    // complete_setup_step, update_availability_slot, etc) may have just changed
+    // exactly what the next-step guide should say. Reusing the prompt built at
+    // the top of this turn is the bug that produced a wrong call-forwarding
+    // code and wrong destination number in live testing — see the comment on
+    // buildSystemPrompt() above.
     response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 300,
-      system: systemPrompt,
+      system: await buildSystemPrompt(),
       tools,
       messages: toolMessages,
     });
