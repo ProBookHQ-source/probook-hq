@@ -244,6 +244,7 @@ ${brainLog.length
 === WHAT YOU CAN DO ===
 - Answer any question about the business using all context above
 - Set Twilio numbers for contractors (use set_twilio_number)
+- Register a newly-purchased Twilio number into the shared trial-number pool so it auto-assigns to the next signup (add_number_to_pool)
 - Approve or decline pending contractor applications (approve_contractor / decline_contractor)
 - Update contractor info: city, phone, company name, etc. (update_contractor)
 - Assign or reassign leads to a contractor (assign_lead)
@@ -363,6 +364,17 @@ Be direct. No fluff. Jose is running a business.`;
       },
     },
     {
+      name: 'add_number_to_pool',
+      description: 'Register a Twilio phone number Jose has already purchased in the Twilio console into the shared trial-number pool, so it becomes available to auto-assign to the next new contractor signup. Use when Jose says something like "I bought +1... add it to the pool" or "register this number".',
+      input_schema: {
+        type: 'object',
+        properties: {
+          phone_number: { type: 'string', description: 'E.164 format, e.g. +12065551234' },
+        },
+        required: ['phone_number'],
+      },
+    },
+    {
       name: 'log_decision',
       description: 'Write a decision, insight, or important note to persistent brain memory. This survives across sessions and is injected into every future brain query. Use proactively whenever a real decision is made or a pattern is noticed.',
       input_schema: {
@@ -439,6 +451,17 @@ Be direct. No fluff. Jose is running a business.`;
           notifications.sendContractorDeclined(c).catch(console.error);
           toolResult = `Declined ${c.company_name || c.name}. Decline email sent.`;
           actionTaken = { type: 'decline_contractor', contractor_id: input.contractor_id };
+        }
+
+      } else if (name === 'add_number_to_pool') {
+        const { phone_number } = input;
+        if (!phone_number || !/^\+\d{8,15}$/.test(phone_number)) {
+          toolResult = `"${phone_number}" doesn't look like valid E.164 format (e.g. +12065551234). Not added.`;
+        } else {
+          const poolId = await require('../services/twilioPool').addNumberToPool(phone_number);
+          toolResult = `Registered ${phone_number} into the Twilio number pool (available for the next signup). Pool row: ${poolId}`;
+          actionTaken = { type: 'add_number_to_pool', phone_number };
+          console.log(`[ADMIN-AI] Added ${phone_number} to Twilio pool`);
         }
 
       } else if (name === 'update_contractor') {
