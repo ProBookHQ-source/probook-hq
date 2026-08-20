@@ -37,6 +37,15 @@ function fmtDate(dateStr) {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+// Formats a raw phone string (+12065551234, 2065551234, etc) as (206) 555-1234
+// for anything shown to a human. Never show a raw E.164 string to a contractor.
+function fmtPhone(raw) {
+  if (!raw) return '';
+  const digits = String(raw).replace(/\D/g, '').slice(-10); // last 10 digits (drops leading 1/+1)
+  if (digits.length !== 10) return raw; // fallback — don't mangle something we can't parse
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 // ── ZIP extraction + service area check ──────────────────────────────────────
 function extractZip(address) {
   const matches = (address || '').match(/\b(\d{5})(?:-\d{4})?\b/g);
@@ -379,7 +388,7 @@ FORMATTING:
 - Max 320 characters total (diagnosis + slot offer combined)
 - No markdown, no asterisks, plain SMS text
 - Warm, human tone — not robotic, not salesy
-- End with the slot offer: "Available times: 1) ... 2) ... 3) ... Reply 1, 2, or 3."
+- End with the slot offer, explaining what to do in plain terms: "We have a few times open: 1) ... 2) ... 3) ... Just reply with the number that works best, or let me know if none of these work and I'll find other times."
 - If it's a serious safety issue, DO NOT include slot options — just the safety instruction.
 
 SLOTS AVAILABLE:
@@ -407,7 +416,7 @@ ${slotOptions}`;
   }
 
   // Fallback if no knowledge / Claude unavailable
-  return `Got it. ${businessName} has openings: ${slotOptions}. Reply 1, 2, or 3.`;
+  return `Got it. Here are the available times to have someone come out: 1) ${offered[0]?.label || ''}  2) ${offered[1]?.label || ''}  3) ${offered[2]?.label || ''}. Just reply with the number that works best — or if none of these work, tell me and I'll find other times.`;
 }
 
 // ── Step 3: Confirm slot pick ─────────────────────────────────────────────────
@@ -432,8 +441,26 @@ async function handleSlotPick(session, contractor, businessName, text) {
   }
 
   if (!chosen) {
+    // If they're telling us none of the offered times work, fetch a fresh batch
+    // instead of just repeating the same three they already rejected.
+    const saysNoneWork = /\b(none|nothing|neither|don'?t work|doesn'?t work|no good|can'?t do|not work)\b/i.test(pick);
+    if (saysNoneWork) {
+      try {
+        const freshSlots = await getOpenSlots(contractor.id);
+        const alreadyOffered = new Set(offeredSlots.map(s => `${s.date}_${s.time}`));
+        const newBatch = freshSlots.filter(s => !alreadyOffered.has(`${s.date}_${s.time}`)).slice(0, 3);
+        if (!newBatch.length) {
+          return `I don't have any other openings right now — is there a day or time of day that generally works best for you? I'll see what I can find.`;
+        }
+        await updateSession(session.id, { offered_slots: JSON.stringify(newBatch) });
+        const newOptions = newBatch.map((s, i) => `${i + 1}) ${s.label}`).join('  ');
+        return `No problem — here are a few other times: 1) ${newBatch[0]?.label || ''}  2) ${newBatch[1]?.label || ''}  3) ${newBatch[2]?.label || ''}. Reply with the number that works, or let me know what day/time is best and I'll look for that.`;
+      } catch (e) {
+        console.error('[BRAIN3] Re-offer on "none work" failed:', e.message);
+      }
+    }
     const options = offeredSlots.map((s, i) => `${i + 1}) ${s.label}`).join('  ');
-    return `Reply 1, 2, or 3: ${options}`;
+    return `Just reply with the number next to the time that works best for you: 1) ${offeredSlots[0]?.label || ''}  2) ${offeredSlots[1]?.label || ''}  3) ${offeredSlots[2]?.label || ''}. If none of those work, just say so and I'll find other times.`;
   }
 
   // ── Book the appointment ────────────────────────────────────────────────────
@@ -513,12 +540,12 @@ async function handleSlotPick(session, contractor, businessName, text) {
       const twilio = require('twilio');
       if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && contractor.twilio_number) {
         const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-        const addr = session.address || 'address not captured';
+        const addr = session.address || 'no address given yet — ask the customer for it';
         const mapsLink = session.address
           ? `maps.apple.com/?daddr=${encodeURIComponent(session.address)}`
           : null;
-        let contractorMsg = `New booking! ${name} · ${session.phone} · ${fmtDate(chosen.date)} ${fmtTime(chosen.time)} · ${addr}`;
-        if (mapsLink) contractorMsg += ` · ${mapsLink}`;
+        let contractorMsg = `New job booked! ${name} needs service on ${fmtDate(chosen.date)} at ${fmtTime(chosen.time)}. Address: ${addr}. Their number: ${fmtPhone(session.phone)}.`;
+        if (mapsLink) contractorMsg += ` Tap for directions: ${mapsLink}`;
         await client.messages.create({
           to: contractor.phone,
           from: contractor.twilio_number,
@@ -547,7 +574,7 @@ async function handleSlotPick(session, contractor, businessName, text) {
         const newOffered = freshSlots.slice(0, 3);
         await updateSession(session.id, { offered_slots: JSON.stringify(newOffered) });
         const newOptions = newOffered.map((s, i) => `${i + 1}) ${s.label}`).join('  ');
-        return `That slot just got taken — here are the next available times: ${newOptions}. Reply 1, 2, or 3.`;
+        return `Sorry — that time just got booked by someone else. Here are a few other openings: 1) ${newOffered[0]?.label || ''}  2) ${newOffered[1]?.label || ''}  3) ${newOffered[2]?.label || ''}. Just reply with the number that works.`;
       } catch (retryErr) {
         console.error('[BRAIN3] Re-offer failed:', retryErr.message);
       }

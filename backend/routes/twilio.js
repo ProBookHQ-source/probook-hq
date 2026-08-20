@@ -75,7 +75,7 @@ router.post('/missed-call', async (req, res) => {
           const firstName = result.name.split(' ')[0];
           smsBody = `Hey ${firstName}! Great to hear from you again — what's going on this time? Reply STOP to opt out.`;
         } else {
-          smsBody = `Hey! Sorry we missed you at ${businessName} — we're out on a job. I'm their scheduling assistant. What's the address that needs service? Reply STOP to opt out.`;
+          smsBody = `Hey! Sorry we missed you at ${businessName} — we're out on a job. I'm their scheduling assistant. What's your name and the address that needs service? Reply STOP to opt out.`;
         }
         console.log(`[TWILIO] Brain 3 session started for ${From} → contractor ${contractor.id} (returning: ${isReturning})`);
       } catch (brainErr) {
@@ -225,7 +225,7 @@ router.post('/inbound-sms', async (req, res) => {
         }
       } catch (cancelErr) {
         console.error('[TWILIO-SMS] CANCEL keyword error:', cancelErr.message);
-        replyBody = `Couldn't find your appointment. Call us or reply to rebook.`;
+        replyBody = `Something went wrong finding your appointment — just reply here and tell me what you need, I'll sort it out.`;
       }
 
       try {
@@ -258,7 +258,7 @@ router.post('/inbound-sms', async (req, res) => {
           const firstName = result.name.split(' ')[0];
           replyBody = `Hey ${firstName}! Great to hear from you again — what's going on this time? Reply STOP to opt out.`;
         } else {
-          replyBody = `Hey! This is ${businessName}. Happy to help — what's the address that needs service? Reply STOP to opt out.`;
+          replyBody = `Hey! This is ${businessName}. Happy to help — what's your name and the address that needs service? Reply STOP to opt out.`;
         }
       }
     } catch (brainErr) {
@@ -388,13 +388,13 @@ router.post('/test-sms', requireAdmin, async (req, res) => {
       const firstName = result.name.split(' ')[0];
       reply = `Hey ${firstName}! Great to hear from you again — what's going on this time?`;
     } else {
-      reply = `Hey! This is ${businessName}. Happy to help — what's the address that needs service?`;
+      reply = `Hey! This is ${businessName}. Happy to help — what's your name and the address that needs service?`;
     }
   }
 
   // Safety net in case Brain 3 returned null
   if (!reply) {
-    reply = `Hey! This is ${businessName}. Happy to help — what's the address that needs service?`;
+    reply = `Hey! This is ${businessName}. Happy to help — what's your name and the address that needs service?`;
   }
 
   console.log(`[TEST-SMS] Brain 3 reply: "${reply.substring(0, 80)}"`);

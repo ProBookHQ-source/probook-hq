@@ -31,6 +31,15 @@ function fmtTime(t) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+// Formats a raw phone string (+12065551234, 2065551234, etc) as (206) 555-1234
+// for anything shown to a human. Never show a raw E.164 string to a contractor.
+function fmtPhone(raw) {
+  if (!raw) return '';
+  const digits = String(raw).replace(/\D/g, '').slice(-10);
+  if (digits.length !== 10) return raw;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 // Formats availability slots into a compact SMS-readable string
 // e.g. "Mon 8:00 AM-5:00 PM, Tue 8:00 AM-5:00 PM, ..."
 function formatAvailabilityForSms(slots) {
@@ -48,7 +57,7 @@ function getTwilioClient() {
 async function handleContractorSms(contractor, incomingText) {
   if (!process.env.ANTHROPIC_API_KEY) {
     console.warn('[SMS-AI] No ANTHROPIC_API_KEY set — skipping AI reply');
-    return "I'm having trouble connecting right now. Text back in a few minutes or log in at tractifyhq.com/contractor.";
+    return "I'm having a little trouble right now — give me a few minutes and text me again.";
   }
 
   const contractorId = contractor.id;
@@ -98,7 +107,7 @@ async function handleContractorSms(contractor, incomingText) {
   const apptText = upcomingAppts.length
     ? upcomingAppts.slice(0, 5).map(a => {
         const name = a.lead_name || (a.notes ? 'Blocked' : 'Direct booking');
-        const phone = a.lead_phone ? ` · ${a.lead_phone}` : '';
+        const phone = a.lead_phone ? ` · ${fmtPhone(a.lead_phone)}` : '';
         const mapsLink = a.lead_zip ? ` · maps.apple.com/?q=${a.lead_zip}+WA` : '';
         const d = new Date(a.scheduled_date + 'T12:00:00');
         return `[${a.id}] ${DAYS[d.getDay()]} ${a.scheduled_date} ${fmtTime(a.scheduled_time)} — ${name}${phone}${mapsLink}`;
@@ -133,24 +142,19 @@ async function handleContractorSms(contractor, incomingText) {
     availability: {
       label: 'Confirm your schedule',
       done: !!completedSteps.availability,
-      guide: 'Their hours are shown in the REGULAR SCHEDULE section above. Read them back in the text and ask if they look right — no portal login needed. If yes, mark the step done. If they want changes, ask them to text the specific change and update via block_time.',
+      guide: `Their hours are shown in the REGULAR SCHEDULE section above. You must actually state those hours out loud in your message and ask "does that look right?" — do NOT mark this step done just because they said "yes" to something else earlier (like the welcome text). Only mark it done when they say yes to a message where YOU just read their hours back to them. If they want changes, ask them to text the specific change and update via update_availability_slot.`,
     },
     twilio: {
       label: 'Set up missed call forwarding',
       done: !!completedSteps.twilio,
       guide: hasBusinessPhoneAnswer
-        ? `Forward unanswered calls on ${businessNumberForForwarding} to ${twilioNumber}. iPhone: Settings > Phone > Call Forwarding > When Unanswered > type ${twilioNumber} > on. Android: Phone app > menu > Settings > Call forwarding > When unanswered > ${twilioNumber}. Text DONE when set up.`
+        ? `First ask: iPhone or Android? Then give the CORRECT device-specific steps for TRUE conditional (no-answer-only) forwarding — NOT the plain Settings toggle, which forwards ALL calls immediately with zero rings and would break their phone line. iPhone has no true "forward when unanswered" option in Settings — it must be done with a carrier code dialed like a phone call: AT&T/T-Mobile **61*${twilioNumber}*11*20# then press call. Verizon does not support this on iPhone at all — for Verizon iPhone users, tell them plainly that Verizon doesn't support conditional forwarding on iPhone and the honest workaround is answering when they can and letting truly missed calls go to voicemail (Tractify still catches SMS/keyword texts either way). Android: Phone app > 3-dot menu > Settings > Calling accounts (or Supplementary services) > Call forwarding > "When unanswered" > enter ${twilioNumber} > turn on — this IS a true conditional option on Android. Always tell them to tap and hold the number in your text to copy it instead of retyping it. Text DONE when set up.`
         : `First find out: is ${contractor.phone} the number their customers actually call, or is their business line different? If they say it's the same, use set_business_phone with is_same=true, then give forwarding instructions for that number. If they give a different number, use set_business_phone to save it, then give forwarding instructions for THAT number instead.`,
     },
     gbp: {
       label: 'Add booking link to Google Business Profile',
       done: !!completedSteps.gbp,
       guide: `Go to business.google.com > Edit Profile > scroll to Appointments > paste this link: ${bookingLink} > Save. Text DONE when done.`,
-    },
-    nextdoor: {
-      label: 'Post on Nextdoor',
-      done: !!completedSteps.nextdoor,
-      guide: `Go to nextdoor.com, find your neighborhood, and post: "Hey neighbors! ${contractor.company_name || contractor.name} now has online booking — pick a time here: ${bookingLink}. Happy to help with any needs!" Text DONE when posted.`,
     },
     facebook: {
       label: 'Post in a local Facebook group',
@@ -210,13 +214,16 @@ RULES — CRITICAL:
 - Every reply must be under 320 characters. This is a text message, not an email.
 - No bullet points, no asterisks, no markdown, no numbered lists. One sentence flows into the next.
 - One thing at a time. Guide them through one step, wait for done, move to the next.
-- When they say "done", "yes", "ok", "finished", "set it up" — mark the current step complete immediately.
-- After marking a step done: one congratulations sentence, then offer the next step.
-- When guiding a step: give ONE clear instruction, end with "Reply DONE when set."
+- "Yes" or "done" only confirms the step YOU just described in your immediately-previous message. Never treat a generic yes (like a reply to "ready to start?") as confirming a specific thing (like their hours) that you haven't actually stated yet in this conversation. If you're not sure what they're saying yes to, ask.
+- When they clearly confirm the specific thing you just asked about ("done", "yes", "ok", "finished", "set it up" in direct response to your instruction) — mark the current step complete immediately using complete_setup_step.
+- After marking a step done: one short congratulations sentence, then IMMEDIATELY give the first instruction for the next incomplete step in the SAME message — don't just ask "ready to keep going?" and wait. Keep momentum, walk them straight into it.
+- When guiding a step: give ONE clear instruction, end with "Reply DONE when set." Never assume they know a term or menu path — spell it out exactly, as if they've never done this before.
+- Whenever you give them a phone number to use (for forwarding, calling, etc), tell them to tap and hold it to copy it rather than retyping it by hand.
 - If they ask what's next, tell them just the next incomplete step.
 - If all steps done: tell them all channels are live and jobs are coming.
 - Calendar questions: reply with day, time, name — brief and clear.
 - If they reply YES $amount or NO to a check-in about a past job — use log_job_outcome immediately.
+- If a contractor seems stuck, confused, or asks "what do you mean" / "where do I go" — never just repeat the same instruction. Ask what they're actually seeing on their screen and walk them through it from there, or offer to explain it a different way.
 
 CALENDAR RESPONSE FORMAT:
 When they ask about jobs or their schedule, show each job on its own line:
@@ -236,7 +243,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
         properties: {
           step_key: {
             type: 'string',
-            enum: ['availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers', 'messenger'],
+            enum: ['availability', 'twilio', 'gbp', 'facebook', 'reviewers', 'messenger'],
           },
         },
         required: ['step_key'],
@@ -342,13 +349,21 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
   });
 
   // ── Tool use loop ───────────────────────────────────────────────────────────
+  // IMPORTANT: Claude can return MULTIPLE tool_use blocks in a single response.
+  // Every tool_use block must get a matching tool_result in the very next message,
+  // or the Anthropic API rejects the whole request with a 400 (this was a real
+  // production bug — see Sentry 5b5194f4, session 28). We loop over ALL tool_use
+  // blocks in the response and resolve every one before calling the API again.
   const toolMessages = [...messages];
   const twilioClient = getTwilioClient();
 
   while (response.stop_reason === 'tool_use') {
-    const toolBlock = response.content.find(b => b.type === 'tool_use');
-    if (!toolBlock) break;
+    const toolBlocks = response.content.filter(b => b.type === 'tool_use');
+    if (!toolBlocks.length) break;
 
+    const toolResultBlocks = [];
+
+    for (const toolBlock of toolBlocks) {
     const { name, id: toolUseId, input } = toolBlock;
     let toolResult = '';
 
@@ -524,8 +539,11 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
       toolResult = `Unknown tool: ${name}`;
     }
 
+    toolResultBlocks.push({ type: 'tool_result', tool_use_id: toolUseId, content: toolResult });
+    } // end for-each toolBlock
+
     toolMessages.push({ role: 'assistant', content: response.content });
-    toolMessages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseId, content: toolResult }] });
+    toolMessages.push({ role: 'user', content: toolResultBlocks });
 
     response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -537,7 +555,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
   }
 
   const reply = response.content.find(b => b.type === 'text')?.text
-    || "Got it! Text me anytime or log in at tractifyhq.com/contractor.";
+    || "Got it! Give me just a second and text me again if you don't hear back shortly.";
 
   // ── Persist conversation (keep last 20 messages = 10 exchanges) ─────────────
   const updatedHistory = [
@@ -594,7 +612,7 @@ async function sendPowerMessage(contractor, twilioClient) {
 // ── Calendar blocking training ── fires after step 2 (twilio) confirmed ───────
 // Critical: must arrive BEFORE the first job lands or double-bookings happen.
 async function sendCalendarTrainingMessage(contractor, twilioClient) {
-  const body = `Before the first jobs hit — if you book something direct (referral, repeat customer, phone call) text me the time: "block Thursday 10am to 2pm." I hold it immediately. If you skip this, someone will book that slot through Tractify and you'll have a conflict.`;
+  const body = `Before the first jobs hit — if you book something direct (referral, repeat customer, phone call) just text me the time, like "block Thursday 10am to 2pm." I'll block that time off right away so no one else can book it through us. If you skip this, someone could book that same slot through Tractify and you'd end up double-booked.`;
 
   await twilioClient.messages.create({
     to: contractor.phone,
@@ -609,7 +627,7 @@ async function sendCalendarTrainingMessage(contractor, twilioClient) {
 // The full "here's everything you can do" message. Makes the SMS interface feel
 // like a superpower they just unlocked. Arrives as a 3rd text after twilio step.
 async function sendCapabilitiesGuide(contractor, twilioClient) {
-  const body = `Quick cheat sheet. "jobs today" gets your schedule with map links. "block Tue 10am-2pm" holds that time. "cancel my 3pm Thu" cancels and sends them a rebook link. "how many jobs this week" gives your count. Text me anything.`;
+  const body = `Quick cheat sheet — just text me any of these anytime. "jobs today" sends your schedule, and each job comes with a link you can tap to open turn-by-turn directions straight to that address. "block Tue 10am-2pm" holds that time on your calendar so nobody else can book it. "cancel my 3pm Thu" cancels that job and automatically texts the homeowner a link to pick a new time. "how many jobs this week" gives you a quick count. Text me anything, anytime.`;
 
   await twilioClient.messages.create({
     to: contractor.phone,
@@ -648,8 +666,8 @@ async function sendSetupStepText(contractor, twilioClient) {
     ? JSON.parse(contractor.onboarding_steps || '{}')
     : (contractor.onboarding_steps || {});
 
-  // Required steps first (2), then the 5 channel steps
-  const STEP_ORDER = ['availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers', 'messenger'];
+  // Required steps first (2), then the remaining channel steps
+  const STEP_ORDER = ['availability', 'twilio', 'gbp', 'facebook', 'reviewers', 'messenger'];
   const nextIncomplete = STEP_ORDER.find(k => !completedSteps[k]);
   if (!nextIncomplete) return null;
 
@@ -674,15 +692,13 @@ async function sendSetupStepText(contractor, twilioClient) {
   // Each message names the channel, states the cost of skipping it,
   // and makes the action feel like a 60-second win — no portal login required.
   const STEP_TEXTS = {
-    availability: `${firstName} — step 1 of 2. Here are the hours we loaded from your form: ${availabilityText}. Look right? Reply YES to confirm or text me any changes.`,
+    availability: `${firstName} — step 1 of 2. Here are the hours we have on file for you: ${availabilityText}. Does that match your real schedule? Reply YES if that's correct, or just tell me what to change (like "Tuesdays I close at 3pm") and I'll fix it.`,
 
     twilio: contractor.business_phone
-      ? `Step 2 of 2. Every call you miss on a job — that homeowner is already calling your competitor. Forward unanswered calls on ${contractor.business_phone} to ${twilioNum} and we auto-text every missed caller before they dial someone else. iPhone: Settings > Phone > Call Forwarding > When Unanswered > enter ${twilioNum} > on. Reply DONE.`
+      ? `Step 2 of 2. Every call you miss on a job — that homeowner is already calling your competitor. We can fix that, but the exact steps depend on your phone. Are you on an iPhone or Android?`
       : `Step 2 of 2. Quick one first — is ${contractor.phone} the number your customers actually call, or is your business line different? Once I know which number, I'll send the exact forwarding steps so every missed call gets caught automatically.`,
 
-    gbp: `Good news — your Google listing is already getting search traffic. But right now there's no Book button. Homeowners searching "HVAC near me" can see you but can't book. 60 seconds to fix: business.google.com > Edit Profile > Appointments > paste this: ${bookingLink} > Save. Reply DONE.`,
-
-    nextdoor: `People in your service area are posting "anyone know a good HVAC guy?" on Nextdoor right now. They hire whoever shows up first. Text COPY and I'll send you the exact post — 2 minutes and you're in front of all of them.`,
+    gbp: `Good news — your Google listing is already getting search traffic. But right now there's no Book button. Homeowners searching "HVAC near me" can see you but can't book. 60 seconds to fix: business.google.com > Edit Profile > Appointments > paste this link: ${bookingLink} > Save. Reply DONE when it's saved.`,
 
     facebook: `Every local Facebook group has homeowners asking for contractor recommendations right now. The ones that respond fastest get the job. Text COPY and I'll send the exact post to paste — 2 minutes.`,
 
