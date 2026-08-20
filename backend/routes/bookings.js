@@ -40,7 +40,7 @@ router.get('/contractor/:contractorId', requireContractor, async (req, res) => {
   }
   const { from, to } = req.query;
   let query = `
-    SELECT a.*, to_char(a.scheduled_date, 'YYYY-MM-DD') as scheduled_date,
+    SELECT a.*,
            l.name as lead_name, l.email as lead_email, l.phone as lead_phone,
            l.description as lead_description,
            COALESCE(n.name, cn.name) as niche_name
@@ -64,7 +64,7 @@ router.get('/contractor/:contractorId', requireContractor, async (req, res) => {
 router.get('/', requireAdmin, async (req, res) => {
   const { status, from, to } = req.query;
   let query = `
-    SELECT a.*, to_char(a.scheduled_date, 'YYYY-MM-DD') as scheduled_date,
+    SELECT a.*,
            l.name as lead_name, l.email as lead_email,
            c.name as contractor_name, c.company_name, n.name as niche_name
     FROM appointments a
