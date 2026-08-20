@@ -179,14 +179,17 @@ async function handleContractorSms(contractor, incomingText) {
   const nextStep = incompleteSteps[0];
 
   const todayName = DAYS[new Date().getDay()];
-  const firstName = (contractor.name || '').split(' ')[0] || 'there';
+  // Post-pivot the intake form no longer collects a separate personal contact
+  // name — contractor.name and contractor.company_name are both just the
+  // business name (e.g. "Roofing Guys"). Never split this to fake a first
+  // name ("Hey Roofing") — address them plainly instead.
+  const businessName = contractor.company_name || contractor.name || 'there';
 
   // ── System prompt ───────────────────────────────────────────────────────────
-  const systemPrompt = `You are the Tractify assistant texting with ${firstName} from ${contractor.company_name || contractor.name}. You communicate via SMS — short, conversational, no bullet points, no markdown, no asterisks, no numbered lists. Write like a real text message.
+  const systemPrompt = `You are the Tractify assistant texting with the owner of ${businessName}. There is no separate personal name on file — never invent one or address them by a fragment of the business name. You communicate via SMS — short, conversational, no bullet points, no markdown, no asterisks, no numbered lists. Write like a real text message.
 
 CONTRACTOR:
-  Name: ${contractor.name}
-  Company: ${contractor.company_name || 'N/A'}
+  Business: ${businessName}
   Booking link: ${bookingLink}
   Today: ${todayName}, ${today}
 
@@ -598,9 +601,9 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
 
 // ── Welcome text ── fires when Twilio number is first assigned ────────────────
 async function sendWelcomeText(contractor, twilioClient) {
-  const firstName = (contractor.name || '').split(' ')[0] || 'there';
+  const businessName = contractor.company_name || contractor.name || 'there';
 
-  const body = `Hey ${firstName} — your booking system is live. Two quick things and jobs start coming in automatically. Ready to knock them out? Reply YES to start. Reply STOP to opt out.`;
+  const body = `Hey — this is Tractify for ${businessName}. Your booking system is live. Two quick things and jobs start coming in automatically. Ready to knock them out? Reply YES to start. Reply STOP to opt out.`;
 
   await twilioClient.messages.create({
     to: contractor.phone,
@@ -620,9 +623,7 @@ async function sendWelcomeText(contractor, twilioClient) {
 // Makes the calendar management capability feel like unlocking a superpower.
 // Drives the first test reply — product becomes real the moment they get an answer.
 async function sendPowerMessage(contractor, twilioClient) {
-  const firstName = (contractor.name || '').split(' ')[0] || 'there';
-
-  const body = `${firstName} — this number does more than setup. Text me "what's on my calendar tomorrow" right now and I'll read it back in 10 seconds. Text "block Wednesday 2-5pm" and it's held. Try it.`;
+  const body = `Quick heads up — this number does more than setup. Text me "what's on my calendar tomorrow" right now and I'll read it back in 10 seconds. Text "block Wednesday 2-5pm" and it's held. Try it.`;
 
   await twilioClient.messages.create({
     to: contractor.phone,
@@ -664,11 +665,10 @@ async function sendCapabilitiesGuide(contractor, twilioClient) {
 
 // ── Post-appointment check-in ── called from cron 30-90 min after appointment ─
 async function sendPostAppointmentText(appointment, contractor, twilioClient) {
-  const firstName = (contractor.name || '').split(' ')[0] || 'there';
   const homeownerName = appointment.lead_name || 'your customer';
   const apptTime = fmtTime(appointment.scheduled_time);
 
-  const body = `Hey ${firstName} — how'd the ${apptTime} with ${homeownerName} go? Job close? Reply YES $850 (or whatever you got) or just NO. 5 seconds.`;
+  const body = `Hey — how'd the ${apptTime} with ${homeownerName} go? Job close? Reply YES $850 (or whatever you got) or just NO. 5 seconds.`;
 
   await twilioClient.messages.create({
     to: contractor.phone,
@@ -699,7 +699,6 @@ async function sendSetupStepText(contractor, twilioClient) {
     ? `https://tractifyhq.com/schedule/${contractor.booking_slug}`
     : 'https://tractifyhq.com/schedule';
 
-  const firstName = (contractor.name || '').split(' ')[0] || 'there';
   const twilioNum = contractor.twilio_number;
 
   // For the availability step, pull their hours from DB and show them in the text
@@ -716,7 +715,7 @@ async function sendSetupStepText(contractor, twilioClient) {
   // Each message names the channel, states the cost of skipping it,
   // and makes the action feel like a 60-second win — no portal login required.
   const STEP_TEXTS = {
-    availability: `${firstName} — step 1 of 2. Here are the hours we have on file for you: ${availabilityText}. Does that match your real schedule? Reply YES if that's correct, or just tell me what to change (like "Tuesdays I close at 3pm") and I'll fix it.`,
+    availability: `Step 1 of 2. Here are the hours we have on file for you: ${availabilityText}. Does that match your real schedule? Reply YES if that's correct, or just tell me what to change (like "Tuesdays I close at 3pm") and I'll fix it.`,
 
     twilio: contractor.business_phone
       ? `Step 2 of 2. Every call you miss on a job — that homeowner is already calling your competitor. We can fix that, but the exact steps depend on your phone and carrier. Are you on an iPhone or Android, and is your carrier AT&T, T-Mobile, Verizon, or something else?`

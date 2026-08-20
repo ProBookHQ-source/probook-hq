@@ -159,7 +159,29 @@ router.put('/:id', requireContractor, async (req, res) => {
   const contractor = await db.prepare('SELECT * FROM contractors WHERE id = $1').get(id);
   if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
 
-  const { name, phone, company_name, service_zip_codes, is_active, service_radius_miles, max_appointments_per_day, twilio_number, business_phone, niche_id } = req.body;
+  const { name, phone, company_name, service_zip_codes, is_active, service_radius_miles, max_appointments_per_day, twilio_number: rawTwilioNumber, business_phone, niche_id } = req.body;
+
+  // Normalize twilio_number to a clean E.164 string before it's ever stored.
+  // Found live August 20, 2026: this field was previously saved byte-for-byte
+  // from whatever an admin typed in "Set Twilio #" — a stray space, dash, or
+  // missing "+" produces a value that no longer exact-matches the clean E.164
+  // "To" Twilio sends on every inbound webhook, so the number LOOKS assigned
+  // (outbound sends still work — Twilio's send API is lenient about the "from"
+  // format) but every inbound text silently hits "No active contractor for
+  // number" and gets no reply at all. Same normalization already used for the
+  // shared number pool (routes/twilioPool.js) — applied here too so manual
+  // admin entry can't reintroduce the same class of bug.
+  function normalizeTwilioNumber(raw) {
+    if (!raw) return null;
+    const trimmed = String(raw).trim();
+    const hasPlus = trimmed.startsWith('+');
+    const digits = trimmed.replace(/\D/g, '');
+    if (!digits) return null;
+    if (hasPlus) return `+${digits}`;
+    if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+    return `+1${digits}`;
+  }
+  const twilio_number = normalizeTwilioNumber(rawTwilioNumber);
 
   // Capture previous twilio_number to detect first-time assignment
   const prevTwilioNumber = contractor.twilio_number;
