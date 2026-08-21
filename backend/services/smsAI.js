@@ -65,7 +65,7 @@ function getTwilioClient() {
 // stopping — a real bug found live: the forwarding test passed, the
 // congratulations text went out, and the contractor was left with no idea
 // they still had 4 more steps to go until they thought to ask.
-function buildStepGuides(liveContractor, completedSteps, bookingLink, twilioNumber, hasBusinessPhoneAnswer) {
+function buildStepGuides(liveContractor, completedSteps, bookingLink, twilioNumber, hasBusinessPhoneAnswer, liveScheduleText = 'No schedule set') {
   return {
     // Added because it was a real gap left over from the pivot away from the old
     // 4-step intake form: that form used to collect an explicit list of service-area
@@ -86,7 +86,9 @@ function buildStepGuides(liveContractor, completedSteps, bookingLink, twilioNumb
     availability: {
       label: 'Confirm your schedule',
       done: !!completedSteps.availability,
-      guide: `Their hours are shown in the REGULAR SCHEDULE section above. You must actually state those hours out loud in your message and ask "does that look right?" — do NOT mark this step done just because they said "yes" to something else earlier (like the welcome text). Only mark it done when they say yes to a message where YOU just read their hours back to them. If they want changes, ask them to text the specific change and update via update_availability_slot.`,
+      guide: liveScheduleText === 'No schedule set'
+        ? `REGULAR SCHEDULE above shows "No schedule set" — we have no real hours on file for them (this happens when there was no Google listing to pull hours from). Do NOT invent or assume any hours. Ask them plainly what their hours are, day by day if needed, and use update_availability_slot to save each day as they give it to you. Only mark this step done once every day (or "closed") has actually been set from their own answer.`
+        : `Their hours are shown in the REGULAR SCHEDULE section above. You must actually state those hours out loud in your message and ask "does that look right?" — do NOT mark this step done just because they said "yes" to something else earlier (like the welcome text). Only mark it done when they say yes to a message where YOU just read their hours back to them. If they want changes, ask them to text the specific change and update via update_availability_slot.`,
     },
     twilio: {
       label: 'Set up missed call forwarding',
@@ -139,7 +141,15 @@ async function getNextStepPromptForContractor(contractorId) {
   const twilioNumber = freshRow.twilio_number || '(not assigned yet)';
   const hasBusinessPhoneAnswer = !!freshRow.business_phone;
 
-  const STEP_GUIDES = buildStepGuides(freshRow, completedSteps, bookingLink, twilioNumber, hasBusinessPhoneAnswer);
+  const scheduleRows = await db.query(
+    'SELECT * FROM availability_slots WHERE contractor_id = $1 ORDER BY day_of_week',
+    [contractorId]
+  );
+  const liveScheduleText = scheduleRows.rows.length
+    ? scheduleRows.rows.map(s => `${DAYS[s.day_of_week]}: ${fmtTime(s.start_time)}-${fmtTime(s.end_time)}`).join(', ')
+    : 'No schedule set';
+
+  const STEP_GUIDES = buildStepGuides(freshRow, completedSteps, bookingLink, twilioNumber, hasBusinessPhoneAnswer, liveScheduleText);
   const nextStep = Object.entries(STEP_GUIDES).find(([, s]) => !s.done);
   return nextStep ? { label: nextStep[1].label, guide: nextStep[1].guide } : null;
 }
@@ -259,7 +269,7 @@ async function handleContractorSms(contractor, incomingText) {
   const hasBusinessPhoneAnswer = !!liveContractor.business_phone;
   const businessNumberForForwarding = liveContractor.business_phone || liveContractor.phone;
 
-  const STEP_GUIDES = buildStepGuides(liveContractor, completedSteps, bookingLink, twilioNumber, hasBusinessPhoneAnswer);
+  const STEP_GUIDES = buildStepGuides(liveContractor, completedSteps, bookingLink, twilioNumber, hasBusinessPhoneAnswer, liveScheduleText);
 
   const incompleteSteps = Object.entries(STEP_GUIDES).filter(([, s]) => !s.done);
   const completedCount = Object.values(STEP_GUIDES).filter(s => s.done).length;
@@ -468,7 +478,15 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
 
   let response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 300,
+    // 300 was too tight — a single turn can require several tool_use blocks
+    // back to back (e.g. "closed Saturdays, Mon-Fri 9-5" needs 6 separate
+    // update_availability_slot calls, one per day) plus a closing summary
+    // sentence. Truncating mid-generation meant stop_reason came back as
+    // 'max_tokens' instead of 'tool_use', which skipped tool processing
+    // entirely (the loop below only continues on 'tool_use') and produced
+    // an empty/fallback reply with nothing actually saved. 1024 gives real
+    // headroom for a multi-day change in one turn.
+    max_tokens: 1024,
     system: await buildSystemPrompt(),
     tools,
     messages,
@@ -773,15 +791,20 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
     // buildSystemPrompt() above.
     response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 300,
+      max_tokens: 1024, // see comment on the first messages.create() call above
       system: await buildSystemPrompt(),
       tools,
       messages: toolMessages,
     });
   }
 
+  // This fallback firing at all now means something genuinely unexpected
+  // happened (not just "still working, ask again") — so it shouldn't imply
+  // an automatic follow-up that doesn't exist. Nothing in this codebase
+  // retries a stalled turn on its own; the contractor texting again is the
+  // only thing that actually triggers another attempt.
   const reply = response.content.find(b => b.type === 'text')?.text
-    || "Got it! Give me just a second and text me again if you don't hear back shortly.";
+    || "Didn't quite catch that — mind sending it again?";
 
   // ── Persist conversation (keep last 20 messages = 10 exchanges) ─────────────
   const updatedHistory = [
