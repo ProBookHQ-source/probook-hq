@@ -50,6 +50,73 @@ function getServiceQuestion(nicheName) {
   return NICHE_SERVICE_QUESTIONS[key] || `Got it. What's going on — tell me a bit about the issue?`;
 }
 
+// ── Scope check — what this contractor's niche actually covers ─────────────
+// Used to ground the scope-classification call below so it isn't just vibes —
+// gives Claude an explicit, short definition of the trade to compare the
+// homeowner's described issue against.
+const NICHE_SCOPE_DESCRIPTIONS = {
+  hvac:          'HVAC — heating, ventilation, and air conditioning: furnaces, AC units, heat pumps, mini-splits, ductwork, thermostats, indoor air quality',
+  roofing:       'roofing — roof leaks, missing or damaged shingles, roof replacement, roof-caused water intrusion, ice dams, storm damage to the roof itself',
+  electrical:    'electrical work — wiring, breakers, panels, outlets, light fixtures, electrical safety issues',
+  plumbing:      'plumbing — pipes, leaks, clogs, water heaters, fixtures, drains',
+  landscaping:   'landscape design and installation — NOT lawn mowing or routine lawn maintenance',
+  painting:      'interior and exterior painting',
+  general:       'general contracting and home improvement projects',
+  solar:         'solar panel installation and existing solar system issues',
+  water_damage:  'water damage remediation — flooding, water intrusion, and water-caused damage regardless of the original source',
+  tree_service:  'tree trimming, tree removal, and storm-damage tree cleanup',
+  lawn_care:     'lawn mowing, fertilization, and routine lawn maintenance — NOT landscape design/install',
+  pool_service:  'pool equipment repair and pool maintenance',
+  pest_control:  'pest control — insects, rodents, and wildlife issues',
+};
+
+function getScopeDescription(nicheName) {
+  const key = (nicheName || '').toLowerCase().trim().replace(/\s+/g, '_').replace(/\//g, '_');
+  return NICHE_SCOPE_DESCRIPTIONS[key] || (nicheName ? `${nicheName} services` : 'home services');
+}
+
+/**
+ * classifyServiceScope(nicheName, combinedText)
+ *
+ * Screens a homeowner's described issue against what this contractor's niche
+ * actually covers, BEFORE any appointment slots are offered. Found live: a
+ * roofing contractor's test homeowner described a furnace/heating issue, Brain 3
+ * generated a clarifying question as plain text, but the code had already
+ * committed the session to state='awaiting_slot' with slots pre-loaded — so the
+ * clarifying question was cosmetic and the booking went through regardless on
+ * the very next reply. This makes the scope decision an explicit, structured
+ * gate that the state machine actually respects instead of hoping the model's
+ * free-text phrasing gets picked up on.
+ *
+ * Fails open (returns in_scope) on any API/parse error — a classifier hiccup
+ * should never be the reason a real, in-scope job doesn't get booked.
+ */
+async function classifyServiceScope(nicheName, combinedText) {
+  if (!ANTHROPIC_API_KEY) return { scope: 'in_scope' };
+
+  const scopeDesc = getScopeDescription(nicheName);
+  const system = `You are screening homeowner service requests for a business that does ONLY the following: ${scopeDesc}.
+The homeowner just described their issue. Classify it into exactly one of three categories and return ONLY valid JSON:
+{"scope": "in_scope" | "unclear" | "out_of_scope", "message": "..."}
+
+- "in_scope": the issue is clearly something this business handles.
+- "unclear": the issue COULD be caused by or related to this business's trade but needs one clarifying question to confirm before booking (example: drywall or ceiling damage could be caused by a roof leak, or could be totally unrelated to roofing). If unclear, "message" must be ONE short, friendly clarifying question (under 200 characters) that ties back to what this business actually does, so the homeowner's next reply can be re-classified.
+- "out_of_scope": the issue is clearly a different trade entirely with no plausible connection to what this business does (example: a lawn-mowing request sent to an electrician). If out_of_scope, "message" must be a short, honest, friendly reply (under 200 characters) letting them know this isn't something this business handles. Do not invent a referral or another business name.
+
+Return ONLY the JSON object. No explanation.`;
+
+  try {
+    const result = await callClaude([{ role: 'user', content: combinedText }], [], system);
+    const raw = result.content?.[0]?.text?.trim();
+    const parsed = JSON.parse(raw);
+    if (['in_scope', 'unclear', 'out_of_scope'].includes(parsed.scope)) return parsed;
+    return { scope: 'in_scope' };
+  } catch (e) {
+    console.error('[BRAIN3] Scope classification error (failing open — treating as in_scope):', e.message);
+    return { scope: 'in_scope' };
+  }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtTime(t) {
@@ -385,12 +452,37 @@ Return ONLY the address or NONE. No explanation.`;
 
 // ── Step 2: Capture service type + give real diagnostic ───────────────────────
 async function handleService(session, contractor, businessName, text) {
-  const serviceText = text.trim();
+  const newText = text.trim();
+  // If this is a follow-up to a scope clarifying question (below), combine it
+  // with what they already told us so classification and diagnosis both have
+  // the full picture instead of just the latest fragment.
+  const isFollowUp = !!session.service_description;
+  const serviceText = isFollowUp ? `${session.service_description} — ${newText}` : newText;
+
   // Save service description only — don't advance state until we confirm slots exist.
   // If we set state='awaiting_slot' before fetching, a slot-fetch failure leaves the
   // homeowner stuck in awaiting_slot with an empty offered_slots array.
   await updateSession(session.id, { service_description: serviceText });
 
+  // ── Scope check — does this contractor's niche actually cover this? ────────
+  // Runs BEFORE fetching/offering slots, and BEFORE state is touched, so a
+  // homeowner never gets booked for a job type this business doesn't do. See
+  // classifyServiceScope() above for why this exists as an explicit gate.
+  const { scope, message: scopeMessage } = await classifyServiceScope(contractor.niche_name, serviceText);
+
+  if (scope === 'out_of_scope') {
+    await updateSession(session.id, { state: 'confirmed' }); // close session — don't offer slots for work we don't do
+    return (scopeMessage || `That's not something we handle, unfortunately — hope you find the right pro for it!`).slice(0, MAX_CHARS);
+  }
+
+  if (scope === 'unclear') {
+    // Stay in awaiting_service (state untouched) — their next reply routes
+    // straight back into this function and gets combined with this message
+    // via the isFollowUp logic above, then re-classified.
+    return (scopeMessage || `Just to make sure I get you booked with the right person — can you tell me a bit more about what's going on?`).slice(0, MAX_CHARS);
+  }
+
+  // scope === 'in_scope' (or the classifier failed and we failed open) — proceed as before
   // Fetch slots in parallel with diagnostic retrieval
   const [slots, knowledgeChunks] = await Promise.all([
     getOpenSlots(contractor.id),
