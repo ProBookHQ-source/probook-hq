@@ -723,7 +723,15 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
               to: forwardNumber, from: contractor.twilio_number, body: code,
             }).catch(err => console.error('[SMS-AI] send_forwarding_code send failed:', err.message));
           }, 1500);
-          toolResult = `Code sent as its own text message. Tell them: press the green call button after tapping it (it'll connect briefly then hang up on its own — that's normal, means it worked). Do NOT repeat the code yourself in your reply.`;
+          // Jose live-tested this exact message and could not tell what to actually
+          // do with the code, despite having built the product — "press the green
+          // call button after tapping it" assumes the reader already knows they
+          // need to copy it into the dialer first. Rewritten as an explicit,
+          // numbered, no-assumed-knowledge sequence: copy → open Phone app → tap
+          // the keypad → long-press the entry field → tap Paste → tap the green
+          // call button. This is the exact wording the AI should send in the
+          // message BEFORE the bare code arrives 1.5s later as its own text.
+          toolResult = `The code is being sent as its own text message right after this one. Tell them these exact steps, numbered, in order — do not assume they know how to use a dial code: 1) Copy the code from that next text (press and hold it, tap Copy). 2) Open your Phone app. 3) Tap the Keypad tab (the number pad icon). 4) Tap and hold on the number entry field at the top until "Paste" pops up, then tap Paste — the code will fill in the field. 5) Tap the green call button. It'll connect for a second or two then hang up on its own — that's normal, that means it worked, no need to stay on the call. Do NOT repeat the code yourself in your reply — let the separate text carry it.`;
           console.log(`[SMS-AI] Sent forwarding code (${carrier}) to ${contractorId}`);
         }
       } catch (err) {
