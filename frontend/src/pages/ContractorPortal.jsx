@@ -1384,7 +1384,13 @@ export default function ContractorPortal() {
                         />
                       )}
                       {calendarHours.map(hour => {
-                        const appt = dayAppts.find(a => a.scheduled_time === hour);
+                        // .slice(0,5) normalizes away any trailing seconds before comparing —
+                        // an appointment stored as "09:00:00" instead of "09:00" used to match
+                        // zero hour rows here and silently render nowhere on the grid, even
+                        // though it showed up fine in the Home tab's list views. Found live on
+                        // a Brain-3 (SMS) booking. Same normalization pattern already used for
+                        // customStart/customEnd just below.
+                        const appt = dayAppts.find(a => String(a.scheduled_time || '').slice(0, 5) === hour);
                         const blockKey = `${dateStr}|${hour}`;
                         const isRemoving = removingBlock === blockKey;
                         // For custom-hours days: is this slot outside the allowed window?

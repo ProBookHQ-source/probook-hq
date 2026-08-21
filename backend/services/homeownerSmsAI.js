@@ -246,7 +246,10 @@ async function getOpenSlots(contractorId) {
     AND status NOT IN ('cancelled')
   `, [contractorId, fromStr, toStr]);
 
-  const bookedSet = new Set(booked.map(b => `${b.scheduled_date}_${b.scheduled_time}`));
+  // .slice(0,5) normalizes away any trailing seconds — belt-and-suspenders so
+  // older rows saved before the "HH:MM:00" bug fix above still correctly block
+  // their slot instead of silently allowing a double-booking on the same time.
+  const bookedSet = new Set(booked.map(b => `${b.scheduled_date}_${String(b.scheduled_time || '').slice(0, 5)}`));
   const overrideMap = {};
   for (const o of overrides) overrideMap[o.date] = o;
 
@@ -274,7 +277,15 @@ async function getOpenSlots(contractorId) {
       const [eh, em] = slot.end_time.split(':').map(Number);
       let hour = sh;
       while (hour < eh && openSlots.length < 9) {
-        const timeStr = `${String(hour).padStart(2, '0')}:${String(sm || 0).padStart(2, '0')}:00`;
+        // "HH:MM" — no trailing seconds. schema.sql documents scheduled_time as
+        // "HH:MM" and every other slot generator (availability.js) writes it that
+        // way. This used to write "HH:MM:00" instead, which silently broke the
+        // contractor portal's weekly calendar grid: the grid matches appointments
+        // to hour rows with a strict "09:00" === scheduled_time comparison, so a
+        // Brain-3-booked appointment stored as "09:00:00" could never match any
+        // row and rendered nowhere on the grid — even though it showed up fine in
+        // the Home tab's list views, which don't do that exact-match. Found live.
+        const timeStr = `${String(hour).padStart(2, '0')}:${String(sm || 0).padStart(2, '0')}`;
         const key = `${dateStr}_${timeStr}`;
         if (!bookedSet.has(key)) {
           openSlots.push({ date: dateStr, time: timeStr, label: `${fmtDate(dateStr)} at ${fmtTime(timeStr)}` });
