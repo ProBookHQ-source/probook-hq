@@ -163,6 +163,24 @@ async function notifyResult(contractorId, result) {
         : (contractor.onboarding_steps || {});
       steps.twilio = true;
       await db.query(`UPDATE contractors SET onboarding_steps = $1 WHERE id = $2`, [JSON.stringify(steps), contractorId]);
+
+      // This message is sent directly via the Twilio API, completely outside
+      // the normal AI conversation loop — it has no built-in concept of "next
+      // step" the way handleContractorSms does. Found live: a contractor was
+      // left stuck after this fired, thinking setup was fully done, with no
+      // idea 4 more steps remained. Pull the real next step and append it so
+      // this message keeps the same momentum the AI itself would give.
+      try {
+        const { getNextStepPromptForContractor } = require('./smsAI');
+        const next = await getNextStepPromptForContractor(contractorId);
+        if (next) {
+          body += ` Next up: ${next.label}. ${next.guide}`;
+        } else {
+          body += ` That was the last step — all your channels are live!`;
+        }
+      } catch (e) {
+        console.error('[FWD-TEST] Failed to append next-step prompt (non-fatal):', e.message);
+      }
     } else if (result === 'unconditional_broken') {
       body = `Heads up — I just tested it and it's set up wrong. Right now EVERY call is forwarding to us immediately, even ones you'd normally answer yourself, so real calls aren't reaching your phone at all. Let's undo that right now, then redo it correctly. Text me and I'll walk you through it.`;
     } else if (result === 'not_forwarding') {

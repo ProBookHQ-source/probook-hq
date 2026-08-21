@@ -53,6 +53,81 @@ function getTwilioClient() {
   return require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 }
 
+// ── Step guide definitions ───────────────────────────────────────────────────
+// Extracted to module scope (was previously inline inside buildSystemPrompt)
+// so it has exactly one source of truth, reusable by anything that needs to
+// know "what's the next incomplete step" — not just the AI's own system
+// prompt. This is what getNextStepPromptForContractor() below calls into, so
+// that a completion notification fired from OUTSIDE handleContractorSms (e.g.
+// forwardingTest.js's notifyResult, which texts a contractor directly via the
+// Twilio API after an automated background test resolves, with no AI/model
+// involved at all) can still prompt the real next step instead of just
+// stopping — a real bug found live: the forwarding test passed, the
+// congratulations text went out, and the contractor was left with no idea
+// they still had 4 more steps to go until they thought to ask.
+function buildStepGuides(liveContractor, completedSteps, bookingLink, twilioNumber, hasBusinessPhoneAnswer) {
+  return {
+    availability: {
+      label: 'Confirm your schedule',
+      done: !!completedSteps.availability,
+      guide: `Their hours are shown in the REGULAR SCHEDULE section above. You must actually state those hours out loud in your message and ask "does that look right?" — do NOT mark this step done just because they said "yes" to something else earlier (like the welcome text). Only mark it done when they say yes to a message where YOU just read their hours back to them. If they want changes, ask them to text the specific change and update via update_availability_slot.`,
+    },
+    twilio: {
+      label: 'Set up missed call forwarding',
+      done: !!completedSteps.twilio,
+      guide: hasBusinessPhoneAnswer
+        ? `First ask: iPhone or Android, AND which carrier (AT&T, T-Mobile, Verizon, or other)? Then give the CORRECT device+carrier-specific steps for TRUE conditional (no-answer-only) forwarding — NEVER the plain Settings toggle, which forwards ALL calls immediately with zero rings and would break their phone line. iPhone has no true "forward when unanswered" option in Settings — it must be done with a carrier code dialed like a phone call, and the code is DIFFERENT per carrier: AT&T/T-Mobile use **61*${twilioNumber}*11*20# then press the green call button (it will connect briefly then hang up on its own — that's normal, it means it worked). Verizon uses a simpler code: *71${twilioNumber} then press call. To turn OFF forwarding later if anything seems wrong: AT&T/T-Mobile dial ##61# then call, Verizon dial *73 then call. Android: Phone app > 3-dot menu > Settings > Calling accounts (or Supplementary services) > Call forwarding > "When unanswered" > enter ${twilioNumber} > turn on — this IS a true conditional option built into Android's own Settings, no dial code needed. Always tell them to tap and hold the number in your text to copy it instead of retyping it. If they're on iPhone and running iOS 17 or newer, mention that the "Live Voicemail" feature can silently block conditional forwarding from working — if forwarding doesn't seem to catch missed calls after setup, tell them to check Settings > Phone > Live Voicemail and turn it off. IMPORTANT — do NOT ask them to test it themselves by calling from a second phone. Once they say they've dialed the code / turned it on, tell them "Give me about a minute, I'm going to test that myself" and immediately call the run_forwarding_test tool — Tractify places a real test call and texts them the result automatically (and marks this step done automatically if it passes). Do not mark the step done yourself and do not ask them to text DONE again unless the test comes back showing a problem.`
+        : `First find out: is ${liveContractor.phone} the number their customers actually call, or is their business line different? If they say it's the same, call set_business_phone with is_same=true. If they give a different number, call set_business_phone with that number. Do NOT give any forwarding code or instructions yourself here — once set_business_phone runs, you will immediately get the correct detailed guide (with the real carrier codes) for your very next message, so just confirm the number back to them and continue straight into asking device + carrier, exactly as that guide says.`,
+    },
+    gbp: {
+      label: 'Add booking link to Google Business Profile',
+      done: !!completedSteps.gbp,
+      guide: `Go to business.google.com > Edit Profile > scroll to Appointments > paste this link: ${bookingLink} > Save. Text DONE when done.`,
+    },
+    facebook: {
+      label: 'Post in a local Facebook group',
+      done: !!completedSteps.facebook,
+      guide: `Search Facebook for your city + "neighbors" or "community" groups. Post: "Hi everyone! I run ${liveContractor.company_name || liveContractor.name} and just launched online booking. No phone tag — just pick a time: ${bookingLink}." Text DONE when posted.`,
+    },
+    reviewers: {
+      label: 'Message your Google reviewers',
+      done: !!completedSteps.reviewers,
+      guide: `Go to business.google.com > Reviews > click Reply next to each review. Send: "Hi [Name]! Thanks for the review. We just launched online booking — book anytime here: ${bookingLink}. Hope we can help again!" Text DONE when sent.`,
+    },
+    messenger: {
+      label: 'Set up Messenger + Instagram auto-reply',
+      done: !!completedSteps.messenger,
+      guide: `Go to business.facebook.com > Inbox > Automation > Instant Replies > toggle on > paste: "Thanks for reaching out to ${liveContractor.company_name || liveContractor.name}! Book a time here: ${bookingLink} — takes 60 seconds." > Save. Text DONE when done.`,
+    },
+  };
+}
+
+// Fetches fresh contractor state and returns { label, guide } for the next
+// incomplete onboarding step, or null if everything's done. Used by anything
+// OUTSIDE the normal AI conversation loop (currently: forwardingTest.js's
+// notifyResult) that needs to tell a contractor what's next after marking a
+// step done itself, without going through handleContractorSms.
+async function getNextStepPromptForContractor(contractorId) {
+  const freshRow = await db.prepare(
+    'SELECT onboarding_steps, business_phone, twilio_number, booking_slug, company_name, name, phone FROM contractors WHERE id = $1'
+  ).get(contractorId);
+  if (!freshRow) return null;
+
+  const completedSteps = typeof freshRow.onboarding_steps === 'string'
+    ? JSON.parse(freshRow.onboarding_steps || '{}')
+    : (freshRow.onboarding_steps || {});
+
+  const bookingLink = freshRow.booking_slug
+    ? `https://tractifyhq.com/schedule/${freshRow.booking_slug}`
+    : 'https://tractifyhq.com/schedule';
+  const twilioNumber = freshRow.twilio_number || '(not assigned yet)';
+  const hasBusinessPhoneAnswer = !!freshRow.business_phone;
+
+  const STEP_GUIDES = buildStepGuides(freshRow, completedSteps, bookingLink, twilioNumber, hasBusinessPhoneAnswer);
+  const nextStep = Object.entries(STEP_GUIDES).find(([, s]) => !s.done);
+  return nextStep ? { label: nextStep[1].label, guide: nextStep[1].guide } : null;
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 async function handleContractorSms(contractor, incomingText) {
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -168,40 +243,7 @@ async function handleContractorSms(contractor, incomingText) {
   const hasBusinessPhoneAnswer = !!liveContractor.business_phone;
   const businessNumberForForwarding = liveContractor.business_phone || liveContractor.phone;
 
-  const STEP_GUIDES = {
-    availability: {
-      label: 'Confirm your schedule',
-      done: !!completedSteps.availability,
-      guide: `Their hours are shown in the REGULAR SCHEDULE section above. You must actually state those hours out loud in your message and ask "does that look right?" — do NOT mark this step done just because they said "yes" to something else earlier (like the welcome text). Only mark it done when they say yes to a message where YOU just read their hours back to them. If they want changes, ask them to text the specific change and update via update_availability_slot.`,
-    },
-    twilio: {
-      label: 'Set up missed call forwarding',
-      done: !!completedSteps.twilio,
-      guide: hasBusinessPhoneAnswer
-        ? `First ask: iPhone or Android, AND which carrier (AT&T, T-Mobile, Verizon, or other)? Then give the CORRECT device+carrier-specific steps for TRUE conditional (no-answer-only) forwarding — NEVER the plain Settings toggle, which forwards ALL calls immediately with zero rings and would break their phone line. iPhone has no true "forward when unanswered" option in Settings — it must be done with a carrier code dialed like a phone call, and the code is DIFFERENT per carrier: AT&T/T-Mobile use **61*${twilioNumber}*11*20# then press the green call button (it will connect briefly then hang up on its own — that's normal, it means it worked). Verizon uses a simpler code: *71${twilioNumber} then press call. To turn OFF forwarding later if anything seems wrong: AT&T/T-Mobile dial ##61# then call, Verizon dial *73 then call. Android: Phone app > 3-dot menu > Settings > Calling accounts (or Supplementary services) > Call forwarding > "When unanswered" > enter ${twilioNumber} > turn on — this IS a true conditional option built into Android's own Settings, no dial code needed. Always tell them to tap and hold the number in your text to copy it instead of retyping it. If they're on iPhone and running iOS 17 or newer, mention that the "Live Voicemail" feature can silently block conditional forwarding from working — if forwarding doesn't seem to catch missed calls after setup, tell them to check Settings > Phone > Live Voicemail and turn it off. IMPORTANT — do NOT ask them to test it themselves by calling from a second phone. Once they say they've dialed the code / turned it on, tell them "Give me about a minute, I'm going to test that myself" and immediately call the run_forwarding_test tool — Tractify places a real test call and texts them the result automatically (and marks this step done automatically if it passes). Do not mark the step done yourself and do not ask them to text DONE again unless the test comes back showing a problem.`
-        : `First find out: is ${liveContractor.phone} the number their customers actually call, or is their business line different? If they say it's the same, call set_business_phone with is_same=true. If they give a different number, call set_business_phone with that number. Do NOT give any forwarding code or instructions yourself here — once set_business_phone runs, you will immediately get the correct detailed guide (with the real carrier codes) for your very next message, so just confirm the number back to them and continue straight into asking device + carrier, exactly as that guide says.`,
-    },
-    gbp: {
-      label: 'Add booking link to Google Business Profile',
-      done: !!completedSteps.gbp,
-      guide: `Go to business.google.com > Edit Profile > scroll to Appointments > paste this link: ${bookingLink} > Save. Text DONE when done.`,
-    },
-    facebook: {
-      label: 'Post in a local Facebook group',
-      done: !!completedSteps.facebook,
-      guide: `Search Facebook for your city + "neighbors" or "community" groups. Post: "Hi everyone! I run ${liveContractor.company_name || liveContractor.name} and just launched online booking. No phone tag — just pick a time: ${bookingLink}." Text DONE when posted.`,
-    },
-    reviewers: {
-      label: 'Message your Google reviewers',
-      done: !!completedSteps.reviewers,
-      guide: `Go to business.google.com > Reviews > click Reply next to each review. Send: "Hi [Name]! Thanks for the review. We just launched online booking — book anytime here: ${bookingLink}. Hope we can help again!" Text DONE when sent.`,
-    },
-    messenger: {
-      label: 'Set up Messenger + Instagram auto-reply',
-      done: !!completedSteps.messenger,
-      guide: `Go to business.facebook.com > Inbox > Automation > Instant Replies > toggle on > paste: "Thanks for reaching out to ${liveContractor.company_name || liveContractor.name}! Book a time here: ${bookingLink} — takes 60 seconds." > Save. Text DONE when done.`,
-    },
-  };
+  const STEP_GUIDES = buildStepGuides(liveContractor, completedSteps, bookingLink, twilioNumber, hasBusinessPhoneAnswer);
 
   const incompleteSteps = Object.entries(STEP_GUIDES).filter(([, s]) => !s.done);
   const completedCount = Object.values(STEP_GUIDES).filter(s => s.done).length;
@@ -795,4 +837,5 @@ module.exports = {
   sendCalendarTrainingMessage,
   sendCapabilitiesGuide,
   sendPostAppointmentText,
+  getNextStepPromptForContractor,
 };
