@@ -129,7 +129,7 @@ router.post('/missed-call', async (req, res) => {
 
         if (isReturning && result.name) {
           const firstName = result.name.split(' ')[0];
-          smsBody = `Hey ${firstName}! Great to hear from you again — what's going on this time? Reply STOP to opt out.`;
+          smsBody = `Hey ${firstName}! Great to hear from you again — still at ${result.address}? Reply YES or send the correct address. Reply STOP to opt out.`;
         } else {
           smsBody = `Hey! Sorry we missed you at ${businessName} — we're out on a job. I'm their scheduling assistant. What's your name and the address that needs service? Reply STOP to opt out.`;
         }
@@ -361,7 +361,7 @@ router.post('/inbound-sms', async (req, res) => {
 
         if (isReturning && result.name) {
           const firstName = result.name.split(' ')[0];
-          replyBody = `Hey ${firstName}! Great to hear from you again — what's going on this time? Reply STOP to opt out.`;
+          replyBody = `Hey ${firstName}! Great to hear from you again — still at ${result.address}? Reply YES or send the correct address. Reply STOP to opt out.`;
         } else {
           replyBody = `Hey! This is ${businessName}. Happy to help — what's your name and the address that needs service? Reply STOP to opt out.`;
         }
@@ -491,7 +491,7 @@ router.post('/test-sms', requireAdmin, async (req, res) => {
 
     if (isReturning && result.name) {
       const firstName = result.name.split(' ')[0];
-      reply = `Hey ${firstName}! Great to hear from you again — what's going on this time?`;
+      reply = `Hey ${firstName}! Great to hear from you again — still at ${result.address}? Reply YES or send the correct address.`;
     } else {
       reply = `Hey! This is ${businessName}. Happy to help — what's your name and the address that needs service?`;
     }

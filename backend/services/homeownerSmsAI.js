@@ -203,6 +203,13 @@ function isInServiceArea(address, contractor) {
 }
 
 // ── Returning homeowner check ─────────────────────────────────────────────────
+// Time-bounded to 180 days — carriers typically quarantine a recycled phone
+// number for 90+ days before reassigning it, so anything older than that is
+// meaningfully more likely to belong to a different person by now. Bounding
+// this doesn't fully solve the risk on its own (a shared family phone can hit
+// the same issue same-day), which is why startHomeownerSession() below also
+// makes the "returning" fast-path confirm the pre-filled name/address out loud
+// instead of silently trusting it — see the comment there.
 async function getLastConfirmedBooking(phone, contractorId) {
   // Include 'awaiting_email' so homeowners who went dark after booking (but before
   // providing their email) are still recognized as returning on next contact.
@@ -212,6 +219,7 @@ async function getLastConfirmedBooking(phone, contractorId) {
     WHERE phone = $1 AND contractor_id = $2
       AND state IN ('confirmed', 'awaiting_email')
       AND name IS NOT NULL AND address IS NOT NULL
+      AND updated_at > NOW() - INTERVAL '180 days'
     ORDER BY updated_at DESC
     LIMIT 1
   `).get(phone, contractorId);
@@ -416,6 +424,9 @@ async function handleHomeownerSms(phone, contractorId, incomingText, session) {
   if (session.state === 'awaiting_address') {
     return handleAddress(session, contractor, businessName, incomingText);
   }
+  if (session.state === 'awaiting_address_confirm') {
+    return handleAddressConfirm(session, contractor, businessName, incomingText);
+  }
   if (session.state === 'awaiting_service') {
     return handleService(session, contractor, businessName, incomingText);
   }
@@ -518,6 +529,44 @@ Return ONLY the address or NONE. No explanation.`;
   }
 
   return getServiceQuestion(contractor.niche_name);
+}
+
+// ── Step 1b: Confirm pre-filled name/address for a "returning" homeowner ─────
+// A phone number that booked before gets its old name/address pre-filled as a
+// convenience (see getLastConfirmedBooking), but that phone may have been
+// recycled to a new owner or be shared within a household. Rather than
+// silently trusting stale info for a real dispatch, this asks the homeowner
+// to confirm it out loud first — same safety principle as handleAddress's
+// name-leak guard above, just applied to a different failure mode.
+async function handleAddressConfirm(session, contractor, businessName, text) {
+  const trimmed = text.trim();
+  const looksLikeYes = /^(yes|yep|yeah|yup|correct|that'?s (right|correct)|still (there|same|correct)|same (address|place)|good|confirmed?)\b/i.test(trimmed);
+
+  if (looksLikeYes) {
+    await updateSession(session.id, { state: 'awaiting_service' });
+    return getServiceQuestion(contractor.niche_name);
+  }
+
+  // Not a clear "yes" — treat as a correction if it looks like a real address,
+  // otherwise fall back to asking plainly. Either way we move on rather than
+  // looping, since re-asking the same yes/no question rarely resolves it.
+  if (/\d/.test(trimmed) && trimmed.length > 6) {
+    if (!isInServiceArea(trimmed, contractor)) {
+      await updateSession(session.id, { state: 'confirmed' }); // close session
+      return `Thanks! Unfortunately we don't cover that area. Hope you find help nearby soon!`;
+    }
+    await updateSession(session.id, { address: trimmed, state: 'awaiting_service' });
+    if (session.lead_id) {
+      await db.query(
+        `UPDATE leads SET address = $1 WHERE id = $2`,
+        [trimmed, session.lead_id]
+      ).catch(e => console.error('[BRAIN3] Lead patch error:', e.message));
+    }
+    return getServiceQuestion(contractor.niche_name);
+  }
+
+  await updateSession(session.id, { state: 'awaiting_address' });
+  return `No worries — what's the address that needs service?`;
 }
 
 // ── Step 2: Capture service type + give real diagnostic ───────────────────────
@@ -880,14 +929,18 @@ async function startHomeownerSession(phone, contractorId, name = null, leadId = 
     WHERE phone = $1 AND contractor_id = $2 AND state != 'confirmed'
   `, [phone, contractorId]).catch(() => {});
 
-  // Returning homeowner check — if they've booked before, pre-populate and skip address
+  // Returning homeowner check — if they've booked before, pre-populate name +
+  // address but do NOT skip straight to service. state='awaiting_address_confirm'
+  // makes the caller ask "still at [address]?" before that address is ever used
+  // for a real dispatch — see getLastConfirmedBooking's comment for why (recycled
+  // or shared phone numbers can otherwise get a stranger's old address used).
   const lastBooking = await getLastConfirmedBooking(phone, contractorId);
   if (lastBooking && lastBooking.name && lastBooking.address) {
     const id = uuidv4();
     await db.prepare(`
       INSERT INTO homeowner_sms_sessions
         (id, phone, contractor_id, state, name, address, offered_slots, lead_id)
-      VALUES ($1, $2, $3, 'awaiting_service', $4, $5, '[]', $6)
+      VALUES ($1, $2, $3, 'awaiting_address_confirm', $4, $5, '[]', $6)
     `).run(id, phone, contractorId, lastBooking.name, lastBooking.address, leadId);
     return { isReturning: true, ...(await db.prepare(`SELECT * FROM homeowner_sms_sessions WHERE id = $1`).get(id)) };
   }
