@@ -441,6 +441,25 @@ cron.schedule('0 2 * * *', async () => {
   }
 });
 
+// ── Twilio webhook dedup table prune ──────────────────────────────────────────
+// Runs daily at 2:15am. twilio_webhook_events (session 29 continued — see
+// routes/twilio.js's claimWebhook()) exists purely to catch a retried webhook
+// delivery within the same request cycle; Twilio's actual retry window is
+// seconds to low minutes, never days. Without a prune, this table grows by one
+// row per real inbound call/text forever. Deleting anything older than 24
+// hours is generous padding over the real retry window with zero risk of ever
+// deleting a row a live retry still needs to check against.
+cron.schedule('15 2 * * *', async () => {
+  try {
+    const { rowCount } = await db.query(
+      `DELETE FROM twilio_webhook_events WHERE created_at < NOW() - INTERVAL '24 hours'`
+    );
+    if (rowCount) console.log(`⏰ [cron] Pruned ${rowCount} old twilio_webhook_events rows`);
+  } catch (err) {
+    console.error('⏰ [cron] twilio_webhook_events prune error:', err.message);
+  }
+});
+
 // ── Call-forwarding test timeout sweep ────────────────────────────────────────
 // Runs every 2 minutes. Catches forwarding tests (session 28 —
 // services/forwardingTest.js) that never resolved either way within 2 minutes

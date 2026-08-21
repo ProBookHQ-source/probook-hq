@@ -5,6 +5,36 @@ const { requireAdmin } = require('../middleware/auth');
 
 const router  = express.Router();
 
+// ── Webhook idempotency ───────────────────────────────────────────────────────
+// Twilio retries a webhook delivery if it doesn't get a response back fast
+// enough (can happen under real latency — the inbound-sms path can spend up to
+// ~65s in Voyage AI's worst-case retry backoff before ever responding). With no
+// dedup, a retry meant: the missed-call handler would unconditionally re-greet
+// a homeowner and reset their in-progress session (startHomeownerSession always
+// expires+recreates), and an inbound-sms retry on a slot-pick reply could
+// re-enter handleSlotPick a second time mid-race. Every real Twilio webhook
+// carries a unique MessageSid (SMS) or CallSid (voice) — claimWebhook() lets a
+// handler atomically claim one via INSERT ... ON CONFLICT DO NOTHING and skip
+// reprocessing on a duplicate delivery.
+//
+// Returns true if this is the first time we've seen this sid (safe to process),
+// false if it's a duplicate delivery (already processed, do not reprocess).
+// Fails open (returns true / "process it") on any DB error — a broken dedup
+// check should never be the reason a real inbound message goes unanswered.
+async function claimWebhook(sid) {
+  if (!sid) return true; // no sid on the request — can't dedup, just process it
+  try {
+    const { rowCount } = await db.query(
+      `INSERT INTO twilio_webhook_events (sid) VALUES ($1) ON CONFLICT DO NOTHING`,
+      [sid]
+    );
+    return rowCount > 0;
+  } catch (e) {
+    console.error('[TWILIO] claimWebhook check failed, processing anyway:', e.message);
+    return true;
+  }
+}
+
 // ── POST /api/twilio/missed-call ──────────────────────────────────────────────
 // Twilio webhook — fires when a call comes in to a contractor's Twilio number.
 //
@@ -30,6 +60,13 @@ router.post('/missed-call', async (req, res) => {
       res.type('text/xml');
       return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
     }
+  }
+
+  // ── Idempotency — ignore a duplicate delivery of the same call ───────────────
+  if (!(await claimWebhook(req.body.CallSid))) {
+    console.log(`[TWILIO] Duplicate missed-call webhook ignored (CallSid: ${req.body.CallSid})`);
+    res.type('text/xml');
+    return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
   }
 
   // ── Look up contractor by their Twilio number ────────────────────────────────
@@ -176,6 +213,21 @@ router.post('/inbound-sms', async (req, res) => {
       res.type('text/xml');
       return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response/>`);
     }
+  }
+
+  // ── Idempotency — ignore a duplicate delivery of the same text ───────────────
+  // This handler can spend several seconds (Brain 2/3's Claude calls) to as much
+  // as ~65s worst-case (Voyage AI's retry backoff inside getRelevantKnowledge)
+  // before responding — long enough for Twilio to retry the same inbound SMS as
+  // a brand-new request. Without this, a retry could double-send a "sorry we
+  // missed you" greeting and reset an in-progress homeowner session, or re-enter
+  // a slot-pick mid-race. Empty <Response/> on a duplicate is correct here — the
+  // real reply already went out on the first delivery, Twilio doesn't need
+  // another outbound message for the retry.
+  if (!(await claimWebhook(req.body.MessageSid))) {
+    console.log(`[TWILIO-SMS] Duplicate inbound-sms webhook ignored (MessageSid: ${req.body.MessageSid})`);
+    res.type('text/xml');
+    return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response/>`);
   }
 
   // ── Look up contractor by Twilio number ──────────────────────────────────────

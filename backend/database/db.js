@@ -358,6 +358,23 @@ async function initialize() {
     }
   }
 
+  // Migration: Twilio webhook idempotency (session 29 continued). Twilio retries
+  // a webhook delivery if it doesn't get a response fast enough — the inbound-sms
+  // handler can spend up to ~65s in worst-case Voyage AI retry backoff before
+  // responding, with no dedup anywhere. A retry meant the missed-call handler
+  // would unconditionally re-greet a homeowner and silently reset their
+  // in-progress session, or a slot-pick reply could re-enter handleSlotPick mid-
+  // race. Every real Twilio webhook (voice or SMS) includes a unique
+  // MessageSid/CallSid — this table lets a handler atomically claim one via
+  // INSERT ... ON CONFLICT DO NOTHING and skip reprocessing on a duplicate.
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS twilio_webhook_events (
+      sid TEXT PRIMARY KEY,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(() => {});
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_twilio_webhook_events_created ON twilio_webhook_events(created_at)`).catch(() => {});
+
   console.log('✅ Database ready');
 }
 
