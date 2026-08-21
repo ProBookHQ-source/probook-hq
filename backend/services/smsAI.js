@@ -827,10 +827,17 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           [contractorId, day_of_week]
         );
         if (is_active && start_time && end_time) {
+          // id has no DB default and is NOT NULL — omitting it here was the
+          // actual root cause of every SMS-driven availability change silently
+          // failing (confirmed live via Railway logs: "null value in column
+          // 'id' ... violates not-null constraint" on every single call).
+          // contractorSignup.js's seedAvailability() already generates one
+          // via uuidv4() for the initial intake-time seed — this INSERT just
+          // never matched that pattern.
           await db.query(
-            `INSERT INTO availability_slots (contractor_id, day_of_week, start_time, end_time, is_active)
-             VALUES ($1, $2, $3, $4, 1)`,
-            [contractorId, day_of_week, start_time, end_time]
+            `INSERT INTO availability_slots (id, contractor_id, day_of_week, start_time, end_time, is_active)
+             VALUES ($1, $2, $3, $4, $5, 1)`,
+            [uuidv4(), contractorId, day_of_week, start_time, end_time]
           );
           toolResult = `Updated ${dayName} to ${fmtTime(start_time)}-${fmtTime(end_time)}.`;
         } else {
