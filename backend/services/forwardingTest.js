@@ -68,17 +68,29 @@ async function startForwardingTest(contractor) {
 
     const testTwiml = `<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="alice">Hi, this is an automated test call from Tractify checking your call forwarding setup. If you're hearing this, forwarding isn't catching this call yet — no action needed right now, we'll text you what to do next. Goodbye.</Say><Hangup/></Response>`;
 
-    await client.calls.create({
-      to: numberToTest,
-      from: contractor.twilio_number,
-      twiml: testTwiml,
-      statusCallback: `${baseUrl}/api/twilio/forwarding-test-status?contractorId=${contractor.id}`,
-      statusCallbackEvent: ['completed'],
-      statusCallbackMethod: 'POST',
-      timeout: 25, // ring for up to 25s before Twilio gives up — long enough to prove conditional forwarding waited
-    });
+    // Fired ~10s after Brain 2 tells the contractor a test is coming, not
+    // immediately — the AI's "Give me about 10 seconds" text and the actual
+    // call landing were happening close enough together that the contractor
+    // could still be mid-dial-code or hasn't put the phone down yet. This
+    // gives real breathing room between "the test is starting" and the test
+    // actually starting.
+    setTimeout(() => {
+      client.calls.create({
+        to: numberToTest,
+        from: contractor.twilio_number,
+        twiml: testTwiml,
+        statusCallback: `${baseUrl}/api/twilio/forwarding-test-status?contractorId=${contractor.id}`,
+        statusCallbackEvent: ['completed'],
+        statusCallbackMethod: 'POST',
+        timeout: 25, // ring for up to 25s before Twilio gives up — long enough to prove conditional forwarding waited
+      }).then(() => {
+        console.log(`[FWD-TEST] Test call placed for contractor ${contractor.id} (${contractor.company_name || contractor.name}) → ${numberToTest}`);
+      }).catch(err => {
+        console.error(`[FWD-TEST] Delayed test call failed for contractor ${contractor.id}:`, err.message);
+      });
+    }, 10000);
 
-    console.log(`[FWD-TEST] Started for contractor ${contractor.id} (${contractor.company_name || contractor.name}) → ${numberToTest}`);
+    console.log(`[FWD-TEST] Scheduled for contractor ${contractor.id} (${contractor.company_name || contractor.name}) → ${numberToTest} (firing in 10s)`);
     return { started: true };
   } catch (err) {
     console.error('[FWD-TEST] Failed to start:', err.message);

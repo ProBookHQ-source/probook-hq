@@ -87,14 +87,14 @@ function buildStepGuides(liveContractor, completedSteps, bookingLink, twilioNumb
       label: 'Confirm your schedule',
       done: !!completedSteps.availability,
       guide: liveScheduleText === 'No schedule set'
-        ? `REGULAR SCHEDULE above shows "No schedule set" — we have no real hours on file for them (this happens when there was no Google listing to pull hours from). Do NOT invent or assume any hours. Ask them plainly what their hours are, day by day if needed, and use update_availability_slot to save each day as they give it to you. Only mark this step done once every day (or "closed") has actually been set from their own answer.`
+        ? `REGULAR SCHEDULE above shows "No schedule set" — we have no real hours on file for them (this happens when there was no Google listing to pull hours from). Do NOT invent or assume any hours. Ask for the WHOLE week in one message — e.g. "What are your hours Monday through Friday? Do you work weekends, and if so what hours?" — do not ask day by day one at a time, that's slower and wastes turns. If their answer covers every day clearly (even "closed Sundays, same hours every other day"), call update_availability_slot once per day (or "closed" via is_active=false) in that same turn to save all of it at once. Only ask about a specific day separately if their answer left something genuinely ambiguous or missing. Only mark this step done once every day (or "closed") has actually been set from their own answer.`
         : `Their hours are shown in the REGULAR SCHEDULE section above. You must actually state those hours out loud in your message and ask "does that look right?" — do NOT mark this step done just because they said "yes" to something else earlier (like the welcome text). Only mark it done when they say yes to a message where YOU just read their hours back to them. If they want changes, ask them to text the specific change and update via update_availability_slot.`,
     },
     twilio: {
       label: 'Set up missed call forwarding',
       done: !!completedSteps.twilio,
       guide: hasBusinessPhoneAnswer
-        ? `First ask: iPhone or Android, AND which carrier (AT&T, T-Mobile, Verizon, or other)? Then give the CORRECT device+carrier-specific steps for TRUE conditional (no-answer-only) forwarding — NEVER the plain Settings toggle, which forwards ALL calls immediately with zero rings and would break their phone line. iPhone has no true "forward when unanswered" option in Settings — it must be done with a carrier code dialed like a phone call, and the code is DIFFERENT per carrier: AT&T/T-Mobile use **61*${twilioNumber}*11*20# then press the green call button (it will connect briefly then hang up on its own — that's normal, it means it worked). Verizon uses a simpler code: *71${twilioNumber} then press call. To turn OFF forwarding later if anything seems wrong: AT&T/T-Mobile dial ##61# then call, Verizon dial *73 then call. Android: Phone app > 3-dot menu > Settings > Calling accounts (or Supplementary services) > Call forwarding > "When unanswered" > enter ${twilioNumber} > turn on — this IS a true conditional option built into Android's own Settings, no dial code needed. Always tell them to tap and hold the number in your text to copy it instead of retyping it. If they're on iPhone and running iOS 17 or newer, mention that the "Live Voicemail" feature can silently block conditional forwarding from working — if forwarding doesn't seem to catch missed calls after setup, tell them to check Settings > Phone > Live Voicemail and turn it off. IMPORTANT — do NOT ask them to test it themselves by calling from a second phone. Once they say they've dialed the code / turned it on, tell them "Give me about a minute, I'm going to test that myself" and immediately call the run_forwarding_test tool — Tractify places a real test call and texts them the result automatically (and marks this step done automatically if it passes). Do not mark the step done yourself and do not ask them to text DONE again unless the test comes back showing a problem.`
+        ? `First ask: iPhone or Android, AND which carrier (AT&T, T-Mobile, Verizon, or other)? Then give the CORRECT device+carrier-specific steps for TRUE conditional (no-answer-only) forwarding — NEVER the plain Settings toggle, which forwards ALL calls immediately with zero rings and would break their phone line. iPhone has no true "forward when unanswered" option in Settings — it must be done with a carrier code dialed like a phone call. The moment you know both device=iphone AND carrier is AT&T, T-Mobile, or Verizon, call send_forwarding_code with carrier set to "att_tmobile" or "verizon" — it sends the exact code as its own standalone text message so it's a single tap-and-hold-to-copy block, and tells you what to say next. Do NOT type the dial code yourself in your message — let the tool send it separately. To turn OFF forwarding later if anything seems wrong: AT&T/T-Mobile dial ##61# then call, Verizon dial *73 then call — those two are rare/safety-net only, fine to mention inline since they're not the main action. Android: Phone app > 3-dot menu > Settings > Calling accounts (or Supplementary services) > Call forwarding > "When unanswered" > enter ${twilioNumber} > turn on — this IS a true conditional option built into Android's own Settings, no dial code needed, no send_forwarding_code call needed either. If they're on iPhone and running iOS 17 or newer, mention that the "Live Voicemail" feature can silently block conditional forwarding from working — if forwarding doesn't seem to catch missed calls after setup, tell them to check Settings > Phone > Live Voicemail and turn it off. IMPORTANT — do NOT ask them to test it themselves by calling from a second phone. Once they say they've dialed the code / turned it on, tell them "Give me about 10 seconds, I'm going to test that myself — don't answer if you see a call come in, that's just the test" and immediately call the run_forwarding_test tool — Tractify places a real test call and texts them the result automatically (and marks this step done automatically if it passes). Do not mark the step done yourself and do not ask them to text DONE again unless the test comes back showing a problem.`
         : `First find out: is ${liveContractor.phone} the number their customers actually call, or is their business line different? If they say it's the same, call set_business_phone with is_same=true. If they give a different number, call set_business_phone with that number. Do NOT give any forwarding code or instructions yourself here — once set_business_phone runs, you will immediately get the correct detailed guide (with the real carrier codes) for your very next message, so just confirm the number back to them and continue straight into asking device + carrier, exactly as that guide says.`,
     },
     gbp: {
@@ -410,6 +410,21 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
       },
     },
     {
+      name: 'send_forwarding_code',
+      description: 'Sends the exact carrier dial code as its own standalone text message, separate from your explanation. Use this the moment you know both device=iphone AND carrier (att_tmobile or verizon) — do NOT type the dial code yourself in your reply, this tool computes it correctly and sends it on its own so it is easy to tap-and-hold to copy. Not needed for Android (no dial code — built-in Settings menu) or if carrier is "other"/unknown.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          carrier: {
+            type: 'string',
+            enum: ['att_tmobile', 'verizon'],
+            description: 'att_tmobile for AT&T or T-Mobile (GSM-style code), verizon for Verizon (simpler code).',
+          },
+        },
+        required: ['carrier'],
+      },
+    },
+    {
       name: 'set_service_zip_codes',
       description: 'Save the list of zip codes this contractor services, as part of the service-area setup step. Call this once you have real 5-digit zip codes from them. If they say they have no fixed zip list and will "go anywhere," that still needs a real mile radius from their business address — ask "about how many miles from your shop are you willing to drive?" and pass that as radius_miles along with no_limit=true. Never call no_limit=true without a radius_miles number — an unbounded service area would let someone in another state book them.',
       input_schema: {
@@ -514,6 +529,28 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
     if (name === 'complete_setup_step') {
       try {
         const { step_key } = input;
+
+        // Verification gate for availability — this step was getting marked
+        // done purely on the model's read of the conversation (e.g. "yes
+        // correct" after asking to confirm hours), with zero check that
+        // update_availability_slot had actually persisted anything. Live-
+        // confirmed bug: the AI told a contractor "your schedule is locked
+        // in" while availability_slots had zero rows for them — nothing had
+        // actually saved. Refuse to mark this step done unless at least one
+        // real row exists; a contractor with a real schedule always has at
+        // least one active day, so an empty table means nothing was saved.
+        if (step_key === 'availability') {
+          const { rows: slotRows } = await db.query(
+            'SELECT COUNT(*) AS cnt FROM availability_slots WHERE contractor_id = $1',
+            [contractorId]
+          );
+          if (parseInt(slotRows[0].cnt, 10) === 0) {
+            toolResult = `Error: cannot mark availability complete — no rows exist in availability_slots for this contractor yet, meaning nothing was actually saved. Do NOT tell them it's locked in. Call update_availability_slot for each day they gave you (this may not have actually run last turn), then only call complete_setup_step again after that succeeds.`;
+            toolResultBlocks.push({ type: 'tool_result', tool_use_id: toolUseId, content: toolResult });
+            continue;
+          }
+        }
+
         await db.query(`
           UPDATE contractors
           SET onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || $1::jsonb,
@@ -660,6 +697,38 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
       } catch (err) {
         toolResult = `Error: ${err.message}`;
         console.error('[SMS-AI] set_business_phone error:', err.message);
+      }
+
+    } else if (name === 'send_forwarding_code') {
+      // Computed here, deterministically, instead of trusting the model to type
+      // the exact code correctly in its own reply — that's exactly the class of
+      // mistake task #19 caught live (wrong code, wrong destination number). Sent
+      // as its own separate SMS (task #21) so it's a single tappable block the
+      // contractor can copy-hold, instead of buried mid-sentence.
+      try {
+        const { carrier } = input;
+        const forwardNumber = contractor.business_phone || contractor.phone;
+        if (!twilioClient) {
+          toolResult = `Error: Twilio not configured — tell them the code will follow shortly.`;
+        } else if (!forwardNumber) {
+          toolResult = `Error: no number on file to build the code from — resolve set_business_phone first.`;
+        } else if (!contractor.twilio_number) {
+          toolResult = `Error: no Tractify number assigned yet to forward TO — this shouldn't happen at this step, flag it.`;
+        } else {
+          const code = carrier === 'verizon'
+            ? `*71${contractor.twilio_number}`
+            : `**61*${contractor.twilio_number}*11*20#`;
+          setTimeout(() => {
+            twilioClient.messages.create({
+              to: forwardNumber, from: contractor.twilio_number, body: code,
+            }).catch(err => console.error('[SMS-AI] send_forwarding_code send failed:', err.message));
+          }, 1500);
+          toolResult = `Code sent as its own text message. Tell them: press the green call button after tapping it (it'll connect briefly then hang up on its own — that's normal, means it worked). Do NOT repeat the code yourself in your reply.`;
+          console.log(`[SMS-AI] Sent forwarding code (${carrier}) to ${contractorId}`);
+        }
+      } catch (err) {
+        toolResult = `Error: ${err.message}`;
+        console.error('[SMS-AI] send_forwarding_code error:', err.message);
       }
 
     } else if (name === 'set_service_zip_codes') {
@@ -845,7 +914,7 @@ async function sendWelcomeText(contractor, twilioClient) {
 // Makes the calendar management capability feel like unlocking a superpower.
 // Drives the first test reply — product becomes real the moment they get an answer.
 async function sendPowerMessage(contractor, twilioClient) {
-  const body = `Quick heads up — this number does more than setup. Text me "what's on my calendar tomorrow" right now and I'll read it back in 10 seconds. Text "block Wednesday 2-5pm" and it's held. Try it.`;
+  const body = `Quick heads up — this number does more than setup. Text me "what's on my calendar tomorrow" right now and I'll read it back in 10 seconds. Text "block Wednesday 2-5pm" and it's blocked. Try it.`;
 
   await twilioClient.messages.create({
     to: contractor.phone,
