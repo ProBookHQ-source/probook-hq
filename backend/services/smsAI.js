@@ -67,6 +67,22 @@ function getTwilioClient() {
 // they still had 4 more steps to go until they thought to ask.
 function buildStepGuides(liveContractor, completedSteps, bookingLink, twilioNumber, hasBusinessPhoneAnswer) {
   return {
+    // Added because it was a real gap left over from the pivot away from the old
+    // 4-step intake form: that form used to collect an explicit list of service-area
+    // zip codes, and the new single-screen signup form was designed to replace it
+    // with automatic geocode+radius derivation "later" — that derivation was never
+    // actually built anywhere in the codebase. Every contractor created through the
+    // current signup flow got service_zip_codes hardcoded to the wildcard ["*"],
+    // which makes isInServiceArea() in homeownerSmsAI.js always return true — Brain 3
+    // will accept a booking from literally any address, anywhere, with zero distance
+    // check. This step is the fix: ask for it over text instead of building the
+    // geocode/radius machinery. Placed first, before availability, since it's what
+    // actually gates whether a booking should be accepted at all.
+    service_area: {
+      label: 'Confirm your service area',
+      done: !!completedSteps.service_area,
+      guide: `Ask them to text every zip code they service, separated by commas or spaces (example: "98004, 98005, 98052"). Once they reply with real zip codes, call set_service_zip_codes with the list — do not guess zip codes yourself. If they don't know their exact zips, ask them to list the zip codes they're comfortable driving to. Only call set_service_zip_codes with no_limit=true if they explicitly say they have no limit and will go anywhere — never assume that just because they didn't answer clearly.`,
+    },
     availability: {
       label: 'Confirm your schedule',
       done: !!completedSteps.availability,
@@ -109,7 +125,7 @@ function buildStepGuides(liveContractor, completedSteps, bookingLink, twilioNumb
 // step done itself, without going through handleContractorSms.
 async function getNextStepPromptForContractor(contractorId) {
   const freshRow = await db.prepare(
-    'SELECT onboarding_steps, business_phone, twilio_number, booking_slug, company_name, name, phone FROM contractors WHERE id = $1'
+    'SELECT onboarding_steps, business_phone, twilio_number, booking_slug, company_name, name, phone, service_zip_codes FROM contractors WHERE id = $1'
   ).get(contractorId);
   if (!freshRow) return null;
 
@@ -213,7 +229,7 @@ async function handleContractorSms(contractor, incomingText) {
   // very next model call, same turn, not one turn behind.
   async function buildSystemPrompt() {
     const freshRow = await db.prepare(
-      'SELECT onboarding_steps, business_phone, twilio_number, booking_slug, company_name, name, phone FROM contractors WHERE id = $1'
+      'SELECT onboarding_steps, business_phone, twilio_number, booking_slug, company_name, name, phone, service_zip_codes FROM contractors WHERE id = $1'
     ).get(contractorId);
     const liveContractor = { ...contractor, ...(freshRow || {}) };
 
@@ -322,7 +338,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
         properties: {
           step_key: {
             type: 'string',
-            enum: ['availability', 'twilio', 'gbp', 'facebook', 'reviewers', 'messenger'],
+            enum: ['service_area', 'availability', 'twilio', 'gbp', 'facebook', 'reviewers', 'messenger'],
           },
         },
         required: ['step_key'],
@@ -381,6 +397,25 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           },
         },
         required: ['is_same'],
+      },
+    },
+    {
+      name: 'set_service_zip_codes',
+      description: 'Save the list of zip codes this contractor services, as part of the service-area setup step. Call this once you have real 5-digit zip codes from them. Only pass no_limit=true if they explicitly say they have no service-area limit and will go anywhere — never assume that.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          zip_codes: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '5-digit zip codes they service, exactly as they gave them. Omit if no_limit is true.',
+          },
+          no_limit: {
+            type: 'boolean',
+            description: 'true ONLY if they explicitly said they have no service-area limit / will travel anywhere. Do not set this just because they gave an unclear answer.',
+          },
+        },
+        required: [],
       },
     },
     {
@@ -597,6 +632,51 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
         console.error('[SMS-AI] set_business_phone error:', err.message);
       }
 
+    } else if (name === 'set_service_zip_codes') {
+      try {
+        const { zip_codes, no_limit } = input;
+        let toSave = null;
+        let humanSummary = '';
+
+        if (no_limit) {
+          toSave = ['*'];
+          humanSummary = 'no service-area limit (serves anywhere)';
+        } else {
+          const cleaned = Array.isArray(zip_codes)
+            ? zip_codes.map(z => String(z).replace(/\D/g, '').slice(0, 5)).filter(z => z.length === 5)
+            : [];
+          if (cleaned.length) {
+            toSave = cleaned;
+            humanSummary = `${cleaned.length} zip code${cleaned.length === 1 ? '' : 's'} (${cleaned.join(', ')})`;
+          }
+        }
+
+        if (!toSave) {
+          toolResult = `Error: no valid 5-digit zip codes found in that reply — ask them to text the zip codes again, digits only, separated by commas or spaces.`;
+        } else {
+          // This is the fix for a real gap left over from the pivot: the old intake
+          // form used to collect service-area zip codes explicitly, the new
+          // single-screen form dropped that field, and the "derive it automatically
+          // from the geocoded address" replacement was never actually built —
+          // every contractor since the pivot has had service_zip_codes hardcoded
+          // to the wildcard ["*"], which made Brain 3's isInServiceArea() check
+          // a no-op that accepted a booking from any address, anywhere. Saving a
+          // real list here is what actually turns that check back on.
+          await db.query(`
+            UPDATE contractors
+            SET service_zip_codes = $1,
+                onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || '{"service_area": true}'::jsonb,
+                onboarding_started_at = COALESCE(onboarding_started_at, NOW())
+            WHERE id = $2
+          `, [JSON.stringify(toSave), contractorId]);
+          toolResult = `Saved service area: ${humanSummary}. Step marked complete — move on to the next step.`;
+          console.log(`[SMS-AI] service_zip_codes set for ${contractorId}: ${humanSummary}`);
+        }
+      } catch (err) {
+        toolResult = `Error: ${err.message}`;
+        console.error('[SMS-AI] set_service_zip_codes error:', err.message);
+      }
+
     } else if (name === 'run_forwarding_test') {
       try {
         const { startForwardingTest } = require('./forwardingTest');
@@ -773,7 +853,7 @@ async function sendSetupStepText(contractor, twilioClient) {
     : (contractor.onboarding_steps || {});
 
   // Required steps first (2), then the remaining channel steps
-  const STEP_ORDER = ['availability', 'twilio', 'gbp', 'facebook', 'reviewers', 'messenger'];
+  const STEP_ORDER = ['service_area', 'availability', 'twilio', 'gbp', 'facebook', 'reviewers', 'messenger'];
   const nextIncomplete = STEP_ORDER.find(k => !completedSteps[k]);
   if (!nextIncomplete) return null;
 
@@ -797,11 +877,13 @@ async function sendSetupStepText(contractor, twilioClient) {
   // Each message names the channel, states the cost of skipping it,
   // and makes the action feel like a 60-second win — no portal login required.
   const STEP_TEXTS = {
-    availability: `Step 1 of 2. Here are the hours we have on file for you: ${availabilityText}. Does that match your real schedule? Reply YES if that's correct, or just tell me what to change (like "Tuesdays I close at 3pm") and I'll fix it.`,
+    service_area: `Step 1 of 3. Quick one — what zip codes do you actually service? Text them over separated by commas or spaces (like "98004, 98005, 98052"). This is how we make sure we only book you jobs you can actually get to.`,
+
+    availability: `Step 2 of 3. Here are the hours we have on file for you: ${availabilityText}. Does that match your real schedule? Reply YES if that's correct, or just tell me what to change (like "Tuesdays I close at 3pm") and I'll fix it.`,
 
     twilio: contractor.business_phone
-      ? `Step 2 of 2. Every call you miss on a job — that homeowner is already calling your competitor. We can fix that, but the exact steps depend on your phone and carrier. Are you on an iPhone or Android, and is your carrier AT&T, T-Mobile, Verizon, or something else?`
-      : `Step 2 of 2. Quick one first — is ${contractor.phone} the number your customers actually call, or is your business line different? Once I know which number, I'll send the exact forwarding steps so every missed call gets caught automatically.`,
+      ? `Step 3 of 3. Every call you miss on a job — that homeowner is already calling your competitor. We can fix that, but the exact steps depend on your phone and carrier. Are you on an iPhone or Android, and is your carrier AT&T, T-Mobile, Verizon, or something else?`
+      : `Step 3 of 3. Quick one first — is ${contractor.phone} the number your customers actually call, or is your business line different? Once I know which number, I'll send the exact forwarding steps so every missed call gets caught automatically.`,
 
     gbp: `Good news — your Google listing is already getting search traffic. But right now there's no Book button. Homeowners searching "HVAC near me" can see you but can't book. 60 seconds to fix: business.google.com > Edit Profile > Appointments > paste this link: ${bookingLink} > Save. Reply DONE when it's saved.`,
 

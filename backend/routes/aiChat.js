@@ -85,6 +85,11 @@ router.post('/', requireContractor, async (req, res) => {
   const twilioNumber = contractor.twilio_number || '(not assigned yet — will be in their welcome email)';
 
   const STEP_DETAILS = {
+    service_area: {
+      label: 'Confirm your service area',
+      done: !!completedSteps.service_area,
+      guide: `Ask them to list every zip code they service, separated by commas or spaces (example: "98004, 98005, 98052"). Once they give you real zip codes, call set_service_zip_codes with the list — do not guess zip codes yourself. If they don't know their exact zips, ask them to list the zip codes they're comfortable driving to. Only call set_service_zip_codes with no_limit=true if they explicitly say they have no limit and will go anywhere — never assume that.`,
+    },
     availability: {
       label: 'Confirm your availability',
       done: !!completedSteps.availability,
@@ -143,7 +148,7 @@ CONTRACTOR:
   Booking link: ${bookingLink}
   Today: ${todayDayName}, ${today}
 
-SETUP CHECKLIST (${completedCount}/6 complete):
+SETUP CHECKLIST (${completedCount}/${Object.keys(STEP_DETAILS).length} complete):
 ${checklistSummary}
 ${incompleteSteps.length > 0 ? `\nNext step to guide them through: "${incompleteSteps[0][1].label}"` : '\nAll setup steps complete!'}
 
@@ -209,11 +214,30 @@ RULES:
         properties: {
           step_key: {
             type: 'string',
-            enum: ['availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers', 'messenger'],
+            enum: ['service_area', 'availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers', 'messenger'],
             description: 'The step key to mark complete',
           },
         },
         required: ['step_key'],
+      },
+    },
+    {
+      name: 'set_service_zip_codes',
+      description: 'Save the list of zip codes this contractor services, as part of the service-area setup step. Call this once you have real 5-digit zip codes from them. Only pass no_limit=true if they explicitly say they have no service-area limit and will go anywhere — never assume that.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          zip_codes: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '5-digit zip codes they service, exactly as they gave them. Omit if no_limit is true.',
+          },
+          no_limit: {
+            type: 'boolean',
+            description: 'true ONLY if they explicitly said they have no service-area limit / will travel anywhere. Do not set this just because they gave an unclear answer.',
+          },
+        },
+        required: [],
       },
     },
     {
@@ -274,6 +298,51 @@ RULES:
       } catch (err) {
         toolResult = `Error marking step complete: ${err.message}`;
         console.error('[AI-CHAT] complete_setup_step error:', err.message);
+      }
+    } else if (name === 'set_service_zip_codes') {
+      try {
+        const { zip_codes, no_limit } = input;
+        let toSave = null;
+        let humanSummary = '';
+
+        if (no_limit) {
+          toSave = ['*'];
+          humanSummary = 'no service-area limit (serves anywhere)';
+        } else {
+          const cleaned = Array.isArray(zip_codes)
+            ? zip_codes.map(z => String(z).replace(/\D/g, '').slice(0, 5)).filter(z => z.length === 5)
+            : [];
+          if (cleaned.length) {
+            toSave = cleaned;
+            humanSummary = `${cleaned.length} zip code${cleaned.length === 1 ? '' : 's'} (${cleaned.join(', ')})`;
+          }
+        }
+
+        if (!toSave) {
+          toolResult = `Error: no valid 5-digit zip codes found in that reply — ask them to send the zip codes again, digits only, separated by commas or spaces.`;
+        } else {
+          // Same fix as the SMS drip (smsAI.js) — a real gap left over from the
+          // pivot away from the old intake form, which used to collect service-
+          // area zip codes explicitly. The replacement ("derive it automatically
+          // from the geocoded address") was never built, so service_zip_codes was
+          // hardcoded to the wildcard ["*"] for every contractor, which makes
+          // Brain 3's isInServiceArea() check a no-op. Kept here in sync with
+          // smsAI.js's identical handler so the portal Help chat and the SMS drip
+          // both actually complete this step, not just one of them.
+          await db.query(`
+            UPDATE contractors
+            SET service_zip_codes = $1,
+                onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || '{"service_area": true}'::jsonb,
+                onboarding_started_at = COALESCE(onboarding_started_at, NOW())
+            WHERE id = $2
+          `, [JSON.stringify(toSave), contractorId]);
+          toolResult = `Saved service area: ${humanSummary}. Step marked complete.`;
+          actionTaken = { type: 'complete_setup_step', step_key: 'service_area' };
+          console.log(`[AI-CHAT] service_zip_codes set for ${contractorId}: ${humanSummary}`);
+        }
+      } catch (err) {
+        toolResult = `Error: ${err.message}`;
+        console.error('[AI-CHAT] set_service_zip_codes error:', err.message);
       }
     } else if (name === 'block_time') {
       try {

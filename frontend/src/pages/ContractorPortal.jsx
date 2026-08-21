@@ -656,6 +656,15 @@ export default function ContractorPortal() {
     onError: () => toast.error('Failed to save step'),
   });
 
+  // Required onboarding steps — the ones covered by the "You do N things" promise.
+  // Single source of truth so this can't drift out of sync the way it used to:
+  // this used to be four separately hardcoded ['availability', 'twilio'] arrays/
+  // filters scattered through this component (the proactive-greeting effect, the
+  // sidebar badge, the first-login modal's two step-buckets, and the Setup tab's
+  // progress bar + checklist filter). Add a new required step here and it updates
+  // everywhere below automatically.
+  const REQUIRED_STEP_KEYS = ['service_area', 'availability', 'twilio'];
+
   // Auto-complete step 1 if availability slots are already seeded from the intake form
   // (declared here — AFTER slots and markStep are initialized, to avoid TDZ crash)
   const autoCompletedAvailabilityRef = useRef(false);
@@ -681,8 +690,9 @@ export default function ContractorPortal() {
     if (greetingFiredRef.current) return;
     greetingFiredRef.current = true;
 
-    const STEP_ORDER = ['availability', 'twilio'];
+    const STEP_ORDER = REQUIRED_STEP_KEYS;
     const STEP_LABELS = {
+      service_area: 'confirm your service area',
       availability: 'confirm your schedule',
       twilio: 'set up missed call forwarding',
       gbp: 'add your booking link to Google',
@@ -697,7 +707,7 @@ export default function ContractorPortal() {
 
     let greetMsg;
     if (completedCount === 0) {
-      greetMsg = `Hey ${firstName}! 👋 Two quick things and you're live.\n\nFirst, confirm your availability — your hours are already pre-filled from your signup. Then set up call forwarding so we catch every missed call automatically. Want to start?`;
+      greetMsg = `Hey ${firstName}! 👋 A few quick things and you're live.\n\nFirst, tell me the zip codes you service. Then we'll confirm your availability — already pre-filled from your signup. Then set up call forwarding so we catch every missed call automatically. Want to start?`;
     } else if (completedCount < STEP_ORDER.length) {
       greetMsg = `Welcome back, ${firstName}! One thing left: **${STEP_LABELS[firstIncomplete] || firstIncomplete}**.\n\nSay "let's do it" and I'll walk you through it step by step.`;
     } else {
@@ -776,6 +786,17 @@ export default function ContractorPortal() {
 
   // ── Onboarding checklist config ────────────────────────────────────────────
   const ONBOARDING_STEPS = [
+    {
+      key: 'service_area',
+      label: 'Confirm your service area',
+      icon: '📍',
+      why: 'We only want to send you jobs you can actually reach. Without a real service area on file, a homeowner from anywhere could get booked with you — even somewhere you would never actually drive to.',
+      description: 'Text us every zip code you service, separated by commas or spaces (like "98004, 98005, 98052") — reply to any Tractify text, or use the Help tab. We save it and only book you jobs inside that area from then on.',
+      instructions: [
+        { platform: 'How', steps: 'Reply to any Tractify text (or use the Help tab) with your zip codes, separated by commas or spaces.' },
+      ],
+      action: { label: 'Text it in via Help →', onClick: () => setTab('assistant') },
+    },
     {
       key: 'availability',
       label: 'Confirm your availability',
@@ -872,7 +893,7 @@ export default function ContractorPortal() {
 
   const completedStepCount = ONBOARDING_STEPS.filter(s => onboardingSteps[s.key]).length;
   const allStepsDone = completedStepCount === ONBOARDING_STEPS.length;
-  const requiredStepsDone = ['availability', 'twilio'].every(k => !!onboardingSteps[k]);
+  const requiredStepsDone = REQUIRED_STEP_KEYS.every(k => !!onboardingSteps[k]);
 
   // ── Sidebar nav items ──────────────────────────────────────────────────────
   const NAV = [
@@ -1747,15 +1768,15 @@ export default function ContractorPortal() {
                 <img src="/probook-icon-128.png" alt="Tractify" className="w-8 h-8 rounded-xl shadow-sm" />
                 <span className="font-bold text-gray-900 text-lg tracking-tight">Tractify</span>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">You do 2 things.<br />We handle the rest.</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">You do {REQUIRED_STEP_KEYS.length} things.<br />We handle the rest.</h2>
               <p className="text-gray-500 mb-6 leading-relaxed text-sm">
-                Jobs start appearing on your calendar automatically once these two steps are done.
+                Jobs start appearing on your calendar automatically once these steps are done.
               </p>
 
-              {/* Required: 2 steps */}
+              {/* Required steps */}
               <div className="space-y-2 text-left mb-4">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">You do these</p>
-                {ONBOARDING_STEPS.filter(s => s.key === 'availability' || s.key === 'twilio').map(s => (
+                {ONBOARDING_STEPS.filter(s => REQUIRED_STEP_KEYS.includes(s.key)).map(s => (
                   <div key={s.key} className="flex items-center gap-3 px-4 py-3 bg-brand-50 border border-brand-100 rounded-xl">
                     <span className="text-lg">{s.icon}</span>
                     <span className="text-sm font-semibold text-brand-900">{s.label}</span>
@@ -1766,7 +1787,7 @@ export default function ContractorPortal() {
               {/* Tractify handles */}
               <div className="space-y-1.5 text-left mb-7">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">We handle these</p>
-                {ONBOARDING_STEPS.filter(s => s.key !== 'availability' && s.key !== 'twilio').map(s => (
+                {ONBOARDING_STEPS.filter(s => !REQUIRED_STEP_KEYS.includes(s.key)).map(s => (
                   <div key={s.key} className="flex items-center gap-3 px-4 py-2.5 bg-gray-50 rounded-xl">
                     <span className="text-base">{s.icon}</span>
                     <span className="text-sm text-gray-500">{s.label}</span>
@@ -1778,7 +1799,7 @@ export default function ContractorPortal() {
                 onClick={() => { setShowOnboardingModal(false); setTab('setup'); }}
                 className="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-sm text-base"
               >
-                Complete My 2 Steps →
+                Complete My {REQUIRED_STEP_KEYS.length} Steps →
               </button>
               <button
                 onClick={() => setShowOnboardingModal(false)}
@@ -1801,20 +1822,20 @@ export default function ContractorPortal() {
               <div className="mb-6">
                 <h1 className="text-2xl font-bold text-gray-900">Setup</h1>
                 <p className="text-gray-400 text-sm mt-1">
-                  You do 2 things. We handle everything else.
+                  You do {REQUIRED_STEP_KEYS.length} things. We handle everything else.
                 </p>
               </div>
 
               {/* Required steps progress */}
               {(() => {
-                const requiredKeys = ['availability', 'twilio'];
+                const requiredKeys = REQUIRED_STEP_KEYS;
                 const requiredDone = requiredKeys.filter(k => !!onboardingSteps[k]).length;
                 const requiredComplete = requiredDone === requiredKeys.length;
                 return (
                   <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-semibold text-gray-700">
-                        {requiredComplete ? 'Required setup complete!' : `${requiredDone} of 2 required steps done`}
+                        {requiredComplete ? 'Required setup complete!' : `${requiredDone} of ${requiredKeys.length} required steps done`}
                       </span>
                       {requiredComplete && (
                         <span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">Live! 🎉</span>
@@ -1823,7 +1844,7 @@ export default function ContractorPortal() {
                     <div className="w-full bg-gray-100 rounded-full h-2.5">
                       <div
                         className="bg-brand-500 h-2.5 rounded-full transition-all duration-500"
-                        style={{ width: `${(requiredDone / 2) * 100}%` }}
+                        style={{ width: `${(requiredDone / requiredKeys.length) * 100}%` }}
                       />
                     </div>
                     {requiredComplete && (
@@ -1838,7 +1859,7 @@ export default function ContractorPortal() {
               {/* Required Steps */}
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">You do these (required)</p>
               <div className="space-y-3 mb-8">
-                {ONBOARDING_STEPS.filter(s => s.key === 'availability' || s.key === 'twilio').map((step, i) => {
+                {ONBOARDING_STEPS.filter(s => REQUIRED_STEP_KEYS.includes(s.key)).map((step, i) => {
                   const done = !!onboardingSteps[step.key];
                   const isOpen = expandedStep === step.key;
                   return (
