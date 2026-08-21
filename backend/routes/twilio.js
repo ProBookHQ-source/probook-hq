@@ -242,7 +242,16 @@ router.post('/inbound-sms', async (req, res) => {
             AND a.status = 'confirmed'
             AND a.scheduled_date >= CURRENT_DATE
             AND a.scheduled_date <= CURRENT_DATE + INTERVAL '7 days'
-            AND REPLACE(REPLACE(REPLACE(l.phone, '-', ''), ' ', ''), '+1', '') = RIGHT(REPLACE($2, '+', ''), 10)
+            -- Strip every non-digit char from both sides and compare the last 10
+            -- digits only. The old version stripped '-', ' ', and a literal '+1'
+            -- from l.phone but never handled a bare leading '1' with no plus sign,
+            -- and never truncated to 10 digits — so a lead stored as "12065551234"
+            -- (11 digits, no '+', a format this codebase has historically produced
+            -- inconsistently) would never match the inbound From number, and a real
+            -- homeowner texting CANCEL on a genuine upcoming appointment would get
+            -- "No upcoming appointment found." Now both sides are normalized the
+            -- same way regardless of how the phone was originally stored.
+            AND RIGHT(REGEXP_REPLACE(l.phone, '\D', '', 'g'), 10) = RIGHT(REGEXP_REPLACE($2, '\D', '', 'g'), 10)
           ORDER BY a.scheduled_date, a.scheduled_time
           LIMIT 1
         `, [contractor.id, From]);

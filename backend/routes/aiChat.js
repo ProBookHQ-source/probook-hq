@@ -281,9 +281,18 @@ RULES:
   const toolMessages = [...messages];
 
   while (response.stop_reason === 'tool_use') {
-    const toolUseBlock = response.content.find(b => b.type === 'tool_use');
-    if (!toolUseBlock) break;
+    // Claude can return multiple tool_use blocks in one turn — resolving only the
+    // first one (via .find()) leaves the rest unanswered and the next API call 400s
+    // (Anthropic requires a tool_result for every tool_use from the prior turn).
+    // This exact bug was already found and fixed in smsAI.js's contractor SMS loop
+    // (a real production crash, confirmed via Sentry) — aiChat.js is a separate,
+    // parallel implementation that never got the same fix. Mirroring that fix here.
+    const toolBlocks = response.content.filter(b => b.type === 'tool_use');
+    if (!toolBlocks.length) break;
 
+    const toolResultBlocks = [];
+
+    for (const toolUseBlock of toolBlocks) {
     const { name, id: toolUseId, input } = toolUseBlock;
     let toolResult;
 
@@ -472,12 +481,11 @@ RULES:
       toolResult = `Unknown tool: ${name}`;
     }
 
-    // Continue with tool result
+    toolResultBlocks.push({ type: 'tool_result', tool_use_id: toolUseId, content: toolResult });
+    } // end for-each toolUseBlock
+
     toolMessages.push({ role: 'assistant', content: response.content });
-    toolMessages.push({
-      role: 'user',
-      content: [{ type: 'tool_result', tool_use_id: toolUseId, content: toolResult }],
-    });
+    toolMessages.push({ role: 'user', content: toolResultBlocks });
 
     response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',

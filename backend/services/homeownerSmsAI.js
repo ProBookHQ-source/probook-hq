@@ -176,16 +176,28 @@ function isInServiceArea(address, contractor) {
         ? extractZip(contractor.address)
         : null;
       const homeownerZip = extractZip(address);
-      if (!contractorZip || !homeownerZip) return true; // can't compute — give benefit of the doubt
+      // These fail open on purpose (never block a legit booking over a parsing
+      // hiccup) but that policy is exactly what made the old unbounded-wildcard
+      // bug invisible for weeks — logging here means if this branch ever starts
+      // firing constantly (e.g. a systematic address-format issue), it shows up
+      // in logs instead of silently defeating the service-area gate forever.
+      if (!contractorZip || !homeownerZip) {
+        console.warn(`[BRAIN3] isInServiceArea: could not resolve zip for radius check (contractor=${contractor?.id || '?'}, contractorZip=${contractorZip}, homeownerZip=${homeownerZip}) — allowing booking`);
+        return true;
+      }
       const miles = zipcodes.distance(contractorZip, homeownerZip);
-      if (miles === null || miles === undefined) return true; // unknown zip in the offline DB — permissive
+      if (miles === null || miles === undefined) {
+        console.warn(`[BRAIN3] isInServiceArea: zipcodes.distance() returned null for ${contractorZip}<->${homeownerZip} — allowing booking`);
+        return true;
+      }
       return miles <= radiusMiles;
     }
 
     const zip = extractZip(address);
-    if (!zip) return true; // can't parse ZIP — give benefit of the doubt
+    if (!zip) return true; // can't parse ZIP — give benefit of the doubt (expected, common — no log)
     return zips.includes(zip);
   } catch (e) {
+    console.warn(`[BRAIN3] isInServiceArea: parse error, allowing booking — ${e.message}`);
     return true; // parse error = permissive
   }
 }
@@ -280,12 +292,32 @@ async function getOpenSlots(contractorId) {
   const overrideMap = {};
   for (const o of overrides) overrideMap[o.date] = o;
 
+  // Every other booking path (bookings.js's /book and /book-direct) checks
+  // contractor.max_appointments_per_day before allowing a new appointment — this
+  // one never did, so a homeowner texting in through Brain 3 could push a
+  // contractor past a daily cap they explicitly set in the portal. Fixed by
+  // building a per-date count and refusing to offer any slot on a day that's
+  // already at or over the cap.
+  const { rows: maxRows } = await db.query(
+    `SELECT max_appointments_per_day FROM contractors WHERE id = $1`, [contractorId]
+  );
+  const maxPerDay = maxRows[0]?.max_appointments_per_day || null;
+  const perDateCount = {};
+  if (maxPerDay) {
+    for (const b of booked) perDateCount[b.scheduled_date] = (perDateCount[b.scheduled_date] || 0) + 1;
+  }
+
   const openSlots = [];
   const cur = new Date(from);
   while (cur <= to && openSlots.length < 9) {
     const dateStr = cur.toISOString().slice(0, 10);
     const dow = cur.getDay();
     const override = overrideMap[dateStr];
+
+    if (maxPerDay && (perDateCount[dateStr] || 0) >= maxPerDay) {
+      cur.setDate(cur.getDate() + 1);
+      continue; // day is already at the contractor's daily cap — offer nothing here
+    }
 
     let daySlots = [];
     if (override) {
@@ -363,7 +395,7 @@ async function updateSession(sessionId, updates) {
 async function handleHomeownerSms(phone, contractorId, incomingText, session) {
   const contractor = await db.prepare(
     `SELECT c.id, c.name, c.company_name, c.niche_id, c.phone, c.twilio_number,
-            c.service_zip_codes, c.service_radius_miles, c.address,
+            c.service_zip_codes, c.service_radius_miles, c.address, c.max_appointments_per_day,
             n.name AS niche_name
      FROM contractors c
      LEFT JOIN niches n ON n.id = c.niche_id
@@ -524,7 +556,13 @@ async function handleService(session, contractor, businessName, text) {
   // Fetch slots in parallel with diagnostic retrieval
   const [slots, knowledgeChunks] = await Promise.all([
     getOpenSlots(contractor.id),
-    getRelevantKnowledge(serviceText, contractor.niche_name || 'HVAC').catch(() => ''),
+    getRelevantKnowledge(serviceText, contractor.niche_name || 'HVAC').catch(err => {
+      // Was completely silent before — if Voyage AI goes down or rate-limits,
+      // every homeowner conversation was silently losing its diagnostic knowledge
+      // with zero operator visibility. Now at least logged.
+      console.warn(`[BRAIN3] getRelevantKnowledge failed, continuing without diagnostic knowledge: ${err.message}`);
+      return '';
+    }),
   ]);
 
   // Build the slot options string
@@ -670,6 +708,26 @@ async function handleSlotPick(session, contractor, businessName, text) {
         session.service_description || 'HVAC service',
         contractor.id
       );
+    }
+
+    // Race-safe recheck of the daily cap right before inserting — getOpenSlots()
+    // already excludes full days when it builds the offer, but the offer could be
+    // stale by the time this reply arrives (another booking landed in between).
+    // Mirrors the same check bookings.js runs on every other booking path.
+    if (contractor.max_appointments_per_day) {
+      const { rows: countRows } = await db.query(
+        `SELECT COUNT(*) AS cnt FROM appointments WHERE contractor_id = $1 AND scheduled_date = $2 AND status NOT IN ('cancelled')`,
+        [contractor.id, chosen.date]
+      );
+      if (parseInt(countRows[0].cnt) >= contractor.max_appointments_per_day) {
+        const freshSlots = await getOpenSlots(contractor.id);
+        if (!freshSlots.length) {
+          return `Looks like that day just filled up — I don't have any other openings right now. Text us again in a few days.`;
+        }
+        await updateSession(session.id, { offered_slots: JSON.stringify(freshSlots.slice(0, 3)) });
+        const b = freshSlots.slice(0, 3);
+        return `That day just filled up — here are some other times: 1) ${b[0]?.label || ''}  2) ${b[1]?.label || ''}  3) ${b[2]?.label || ''}. Reply with the number that works.`;
+      }
     }
 
     // Create appointment

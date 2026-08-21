@@ -548,7 +548,15 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
             );
             inserted++;
           } catch (e) {
-            if (!e.message?.includes('UNIQUE')) throw e;
+            // Postgres unique-violation error text is "duplicate key value violates
+            // unique constraint ..." — it never contains the literal string "UNIQUE"
+            // (that's a SQLite-ism). This app runs on Postgres (pg/db.js), so this
+            // check never matched a real conflict — every genuine overlap re-threw
+            // and aborted the rest of the multi-hour block loop instead of being
+            // silently skipped as intended. Every other conflict check in this
+            // codebase (bookings.js, homeownerSmsAI.js) correctly uses err.code ===
+            // '23505' — matching that pattern here.
+            if (e.code !== '23505') throw e;
           }
         }
         toolResult = `Blocked ${inserted} hour(s) on ${input.date} starting ${input.start_time}.`;
