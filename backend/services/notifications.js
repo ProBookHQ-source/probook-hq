@@ -1089,7 +1089,7 @@ async function sendBrain3BookingConfirmation({ to, name, businessName, date, tim
     sub: `Here are your appointment details`,
     bodyContent: `
       <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:20px;">
-        ${infoRow('Name', nm, true)}
+        ${nm ? infoRow('Name', nm, true) : ''}
         ${infoRow('Business', biz)}
         ${infoRow('Date', dt)}
         ${infoRow('Time', tm)}

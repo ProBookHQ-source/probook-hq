@@ -21,6 +21,35 @@ const { getRelevantKnowledge } = require('./diagnosticKnowledge');
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MAX_CHARS = 320;
 
+// ── Niche-aware opening question ────────────────────────────────────────────
+// This was hardcoded as "AC, heating, or something else?" for every niche —
+// found live on a real roofing contractor's test where a homeowner describing
+// falling drywall got asked an HVAC-specific question. Keyed the same way
+// diagnosticKnowledge.js's own niche normalization works (lowercase, spaces →
+// underscores), but kept as its own small local map here rather than importing
+// diagnosticKnowledge's internal normalizeNiche (not exported, and this only
+// needs simple string matching, not the DB-backed RAG lookup).
+const NICHE_SERVICE_QUESTIONS = {
+  hvac:          `Got it. What's going on — AC, heating, or something else?`,
+  roofing:       `Got it. What's going on — a leak, missing or damaged shingles, or something else?`,
+  electrical:    `Got it. What's going on — a tripped breaker, an outlet or fixture issue, or something else?`,
+  plumbing:      `Got it. What's going on — a leak, a clog, no hot water, or something else?`,
+  landscaping:   `Got it. What's going on — a design/install project, or something else?`,
+  painting:      `Got it. What's going on — interior, exterior, or something else?`,
+  general:       `Got it. What's going on with your project?`,
+  solar:         `Got it. What's going on — a new install, an existing system issue, or something else?`,
+  water_damage:  `Got it. What's going on — flooding, a leak, or water damage from something else?`,
+  tree_service:  `Got it. What's going on — trimming, removal, storm damage, or something else?`,
+  lawn_care:     `Got it. What service are you looking for — mowing, fertilization, or something else?`,
+  pool_service:  `Got it. What's going on — equipment repair, maintenance, or something else?`,
+  pest_control:  `Got it. What are you dealing with — ants, rodents, or something else?`,
+};
+
+function getServiceQuestion(nicheName) {
+  const key = (nicheName || '').toLowerCase().trim().replace(/\s+/g, '_').replace(/\//g, '_');
+  return NICHE_SERVICE_QUESTIONS[key] || `Got it. What's going on — tell me a bit about the issue?`;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtTime(t) {
@@ -273,6 +302,9 @@ async function handleAddress(session, contractor, businessName, text) {
   const systemWithName = `You are an assistant extracting booking info from a homeowner text message.
 The homeowner was asked: "What's your name and the address that needs service?"
 Extract their name and address and return ONLY valid JSON: {"name": "...", "address": "..."}
+The "address" field must contain ONLY the street address (and city/zip if given) — never include the
+person's name inside the address string, even if they wrote it as "Name and 123 Main St" or
+"Name, 123 Main St". Strip the name out of the address entirely.
 If name is unclear, use "Homeowner". If no address is present, use "".
 Return ONLY the JSON object. No explanation.`;
 
@@ -296,6 +328,16 @@ Return ONLY the address or NONE. No explanation.`;
         const parsed = JSON.parse(raw);
         if (parsed.name && parsed.name !== 'Homeowner') name = parsed.name;
         if (parsed.address) address = parsed.address;
+        // Safety net: even with the stricter prompt above, the model can still
+        // leak the name into the address (observed live — address stored as
+        // "Daniel and 19222 crown ridge blvd" alongside a correctly-parsed
+        // name of "Daniel"). Strip a leading "Name and "/"Name, "/"Name - "
+        // pattern off the front of the address if it starts with the name.
+        if (name && address) {
+          const nameEscaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const leadingNamePattern = new RegExp(`^${nameEscaped}\\s*(and|,|-|:)\\s*`, 'i');
+          address = address.replace(leadingNamePattern, '').trim();
+        }
         // If they only gave a name and no address, ask for address
         if (!parsed.address) {
           await updateSession(session.id, { name: name || session.name });
@@ -338,7 +380,7 @@ Return ONLY the address or NONE. No explanation.`;
     ).catch(e => console.error('[BRAIN3] Lead patch error:', e.message));
   }
 
-  return `Got it. What's going on — AC, heating, or something else?`;
+  return getServiceQuestion(contractor.niche_name);
 }
 
 // ── Step 2: Capture service type + give real diagnostic ───────────────────────
@@ -623,7 +665,7 @@ async function handleEmail(session, contractor, businessName, text) {
       const notifications = require('./notifications');
       notifications.sendBrain3BookingConfirmation({
         to: input,
-        name: session.name || 'there',
+        name: session.name || '', // '' (not a fake fallback like 'there') — sendBrain3BookingConfirmation hides the Name row entirely when blank
         businessName,
         date: fmtDate(appt.scheduled_date),
         time: fmtTime(appt.scheduled_time),
