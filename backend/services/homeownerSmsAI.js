@@ -15,6 +15,7 @@
 
 const { v4: uuidv4 } = require('uuid');
 const https  = require('https');
+const zipcodes = require('zipcodes');
 const db     = require('../database/db');
 const { getRelevantKnowledge } = require('./diagnosticKnowledge');
 
@@ -149,12 +150,38 @@ function extractZip(address) {
   return matches[matches.length - 1].slice(0, 5); // last match = ZIP (city, state, ZIP order)
 }
 
-function isInServiceArea(address, serviceZipCodesJson) {
+// contractor = { service_zip_codes, address, service_radius_miles } — pass the full
+// row (not just service_zip_codes) so a wildcard ("I'll go anywhere") can still be
+// bounded by a real mile radius instead of meaning literally unlimited/any-state.
+function isInServiceArea(address, contractor) {
   try {
+    const serviceZipCodesJson = contractor && typeof contractor === 'object'
+      ? contractor.service_zip_codes
+      : contractor; // backwards-compat if ever called with just the JSON value
     const zips = typeof serviceZipCodesJson === 'string'
       ? JSON.parse(serviceZipCodesJson)
       : serviceZipCodesJson;
-    if (!zips || !Array.isArray(zips) || zips.includes('*')) return true; // wildcard = all
+
+    if (!zips || !Array.isArray(zips)) return true; // no data — permissive
+
+    if (zips.includes('*')) {
+      // Wildcard/"no limit" mode — still enforce a real mile radius from the
+      // contractor's own business address instead of treating this as truly
+      // unlimited. A contractor who says "I'll go anywhere" almost certainly
+      // means "within my region," not "someone in another state can book me."
+      const radiusMiles = (contractor && typeof contractor === 'object' && contractor.service_radius_miles)
+        ? Number(contractor.service_radius_miles)
+        : 25; // sane default if a radius was never captured
+      const contractorZip = contractor && typeof contractor === 'object'
+        ? extractZip(contractor.address)
+        : null;
+      const homeownerZip = extractZip(address);
+      if (!contractorZip || !homeownerZip) return true; // can't compute — give benefit of the doubt
+      const miles = zipcodes.distance(contractorZip, homeownerZip);
+      if (miles === null || miles === undefined) return true; // unknown zip in the offline DB — permissive
+      return miles <= radiusMiles;
+    }
+
     const zip = extractZip(address);
     if (!zip) return true; // can't parse ZIP — give benefit of the doubt
     return zips.includes(zip);
@@ -336,7 +363,7 @@ async function updateSession(sessionId, updates) {
 async function handleHomeownerSms(phone, contractorId, incomingText, session) {
   const contractor = await db.prepare(
     `SELECT c.id, c.name, c.company_name, c.niche_id, c.phone, c.twilio_number,
-            c.service_zip_codes,
+            c.service_zip_codes, c.service_radius_miles, c.address,
             n.name AS niche_name
      FROM contractors c
      LEFT JOIN niches n ON n.id = c.niche_id
@@ -439,7 +466,7 @@ Return ONLY the address or NONE. No explanation.`;
   }
 
   // ── Service area check ────────────────────────────────────────────────────
-  if (!isInServiceArea(address, contractor.service_zip_codes)) {
+  if (!isInServiceArea(address, contractor)) {
     await updateSession(session.id, { state: 'confirmed' }); // close session
     const zip = extractZip(address);
     const areaHint = zip ? `(we cover different zip codes)` : `(we don't serve that area)`;

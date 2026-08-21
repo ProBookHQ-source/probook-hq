@@ -88,7 +88,7 @@ router.post('/', requireContractor, async (req, res) => {
     service_area: {
       label: 'Confirm your service area',
       done: !!completedSteps.service_area,
-      guide: `Ask them to list every zip code they service, separated by commas or spaces (example: "98004, 98005, 98052"). Once they give you real zip codes, call set_service_zip_codes with the list — do not guess zip codes yourself. If they don't know their exact zips, ask them to list the zip codes they're comfortable driving to. Only call set_service_zip_codes with no_limit=true if they explicitly say they have no limit and will go anywhere — never assume that.`,
+      guide: `Ask them to list every zip code they service, separated by commas or spaces (example: "98004, 98005, 98052"). Once they give you real zip codes, call set_service_zip_codes with the list — do not guess zip codes yourself. If they don't know their exact zips, ask them to list the zip codes they're comfortable driving to. If they say they have no fixed area and will "go anywhere," ask "about how many miles from your shop are you willing to drive?" and call set_service_zip_codes with no_limit=true AND radius_miles set to that number — never call no_limit=true without a real radius_miles.`,
     },
     availability: {
       label: 'Confirm your availability',
@@ -223,7 +223,7 @@ RULES:
     },
     {
       name: 'set_service_zip_codes',
-      description: 'Save the list of zip codes this contractor services, as part of the service-area setup step. Call this once you have real 5-digit zip codes from them. Only pass no_limit=true if they explicitly say they have no service-area limit and will go anywhere — never assume that.',
+      description: 'Save the list of zip codes this contractor services, as part of the service-area setup step. Call this once you have real 5-digit zip codes from them. If they say they have no fixed zip list and will "go anywhere," that still needs a real mile radius from their business address — ask "about how many miles from your shop are you willing to drive?" and pass that as radius_miles along with no_limit=true. Never call no_limit=true without a radius_miles number.',
       input_schema: {
         type: 'object',
         properties: {
@@ -234,7 +234,11 @@ RULES:
           },
           no_limit: {
             type: 'boolean',
-            description: 'true ONLY if they explicitly said they have no service-area limit / will travel anywhere. Do not set this just because they gave an unclear answer.',
+            description: 'true ONLY if they explicitly said they have no fixed zip list / will travel anywhere. Requires radius_miles to also be set.',
+          },
+          radius_miles: {
+            type: 'number',
+            description: 'How many miles from their business address they are willing to travel. Required whenever no_limit is true. Ask them directly — never guess it.',
           },
         },
         required: [],
@@ -301,13 +305,23 @@ RULES:
       }
     } else if (name === 'set_service_zip_codes') {
       try {
-        const { zip_codes, no_limit } = input;
+        const { zip_codes, no_limit, radius_miles } = input;
         let toSave = null;
+        let radiusToSave = null;
         let humanSummary = '';
 
         if (no_limit) {
-          toSave = ['*'];
-          humanSummary = 'no service-area limit (serves anywhere)';
+          // Same guardrail as smsAI.js — "I'll go anywhere" still needs a real
+          // mile radius from the business address, otherwise this saves a truly
+          // unbounded wildcard (someone in another state could book them).
+          const radiusNum = Number(radius_miles);
+          if (!radius_miles || !Number.isFinite(radiusNum) || radiusNum <= 0) {
+            toolResult = `Error: no_limit requires a real mile radius. Ask them "about how many miles from your shop are you willing to drive?" and call this again with radius_miles set.`;
+          } else {
+            toSave = ['*'];
+            radiusToSave = Math.round(radiusNum);
+            humanSummary = `no fixed zip list, bounded to a ${radiusToSave}-mile radius from their business address`;
+          }
         } else {
           const cleaned = Array.isArray(zip_codes)
             ? zip_codes.map(z => String(z).replace(/\D/g, '').slice(0, 5)).filter(z => z.length === 5)
@@ -319,7 +333,9 @@ RULES:
         }
 
         if (!toSave) {
-          toolResult = `Error: no valid 5-digit zip codes found in that reply — ask them to send the zip codes again, digits only, separated by commas or spaces.`;
+          if (!toolResult) {
+            toolResult = `Error: no valid 5-digit zip codes found in that reply — ask them to send the zip codes again, digits only, separated by commas or spaces.`;
+          }
         } else {
           // Same fix as the SMS drip (smsAI.js) — a real gap left over from the
           // pivot away from the old intake form, which used to collect service-
@@ -329,13 +345,24 @@ RULES:
           // Brain 3's isInServiceArea() check a no-op. Kept here in sync with
           // smsAI.js's identical handler so the portal Help chat and the SMS drip
           // both actually complete this step, not just one of them.
-          await db.query(`
-            UPDATE contractors
-            SET service_zip_codes = $1,
-                onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || '{"service_area": true}'::jsonb,
-                onboarding_started_at = COALESCE(onboarding_started_at, NOW())
-            WHERE id = $2
-          `, [JSON.stringify(toSave), contractorId]);
+          if (radiusToSave) {
+            await db.query(`
+              UPDATE contractors
+              SET service_zip_codes = $1,
+                  service_radius_miles = $2,
+                  onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || '{"service_area": true}'::jsonb,
+                  onboarding_started_at = COALESCE(onboarding_started_at, NOW())
+              WHERE id = $3
+            `, [JSON.stringify(toSave), radiusToSave, contractorId]);
+          } else {
+            await db.query(`
+              UPDATE contractors
+              SET service_zip_codes = $1,
+                  onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || '{"service_area": true}'::jsonb,
+                  onboarding_started_at = COALESCE(onboarding_started_at, NOW())
+              WHERE id = $2
+            `, [JSON.stringify(toSave), contractorId]);
+          }
           toolResult = `Saved service area: ${humanSummary}. Step marked complete.`;
           actionTaken = { type: 'complete_setup_step', step_key: 'service_area' };
           console.log(`[AI-CHAT] service_zip_codes set for ${contractorId}: ${humanSummary}`);

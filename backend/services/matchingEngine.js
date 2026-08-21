@@ -17,11 +17,31 @@ function haversine(lat1, lon1, lat2, lon2) {
 
 // Returns true if a contractor serves a given zip code.
 // Logic: exact zip match (fast) OR radius match if contractor has service_radius_miles set.
+//
+// The '*' wildcard used to short-circuit to `true` immediately — meaning a
+// contractor mid-onboarding (every new contractor is seeded with ['*'] until
+// they text back real zip codes, see contractorSignup.js) or one who told
+// Brain 2 "I'll go anywhere" would match a lead from literally any zip in the
+// country, with the radius fallback below it never even reached. This is the
+// same unbounded-wildcard bug that was fixed in homeownerSmsAI.js's
+// isInServiceArea() — fixed here the same way: '*' now falls through to a
+// real distance check against the contractor's own business address instead
+// of being treated as truly unlimited.
 function contractorServesZip(contractor, leadZip) {
   try {
     let zips = JSON.parse(contractor.service_zip_codes);
     if (!Array.isArray(zips)) zips = [String(zips)];
-    if (zips.includes(leadZip) || zips.includes('*')) return true;
+
+    if (zips.includes('*')) {
+      const radius = contractor.service_radius_miles || 25; // sane default if never set
+      const contractorZip = extractZipFromAddress(contractor.address);
+      if (!contractorZip) return false; // can't bound an unresolved wildcard — do not match
+      const miles = zipcodes.distance(contractorZip, leadZip);
+      if (miles === null || miles === undefined) return false; // unknown zip in offline DB
+      return miles <= radius;
+    }
+
+    if (zips.includes(leadZip)) return true;
 
     // Radius fallback — only if contractor opted in with a radius
     const radius = contractor.service_radius_miles;
@@ -38,6 +58,12 @@ function contractorServesZip(contractor, leadZip) {
   } catch {
     return false;
   }
+}
+
+function extractZipFromAddress(address) {
+  const matches = (address || '').match(/\b(\d{5})(?:-\d{4})?\b/g);
+  if (!matches) return null;
+  return matches[matches.length - 1].slice(0, 5);
 }
 
 const BOOKING_LINK_EXPIRY_HOURS = 48;

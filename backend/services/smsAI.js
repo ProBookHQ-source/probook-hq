@@ -81,7 +81,7 @@ function buildStepGuides(liveContractor, completedSteps, bookingLink, twilioNumb
     service_area: {
       label: 'Confirm your service area',
       done: !!completedSteps.service_area,
-      guide: `Ask them to text every zip code they service, separated by commas or spaces (example: "98004, 98005, 98052"). Once they reply with real zip codes, call set_service_zip_codes with the list — do not guess zip codes yourself. If they don't know their exact zips, ask them to list the zip codes they're comfortable driving to. Only call set_service_zip_codes with no_limit=true if they explicitly say they have no limit and will go anywhere — never assume that just because they didn't answer clearly.`,
+      guide: `Ask them to text every zip code they service, separated by commas or spaces (example: "98004, 98005, 98052"). Once they reply with real zip codes, call set_service_zip_codes with the list — do not guess zip codes yourself. If they don't know their exact zips, ask them to list the zip codes they're comfortable driving to. If they say they have no fixed area and will "go anywhere," don't take that as unlimited — ask "about how many miles from your shop are you willing to drive?" and call set_service_zip_codes with no_limit=true AND radius_miles set to that number. Never call no_limit=true without also getting a real radius_miles from them first.`,
     },
     availability: {
       label: 'Confirm your schedule',
@@ -401,7 +401,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
     },
     {
       name: 'set_service_zip_codes',
-      description: 'Save the list of zip codes this contractor services, as part of the service-area setup step. Call this once you have real 5-digit zip codes from them. Only pass no_limit=true if they explicitly say they have no service-area limit and will go anywhere — never assume that.',
+      description: 'Save the list of zip codes this contractor services, as part of the service-area setup step. Call this once you have real 5-digit zip codes from them. If they say they have no fixed zip list and will "go anywhere," that still needs a real mile radius from their business address — ask "about how many miles from your shop are you willing to drive?" and pass that as radius_miles along with no_limit=true. Never call no_limit=true without a radius_miles number — an unbounded service area would let someone in another state book them.',
       input_schema: {
         type: 'object',
         properties: {
@@ -412,7 +412,11 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           },
           no_limit: {
             type: 'boolean',
-            description: 'true ONLY if they explicitly said they have no service-area limit / will travel anywhere. Do not set this just because they gave an unclear answer.',
+            description: 'true ONLY if they explicitly said they have no fixed zip list / will travel anywhere. Requires radius_miles to also be set — do not call with no_limit true and radius_miles missing.',
+          },
+          radius_miles: {
+            type: 'number',
+            description: 'How many miles from their business address they are willing to travel. Required whenever no_limit is true. Ask them directly for this number — never guess it.',
           },
         },
         required: [],
@@ -634,13 +638,24 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
 
     } else if (name === 'set_service_zip_codes') {
       try {
-        const { zip_codes, no_limit } = input;
+        const { zip_codes, no_limit, radius_miles } = input;
         let toSave = null;
+        let radiusToSave = null;
         let humanSummary = '';
 
         if (no_limit) {
-          toSave = ['*'];
-          humanSummary = 'no service-area limit (serves anywhere)';
+          // "I'll go anywhere" still needs a real mile radius from the contractor's
+          // own business address — without one this would mean literally unlimited
+          // (someone in another state could text in and book), which is the exact
+          // bug this whole step was built to close. Never save an unbounded wildcard.
+          const radiusNum = Number(radius_miles);
+          if (!radius_miles || !Number.isFinite(radiusNum) || radiusNum <= 0) {
+            toolResult = `Error: no_limit requires a real mile radius. Ask them "about how many miles from your shop are you willing to drive?" and call this again with radius_miles set.`;
+          } else {
+            toSave = ['*'];
+            radiusToSave = Math.round(radiusNum);
+            humanSummary = `no fixed zip list, bounded to a ${radiusToSave}-mile radius from their business address`;
+          }
         } else {
           const cleaned = Array.isArray(zip_codes)
             ? zip_codes.map(z => String(z).replace(/\D/g, '').slice(0, 5)).filter(z => z.length === 5)
@@ -652,7 +667,9 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
         }
 
         if (!toSave) {
-          toolResult = `Error: no valid 5-digit zip codes found in that reply — ask them to text the zip codes again, digits only, separated by commas or spaces.`;
+          if (!toolResult) {
+            toolResult = `Error: no valid 5-digit zip codes found in that reply — ask them to text the zip codes again, digits only, separated by commas or spaces.`;
+          }
         } else {
           // This is the fix for a real gap left over from the pivot: the old intake
           // form used to collect service-area zip codes explicitly, the new
@@ -661,14 +678,26 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           // every contractor since the pivot has had service_zip_codes hardcoded
           // to the wildcard ["*"], which made Brain 3's isInServiceArea() check
           // a no-op that accepted a booking from any address, anywhere. Saving a
-          // real list here is what actually turns that check back on.
-          await db.query(`
-            UPDATE contractors
-            SET service_zip_codes = $1,
-                onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || '{"service_area": true}'::jsonb,
-                onboarding_started_at = COALESCE(onboarding_started_at, NOW())
-            WHERE id = $2
-          `, [JSON.stringify(toSave), contractorId]);
+          // real list (or a wildcard + real radius) here is what actually turns
+          // that check back on.
+          if (radiusToSave) {
+            await db.query(`
+              UPDATE contractors
+              SET service_zip_codes = $1,
+                  service_radius_miles = $2,
+                  onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || '{"service_area": true}'::jsonb,
+                  onboarding_started_at = COALESCE(onboarding_started_at, NOW())
+              WHERE id = $3
+            `, [JSON.stringify(toSave), radiusToSave, contractorId]);
+          } else {
+            await db.query(`
+              UPDATE contractors
+              SET service_zip_codes = $1,
+                  onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || '{"service_area": true}'::jsonb,
+                  onboarding_started_at = COALESCE(onboarding_started_at, NOW())
+              WHERE id = $2
+            `, [JSON.stringify(toSave), contractorId]);
+          }
           toolResult = `Saved service area: ${humanSummary}. Step marked complete — move on to the next step.`;
           console.log(`[SMS-AI] service_zip_codes set for ${contractorId}: ${humanSummary}`);
         }
