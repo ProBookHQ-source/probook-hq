@@ -449,7 +449,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
     },
     {
       name: 'run_forwarding_test',
-      description: 'Test whether call forwarding is actually set up correctly, by having Tractify place a real test call to the contractor\'s own number. Use this the moment the contractor says they\'ve dialed the forwarding code / turned on the toggle — do NOT ask them to test it themselves by calling from another phone, Tractify tests it automatically now. Do not mark the twilio step done yourself — the test result (sent as a separate text within about a minute) marks it done automatically if it passes.',
+      description: 'Test whether call forwarding is actually set up correctly, by having Tractify place a real test call to the contractor\'s own number about 10 seconds after this tool runs. Use this the moment the contractor says they\'ve dialed the forwarding code / turned on the toggle — do NOT ask them to test it themselves by calling from another phone, Tractify tests it automatically now. IMPORTANT: the toolResult you get back tells you exactly what to say — send that warning to the contractor immediately, before the call lands, so they know not to answer it. Do not mark the twilio step done yourself — the test result (sent as a separate text within about a minute) marks it done automatically if it passes.',
       input_schema: {
         type: 'object',
         properties: {},
@@ -814,7 +814,14 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
         const { startForwardingTest } = require('./forwardingTest');
         const result = await startForwardingTest(contractor);
         if (result.started) {
-          toolResult = `Test call placed. Tell the contractor you're testing it now and they'll get a text with the result in under a minute — no further action needed from them right now.`;
+          // Live bug (Jose's own test): the reply the AI sends after calling this
+          // tool is composed from THIS toolResult text, not from the step guide's
+          // earlier "give me 10 seconds, don't answer" instruction — that guide
+          // text is easy to lose once a tool_result is in front of the model. Put
+          // the actual warning directly in the toolResult so it can't get dropped:
+          // a real call is coming to their phone in ~10 seconds and they must NOT
+          // answer it, or the test reads as a real ring instead of a redirect.
+          toolResult = `Test call placed — it will actually ring their real phone in about 10 seconds. Tell the contractor EXACTLY this, right now, before anything else: a real call from Tractify is about to come through in about 10 seconds — do NOT answer it, that's just the test checking that forwarding is set up correctly, not a real call. They'll get a text with the result within about a minute after that. No further action needed from them right now.`;
         } else if (result.reason === 'missing_number') {
           toolResult = `Error: no phone number on file to test — resolve set_business_phone first.`;
         } else {
