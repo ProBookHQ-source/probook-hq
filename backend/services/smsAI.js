@@ -3,14 +3,14 @@
  *
  * Three phases:
  *   Phase 1 — Activation (days 1-7): 2 required steps + specialty messages
- *   Phase 2 — Orientation: power message (after step 1) + calendar blocking (after step 2)
+ *   Phase 2 — Orientation: power message (after all 3 required steps done) + calendar blocking (after twilio step)
  *   Phase 3 — Ongoing loop: post-appointment close tracking, calendar management forever
  *
  * Exports:
  *   handleContractorSms        — inbound SMS handler
  *   sendSetupStepText          — drip cron: next incomplete step
  *   sendWelcomeText            — fires on first Twilio number assignment
- *   sendPowerMessage           — fires after step 1 (availability) confirmed
+ *   sendPowerMessage           — fires once all 3 required steps are confirmed
  *   sendCalendarTrainingMessage — fires after step 2 (twilio) confirmed
  *   sendPostAppointmentText    — fires 30-90 min after appointment time
  */
@@ -22,6 +22,14 @@ const notifications = require('./notifications');
 const { logEvent } = require('./auditLog');
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+// Mirrors ContractorPortal.jsx's REQUIRED_STEP_KEYS — the "you do 3 things"
+// promise. Used below to decide when the power message fires: live-tested by
+// Jose and found it was confusing a contractor mid-setup, firing right after
+// step 1 (availability) while they still had call forwarding ahead of them —
+// too much new info to absorb before the actual required checklist is even
+// done. Moved to fire only once all 3 required steps are genuinely complete.
+const REQUIRED_STEP_KEYS = ['service_area', 'availability', 'twilio'];
 
 function fmtTime(t) {
   if (!t) return '';
@@ -551,34 +559,52 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           }
         }
 
-        await db.query(`
+        const { rows: updatedRows } = await db.query(`
           UPDATE contractors
           SET onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || $1::jsonb,
               onboarding_started_at = COALESCE(onboarding_started_at, NOW())
           WHERE id = $2
+          RETURNING onboarding_steps
         `, [JSON.stringify({ [step_key]: true }), contractorId]);
         toolResult = `Step "${step_key}" marked complete.`;
         console.log(`[SMS-AI] Marked step "${step_key}" complete for contractor ${contractorId}`);
 
-        // Fire specialty messages after key steps — 3 second delay so main reply arrives first
-        if (step_key === 'availability' && !contractor.sms_power_message_sent && twilioClient) {
+        // Power message moved off the availability-step trigger (August 21,
+        // session 29) — Jose live-tested it and it confused a contractor by
+        // firing mid-setup, right as they were about to move into call
+        // forwarding, dumping "try texting me anything" info before the
+        // actual required checklist was even done. Now it only fires once
+        // ALL 3 required steps (service_area, availability, twilio) are
+        // genuinely complete — checked freshly off the just-updated
+        // onboarding_steps regardless of which order the contractor finished
+        // them in, so it fires exactly once, right when the required setup
+        // is actually done, not partway through it.
+        const freshSteps = updatedRows[0]?.onboarding_steps || {};
+        const allRequiredDone = REQUIRED_STEP_KEYS.every(k => freshSteps[k]);
+        if (allRequiredDone && !contractor.sms_power_message_sent && twilioClient) {
           await db.query('UPDATE contractors SET sms_power_message_sent = 1 WHERE id = $1', [contractorId]);
           setTimeout(() => sendPowerMessage(contractor, twilioClient).catch(err =>
             console.error('[SMS-AI] Power message failed:', err.message)
           ), 3000);
         }
+
+        // Fire specialty messages after key steps. Staggered 3s/9s/15s (rather
+        // than 3s/3s/9s as before) because twilio is typically the last of
+        // the 3 required steps a contractor finishes — meaning the power
+        // message above and this calendar-training message often now fire
+        // off the SAME event. Re-staggering avoids two texts landing at once.
         if (step_key === 'twilio' && !contractor.sms_calendar_training_sent && twilioClient) {
           await db.query('UPDATE contractors SET sms_calendar_training_sent = 1 WHERE id = $1', [contractorId]);
           setTimeout(() => sendCalendarTrainingMessage(contractor, twilioClient).catch(err =>
             console.error('[SMS-AI] Calendar training message failed:', err.message)
-          ), 3000);
-          // Capabilities guide fires 9s after main reply so all 3 messages arrive in sequence
+          ), 9000);
+          // Capabilities guide fires 15s after main reply so all texts triggered by this one event arrive in sequence
           const capCheck = await db.query('SELECT sms_capabilities_sent FROM contractors WHERE id = $1', [contractorId]);
           if (!capCheck.rows[0]?.sms_capabilities_sent) {
             await db.query('UPDATE contractors SET sms_capabilities_sent = 1 WHERE id = $1', [contractorId]);
             setTimeout(() => sendCapabilitiesGuide(contractor, twilioClient).catch(err =>
               console.error('[SMS-AI] Capabilities guide failed:', err.message)
-            ), 9000);
+            ), 15000);
           }
         }
       } catch (err) {
