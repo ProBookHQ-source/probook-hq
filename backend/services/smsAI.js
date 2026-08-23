@@ -118,12 +118,12 @@ function buildStepGuides(liveContractor, completedSteps, bookingLink, twilioNumb
     reviewers: {
       label: 'Message your Google reviewers',
       done: !!completedSteps.reviewers,
-      guide: `Go to business.google.com > Reviews > click Reply next to each review. Call send_step_copy with step="reviewers" — it sends the exact ready-to-paste message as its own standalone text, with a [Name] spot they fill in per reviewer. Do NOT write or paraphrase your own version of the message in your reply. Text DONE when sent.`,
+      guide: `Immediately call send_step_copy with step="reviewers" — it sends both the "why this matters + how to do it, 4-5 star only" explanation AND the ready-to-paste message (with a [Name] spot to personalize) as two separate texts, fully written already. Do NOT write or say anything about this step yourself first — just call the tool right away, it handles the entire explanation. Text DONE when sent.`,
     },
     messenger: {
       label: 'Set up Messenger + Instagram auto-reply',
       done: !!completedSteps.messenger,
-      guide: `Go to business.facebook.com > Inbox > Automation > Instant Replies > toggle on. Call send_step_copy with step="messenger" — it sends the exact ready-to-paste auto-reply text as its own standalone text message. Do NOT write or paraphrase your own version in your reply. Tell them to paste it there and save. Text DONE when done.`,
+      guide: `Immediately call send_step_copy with step="messenger" — it sends both the "why this matters + how to do it" explanation AND the ready-to-paste auto-reply text as two separate texts, fully written already. Do NOT write or say anything about this step yourself first — just call the tool right away, it handles the entire explanation. Text DONE when done.`,
     },
   };
 }
@@ -807,17 +807,24 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
 
         const COPY_TEMPLATES = {
           facebook: `Hi everyone! I run ${bizName} and just launched online booking. No phone tag — just pick a time: ${bookingLink}`,
-          reviewers: `Hi [Name]! Thanks for the review. We just launched online booking — book anytime here: ${bookingLink}. Hope we can help again!`,
+          // Reworked to sound warm/authentic, not templated (Jose reviewed
+          // both drafts and picked this one specifically for "one thing since
+          // then" — a softer, more attention-grabbing hook than a flat
+          // announcement, more likely to actually get read and clicked).
+          reviewers: `Hi [Name]! Really appreciate you taking the time to leave that review — made our day. One thing since then: we now do online booking, so if you ever need us again it's as easy as grabbing a time here: ${bookingLink}. Thanks again for trusting us with the work!`,
           messenger: `Thanks for reaching out to ${bizName}! Book a time here: ${bookingLink} — takes 60 seconds.`,
         };
         const copyText = COPY_TEMPLATES[step];
 
-        // facebook gets an approved, deterministic "why + how" intro of its own
-        // (Jose reviewed and approved this exact wording), sent directly ahead
-        // of the post copy — same reasoning as everything else built tonight:
-        // don't let the model paraphrase wording that's already been nailed down.
+        // Deterministic "why + how" intros, sent directly ahead of each copy
+        // (Jose reviewed and approved this exact wording for all three) —
+        // same reasoning as everything else built tonight: don't let the
+        // model write or race its own version of text that's already been
+        // nailed down word for word.
         const INTRO_TEMPLATES = {
           facebook: `Local Facebook groups are full of homeowners asking their neighbors for contractor recommendations — free leads, no ad spend. Search Facebook for your city + "neighbors" or "community" groups, join one, then post in it — and I'll send you the exact copy to paste right after this. Text DONE once it's posted.`,
+          reviewers: `Your happy customers already paid you and loved the work — they're your warmest leads for repeat business or a referral. Go to business.google.com, click Reviews, and reply only to your 4 and 5-star reviews — skip anything lower than that, this isn't the moment to pitch someone who wasn't happy. I'll send the exact message to paste next — just swap in their name where it says [Name]. Text DONE once you've replied to all your 4 and 5-star ones.`,
+          messenger: `Homeowners DM your Facebook or Instagram all the time and never hear back — whoever responds first usually gets the job. Go to business.facebook.com, click Inbox, then Automation, then Instant Replies, and toggle it on. I'll send the exact auto-reply text to paste next. Text DONE once it's saved.`,
         };
         const introText = INTRO_TEMPLATES[step];
 
