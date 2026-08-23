@@ -744,21 +744,33 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           const code = carrier === 'verizon'
             ? `*71${contractor.twilio_number}`
             : `**61*${contractor.twilio_number}*11*20#`;
+
+          // ── Root-cause fix for the ordering bug (Jose live-caught it, Aug 21) ──
+          // The explanation used to be Claude's own generated reply, sent whenever
+          // Claude's turn finished — that requires an extra model round-trip after
+          // this tool_result comes back, which can easily take longer than a fixed
+          // setTimeout. The bare code, on its own independent 1.5s timer, would
+          // sometimes win the race and arrive FIRST, with the explanation landing
+          // after it — backwards, and confusing even to Jose himself when he tested
+          // it live. Fix: send the explanation directly from here, immediately, so
+          // it's not competing with an unrelated clock — then send the bare code on
+          // a real, guaranteed gap AFTER that actual send, not a guess against
+          // Claude's latency. toolResult tells Claude not to also write its own
+          // version, so the contractor never gets a redundant third text either.
+          const explanation = `Here's exactly what to do. In a few seconds I'll text you a code by itself — once it lands, press and hold on it and tap Copy. Then open your Phone app like you're about to call someone. Tap the Keypad tab (the number pad icon) at the bottom. Tap and hold in the number field at the top until "Paste" pops up, then tap Paste — the code fills in. Tap the green call button. It'll connect for a second then hang up on its own — that's normal, that means it worked. Text me DONE once you've dialed it.`;
+
+          twilioClient.messages.create({
+            to: forwardNumber, from: contractor.twilio_number, body: explanation,
+          }).catch(err => console.error('[SMS-AI] send_forwarding_code explanation send failed:', err.message));
+
           setTimeout(() => {
             twilioClient.messages.create({
               to: forwardNumber, from: contractor.twilio_number, body: code,
-            }).catch(err => console.error('[SMS-AI] send_forwarding_code send failed:', err.message));
-          }, 1500);
-          // Jose live-tested this exact message and could not tell what to actually
-          // do with the code, despite having built the product — "press the green
-          // call button after tapping it" assumes the reader already knows they
-          // need to copy it into the dialer first. Rewritten as an explicit,
-          // numbered, no-assumed-knowledge sequence: copy → open Phone app → tap
-          // the keypad → long-press the entry field → tap Paste → tap the green
-          // call button. This is the exact wording the AI should send in the
-          // message BEFORE the bare code arrives 1.5s later as its own text.
-          toolResult = `The code is being sent as its own text message right after this one. Tell them these exact steps, numbered, in order — do not assume they know how to use a dial code: 1) Copy the code from that next text (press and hold it, tap Copy). 2) Open your Phone app. 3) Tap the Keypad tab (the number pad icon). 4) Tap and hold on the number entry field at the top until "Paste" pops up, then tap Paste — the code will fill in the field. 5) Tap the green call button. It'll connect for a second or two then hang up on its own — that's normal, that means it worked, no need to stay on the call. Do NOT repeat the code yourself in your reply — let the separate text carry it.`;
-          console.log(`[SMS-AI] Sent forwarding code (${carrier}) to ${contractorId}`);
+            }).catch(err => console.error('[SMS-AI] send_forwarding_code code send failed:', err.message));
+          }, 4000);
+
+          toolResult = `Both messages are already being sent directly — the numbered explanation now, the bare code 4 seconds after. Do NOT write your own version of these instructions and do NOT repeat the code in your reply. End your turn with either no text at all, or at most a very short one-line acknowledgment like "Let me know once you've dialed it!" — anything longer risks duplicating what they're about to receive.`;
+          console.log(`[SMS-AI] Sent forwarding explanation + code (${carrier}) to ${contractorId}`);
         }
       } catch (err) {
         toolResult = `Error: ${err.message}`;
