@@ -113,17 +113,17 @@ function buildStepGuides(liveContractor, completedSteps, bookingLink, twilioNumb
     facebook: {
       label: 'Post in a local Facebook group',
       done: !!completedSteps.facebook,
-      guide: `Search Facebook for your city + "neighbors" or "community" groups. Post: "Hi everyone! I run ${liveContractor.company_name || liveContractor.name} and just launched online booking. No phone tag — just pick a time: ${bookingLink}." Text DONE when posted.`,
+      guide: `Search Facebook for your city + "neighbors" or "community" groups. Tell them to make a post in that group and immediately call send_step_copy with step="facebook" — it sends the exact ready-to-paste post as its own standalone text message. Do NOT write or paraphrase your own version of the post text in your reply, even though you know roughly what it should say — the tool sends the real one. Text DONE when posted.`,
     },
     reviewers: {
       label: 'Message your Google reviewers',
       done: !!completedSteps.reviewers,
-      guide: `Go to business.google.com > Reviews > click Reply next to each review. Send: "Hi [Name]! Thanks for the review. We just launched online booking — book anytime here: ${bookingLink}. Hope we can help again!" Text DONE when sent.`,
+      guide: `Go to business.google.com > Reviews > click Reply next to each review. Call send_step_copy with step="reviewers" — it sends the exact ready-to-paste message as its own standalone text, with a [Name] spot they fill in per reviewer. Do NOT write or paraphrase your own version of the message in your reply. Text DONE when sent.`,
     },
     messenger: {
       label: 'Set up Messenger + Instagram auto-reply',
       done: !!completedSteps.messenger,
-      guide: `Go to business.facebook.com > Inbox > Automation > Instant Replies > toggle on > paste: "Thanks for reaching out to ${liveContractor.company_name || liveContractor.name}! Book a time here: ${bookingLink} — takes 60 seconds." > Save. Text DONE when done.`,
+      guide: `Go to business.facebook.com > Inbox > Automation > Instant Replies > toggle on. Call send_step_copy with step="messenger" — it sends the exact ready-to-paste auto-reply text as its own standalone text message. Do NOT write or paraphrase your own version in your reply. Tell them to paste it there and save. Text DONE when done.`,
     },
   };
 }
@@ -430,6 +430,21 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           },
         },
         required: ['carrier'],
+      },
+    },
+    {
+      name: 'send_step_copy',
+      description: 'Sends the exact ready-to-paste copy for a self-serve setup step (Facebook group post, Google reviewer reply, or Messenger/Instagram auto-reply) as its own standalone text message, computed with the contractor\'s real business name and booking link. Use this instead of writing or paraphrasing your own version of the post/message in your reply — live-tested and found that a paraphrased version drifts from the actual intended copy every time. Call this the moment you\'re ready to hand them the text for facebook, reviewers, or messenger — do not type your own version of it first.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          step: {
+            type: 'string',
+            enum: ['facebook', 'reviewers', 'messenger'],
+            description: 'Which step this copy is for.',
+          },
+        },
+        required: ['step'],
       },
     },
     {
@@ -775,6 +790,42 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
       } catch (err) {
         toolResult = `Error: ${err.message}`;
         console.error('[SMS-AI] send_forwarding_code error:', err.message);
+      }
+
+    } else if (name === 'send_step_copy') {
+      // Same principle as send_forwarding_code (tasks #19/#21/#43): stop
+      // trusting the model to relay exact copy-paste text verbatim — live-
+      // caught tonight paraphrasing the Facebook post guide's ready copy into
+      // its own version instead of sending it as written. Compute and send
+      // the real text deterministically, every time, as its own message.
+      try {
+        const { step } = input;
+        const bookingLink = contractor.booking_slug
+          ? `https://tractifyhq.com/schedule/${contractor.booking_slug}`
+          : 'https://tractifyhq.com/schedule';
+        const bizName = contractor.company_name || contractor.name;
+
+        const COPY_TEMPLATES = {
+          facebook: `Hi everyone! I run ${bizName} and just launched online booking. No phone tag — just pick a time: ${bookingLink}`,
+          reviewers: `Hi [Name]! Thanks for the review. We just launched online booking — book anytime here: ${bookingLink}. Hope we can help again!`,
+          messenger: `Thanks for reaching out to ${bizName}! Book a time here: ${bookingLink} — takes 60 seconds.`,
+        };
+        const copyText = COPY_TEMPLATES[step];
+
+        if (!twilioClient) {
+          toolResult = `Error: Twilio not configured — tell them the text will follow shortly.`;
+        } else if (!copyText) {
+          toolResult = `Error: unknown step "${step}" — valid values are facebook, reviewers, messenger.`;
+        } else {
+          twilioClient.messages.create({
+            to: contractor.phone, from: contractor.twilio_number, body: copyText,
+          }).catch(err => console.error('[SMS-AI] send_step_copy send failed:', err.message));
+          toolResult = `The exact copy-paste text is being sent as its own text message right now. Tell them it's coming and to copy that one directly — do NOT retype, rewrite, or paraphrase it yourself in your reply.`;
+          console.log(`[SMS-AI] Sent ${step} copy-paste text to ${contractorId}`);
+        }
+      } catch (err) {
+        toolResult = `Error: ${err.message}`;
+        console.error('[SMS-AI] send_step_copy error:', err.message);
       }
 
     } else if (name === 'set_service_zip_codes') {
