@@ -113,7 +113,7 @@ function buildStepGuides(liveContractor, completedSteps, bookingLink, twilioNumb
     facebook: {
       label: 'Post in a local Facebook group',
       done: !!completedSteps.facebook,
-      guide: `Search Facebook for your city + "neighbors" or "community" groups. Tell them to make a post in that group and immediately call send_step_copy with step="facebook" — it sends the exact ready-to-paste post as its own standalone text message. Do NOT write or paraphrase your own version of the post text in your reply, even though you know roughly what it should say — the tool sends the real one. Text DONE when posted.`,
+      guide: `Immediately call send_step_copy with step="facebook" — it sends both the "why this matters + how to do it" explanation AND the ready-to-paste post as two separate texts, fully written already. Do NOT write or say anything about this step yourself first — just call the tool right away, it handles the entire explanation. Text DONE when posted.`,
     },
     reviewers: {
       label: 'Message your Google reviewers',
@@ -812,10 +812,30 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
         };
         const copyText = COPY_TEMPLATES[step];
 
+        // facebook gets an approved, deterministic "why + how" intro of its own
+        // (Jose reviewed and approved this exact wording), sent directly ahead
+        // of the post copy — same reasoning as everything else built tonight:
+        // don't let the model paraphrase wording that's already been nailed down.
+        const INTRO_TEMPLATES = {
+          facebook: `Local Facebook groups are full of homeowners asking their neighbors for contractor recommendations — free leads, no ad spend. Search Facebook for your city + "neighbors" or "community" groups, join one, then post in it — and I'll send you the exact copy to paste right after this. Text DONE once it's posted.`,
+        };
+        const introText = INTRO_TEMPLATES[step];
+
         if (!twilioClient) {
           toolResult = `Error: Twilio not configured — tell them the text will follow shortly.`;
         } else if (!copyText) {
           toolResult = `Error: unknown step "${step}" — valid values are facebook, reviewers, messenger.`;
+        } else if (introText) {
+          twilioClient.messages.create({
+            to: contractor.phone, from: contractor.twilio_number, body: introText,
+          }).catch(err => console.error('[SMS-AI] send_step_copy intro send failed:', err.message));
+          setTimeout(() => {
+            twilioClient.messages.create({
+              to: contractor.phone, from: contractor.twilio_number, body: copyText,
+            }).catch(err => console.error('[SMS-AI] send_step_copy copy send failed:', err.message));
+          }, 4000);
+          toolResult = `Both messages are already being sent directly — the "why + how" intro now, the ready-to-paste copy 4 seconds after. Do NOT write your own version of either one and do NOT repeat the copy in your reply. End your turn with no additional text.`;
+          console.log(`[SMS-AI] Sent ${step} intro + copy-paste text to ${contractorId}`);
         } else {
           twilioClient.messages.create({
             to: contractor.phone, from: contractor.twilio_number, body: copyText,
