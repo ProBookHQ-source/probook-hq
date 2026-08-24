@@ -791,8 +791,20 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
             }).catch(err => console.error('[SMS-AI] send_forwarding_code code send failed:', err.message));
           }, 4000);
 
-          toolResult = `Both messages are already being sent directly — the numbered explanation now, the bare code 4 seconds after — and together they already say everything needed, including asking them to text DONE once it's dialed. Send NO reply text of your own this turn, not even a short acknowledgment. Live-tested: even one extra line creates a confusing third message that just re-narrates what the first message already said, landing right in between the explanation and the code. Just call the tool and end your turn with zero text.`;
-          console.log(`[SMS-AI] Sent forwarding explanation + code (${carrier}) to ${contractorId}`);
+          // Optional visual reference — sent LAST, after both time-critical
+          // messages, on purpose. Jose's own framing: "in case they need it
+          // for reference," i.e. a fallback for once they already have the
+          // instructions + code in hand, not required pre-reading. Putting it
+          // between the explanation and the code would reintroduce the exact
+          // 3-messages-in-the-critical-path clutter just fixed above.
+          setTimeout(() => {
+            twilioClient.messages.create({
+              to: forwardNumber, from: contractor.twilio_number, body: 'Want to see it step by step? tractifyhq.com/how-to',
+            }).catch(err => console.error('[SMS-AI] send_forwarding_code how-to link send failed:', err.message));
+          }, 7000);
+
+          toolResult = `Three messages are already being sent directly — the numbered explanation now, the bare code 4 seconds after, and an optional "want to see it step by step?" link 7 seconds after that as a fallback reference. Together they already say everything needed, including asking them to text DONE once it's dialed. Send NO reply text of your own this turn, not even a short acknowledgment. Live-tested: even one extra line creates a confusing message that just re-narrates what the first message already said, landing in the middle of the sequence. Just call the tool and end your turn with zero text.`;
+          console.log(`[SMS-AI] Sent forwarding explanation + code + how-to link (${carrier}) to ${contractorId}`);
         }
       } catch (err) {
         toolResult = `Error: ${err.message}`;
