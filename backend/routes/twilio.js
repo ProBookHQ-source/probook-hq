@@ -267,8 +267,18 @@ router.post('/inbound-sms', async (req, res) => {
     try {
       const { handleContractorSms } = require('../services/smsAI');
       const reply = await handleContractorSms(contractor, Body || '');
-      await twilioClient.messages.create({ to: From, from: To, body: reply });
-      console.log(`[TWILIO-SMS] AI reply sent to contractor ${contractor.name}: ${reply.substring(0, 80)}`);
+      // reply can be null on purpose — some tools (send_forwarding_code,
+      // send_step_copy) already send their own deterministic SMS messages
+      // directly and instruct the AI to stay silent this turn. Sending
+      // Twilio a null/empty body would either throw or produce a blank
+      // text, so skip the send entirely in that case rather than treating
+      // it as a failure.
+      if (reply) {
+        await twilioClient.messages.create({ to: From, from: To, body: reply });
+        console.log(`[TWILIO-SMS] AI reply sent to contractor ${contractor.name}: ${reply.substring(0, 80)}`);
+      } else {
+        console.log(`[TWILIO-SMS] No reply sent — deterministic messages already covered this turn (contractor ${contractor.name})`);
+      }
     } catch (err) {
       console.error('[TWILIO-SMS] AI handler error:', err.message);
       await twilioClient.messages.create({
@@ -453,7 +463,10 @@ router.post('/test-sms', requireAdmin, async (req, res) => {
   if (role === 'contractor') {
     const { handleContractorSms } = require('../services/smsAI');
     const reply = await handleContractorSms(contractor, message);
-    console.log(`[TEST-SMS] Brain 2 reply: "${reply.substring(0, 80)}"`);
+    // reply can be null when a tool (e.g. send_forwarding_code) already sent
+    // its own deterministic SMS and told the AI to stay silent this turn —
+    // guard against that here since this is just an admin-testing JSON echo.
+    console.log(`[TEST-SMS] Brain 2 reply: "${reply ? reply.substring(0, 80) : '(no text reply — deterministic messages already sent)'}"`);
     return res.json({ role, contractor: businessName, phone: normalizedPhone, message, reply });
   }
 

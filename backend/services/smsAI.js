@@ -546,6 +546,15 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
   // blocks in the response and resolve every one before calling the API again.
   const toolMessages = [...messages];
   const twilioClient = getTwilioClient();
+  // Set to true whenever a tool's instructions tell the model to send zero
+  // reply text because deterministic SMS messages already said everything
+  // (send_forwarding_code, send_step_copy). Live-caught real bug: the code
+  // used to have no concept of "intentionally silent" — any turn with no
+  // text block, whether from genuine failure OR from being told to stay
+  // quiet, fell into the same "Didn't quite catch that" fallback, which
+  // then got sent as an actual confusing 4th SMS right after three messages
+  // that worked perfectly. This flag lets the two cases be told apart.
+  let intentionalSilence = false;
 
   // Also enter this loop on stop_reason === 'max_tokens' if the truncated
   // response still contains at least one complete tool_use block. Live-caught
@@ -819,6 +828,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
             }).catch(err => console.error('[SMS-AI] send_forwarding_code how-to link send failed:', err.message));
           }, 7000);
 
+          intentionalSilence = true;
           toolResult = `Three messages are already being sent directly — the numbered explanation now, the bare code 4 seconds after, and an optional "want to see it step by step?" link 7 seconds after that as a fallback reference. Together they already say everything needed, including asking them to text DONE once it's dialed. Send NO reply text of your own this turn, not even a short acknowledgment. Live-tested: even one extra line creates a confusing message that just re-narrates what the first message already said, landing in the middle of the sequence. Just call the tool and end your turn with zero text.`;
           console.log(`[SMS-AI] Sent forwarding explanation + code + how-to link (${carrier}) to ${contractorId}`);
         }
@@ -876,6 +886,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
               to: contractor.phone, from: contractor.twilio_number, body: copyText,
             }).catch(err => console.error('[SMS-AI] send_step_copy copy send failed:', err.message));
           }, 4000);
+          intentionalSilence = true;
           toolResult = `Both messages are already being sent directly — the "why + how" intro now, the ready-to-paste copy 4 seconds after. Do NOT write your own version of either one and do NOT repeat the copy in your reply. End your turn with no additional text.`;
           console.log(`[SMS-AI] Sent ${step} intro + copy-paste text to ${contractorId}`);
         } else {
@@ -1045,14 +1056,27 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
   // an automatic follow-up that doesn't exist. Nothing in this codebase
   // retries a stalled turn on its own; the contractor texting again is the
   // only thing that actually triggers another attempt.
-  const reply = response.content.find(b => b.type === 'text')?.text
-    || "Didn't quite catch that — mind sending it again?";
+  //
+  // IMPORTANT: a missing text block does NOT always mean failure. Tools like
+  // send_forwarding_code and send_step_copy deliberately instruct the model
+  // to end its turn with zero text, since the deterministic SMS messages
+  // they already sent say everything needed. That case sets
+  // intentionalSilence = true above. Live-caught real bug: before this fix,
+  // both cases (genuine failure vs. intentional silence) fell into the same
+  // fallback string, which then got sent as an actual confusing extra SMS
+  // right after a working message sequence. Now: intentional silence stores
+  // a short placeholder in conversation history (so the AI has something
+  // sane to look back on next turn) but returns null to the caller, which
+  // twilio.js's webhook handler treats as "don't send anything."
+  const textBlock = response.content.find(b => b.type === 'text')?.text;
+  const reply = textBlock
+    || (intentionalSilence ? null : "Didn't quite catch that — mind sending it again?");
 
   // ── Persist conversation (keep last 20 messages = 10 exchanges) ─────────────
   const updatedHistory = [
     ...history,
     { role: 'user', content: incomingText },
-    { role: 'assistant', content: reply },
+    { role: 'assistant', content: reply ?? '(no text reply — deterministic messages already sent)' },
   ].slice(-20);
 
   await db.query(
