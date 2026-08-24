@@ -791,7 +791,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
             }).catch(err => console.error('[SMS-AI] send_forwarding_code code send failed:', err.message));
           }, 4000);
 
-          toolResult = `Both messages are already being sent directly — the numbered explanation now, the bare code 4 seconds after. Do NOT write your own version of these instructions and do NOT repeat the code in your reply. End your turn with either no text at all, or at most a very short one-line acknowledgment like "Let me know once you've dialed it!" — anything longer risks duplicating what they're about to receive.`;
+          toolResult = `Both messages are already being sent directly — the numbered explanation now, the bare code 4 seconds after — and together they already say everything needed, including asking them to text DONE once it's dialed. Send NO reply text of your own this turn, not even a short acknowledgment. Live-tested: even one extra line creates a confusing third message that just re-narrates what the first message already said, landing right in between the explanation and the code. Just call the tool and end your turn with zero text.`;
           console.log(`[SMS-AI] Sent forwarding explanation + code (${carrier}) to ${contractorId}`);
         }
       } catch (err) {
