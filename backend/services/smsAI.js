@@ -526,12 +526,13 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
     // 300 was too tight — a single turn can require several tool_use blocks
     // back to back (e.g. "closed Saturdays, Mon-Fri 9-5" needs 6 separate
     // update_availability_slot calls, one per day) plus a closing summary
-    // sentence. Truncating mid-generation meant stop_reason came back as
-    // 'max_tokens' instead of 'tool_use', which skipped tool processing
-    // entirely (the loop below only continues on 'tool_use') and produced
-    // an empty/fallback reply with nothing actually saved. 1024 gives real
-    // headroom for a multi-day change in one turn.
-    max_tokens: 1024,
+    // sentence. Raised to 1024, then live-caught still occasionally hitting
+    // that ceiling on a 5-7-tool-call turn (nondeterministic — same message
+    // retried a second time succeeded). Raised again to 2048 for real margin.
+    // Also see the while loop below — a max_tokens response used to discard
+    // every tool_use block in it, even complete ones, instead of processing
+    // whatever the model did manage to finish before truncation.
+    max_tokens: 2048,
     system: await buildSystemPrompt(),
     tools,
     messages,
@@ -546,7 +547,22 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
   const toolMessages = [...messages];
   const twilioClient = getTwilioClient();
 
-  while (response.stop_reason === 'tool_use') {
+  // Also enter this loop on stop_reason === 'max_tokens' if the truncated
+  // response still contains at least one complete tool_use block. Live-caught
+  // real bug: the API only returns FULLY-formed content blocks even when
+  // generation is cut off mid-response — so a max_tokens turn can still carry
+  // several legitimate, already-complete tool_use calls (e.g. update_
+  // availability_slot for Mon/Tue/Wed) that just happened to be followed by
+  // something that didn't fit. The old `while (stop_reason === 'tool_use')`
+  // condition silently discarded all of them the moment truncation hit,
+  // meaning real work the model already finished never got saved — worse
+  // than just a "didn't catch that" reply, since it looked like nothing
+  // happened when some of it actually had. Only fall through to the generic
+  // fallback now if there's truly nothing usable to process.
+  while (
+    response.stop_reason === 'tool_use' ||
+    (response.stop_reason === 'max_tokens' && response.content.some(b => b.type === 'tool_use'))
+  ) {
     const toolBlocks = response.content.filter(b => b.type === 'tool_use');
     if (!toolBlocks.length) break;
 
@@ -1017,7 +1033,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
     // buildSystemPrompt() above.
     response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024, // see comment on the first messages.create() call above
+      max_tokens: 2048, // see comment on the first messages.create() call above
       system: await buildSystemPrompt(),
       tools,
       messages: toolMessages,
