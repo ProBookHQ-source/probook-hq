@@ -993,6 +993,7 @@ export default function LandingPage() {
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-semibold text-white/75">
               <button onClick={() => navigate('/waitlist')} className="hover:text-white transition-colors">Waitlist</button>
               <button onClick={() => navigate('/login')} className="hover:text-white transition-colors">Contractor Login</button>
+              <button onClick={() => navigate('/how-to')} className="hover:text-white transition-colors">How It Works</button>
               <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">Privacy</button>
               <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">Terms</button>
               <a href="mailto:support@tractifyhq.com" className="hover:text-white transition-colors">support@tractifyhq.com</a>
