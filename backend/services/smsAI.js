@@ -920,7 +920,14 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
         const INTRO_TEMPLATES = {
           facebook: `Local Facebook groups are full of homeowners asking their neighbors for contractor recommendations — free leads, no ad spend. Search Facebook for your city + "neighbors" or "community" groups, join one, then post in it — and I'll send you the exact copy to paste right after this. Text DONE once it's posted.`,
           reviewers: `Your happy customers already paid you and loved the work — they're your warmest leads for repeat business or a referral. Go to business.google.com, click Reviews, and reply only to your 4 and 5-star reviews — skip anything lower than that, this isn't the moment to pitch someone who wasn't happy. I'll send the exact message to paste next — just swap in their name where it says [Name]. Text DONE once you've replied to all your 4 and 5-star ones.`,
-          messenger: `Homeowners DM your Facebook or Instagram all the time and never hear back — whoever responds first usually gets the job. Go to business.facebook.com, click Inbox, then Automation, then Instant Replies, and toggle it on. I'll send the exact auto-reply text to paste next. Text DONE once it's saved.`,
+          // Live-caught real gap (not a code bug — a wrong instruction):
+          // Instant Reply's own "Channels" section has SEPARATE checkboxes
+          // for Messenger and Instagram — toggling the feature on does NOT
+          // automatically cover both. The old copy implied one toggle
+          // covered both, which left a contractor unsure if Instagram was
+          // actually covered, and the AI had no accurate grounding to
+          // answer that follow-up question confidently. Now explicit.
+          messenger: `Homeowners DM your Facebook or Instagram all the time and never hear back — whoever responds first usually gets the job. Go to business.facebook.com, click Inbox, then Automation, then Instant Reply, toggle it on, then under "Channels" make sure BOTH the Messenger box and the Instagram box are checked — they're separate checkboxes, checking one doesn't check the other. I'll send the exact auto-reply text to paste next. Text DONE once both are checked and it's saved.`,
         };
         const introText = INTRO_TEMPLATES[step];
 
