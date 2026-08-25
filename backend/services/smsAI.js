@@ -1108,9 +1108,34 @@ async function sendWelcomeText(contractor, twilioClient) {
     body,
   });
 
+  // Live-caught real bug: this welcome text is sent completely outside the
+  // AI conversation loop (handleContractorSms is the only place that ever
+  // writes to sms_conversation). That meant a contractor's first-ever reply
+  // — "Yes", replying directly to "Reply YES to start" right above — landed
+  // with ZERO conversation history. The AI genuinely had no record of ever
+  // asking that question, so it (correctly, given the context it actually
+  // had) asked the contractor to clarify what they meant instead of just
+  // starting setup — a clean "yes" answer to an unambiguous question ended
+  // up looking like the AI second-guessing something obvious.
+  //
+  // Fix: seed sms_conversation with a synthetic user/assistant pair
+  // representing this exact welcome text, so the AI's very next turn has
+  // real grounding. Safe to do unconditionally here specifically because
+  // sendWelcomeText only ever fires once, as the first message in a brand
+  // new conversation — sms_conversation is guaranteed empty at this point,
+  // so this can't violate the Anthropic API's "must start with a user
+  // message" / strict alternation rules the way blindly appending to an
+  // existing history could. The other deterministic sends (power message,
+  // step drip texts, forwarding-test results) have the same blind spot in
+  // principle but aren't guaranteed to be conversation[0] — fixing those
+  // safely needs a shared alternation-safe append helper, not done here.
   await db.query(
-    `UPDATE contractors SET sms_welcome_sent = 1, last_setup_sms_at = NOW() WHERE id = $1`,
-    [contractor.id]
+    `UPDATE contractors SET sms_welcome_sent = 1, last_setup_sms_at = NOW(),
+     sms_conversation = $2::jsonb WHERE id = $1`,
+    [contractor.id, JSON.stringify([
+      { role: 'user', content: '(system: Twilio number just assigned, no reply yet)' },
+      { role: 'assistant', content: body },
+    ])]
   );
 
   console.log(`[SMS-AI] Welcome text sent to ${contractor.name} (${contractor.id})`);
