@@ -165,7 +165,41 @@ async function getNextStepPromptForContractor(contractorId) {
 
   const STEP_GUIDES = buildStepGuides(freshRow, completedSteps, bookingLink, twilioNumber, hasBusinessPhoneAnswer, liveScheduleText);
   const nextStep = Object.entries(STEP_GUIDES).find(([, s]) => !s.done);
-  return nextStep ? { label: nextStep[1].label, guide: nextStep[1].guide } : null;
+  if (!nextStep) return null;
+
+  // Live-caught real bug: this used to return the raw `.guide` string and
+  // callers (forwardingTest.js's notifyResult) pasted it directly into a
+  // real outbound SMS. `.guide` is written as an INSTRUCTION to the AI —
+  // e.g. "Start with why before the steps — e.g. '...'. Then give the
+  // steps: ..." — meant to be read and paraphrased by handleContractorSms's
+  // own model call, not sent verbatim. Once task #49 added that
+  // why-before-ask meta-phrasing to several guides, this raw-injection path
+  // (which has no model in the loop at all) started texting contractors the
+  // literal instruction text, including the "— e.g." framing, instead of an
+  // actual composed message. Fix: make a real, tightly-scoped model call
+  // here too, so this path produces the same kind of natural message
+  // handleContractorSms would have generated, instead of pasting raw
+  // internal instructions into a live text.
+  const [, stepData] = nextStep;
+  let text = stepData.label; // safe fallback if the composer call fails
+  try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const composed = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      system: `You write a single SMS text (under 320 characters, no markdown, no bullet points) telling a contractor what their next onboarding step is, based on internal guide notes. Follow the guide's instructions (tone, why-before-how framing, etc) but NEVER include meta-phrasing like "start with why" or "e.g." verbatim — write the actual finished message a human would receive, as if you were mid-conversation with them.`,
+      messages: [{
+        role: 'user',
+        content: `Next step: "${stepData.label}"\n\nInternal guide notes for this step:\n${stepData.guide}\n\nWrite the actual SMS text to send them now, introducing this step.`,
+      }],
+    });
+    const composedText = composed.content.find(b => b.type === 'text')?.text;
+    if (composedText) text = composedText;
+  } catch (err) {
+    console.error('[SMS-AI] getNextStepPromptForContractor composer call failed, falling back to label only:', err.message);
+  }
+
+  return { label: stepData.label, text };
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────

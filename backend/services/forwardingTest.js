@@ -190,7 +190,12 @@ async function notifyResult(contractorId, result) {
         const { getNextStepPromptForContractor } = require('./smsAI');
         const next = await getNextStepPromptForContractor(contractorId);
         if (next) {
-          body += ` Next up: ${next.label}. ${next.guide}`;
+          // next.text is a fully-composed message (via a real model call in
+          // getNextStepPromptForContractor), not the raw internal guide —
+          // live-caught bug: pasting the raw guide here sent contractors
+          // literal meta-instructions like "Start with why — e.g." instead
+          // of an actual message. See the comment on that function.
+          body += ` Next up: ${next.text}`;
         } else {
           body += ` That was the last step — all your channels are live!`;
         }
