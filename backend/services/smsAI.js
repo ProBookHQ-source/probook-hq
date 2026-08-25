@@ -10,7 +10,7 @@
  *   handleContractorSms        — inbound SMS handler
  *   sendSetupStepText          — drip cron: next incomplete step
  *   sendWelcomeText            — fires on first Twilio number assignment
- *   sendPowerMessage           — fires once all 3 required steps are confirmed
+ *   sendPowerMessage           — fires once the full checklist (all 7 steps) is done
  *   sendCalendarTrainingMessage — fires after step 2 (twilio) confirmed
  *   sendPostAppointmentText    — fires 30-90 min after appointment time
  */
@@ -24,12 +24,21 @@ const { logEvent } = require('./auditLog');
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 // Mirrors ContractorPortal.jsx's REQUIRED_STEP_KEYS — the "you do 3 things"
-// promise. Used below to decide when the power message fires: live-tested by
-// Jose and found it was confusing a contractor mid-setup, firing right after
-// step 1 (availability) while they still had call forwarding ahead of them —
-// too much new info to absorb before the actual required checklist is even
-// done. Moved to fire only once all 3 required steps are genuinely complete.
+// promise. Still used for the calendar-training message trigger (fires right
+// after the twilio step, which is genuinely relevant there) and elsewhere.
 const REQUIRED_STEP_KEYS = ['service_area', 'availability', 'twilio'];
+
+// Every onboarding step key, full checklist — mirrors the keys buildStepGuides
+// defines. Used ONLY to decide when the power message fires: live-tested by
+// Jose twice now. First pass fired it right after step 1 (availability),
+// confusing a contractor mid-setup before call forwarding was even done —
+// moved to fire after the 3 REQUIRED steps instead. That still wasn't right:
+// twilio is usually the last required step but gbp/facebook/reviewers/
+// messenger still remain after it, so the power message kept landing mid-
+// flow — live-caught sandwiched confusingly between the facebook step's
+// intro and its ready-to-paste copy. Jose: "this should be at the very end
+// of set up." Now gated on the FULL checklist being done, not just required.
+const ALL_STEP_KEYS = ['service_area', 'availability', 'twilio', 'gbp', 'facebook', 'reviewers', 'messenger'];
 
 function fmtTime(t) {
   if (!t) return '';
@@ -661,19 +670,15 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
         toolResult = `Step "${step_key}" marked complete.`;
         console.log(`[SMS-AI] Marked step "${step_key}" complete for contractor ${contractorId}`);
 
-        // Power message moved off the availability-step trigger (August 21,
-        // session 29) — Jose live-tested it and it confused a contractor by
-        // firing mid-setup, right as they were about to move into call
-        // forwarding, dumping "try texting me anything" info before the
-        // actual required checklist was even done. Now it only fires once
-        // ALL 3 required steps (service_area, availability, twilio) are
-        // genuinely complete — checked freshly off the just-updated
-        // onboarding_steps regardless of which order the contractor finished
-        // them in, so it fires exactly once, right when the required setup
-        // is actually done, not partway through it.
+        // Power message fires once the FULL checklist (all 7 steps, not just
+        // the 3 required ones) is genuinely complete — see ALL_STEP_KEYS
+        // comment above for the two rounds of live-testing that got this
+        // here. Checked freshly off the just-updated onboarding_steps
+        // regardless of which order the contractor finished steps in, so it
+        // fires exactly once, right at the true end of setup.
         const freshSteps = updatedRows[0]?.onboarding_steps || {};
-        const allRequiredDone = REQUIRED_STEP_KEYS.every(k => freshSteps[k]);
-        if (allRequiredDone && !contractor.sms_power_message_sent && twilioClient) {
+        const allStepsDone = ALL_STEP_KEYS.every(k => freshSteps[k]);
+        if (allStepsDone && !contractor.sms_power_message_sent && twilioClient) {
           await db.query('UPDATE contractors SET sms_power_message_sent = 1 WHERE id = $1', [contractorId]);
           setTimeout(() => sendPowerMessage(contractor, twilioClient).catch(err =>
             console.error('[SMS-AI] Power message failed:', err.message)
