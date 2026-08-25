@@ -68,12 +68,16 @@ async function startForwardingTest(contractor) {
 
     const testTwiml = `<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="alice">Hi, this is an automated test call from Tractify checking your call forwarding setup. If you're hearing this, forwarding isn't catching this call yet — no action needed right now, we'll text you what to do next. Goodbye.</Say><Hangup/></Response>`;
 
-    // Fired ~10s after Brain 2 tells the contractor a test is coming, not
-    // immediately — the AI's "Give me about 10 seconds" text and the actual
-    // call landing were happening close enough together that the contractor
-    // could still be mid-dial-code or hasn't put the phone down yet. This
-    // gives real breathing room between "the test is starting" and the test
-    // actually starting.
+    // Fired ~18s after Brain 2 tells the contractor a test is coming, not
+    // immediately. Live-caught real bug (Jose's own test): at 10s, the text
+    // landed and the call rang almost on top of each other — he hadn't
+    // finished reading "don't answer it" before his phone was already
+    // ringing, and answered on reflex. That single answered-then-hung-up
+    // call reads identically to "forwarding never caught this at all" (see
+    // resolveFromOutboundStatus below), producing a false not_forwarding
+    // result even though forwarding was actually set up correctly. Widened
+    // to 18s for real reading time between the warning landing and the
+    // phone actually ringing.
     setTimeout(() => {
       client.calls.create({
         to: numberToTest,
@@ -88,9 +92,9 @@ async function startForwardingTest(contractor) {
       }).catch(err => {
         console.error(`[FWD-TEST] Delayed test call failed for contractor ${contractor.id}:`, err.message);
       });
-    }, 10000);
+    }, 18000);
 
-    console.log(`[FWD-TEST] Scheduled for contractor ${contractor.id} (${contractor.company_name || contractor.name}) → ${numberToTest} (firing in 10s)`);
+    console.log(`[FWD-TEST] Scheduled for contractor ${contractor.id} (${contractor.company_name || contractor.name}) → ${numberToTest} (firing in 18s)`);
     return { started: true };
   } catch (err) {
     console.error('[FWD-TEST] Failed to start:', err.message);
@@ -196,7 +200,7 @@ async function notifyResult(contractorId, result) {
     } else if (result === 'unconditional_broken') {
       body = `Heads up — I just tested it and it's set up wrong. Right now EVERY call is forwarding to us immediately, even ones you'd normally answer yourself, so real calls aren't reaching your phone at all. Let's undo that right now, then redo it correctly. Text me and I'll walk you through it.`;
     } else if (result === 'not_forwarding') {
-      body = `I just tested it and calls aren't forwarding yet — your phone rang like normal and nothing redirected to us. That usually means the code didn't go through. Text me DONE again once you've dialed it and I'll test it once more.`;
+      body = `I just tested it and calls aren't forwarding yet — your phone rang like normal and nothing redirected to us. That usually means either the code didn't go through, or the test call itself got answered/hung up before it could ring long enough to prove it (easy to do by accident — this time, just let it ring through to voicemail on its own without touching it). Text me DONE again once you've dialed the code and I'll test it once more.`;
     } else {
       return;
     }
