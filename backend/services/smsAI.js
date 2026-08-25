@@ -555,6 +555,17 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
   // then got sent as an actual confusing 4th SMS right after three messages
   // that worked perfectly. This flag lets the two cases be told apart.
   let intentionalSilence = false;
+  // Companion to intentionalSilence — a short, tool-specific note describing
+  // what was actually sent, used INSTEAD of the generic "(no text reply)"
+  // placeholder when persisting this turn to sms_conversation. Live-caught
+  // real bug: the generic placeholder gave the model nothing to go on next
+  // turn, so on every subsequent "Done" it re-called send_forwarding_code
+  // from scratch instead of proceeding to run_forwarding_test — it had no
+  // memory that the code had already been sent, since the guide text for an
+  // incomplete step re-injects "once you know device+carrier, call
+  // send_forwarding_code" every single turn regardless. A specific summary
+  // here gives the model real grounding to recognize "I already did this."
+  let silentActionSummary = null;
 
   // Also enter this loop on stop_reason === 'max_tokens' if the truncated
   // response still contains at least one complete tool_use block. Live-caught
@@ -829,6 +840,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           }, 7000);
 
           intentionalSilence = true;
+          silentActionSummary = `(Already sent the forwarding-code explanation, the bare dial code, and the how-to link as direct SMS — do NOT call send_forwarding_code again for this contractor. Once they say they've dialed it / it's done, call run_forwarding_test instead.)`;
           toolResult = `Three messages are already being sent directly — the numbered explanation now, the bare code 4 seconds after, and an optional "want to see it step by step?" link 7 seconds after that as a fallback reference. Together they already say everything needed, including asking them to text DONE once it's dialed. Send NO reply text of your own this turn, not even a short acknowledgment. Live-tested: even one extra line creates a confusing message that just re-narrates what the first message already said, landing in the middle of the sequence. Just call the tool and end your turn with zero text.`;
           console.log(`[SMS-AI] Sent forwarding explanation + code + how-to link (${carrier}) to ${contractorId}`);
         }
@@ -887,6 +899,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
             }).catch(err => console.error('[SMS-AI] send_step_copy copy send failed:', err.message));
           }, 4000);
           intentionalSilence = true;
+          silentActionSummary = `(Already sent the "${step}" intro and ready-to-paste copy as direct SMS — do NOT call send_step_copy for "${step}" again. Wait for them to confirm it's posted/saved before moving on.)`;
           toolResult = `Both messages are already being sent directly — the "why + how" intro now, the ready-to-paste copy 4 seconds after. Do NOT write your own version of either one and do NOT repeat the copy in your reply. End your turn with no additional text.`;
           console.log(`[SMS-AI] Sent ${step} intro + copy-paste text to ${contractorId}`);
         } else {
@@ -1085,7 +1098,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
   const updatedHistory = [
     ...history,
     { role: 'user', content: incomingText },
-    { role: 'assistant', content: reply ?? '(no text reply — deterministic messages already sent)' },
+    { role: 'assistant', content: reply ?? silentActionSummary ?? '(no text reply — deterministic messages already sent)' },
   ].slice(-20);
 
   await db.query(
