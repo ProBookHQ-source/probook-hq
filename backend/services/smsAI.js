@@ -246,7 +246,36 @@ async function getNextStepPromptForContractor(contractorId) {
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
+// Live-caught real bug (task #66): two rapid back-to-back "Done" texts from
+// the same contractor can each kick off their own handleContractorSmsInner
+// call before the first finishes writing its reply back to sms_conversation
+// — both reads see the same stale history. Live-caught result: the facebook
+// step got marked done and the conversation jumped straight into reviewers,
+// off what should have been one "Done" advancing exactly one step, with the
+// facebook step's actual send_step_copy call apparently never happening (the
+// model wrote its own "ready to grab it?" prose instead, mid-race, instead of
+// following that step's "call the tool immediately, write nothing yourself"
+// instruction). Fixed with a simple in-memory per-contractor queue — a second
+// inbound text for a contractor already mid-turn waits for the first to fully
+// finish (including its DB write) before starting, so every turn always reads
+// real, current state. Single-process assumption (fine on Railway's one
+// instance) — would need a DB-backed lock instead if this ever ran multi-instance.
+const _contractorProcessingQueue = new Map();
 async function handleContractorSms(contractor, incomingText) {
+  const contractorId = contractor.id;
+  const prior = _contractorProcessingQueue.get(contractorId) || Promise.resolve();
+  const current = prior.catch(() => {}).then(() => handleContractorSmsInner(contractor, incomingText));
+  _contractorProcessingQueue.set(contractorId, current);
+  try {
+    return await current;
+  } finally {
+    if (_contractorProcessingQueue.get(contractorId) === current) {
+      _contractorProcessingQueue.delete(contractorId);
+    }
+  }
+}
+
+async function handleContractorSmsInner(contractor, incomingText) {
   if (!process.env.ANTHROPIC_API_KEY) {
     console.warn('[SMS-AI] No ANTHROPIC_API_KEY set — skipping AI reply');
     return "I'm having a little trouble right now — give me a few minutes and text me again.";
@@ -408,7 +437,7 @@ RULES — CRITICAL:
 - One thing at a time. Guide them through one step, wait for done, move to the next.
 - "Yes" or "done" only confirms the step YOU just described in your immediately-previous message. Never treat a generic yes (like a reply to "ready to start?") as confirming a specific thing (like their hours) that you haven't actually stated yet in this conversation. If you're not sure what they're saying yes to, ask.
 - When they clearly confirm the specific thing you just asked about ("done", "yes", "ok", "finished", "set it up" in direct response to your instruction) — mark the current step complete immediately using complete_setup_step. EXCEPTION: the call-forwarding (twilio) step is NEVER marked done this way — see that step's guide for what to do instead (run_forwarding_test).
-- After marking a step done: one short congratulations sentence, then IMMEDIATELY give the first instruction for the next incomplete step in the SAME message — don't just ask "ready to keep going?" and wait. Keep momentum, walk them straight into it. That instruction must be the FULL, specific first ask described in that step's own guide below — never a shortened, generic, or paraphrased-down version just because it's being combined into the same message as the congratulations. Live-caught real bug: the twilio step's guide requires asking device AND carrier together in one question, but when this rule fired as part of a combined "hours confirmed, next up is call forwarding" message, only "iPhone or Android?" got asked and carrier was dropped — re-read that specific step's guide in full before writing this part of the message, don't compress it from memory.
+- After marking a step done: one short congratulations sentence, then IMMEDIATELY give the first instruction for the next incomplete step in the SAME message — don't just ask "ready to keep going?" and wait. Keep momentum, walk them straight into it. That instruction must be the FULL, specific first ask described in that step's own guide below — never a shortened, generic, or paraphrased-down version just because it's being combined into the same message as the congratulations. Live-caught real bug: the twilio step's guide requires asking device AND carrier together in one question, but when this rule fired as part of a combined "hours confirmed, next up is call forwarding" message, only "iPhone or Android?" got asked and carrier was dropped — re-read that specific step's guide in full before writing this part of the message, don't compress it from memory. IMPORTANT exception: if the next step's own guide says to call a tool immediately (send_step_copy for facebook/reviewers/messenger) and write NOTHING yourself first, follow THAT instead — call the tool right away with no congratulations-plus-prose message of your own. Live-caught real bug: writing your own "ready to grab it?" transition into facebook instead of immediately calling send_step_copy meant the actual ready-to-paste post never got sent, even though the conversation moved on as if it had.
 - When guiding a step: give ONE clear instruction, end with "Reply DONE when set." Never assume they know a term or menu path — spell it out exactly, as if they've never done this before.
 - Whenever you give them a phone number to use (for forwarding, calling, etc), tell them to tap and hold it to copy it rather than retyping it by hand.
 - If they ask what's next, tell them just the next incomplete step.
@@ -689,6 +718,24 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           );
           if (parseInt(slotRows[0].cnt, 10) === 0) {
             toolResult = `Error: cannot mark availability complete — no rows exist in availability_slots for this contractor yet, meaning nothing was actually saved. Do NOT tell them it's locked in. Call update_availability_slot for each day they gave you (this may not have actually run last turn), then only call complete_setup_step again after that succeeds.`;
+            toolResultBlocks.push({ type: 'tool_result', tool_use_id: toolUseId, content: toolResult });
+            continue;
+          }
+        }
+
+        // Same verification-gate principle as availability above, added for
+        // task #67: a rapid double-"Done" race let facebook get marked done
+        // (and the conversation move straight into reviewers) without
+        // send_step_copy ever actually having sent the real ready-to-paste
+        // post. Refuse completion for these three steps unless send_step_copy
+        // genuinely fired for that step first.
+        if (['facebook', 'reviewers', 'messenger'].includes(step_key)) {
+          const freshCheck = await db.prepare('SELECT onboarding_steps FROM contractors WHERE id = $1').get(contractorId);
+          const freshFlags = typeof freshCheck?.onboarding_steps === 'string'
+            ? JSON.parse(freshCheck.onboarding_steps || '{}')
+            : (freshCheck?.onboarding_steps || {});
+          if (!freshFlags[`${step_key}_copy_sent`]) {
+            toolResult = `Error: cannot mark "${step_key}" complete — send_step_copy was never actually called for this step yet, meaning the contractor never received the real ready-to-paste text. Call send_step_copy with step="${step_key}" now instead, with no text of your own, then wait for them to confirm before calling complete_setup_step again.`;
             toolResultBlocks.push({ type: 'tool_result', tool_use_id: toolUseId, content: toolResult });
             continue;
           }
@@ -981,6 +1028,20 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           intentionalSilence = true;
           silentActionSummary = `(Already sent the "${step}" intro and ready-to-paste copy as direct SMS — do NOT call send_step_copy for "${step}" again. Wait for them to confirm it's posted/saved before moving on.)`;
           toolResult = `Both messages are already being sent directly — the "why + how" intro now, the ready-to-paste copy 4 seconds after. Do NOT write your own version of either one and do NOT repeat the copy in your reply. End your turn with no additional text.`;
+          // Live-caught real bug (task #67): complete_setup_step for facebook/
+          // reviewers/messenger was purely conversational — nothing checked
+          // that send_step_copy had actually fired before allowing the step to
+          // be marked done. A rapid double-"Done" race let the model mark
+          // facebook complete and move on to reviewers without ever having
+          // sent the actual copy-paste post, same class of gap task #39
+          // already fixed for availability. Persist a flag the moment the
+          // copy is genuinely queued so complete_setup_step can refuse to mark
+          // this step done without it, regardless of what the conversation
+          // history says.
+          await db.query(
+            `UPDATE contractors SET onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || $1::jsonb WHERE id = $2`,
+            [JSON.stringify({ [`${step}_copy_sent`]: true }), contractorId]
+          );
           console.log(`[SMS-AI] Sent ${step} intro + copy-paste text to ${contractorId}`);
         } else {
           twilioClient.messages.create({
