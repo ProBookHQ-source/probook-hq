@@ -751,6 +751,25 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
         toolResult = `Step "${step_key}" marked complete.`;
         console.log(`[SMS-AI] Marked step "${step_key}" complete for contractor ${contractorId}`);
 
+        // Live-caught real bug (task #68): the rule-411 exception telling the
+        // model "if the next step's guide says call the tool immediately with
+        // no text of your own, do that instead of writing a transition
+        // message" was NOT reliably followed even after being added — Jose
+        // confirmed this recurred (messenger step: "Ready to grab that text?"
+        // instead of immediately calling send_step_copy) on a fresh test
+        // after that fix was live. A natural-language exception buried in a
+        // long system-prompt rules list is too easy to miss. Same lesson as
+        // every other "the model won't reliably compose exact wording itself"
+        // bug fixed tonight (forwarding-code, forwarding-test warning) —
+        // inject the actual next action directly into THIS tool's own result,
+        // which the model is reacting to right in this turn, instead of
+        // trusting it to recall a general rule from earlier in the prompt.
+        const freshStepsForNext = updatedRows[0]?.onboarding_steps || {};
+        const nextStepKey = ALL_STEP_KEYS.find(k => !freshStepsForNext[k]);
+        if (nextStepKey && ['facebook', 'reviewers', 'messenger'].includes(nextStepKey)) {
+          toolResult += ` Next incomplete step is "${nextStepKey}". Call send_step_copy with step="${nextStepKey}" RIGHT NOW, in this same reply, as your only action — write NO text of your own first, not even a short line like "ready to grab it?" or "last one:" — the tool sends both the why/how intro and the ready-to-paste copy directly as SMS messages on its own.`;
+        }
+
         // Power message fires once the FULL checklist (all 7 steps, not just
         // the 3 required ones) is genuinely complete — see ALL_STEP_KEYS
         // comment above for the two rounds of live-testing that got this
