@@ -216,6 +216,18 @@ async function notifyResult(contractorId, result) {
       from: contractor.twilio_number,
       body,
     });
+
+    // Live-caught real bug (task #63): this message is composed and sent
+    // completely outside handleContractorSms's loop, so it never touched
+    // sms_conversation — the contractor's next reply ("Done" to the appended
+    // "Next up: [GBP step]") landed with no record the GBP step was ever
+    // asked, and the conversation just stalled with zero response. Same
+    // synthetic-pair pattern used for sendWelcomeText, now shared via
+    // appendDeterministicSmsTurn so it's safe regardless of what's already
+    // in history (always ends on 'assistant', so this keeps alternation valid).
+    const { appendDeterministicSmsTurn } = require('./smsAI');
+    await appendDeterministicSmsTurn(contractorId, body, `(system: forwarding test resolved — ${result})`);
+
     console.log(`[FWD-TEST] Result for ${contractorId}: ${result} — contractor notified`);
   } catch (err) {
     console.error('[FWD-TEST] notifyResult failed:', err.message);

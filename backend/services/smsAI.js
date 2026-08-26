@@ -23,6 +23,40 @@ const { logEvent } = require('./auditLog');
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+// Live-caught real bug (task #63): every deterministic send that fires OUTSIDE
+// handleContractorSms's own loop — power message, calendar training, capabilities
+// guide, proactive step drip texts, and forwarding-test result messages — was
+// sent directly via twilioClient.messages.create() and never touched
+// sms_conversation. Confirmed live: after the forwarding-test success message
+// appended "Next up: [GBP step text]" and the contractor replied "Done", the AI
+// had zero record the GBP step was ever asked — sms_conversation still ended
+// wherever the last real handleContractorSms turn left off, so the "Done" reply
+// had nothing to attach to and the conversation stalled with no response at all.
+//
+// Fix: a shared helper any deterministic sender can call right after texting the
+// contractor, to append what was actually sent as a real turn. Persisted history
+// always ends on an 'assistant' entry (every push in this file is a user+assistant
+// pair, and sendWelcomeText seeds the same shape) — so appending a synthetic
+// user note + the real assistant body as a pair keeps strict user/assistant
+// alternation valid for the next handleContractorSms call, regardless of what
+// came before. Safe to call unconditionally from anywhere, not just conversation[0].
+async function appendDeterministicSmsTurn(contractorId, assistantBody, systemNote = '(system: automated message sent)') {
+  try {
+    const row = await db.prepare('SELECT sms_conversation FROM contractors WHERE id = $1').get(contractorId);
+    const history = row && row.sms_conversation
+      ? (typeof row.sms_conversation === 'string' ? JSON.parse(row.sms_conversation || '[]') : row.sms_conversation)
+      : [];
+    const updated = [
+      ...history,
+      { role: 'user', content: systemNote },
+      { role: 'assistant', content: assistantBody },
+    ].slice(-20);
+    await db.query(`UPDATE contractors SET sms_conversation = $1::jsonb WHERE id = $2`, [JSON.stringify(updated), contractorId]);
+  } catch (err) {
+    console.error('[SMS-AI] appendDeterministicSmsTurn failed (non-fatal):', err.message);
+  }
+}
+
 // Mirrors ContractorPortal.jsx's REQUIRED_STEP_KEYS — the "you do 3 things"
 // promise. Still used for the calendar-training message trigger (fires right
 // after the twilio step, which is genuinely relevant there) and elsewhere.
@@ -1211,6 +1245,7 @@ async function sendPowerMessage(contractor, twilioClient) {
     from: contractor.twilio_number,
     body,
   });
+  await appendDeterministicSmsTurn(contractor.id, body, '(system: full checklist complete, power message sent)');
 
   console.log(`[SMS-AI] Power message sent to ${contractor.name} (${contractor.id})`);
 }
@@ -1225,6 +1260,7 @@ async function sendCalendarTrainingMessage(contractor, twilioClient) {
     from: contractor.twilio_number,
     body,
   });
+  await appendDeterministicSmsTurn(contractor.id, body, '(system: twilio step confirmed, calendar training sent)');
 
   console.log(`[SMS-AI] Calendar blocking training sent to ${contractor.name} (${contractor.id})`);
 }
@@ -1240,6 +1276,7 @@ async function sendCapabilitiesGuide(contractor, twilioClient) {
     from: contractor.twilio_number,
     body,
   });
+  await appendDeterministicSmsTurn(contractor.id, body, '(system: capabilities guide sent)');
 
   console.log(`[SMS-AI] Capabilities guide sent to ${contractor.name} (${contractor.id})`);
 }
@@ -1320,6 +1357,7 @@ async function sendSetupStepText(contractor, twilioClient) {
     from: twilioNum,
     body: textBody,
   });
+  await appendDeterministicSmsTurn(contractor.id, textBody, `(system: proactive drip text sent for step "${nextIncomplete}")`);
 
   await db.query(
     `UPDATE contractors SET last_setup_sms_at = NOW() WHERE id = $1`,
@@ -1339,4 +1377,5 @@ module.exports = {
   sendCapabilitiesGuide,
   sendPostAppointmentText,
   getNextStepPromptForContractor,
+  appendDeterministicSmsTurn,
 };
