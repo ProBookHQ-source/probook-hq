@@ -74,6 +74,33 @@ const REQUIRED_STEP_KEYS = ['service_area', 'availability', 'twilio'];
 // of set up." Now gated on the FULL checklist being done, not just required.
 const ALL_STEP_KEYS = ['service_area', 'availability', 'twilio', 'gbp', 'facebook', 'reviewers', 'messenger'];
 
+// ── Twilio step opening messages — hardcoded, never model-composed ─────────────
+// Task #70/#71: the transition INTO the twilio step (combining a "previous step
+// confirmed" congrats with this step's why-explanation + first question) got
+// invented wrong by the model FOUR separate times across two different trigger
+// points, despite three rounds of tightening the guide/rule text alone:
+//   1. "so when someone books, their call reaches you instantly" (backwards —
+//      implied a call happens TO the contractor as a result of a booking)
+//   2. "when someone books but you miss the call, we catch it and text you the
+//      details" (still implies a booking already exists before the call)
+//   3. "when someone books through your link, their call might go to your
+//      voicemail" (same wrong premise a third time, different phrasing)
+// All three describe a call happening AFTER a booking exists, which never
+// happens — forwarding exists to catch a homeowner's call BEFORE any booking
+// exists (they called looking for service and got no answer). Prompt-only
+// fixes kept failing because this specific message gets freshly composed by
+// the model on every entry into the step, same as the pre-fix bugs
+// send_forwarding_code and send_step_copy (facebook/reviewers/messenger) already
+// solved by making the send deterministic instead of trusting the model to word
+// it correctly each time. Same fix applied here now — see send_step_intro tool
+// and set_business_phone's success handler below, both of which send one of
+// these two constants directly via Twilio instead of leaving it to the model.
+const TWILIO_BUSINESS_PHONE_ASK = (phone) =>
+  `Here's how this works: when a homeowner calls looking for service and you miss it, that call needs to go to us instead of just ringing out, so we can text them back and still get you the booking — otherwise they just call the next guy. Is ${phone} the number your customers actually call, or is your business line different? Reply with that number, or reply SAME if it's the same one.`;
+
+const TWILIO_DEVICE_CARRIER_ASK =
+  `Here's how this works: when you miss a call, instead of it just ringing out, it'll forward to us and we'll text the caller right away so you don't lose the job — otherwise they just call the next guy. Are you on an iPhone or Android, and which carrier — AT&T, T-Mobile, Verizon, or something else?`;
+
 function fmtTime(t) {
   if (!t) return '';
   const [h, m] = t.split(':').map(Number);
@@ -151,8 +178,8 @@ Before marking this step done, state the final hours you're about to save back t
       label: 'Set up missed call forwarding',
       done: !!completedSteps.twilio,
       guide: hasBusinessPhoneAnswer
-        ? `First ask device AND carrier together in ONE single message that leads with an explanation of what call forwarding actually does before asking anything — do not just motivate it, define the mechanism. e.g. "Here's how this works: when you miss a call, instead of it just ringing out, it'll forward to us and we'll text the caller right away so you don't lose the job. Every call you miss right now is a homeowner who might just call the next guy instead — let's get that covered. Are you on an iPhone or Android, and which carrier: AT&T, T-Mobile, Verizon, or something else?" Live-caught real bug: a version of this transition once said forwarding means "when someone books, their call reaches you instantly" — that's backwards and wrong. Forwarding only activates on a call YOU miss, and it goes to US (not to them), so we can catch it and still get them booked. Never describe it any other way. Do NOT ask "iPhone or Android?" and then wait for a reply before asking carrier separately — that's two texts and two round-trips for one piece of info, wastes their time and our tokens. Only ask them as two separate messages if their first answer genuinely only covered one of the two (e.g. they said "iPhone" but didn't mention a carrier). Once you have both, give the CORRECT device+carrier-specific steps for TRUE conditional (no-answer-only) forwarding — NEVER the plain Settings toggle, which forwards ALL calls immediately with zero rings and would break their phone line. iPhone has no true "forward when unanswered" option in Settings — it must be done with a carrier code dialed like a phone call. The moment you know both device=iphone AND carrier is AT&T, T-Mobile, or Verizon, call send_forwarding_code with carrier set to "att_tmobile" or "verizon" — it sends the exact code as its own standalone text message so it's a single tap-and-hold-to-copy block, and tells you what to say next. Do NOT type the dial code yourself in your message — let the tool send it separately. To turn OFF forwarding later if anything seems wrong: AT&T/T-Mobile dial ##61# then call, Verizon dial *73 then call — those two are rare/safety-net only, fine to mention inline since they're not the main action. Android: Phone app > 3-dot menu > Settings > Calling accounts (or Supplementary services) > Call forwarding > "When unanswered" > enter ${twilioNumber} > turn on — this IS a true conditional option built into Android's own Settings, no dial code needed, no send_forwarding_code call needed either. If they're on iPhone and running iOS 17 or newer, mention that the "Live Voicemail" feature can silently block conditional forwarding from working — if forwarding doesn't seem to catch missed calls after setup, tell them to check Settings > Phone > Live Voicemail and turn it off. IMPORTANT — do NOT ask them to test it themselves by calling from a second phone. Once they say they've dialed the code / turned it on, call the run_forwarding_test tool IMMEDIATELY, with NO text of your own first — do not write your own version of the "a test call is coming, don't answer it" warning, the tool's own result already contains the exact, correct wording (timing and the "don't hang it up either" instruction included) for you to relay. Live-caught real bug: writing your own warning here produced a shorter, weaker version (wrong timing, missing the "don't hang it up" half) that read as a complete reply on its own — which may also be why the tool call itself got skipped some turns, since the message already sounded finished. Treat calling the tool as the FIRST and only required action the moment the code is confirmed dialed; your reply text to the contractor should come from what the tool returns, not from your own recollection of what the warning should say. Tractify places a real test call and texts them the result automatically (and marks this step done automatically if it passes). Do not mark the step done yourself and do not ask them to text DONE again unless the test comes back showing a problem.`
-        : `If you're leading into this step for the first time (e.g. right after finishing availability), open with this exact why-explanation before asking anything — do not invent your own: "Here's how this works: when a homeowner calls looking for service and you miss it, that call needs to go to us instead of just ringing out, so we can text them back and still get you the booking — otherwise they just call the next guy." Live-caught real bug: transitions into this step have twice invented their own explanation of what call forwarding does and gotten it wrong (once saying "when someone books, their call reaches you instantly," once saying "when someone books but you miss the call, we catch it and text you the details" — both describe a call happening AFTER a booking exists, which never happens; forwarding is about catching a homeowner's call BEFORE any booking exists). Never use "when someone books" as the setup for this step. Then ask: is ${liveContractor.phone} the number their customers actually call, or is their business line different? If they say it's the same, call set_business_phone with is_same=true. If they give a different number, call set_business_phone with that number. Do NOT give any forwarding code or instructions yourself here — once set_business_phone runs, you will immediately get the correct detailed guide (with the real carrier codes) for your very next message, so just confirm the number back to them and continue straight into asking device + carrier TOGETHER in one message, exactly as that guide says.`,
+        ? `The device+carrier question with its why-explanation was ALREADY sent to them as its own direct text the moment set_business_phone resolved (or, if you're seeing this guide on a later turn, it should already be in the conversation history above — do not send it again or write your own version of it). Just wait for their device+carrier answer and continue from there. Do NOT ask "iPhone or Android?" and then wait for a reply before asking carrier separately — that's two texts and two round-trips for one piece of info, wastes their time and our tokens. Only ask them as two separate messages if their first answer genuinely only covered one of the two (e.g. they said "iPhone" but didn't mention a carrier). Once you have both, give the CORRECT device+carrier-specific steps for TRUE conditional (no-answer-only) forwarding — NEVER the plain Settings toggle, which forwards ALL calls immediately with zero rings and would break their phone line. iPhone has no true "forward when unanswered" option in Settings — it must be done with a carrier code dialed like a phone call. The moment you know both device=iphone AND carrier is AT&T, T-Mobile, or Verizon, call send_forwarding_code with carrier set to "att_tmobile" or "verizon" — it sends the exact code as its own standalone text message so it's a single tap-and-hold-to-copy block, and tells you what to say next. Do NOT type the dial code yourself in your message — let the tool send it separately. To turn OFF forwarding later if anything seems wrong: AT&T/T-Mobile dial ##61# then call, Verizon dial *73 then call — those two are rare/safety-net only, fine to mention inline since they're not the main action. Android: Phone app > 3-dot menu > Settings > Calling accounts (or Supplementary services) > Call forwarding > "When unanswered" > enter ${twilioNumber} > turn on — this IS a true conditional option built into Android's own Settings, no dial code needed, no send_forwarding_code call needed either. If they're on iPhone and running iOS 17 or newer, mention that the "Live Voicemail" feature can silently block conditional forwarding from working — if forwarding doesn't seem to catch missed calls after setup, tell them to check Settings > Phone > Live Voicemail and turn it off. IMPORTANT — do NOT ask them to test it themselves by calling from a second phone. Once they say they've dialed the code / turned it on, call the run_forwarding_test tool IMMEDIATELY, with NO text of your own first — do not write your own version of the "a test call is coming, don't answer it" warning, the tool's own result already contains the exact, correct wording (timing and the "don't hang it up either" instruction included) for you to relay. Live-caught real bug: writing your own warning here produced a shorter, weaker version (wrong timing, missing the "don't hang it up" half) that read as a complete reply on its own — which may also be why the tool call itself got skipped some turns, since the message already sounded finished. Treat calling the tool as the FIRST and only required action the moment the code is confirmed dialed; your reply text to the contractor should come from what the tool returns, not from your own recollection of what the warning should say. Tractify places a real test call and texts them the result automatically (and marks this step done automatically if it passes). Do not mark the step done yourself and do not ask them to text DONE again unless the test comes back showing a problem.`
+        : `If you're entering this step for the first time (e.g. right after finishing availability), call send_step_intro with step="twilio" IMMEDIATELY, with NO text of your own first — it sends the exact why-explanation + first question directly as its own SMS, using ${liveContractor.phone} as the number on file. Do NOT write your own version of this question or its why-line. Live-caught real bug, three separate times, all despite explicit warnings not to: the model kept inventing its own explanation of what call forwarding does and getting it wrong ("so when someone books, their call reaches you instantly" / "when someone books but you miss the call, we catch it and text you the details" / "when someone books through your link, their call might go to your voicemail" — all three describe a call happening AFTER a booking exists, which never happens; forwarding exists to catch a homeowner's call BEFORE any booking exists). Prompt warnings alone did not stop this from recurring across three separate rewrites, so this message is no longer yours to write at all — send_step_intro handles it deterministically every time. If they've already answered this question earlier in the conversation and you're just continuing the step (not entering it fresh), do NOT call send_step_intro again — just call set_business_phone with is_same=true if they say it's the same number, or with their given number if different. set_business_phone's own success result sends the next question (device + carrier) as its own deterministic text too — do not write that one yourself either.`,
     },
     gbp: {
       label: 'Add booking link to Google Business Profile',
@@ -437,7 +464,7 @@ RULES — CRITICAL:
 - One thing at a time. Guide them through one step, wait for done, move to the next.
 - "Yes" or "done" only confirms the step YOU just described in your immediately-previous message. Never treat a generic yes (like a reply to "ready to start?") as confirming a specific thing (like their hours) that you haven't actually stated yet in this conversation. If you're not sure what they're saying yes to, ask.
 - When they clearly confirm the specific thing you just asked about ("done", "yes", "ok", "finished", "set it up" in direct response to your instruction) — mark the current step complete immediately using complete_setup_step. EXCEPTION: the call-forwarding (twilio) step is NEVER marked done this way — see that step's guide for what to do instead (run_forwarding_test).
-- After marking a step done: one short congratulations sentence, then IMMEDIATELY give the first instruction for the next incomplete step in the SAME message — don't just ask "ready to keep going?" and wait. Keep momentum, walk them straight into it. That instruction must be the FULL, specific first ask described in that step's own guide below — never a shortened, generic, or paraphrased-down version just because it's being combined into the same message as the congratulations. Live-caught real bug: the twilio step's guide requires asking device AND carrier together in one question, but when this rule fired as part of a combined "hours confirmed, next up is call forwarding" message, only "iPhone or Android?" got asked and carrier was dropped — re-read that specific step's guide in full before writing this part of the message, don't compress it from memory. The why-explanation you lead with is NOT yours to invent either — each step's guide already contains a specific why-line written for it (e.g. twilio's is about a missed call going to the next guy, never about "when someone books, their call reaches you"). Live-caught real bug: a combined "hours confirmed, next up is call forwarding" transition invented its own why-line that described call forwarding backwards — it said calls would "reach you instantly" when someone books, when what forwarding actually does is catch a call you MISS and hand it to us so we can text the homeowner and still get you the booking. Getting the why wrong is worse than skipping it — always pull the why-framing from that step's own guide text, never compose a fresh one from memory. IMPORTANT exception: if the next step's own guide says to call a tool immediately (send_step_copy for facebook/reviewers/messenger) and write NOTHING yourself first, follow THAT instead — call the tool right away with no congratulations-plus-prose message of your own. Live-caught real bug: writing your own "ready to grab it?" transition into facebook instead of immediately calling send_step_copy meant the actual ready-to-paste post never got sent, even though the conversation moved on as if it had.
+- After marking a step done: one short congratulations sentence, then IMMEDIATELY give the first instruction for the next incomplete step in the SAME message — don't just ask "ready to keep going?" and wait. Keep momentum, walk them straight into it. That instruction must be the FULL, specific first ask described in that step's own guide below — never a shortened, generic, or paraphrased-down version just because it's being combined into the same message as the congratulations. IMPORTANT exception, and this one is not optional: if the next step's own guide says to call a tool immediately (send_step_copy for facebook/reviewers/messenger, send_step_intro for twilio) and write NOTHING yourself first, follow THAT instead — call the tool right away with no congratulations-plus-prose message of your own, not even a one-line lead-in like "next up is call forwarding" or "now the important one." Live-caught real bug, repeatedly: writing your own transition into facebook instead of immediately calling send_step_copy meant the actual ready-to-paste post never got sent. Separately, the twilio step's opening why-explanation was invented wrong by the model THREE separate times across two different trigger points ("so when someone books, their call reaches you instantly" / "when someone books but you miss the call, we catch it and text you the details" / "when someone books through your link, their call might go to your voicemail" — all three describe a call happening after a booking exists, which is backwards; forwarding catches a homeowner's call BEFORE any booking exists). That step's opening ask is no longer something you compose at all — send_step_intro (or set_business_phone's own success result) sends it deterministically. If you ever find yourself about to write a sentence describing what call forwarding does, stop — that sentence should have come from a tool result, not from you.
 - When guiding a step: give ONE clear instruction, end with "Reply DONE when set." Never assume they know a term or menu path — spell it out exactly, as if they've never done this before.
 - Whenever you give them a phone number to use (for forwarding, calling, etc), tell them to tap and hold it to copy it rather than retyping it by hand.
 - If they ask what's next, tell them just the next incomplete step.
@@ -543,6 +570,21 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           },
         },
         required: ['carrier'],
+      },
+    },
+    {
+      name: 'send_step_intro',
+      description: 'Sends the opening why-explanation + first question for the call-forwarding (twilio) step as its own standalone text message, computed deterministically — checks whether a business phone number is already on file and sends the correct opening question either way. Use this the moment you enter the twilio step for the first time in a conversation, whether that\'s right after a previous step was confirmed or the contractor asks about it directly. Do NOT write your own version of this question or its why-explanation first — call this tool with no text of your own.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          step: {
+            type: 'string',
+            enum: ['twilio'],
+            description: 'Always "twilio" — the only step this currently supports.',
+          },
+        },
+        required: ['step'],
       },
     },
     {
@@ -795,6 +837,11 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
         const nextStepKey = ALL_STEP_KEYS.find(k => !freshStepsForNext[k]);
         if (nextStepKey && ['facebook', 'reviewers', 'messenger'].includes(nextStepKey)) {
           toolResult += ` Next incomplete step is "${nextStepKey}". Call send_step_copy with step="${nextStepKey}" RIGHT NOW, in this same reply, as your only action — write NO text of your own first, not even a short line like "ready to grab it?" or "last one:" — the tool sends both the why/how intro and the ready-to-paste copy directly as SMS messages on its own.`;
+        } else if (nextStepKey === 'twilio') {
+          // Task #71: same principle as the facebook/reviewers/messenger branch
+          // above, applied to twilio's opening ask after it kept getting
+          // invented wrong three separate times when left to the model.
+          toolResult += ` Next incomplete step is "twilio". Call send_step_intro with step="twilio" RIGHT NOW, in this same reply, as your only action — write NO text of your own first, not even a short line like "next up is call forwarding" or "now the important one" — the tool sends the correct why-explanation and first question directly as its own SMS.`;
         }
 
         // Power message fires once the FULL checklist (all 7 steps, not just
@@ -931,6 +978,36 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
         console.error('[SMS-AI] log_job_outcome error:', err.message);
       }
 
+    } else if (name === 'send_step_intro') {
+      // Task #71: the twilio step's opening ask (why-explanation + first
+      // question) got invented wrong by the model three separate times across
+      // two different trigger points, despite three rounds of tightening the
+      // guide/rule text — same failure class as send_forwarding_code and
+      // send_step_copy before their deterministic-send fixes. This tool exists
+      // so the opening ask is never composed by the model at all, regardless
+      // of which state the twilio step is in when entered.
+      try {
+        if (!twilioClient) {
+          toolResult = `Error: Twilio not configured — tell them the question will follow shortly.`;
+        } else {
+          const fresh = await db.query('SELECT business_phone, phone FROM contractors WHERE id = $1', [contractorId]);
+          const freshRow = fresh.rows[0] || {};
+          const body = freshRow.business_phone
+            ? TWILIO_DEVICE_CARRIER_ASK
+            : TWILIO_BUSINESS_PHONE_ASK(freshRow.phone || contractor.phone);
+          twilioClient.messages.create({
+            to: contractor.phone, from: contractor.twilio_number, body,
+          }).catch(err => console.error('[SMS-AI] send_step_intro send failed:', err.message));
+          intentionalSilence = true;
+          silentActionSummary = `(Already sent the twilio step's opening question as its own direct SMS — do NOT call send_step_intro again or write your own version of it. Wait for their reply.)`;
+          toolResult = `Sent directly as its own SMS — do NOT write your own version of this question or its why-explanation, and do NOT call this tool again this conversation unless the contractor explicitly asks to redo the forwarding setup from scratch. Just wait for their reply. EXCEPTION: if their message also contained something unrelated (a real question, or a request like changing hours/zip codes), still handle that and add ONE brief line acknowledging just that.`;
+          console.log(`[SMS-AI] send_step_intro (twilio) sent to ${contractorId}, businessPhoneKnown=${!!freshRow.business_phone}`);
+        }
+      } catch (err) {
+        toolResult = `Error: ${err.message}`;
+        console.error('[SMS-AI] send_step_intro error:', err.message);
+      }
+
     } else if (name === 'set_business_phone') {
       try {
         const { is_same, different_number } = input;
@@ -939,9 +1016,26 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           toolResult = `Error: no number to save — ask them for the business number and try again.`;
         } else {
           await db.query(`UPDATE contractors SET business_phone = $1 WHERE id = $2`, [resolvedNumber, contractorId]);
-          toolResult = is_same
-            ? `Confirmed same number — ${resolvedNumber} is what gets forwarded. Now give the forwarding instructions for that number.`
-            : `Saved separate business number ${resolvedNumber}. Now give the forwarding instructions for THAT number, not their personal cell.`;
+          // Task #71: this used to just tell the model "now give the forwarding
+          // instructions" and trust it to compose the device+carrier ask itself —
+          // that's the second of the two spots this exact class of bug kept
+          // recurring in (see TWILIO_DEVICE_CARRIER_ASK comment above). Send it
+          // directly, deterministically, the moment the number is resolved —
+          // same pattern as send_forwarding_code/send_step_copy.
+          if (twilioClient && contractor.phone && contractor.twilio_number) {
+            twilioClient.messages.create({
+              to: contractor.phone, from: contractor.twilio_number, body: TWILIO_DEVICE_CARRIER_ASK,
+            }).catch(err => console.error('[SMS-AI] set_business_phone device-ask send failed:', err.message));
+            intentionalSilence = true;
+            silentActionSummary = is_same
+              ? `(Confirmed ${resolvedNumber} as the forwarding number and already sent the device+carrier question as its own direct SMS — do NOT write your own version of it or ask it again. Wait for their device+carrier reply.)`
+              : `(Saved ${resolvedNumber} as a separate business number and already sent the device+carrier question as its own direct SMS — do NOT write your own version of it or ask it again. Wait for their device+carrier reply.)`;
+            toolResult = `Number confirmed and saved. The device+carrier question is already being sent directly as its own SMS — do NOT write your own version of it, do NOT repeat it, and do NOT ask about device or carrier yourself. Just wait for their reply. EXCEPTION: if their message also contained something unrelated (a real question, or a request like changing hours/zip codes), still handle that and add ONE brief line acknowledging just that.`;
+          } else {
+            toolResult = is_same
+              ? `Confirmed same number — ${resolvedNumber} is what gets forwarded. Now give the forwarding instructions for that number.`
+              : `Saved separate business number ${resolvedNumber}. Now give the forwarding instructions for THAT number, not their personal cell.`;
+          }
           console.log(`[SMS-AI] business_phone set for ${contractorId}: ${resolvedNumber} (same=${is_same})`);
         }
       } catch (err) {
