@@ -531,4 +531,46 @@ router.post('/test-sms', requireAdmin, async (req, res) => {
   });
 });
 
+// ── POST /api/twilio/test-power-message ───────────────────────────────────────
+// Admin-only debug trigger. Sends the real power message via real Twilio to a
+// contractor, completely bypassing the onboarding_steps completion logic and
+// the sms_power_message_sent one-time gate. Exists because that gate makes the
+// message untestable through the normal checklist flow once it's already fired
+// once for a contractor — resetting onboarding_steps to re-trigger it for real
+// is disruptive to an in-progress live test. This route never touches
+// onboarding_steps or sms_power_message_sent — it just calls the same
+// sendPowerMessage() function the real trigger calls, so the actual SMS content
+// and delivery path are identical, only the trigger condition is skipped.
+//
+// Body: { contractorId: string }
+router.post('/test-power-message', requireAdmin, async (req, res) => {
+  const { contractorId } = req.body;
+  if (!contractorId) return res.status(400).json({ error: 'contractorId is required' });
+
+  const { rows } = await db.query(
+    `SELECT id, name, phone, twilio_number FROM contractors WHERE id = $1`,
+    [contractorId]
+  );
+  if (!rows.length) return res.status(404).json({ error: `No contractor found with id: ${contractorId}` });
+
+  const contractor = rows[0];
+  if (!contractor.phone || !contractor.twilio_number) {
+    return res.status(400).json({ error: 'Contractor is missing phone or twilio_number — cannot send.' });
+  }
+  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+    return res.status(400).json({ error: 'TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN not set on this environment.' });
+  }
+
+  const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+  const { sendPowerMessage } = require('../services/smsAI');
+
+  try {
+    await sendPowerMessage(contractor, twilioClient);
+    return res.json({ ok: true, sentTo: contractor.phone, from: contractor.twilio_number });
+  } catch (err) {
+    console.error('[TEST-POWER-MESSAGE] send failed:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
