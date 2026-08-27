@@ -1168,6 +1168,14 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           toolResult = `Test call placed — it will actually ring their real phone in about 18-20 seconds. Tell the contractor EXACTLY this, right now, before anything else: a real call from Tractify is about to come through in about 15-20 seconds — when it rings, do NOT answer it, and do NOT hang it up either — just let it ring through to voicemail on its own, that's the whole test and it's not a real call. They'll get a text with the result within about a minute after that. No further action needed from them right now.`;
         } else if (result.reason === 'missing_number') {
           toolResult = `Error: no phone number on file to test — resolve set_business_phone first.`;
+        } else if (result.reason === 'already_in_progress') {
+          // Live-caught real bug (task #69): a repeat "Done" while a test is
+          // still pending must NOT trigger a second real test call, and must
+          // NOT send the contractor a duplicate "a call is coming" text either
+          // — they already got that message once for the test already running.
+          intentionalSilence = true;
+          silentActionSummary = `(A forwarding test is already in progress from a moment ago — did NOT start a second one and did NOT send another "a call is coming" text, since they already got that message. Just wait for the result text.)`;
+          toolResult = `A test is already in progress from their last "Done" — do NOT start another one and do NOT send them any message right now, they already got the warning text once. End your turn with no text.`;
         } else {
           toolResult = `Error starting test: ${result.reason}. Tell the contractor to just text DONE again in a minute and you'll retry.`;
         }

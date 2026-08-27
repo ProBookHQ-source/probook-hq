@@ -57,6 +57,23 @@ async function startForwardingTest(contractor) {
     return { started: false, reason: 'twilio_not_configured' };
   }
 
+  // Live-caught real bug (task #69): sending "Done" twice quickly called this
+  // function twice, and each call schedules its OWN real outbound test call
+  // ~18s later with zero awareness of the other — the contractor's phone rang
+  // twice within seconds for what should have been a single test. Refuse to
+  // start a second test while one genuinely appears to be in flight (started
+  // recently and hasn't resolved yet). Window covers the 18s scheduling delay
+  // plus the ~90s resolution window plus padding.
+  const inFlightCheck = await db.prepare(
+    'SELECT fwd_test_started_at, fwd_test_result FROM contractors WHERE id = $1'
+  ).get(contractor.id);
+  if (inFlightCheck?.fwd_test_started_at && !inFlightCheck.fwd_test_result) {
+    const ageMs = Date.now() - new Date(inFlightCheck.fwd_test_started_at).getTime();
+    if (ageMs < 130000) {
+      return { started: false, reason: 'already_in_progress' };
+    }
+  }
+
   try {
     await db.query(
       `UPDATE contractors SET fwd_test_started_at = NOW(), fwd_test_result = NULL, fwd_test_completed_at = NULL WHERE id = $1`,
