@@ -1007,7 +1007,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
 
           intentionalSilence = true;
           silentActionSummary = `(Already sent the forwarding-code explanation, the bare dial code, and the how-to link as direct SMS — do NOT call send_forwarding_code again for this contractor. Once they say they've dialed it / it's done, call run_forwarding_test instead.)`;
-          toolResult = `Three messages are already being sent directly — the numbered explanation now, the bare code 4 seconds after, and an optional "want to see it step by step?" link 7 seconds after that as a fallback reference. Together they already say everything needed, including asking them to text DONE once it's dialed. Send NO reply text of your own this turn, not even a short acknowledgment. Live-tested: even one extra line creates a confusing message that just re-narrates what the first message already said, landing in the middle of the sequence. Just call the tool and end your turn with zero text.`;
+          toolResult = `Three messages are already being sent directly — the numbered explanation now, the bare code 4 seconds after, and an optional "want to see it step by step?" link 7 seconds after that as a fallback reference. Together they already say everything needed, including asking them to text DONE once it's dialed. Send NO reply text of your own about THIS step — not even a short acknowledgment. Live-tested: even one extra line here creates a confusing message that just re-narrates what the first message already said, landing in the middle of the sequence. EXCEPTION: if their message also contained something completely unrelated (a real question, or a request like changing their hours/zip codes elsewhere), you may still call whatever tool that needs (e.g. update_availability_slot) and add ONE brief line acknowledging just that separate thing — just nothing about the forwarding code itself.`;
           console.log(`[SMS-AI] Sent forwarding explanation + code + how-to link (${carrier}) to ${contractorId}`);
         }
       } catch (err) {
@@ -1073,7 +1073,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           }, 4000);
           intentionalSilence = true;
           silentActionSummary = `(Already sent the "${step}" intro and ready-to-paste copy as direct SMS — do NOT call send_step_copy for "${step}" again. Wait for them to confirm it's posted/saved before moving on.)`;
-          toolResult = `Both messages are already being sent directly — the "why + how" intro now, the ready-to-paste copy 4 seconds after. Do NOT write your own version of either one and do NOT repeat the copy in your reply. End your turn with no additional text.`;
+          toolResult = `Both messages are already being sent directly — the "why + how" intro now, the ready-to-paste copy 4 seconds after. Do NOT write your own version of either one and do NOT repeat the copy in your reply — nothing about THIS step. Live-caught real bug: a contractor said "Done" for this step AND asked to change their hours in the same message — the change saved correctly on the backend via update_availability_slot, but the reply said nothing about it at all, reading as if it had been ignored. EXCEPTION: if their message also contained something completely unrelated (a real question, or a request like changing hours/zip codes), still call whatever tool that needs and add ONE brief line acknowledging just that — e.g. "Got it, Wednesday's now closed." — just nothing about this step's copy/intro.`;
           // Live-caught real bug (task #67): complete_setup_step for facebook/
           // reviewers/messenger was purely conversational — nothing checked
           // that send_step_copy had actually fired before allowing the step to
@@ -1202,7 +1202,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           // — they already got that message once for the test already running.
           intentionalSilence = true;
           silentActionSummary = `(A forwarding test is already in progress from a moment ago — did NOT start a second one and did NOT send another "a call is coming" text, since they already got that message. Just wait for the result text.)`;
-          toolResult = `A test is already in progress from their last "Done" — do NOT start another one and do NOT send them any message right now, they already got the warning text once. End your turn with no text.`;
+          toolResult = `A test is already in progress from their last "Done" — do NOT start another one and do NOT send them anything about the test, they already got the warning text once. EXCEPTION: if their message also contained something unrelated (a real question, or a request like changing hours/zip codes), still handle that and reply with one brief line about it — just nothing about the test itself.`;
         } else {
           toolResult = `Error starting test: ${result.reason}. Tell the contractor to just text DONE again in a minute and you'll retry.`;
         }
