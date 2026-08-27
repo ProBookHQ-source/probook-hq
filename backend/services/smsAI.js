@@ -661,6 +661,20 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
   // then got sent as an actual confusing 4th SMS right after three messages
   // that worked perfectly. This flag lets the two cases be told apart.
   let intentionalSilence = false;
+  // Live-caught real bug (task #70): the availability guide requires reading
+  // final hours back and waiting for an explicit yes BEFORE calling
+  // complete_setup_step — but on a fresh "no schedule set" contractor, the
+  // model saved the hours via update_availability_slot AND declared "schedule
+  // locked in, next up is call forwarding" in the SAME reply, skipping the
+  // required confirm round-trip entirely. Confirmed live: several steps
+  // later, the next-step prompt correctly showed availability as still
+  // incomplete, meaning complete_setup_step genuinely never got called even
+  // though the contractor was told it was done. Track whether hours were
+  // saved THIS call and hard-block completing availability in the same call —
+  // per the guide, these two tool calls should never legitimately happen
+  // in the same turn (the confirm-and-complete step always requires the
+  // contractor's NEXT reply, a separate handleContractorSmsInner call).
+  let availabilitySavedThisCall = false;
   // Companion to intentionalSilence — a short, tool-specific note describing
   // what was actually sent, used INSTEAD of the generic "(no text reply)"
   // placeholder when persisting this turn to sms_conversation. Live-caught
@@ -718,6 +732,19 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           );
           if (parseInt(slotRows[0].cnt, 10) === 0) {
             toolResult = `Error: cannot mark availability complete — no rows exist in availability_slots for this contractor yet, meaning nothing was actually saved. Do NOT tell them it's locked in. Call update_availability_slot for each day they gave you (this may not have actually run last turn), then only call complete_setup_step again after that succeeds.`;
+            toolResultBlocks.push({ type: 'tool_result', tool_use_id: toolUseId, content: toolResult });
+            continue;
+          }
+
+          // Live-caught real bug (task #70): calling update_availability_slot
+          // and complete_setup_step in the SAME reply skips the guide's
+          // required "read the final hours back and get an explicit yes"
+          // round-trip — the contractor never actually confirmed anything,
+          // yet got told "schedule locked in." Per the guide, these two tools
+          // should never both fire in one turn: save+read-back is turn N,
+          // complete only happens after their NEXT reply confirms it.
+          if (availabilitySavedThisCall) {
+            toolResult = `Error: cannot mark availability complete in the same reply where you just saved hours via update_availability_slot — you have not actually read the final hours back and gotten an explicit yes from them yet. Instead, state the hours you just saved and ask "does that look right?" — end your turn there with no completion. Only call complete_setup_step on their NEXT reply, once they've actually confirmed.`;
             toolResultBlocks.push({ type: 'tool_result', tool_use_id: toolUseId, content: toolResult });
             continue;
           }
@@ -1210,6 +1237,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
         } else {
           toolResult = `Marked ${dayName} as unavailable.`;
         }
+        availabilitySavedThisCall = true;
         console.log(`[SMS-AI] Updated availability slot — ${dayName} for contractor ${contractorId}`);
       } catch (err) {
         toolResult = `Error: ${err.message}`;
