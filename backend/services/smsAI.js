@@ -190,6 +190,41 @@ async function fireNextStepIntro(nextStepKey, contractor, contractorId, twilioCl
   return { fired: false, summary: null };
 }
 
+// Task #73: extracted so it can be FORCED from outside the tool loop, not
+// just called when the model decides to invoke send_availability_readback.
+// Live-caught the real gap this closes: the model can simply skip calling
+// the tool altogether and write its own free-text "you're all set, next up
+// is call forwarding..." after a plain update_availability_slot call — no
+// tool fires, so intentionalSilence never gets set, so nothing at the
+// reply-selection stage catches it either. This is the one class of failure
+// that guide text and gates on OTHER tools can't reach, because it requires
+// the model to have called something in order to intervene. The fix has to
+// not depend on the model calling anything at all: handleContractorSms now
+// tracks whether hours were saved this turn (availabilitySavedThisCall) and
+// whether a readback was actually sent this turn (readbackFiredThisCall),
+// and if hours were saved but no readback went out, this fires unconditionally
+// after the model's turn ends, overriding whatever text it wrote.
+async function sendAvailabilityReadbackNow(contractor, contractorId, twilioClient) {
+  if (!twilioClient || !contractor.twilio_number) return { fired: false, summary: null };
+  const { rows: freshSlots } = await db.query(
+    `SELECT day_of_week, start_time, end_time FROM availability_slots WHERE contractor_id = $1 AND is_active = 1 ORDER BY day_of_week`,
+    [contractorId]
+  );
+  const hoursText = formatAvailabilityForSms(freshSlots);
+  const body = freshSlots.length
+    ? `Just to confirm: ${hoursText} — that right? Reply YES to lock it in, or tell me what to change.`
+    : `Just to confirm: you're closed every day right now (no active hours saved) — that right? Reply YES to lock it in, or tell me your actual hours.`;
+  twilioClient.messages.create({
+    to: contractor.phone, from: contractor.twilio_number, body,
+  }).catch(err => console.error('[SMS-AI] sendAvailabilityReadbackNow send failed:', err.message));
+  await db.query(
+    `UPDATE contractors SET onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || $1::jsonb WHERE id = $2`,
+    [JSON.stringify({ availability_readback_sent: true }), contractorId]
+  );
+  console.log(`[SMS-AI] sendAvailabilityReadbackNow sent to ${contractorId}: "${hoursText}"`);
+  return { fired: true, summary: `(Already sent the hours read-back as its own direct SMS, computed from the real saved rows — do NOT write your own version of it. Wait for their yes/change reply, then call complete_setup_step only once they confirm.)` };
+}
+
 function fmtTime(t) {
   if (!t) return '';
   const [h, m] = t.split(':').map(Number);
@@ -811,6 +846,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
   // in the same turn (the confirm-and-complete step always requires the
   // contractor's NEXT reply, a separate handleContractorSmsInner call).
   let availabilitySavedThisCall = false;
+  let readbackFiredThisCall = false; // task #73 — did send_availability_readback (or the forced fallback below) actually fire this handleContractorSms call
   // Companion to intentionalSilence — a short, tool-specific note describing
   // what was actually sent, used INSTEAD of the generic "(no text reply)"
   // placeholder when persisting this turn to sms_conversation. Live-caught
@@ -1388,6 +1424,17 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           toolResult = `Marked ${dayName} as unavailable.`;
         }
         availabilitySavedThisCall = true;
+        // Task #73: any stale availability_readback_sent=true from an earlier
+        // completion (or a reset test contractor whose reset didn't also
+        // clear this flag) would let complete_setup_step's gate pass without
+        // a fresh read-back ever being sent for THESE hours — live-caught
+        // exactly that: hours changed, step got marked "locked in" with zero
+        // confirm exchange. A real hours change always invalidates whatever
+        // was read back before, so clear the flag every time hours are saved.
+        await db.query(
+          `UPDATE contractors SET onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || $1::jsonb WHERE id = $2`,
+          [JSON.stringify({ availability_readback_sent: false }), contractorId]
+        );
         console.log(`[SMS-AI] Updated availability slot — ${dayName} for contractor ${contractorId}`);
       } catch (err) {
         toolResult = `Error: ${err.message}`;
@@ -1406,28 +1453,14 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
       // genuinely fired before complete_setup_step will allow this step done
       // (see the availability_readback_sent gate in complete_setup_step above).
       try {
-        if (!twilioClient) {
-          toolResult = `Error: Twilio not configured — tell them you'll confirm shortly.`;
-        } else {
-          const { rows: freshSlots } = await db.query(
-            `SELECT day_of_week, start_time, end_time FROM availability_slots WHERE contractor_id = $1 AND is_active = 1 ORDER BY day_of_week`,
-            [contractorId]
-          );
-          const hoursText = formatAvailabilityForSms(freshSlots);
-          const body = freshSlots.length
-            ? `Just to confirm: ${hoursText} — that right? Reply YES to lock it in, or tell me what to change.`
-            : `Just to confirm: you're closed every day right now (no active hours saved) — that right? Reply YES to lock it in, or tell me your actual hours.`;
-          twilioClient.messages.create({
-            to: contractor.phone, from: contractor.twilio_number, body,
-          }).catch(err => console.error('[SMS-AI] send_availability_readback send failed:', err.message));
-          await db.query(
-            `UPDATE contractors SET onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || $1::jsonb WHERE id = $2`,
-            [JSON.stringify({ availability_readback_sent: true }), contractorId]
-          );
+        const { fired, summary } = await sendAvailabilityReadbackNow(contractor, contractorId, twilioClient);
+        if (fired) {
+          readbackFiredThisCall = true;
           intentionalSilence = true;
-          silentActionSummary = `(Already sent the hours read-back as its own direct SMS, computed from the real saved rows — do NOT write your own version of it. Wait for their yes/change reply, then call complete_setup_step only once they confirm.)`;
+          silentActionSummary = summary;
           toolResult = `Sent directly as its own SMS, computed from the actual saved availability_slots rows — do NOT write your own version of this confirm message. Do NOT call complete_setup_step yet — wait for their next reply confirming it first.`;
-          console.log(`[SMS-AI] send_availability_readback sent to ${contractorId}: "${hoursText}"`);
+        } else {
+          toolResult = `Error: Twilio not configured or no Twilio number on file yet — tell them you'll confirm shortly.`;
         }
       } catch (err) {
         toolResult = `Error: ${err.message}`;
@@ -1457,6 +1490,29 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
       tools,
       messages: toolMessages,
     });
+  }
+
+  // Task #73: server-side backstop independent of tool-calling compliance.
+  // Live-caught the real gap this closes: the model can skip calling
+  // send_availability_readback ENTIRELY and just write its own free-text
+  // "you're all set, next up is call forwarding..." right after a plain
+  // update_availability_slot call — no tool fires for that, so
+  // intentionalSilence never gets set, and nothing at the reply-selection
+  // stage below has anything to catch. This is the one failure class that
+  // gates on OTHER tools (complete_setup_step's availability_readback_sent
+  // check, etc) can't reach, because those only run when the model calls
+  // them. This doesn't wait for the model to cooperate: if hours were saved
+  // this call but no readback ever actually went out, force it now and
+  // suppress whatever the model just wrote — it cannot be trusted to
+  // accurately describe what happens next once it's skipped the required step.
+  if (availabilitySavedThisCall && !readbackFiredThisCall) {
+    const forced = await sendAvailabilityReadbackNow(contractor, contractorId, twilioClient);
+    if (forced.fired) {
+      readbackFiredThisCall = true;
+      intentionalSilence = true;
+      silentActionSummary = forced.summary;
+      console.warn(`[SMS-AI] Forced availability read-back for ${contractorId} — model skipped calling send_availability_readback and wrote its own text instead.`);
+    }
   }
 
   // This fallback firing at all now means something genuinely unexpected
