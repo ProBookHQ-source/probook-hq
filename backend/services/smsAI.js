@@ -255,7 +255,22 @@ function fmtPhone(raw) {
 function formatAvailabilityForSms(slots) {
   if (!slots.length) return 'No hours loaded yet';
   const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  return slots.map(s => `${DAYS_SHORT[s.day_of_week]} ${fmtTime(s.start_time)}-${fmtTime(s.end_time)}`).join(', ');
+  // Rewritten (task #80) so a read-back always states EVERY day explicitly,
+  // including closed ones, instead of just omitting them and leaving the
+  // contractor to notice a day's absence on their own. Live-caught: a
+  // contractor asked to close Tuesday and the confirm message listed Mon,
+  // Wed, Thu, Fri with no mention of Tuesday at all — technically correct
+  // (Tuesday really was gone), but confirming a change by omission isn't
+  // the crystal-clear standard the read-back exists to meet. Now always
+  // covers all 7 days, saying "Closed" for any day with no active row.
+  const byDay = {};
+  for (const s of slots) byDay[s.day_of_week] = s;
+  const parts = [];
+  for (let d = 0; d < 7; d++) {
+    const s = byDay[d];
+    parts.push(s ? `${DAYS_SHORT[d]} ${fmtTime(s.start_time)}-${fmtTime(s.end_time)}` : `${DAYS_SHORT[d]} Closed`);
+  }
+  return parts.join(', ');
 }
 
 function getTwilioClient() {
