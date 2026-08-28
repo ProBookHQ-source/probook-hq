@@ -1246,23 +1246,36 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
             to: forwardNumber, from: contractor.twilio_number, body: explanation,
           }).catch(err => console.error('[SMS-AI] send_forwarding_code explanation send failed:', err.message));
 
+          // Live-caught, intermittent (Jose: "sometimes the how-to will come
+          // before the code, sometimes it will not") — the code and the
+          // how-to link used to be two INDEPENDENT setTimeout calls both
+          // measured from the same origin (4000ms / 7000ms). That only
+          // guarantees the code's API *request* goes out first — it does
+          // nothing to guarantee Twilio actually delivers them in that
+          // order, and any latency jitter on the earlier call could let the
+          // later one's request reach Twilio first. Fixed by chaining: the
+          // how-to link's own timer doesn't even START until the code's
+          // messages.create() call has resolved (confirmed accepted by
+          // Twilio), so the two API calls can never race each other — the
+          // how-to request is never even made until the code's is done.
           setTimeout(() => {
             twilioClient.messages.create({
               to: forwardNumber, from: contractor.twilio_number, body: code,
+            }).then(() => {
+              // Optional visual reference — sent LAST, after both
+              // time-critical messages, on purpose. Jose's own framing: "in
+              // case they need it for reference," i.e. a fallback for once
+              // they already have the instructions + code in hand, not
+              // required pre-reading. Putting it between the explanation and
+              // the code would reintroduce the exact 3-messages-in-the-
+              // critical-path clutter already fixed once before this.
+              setTimeout(() => {
+                twilioClient.messages.create({
+                  to: forwardNumber, from: contractor.twilio_number, body: 'Want to see it step by step? tractifyhq.com/how-to',
+                }).catch(err => console.error('[SMS-AI] send_forwarding_code how-to link send failed:', err.message));
+              }, 3000);
             }).catch(err => console.error('[SMS-AI] send_forwarding_code code send failed:', err.message));
           }, 4000);
-
-          // Optional visual reference — sent LAST, after both time-critical
-          // messages, on purpose. Jose's own framing: "in case they need it
-          // for reference," i.e. a fallback for once they already have the
-          // instructions + code in hand, not required pre-reading. Putting it
-          // between the explanation and the code would reintroduce the exact
-          // 3-messages-in-the-critical-path clutter just fixed above.
-          setTimeout(() => {
-            twilioClient.messages.create({
-              to: forwardNumber, from: contractor.twilio_number, body: 'Want to see it step by step? tractifyhq.com/how-to',
-            }).catch(err => console.error('[SMS-AI] send_forwarding_code how-to link send failed:', err.message));
-          }, 7000);
 
           intentionalSilence = true;
           silentActionSummary = `(Already sent the forwarding-code explanation, the bare dial code, and the how-to link as direct SMS — do NOT call send_forwarding_code again for this contractor. Once they say they've dialed it / it's done, call run_forwarding_test instead.)`;
