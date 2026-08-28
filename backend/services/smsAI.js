@@ -101,6 +101,91 @@ const TWILIO_BUSINESS_PHONE_ASK = (phone) =>
 const TWILIO_DEVICE_CARRIER_ASK =
   `Here's how this works: when you miss a call, instead of it just ringing out, it'll forward to us and we'll text the caller right away so you don't lose the job — otherwise they just call the next guy. Are you on an iPhone or Android, and which carrier — AT&T, T-Mobile, Verizon, or something else?`;
 
+// Hardcoded why/how intros for the three copy-paste steps — same reasoning as
+// the TWILIO_* constants above. Moved to module scope (task #72) so they can
+// be fired directly from complete_setup_step's own handler, not just from the
+// standalone send_step_copy tool — see fireNextStepIntro below for why.
+const STEP_INTRO_TEMPLATES = {
+  facebook: `Local Facebook groups are full of homeowners asking their neighbors for contractor recommendations — free leads, no ad spend. Search Facebook for your city + "neighbors" or "community" groups, join one, then post in it — and I'll send you the exact copy to paste right after this. Text DONE once it's posted.`,
+  reviewers: `Your happy customers already paid you and loved the work — they're your warmest leads for repeat business or a referral. Go to business.google.com, click Reviews, and reply only to your 4 and 5-star reviews — skip anything lower than that, this isn't the moment to pitch someone who wasn't happy. I'll send the exact message to paste next — just swap in their name where it says [Name]. Text DONE once you've replied to all your 4 and 5-star ones.`,
+  // Live-caught real gap (not a code bug — a wrong instruction): Instant
+  // Reply's own "Channels" section has SEPARATE checkboxes for Messenger and
+  // Instagram — toggling the feature on does NOT automatically cover both.
+  messenger: `Homeowners DM your Facebook or Instagram all the time and never hear back — whoever responds first usually gets the job. Go to business.facebook.com, click Inbox, then Automation, then Instant Reply, toggle it on, then under "Channels" make sure BOTH the Messenger box and the Instagram box are checked — they're separate checkboxes, checking one doesn't check the other. I'll send the exact auto-reply text to paste next. Text DONE once both are checked and it's saved.`,
+};
+
+function buildStepCopyText(step, contractor) {
+  const bookingLink = contractor.booking_slug
+    ? `https://tractifyhq.com/schedule/${contractor.booking_slug}`
+    : 'https://tractifyhq.com/schedule';
+  const bizName = contractor.company_name || contractor.name;
+  const TEMPLATES = {
+    facebook: `Hi everyone! I run ${bizName} and just launched online booking. No phone tag — just pick a time: ${bookingLink}`,
+    // Reworked to sound warm/authentic, not templated (Jose reviewed both
+    // drafts and picked this one specifically for "one thing since then").
+    reviewers: `Hi [Name]! Really appreciate you taking the time to leave that review — made our day. One thing since then: we now do online booking, so if you ever need us again it's as easy as grabbing a time here: ${bookingLink}. Thanks again for trusting us with the work!`,
+    messenger: `Thanks for reaching out to ${bizName}! Book a time here: ${bookingLink} — takes 60 seconds.`,
+  };
+  return TEMPLATES[step];
+}
+
+// ── Deterministic "next step" transition firer ─────────────────────────────
+// Task #72: relying on the model to complete one step AND ALSO separately
+// decide to call a different tool (send_step_copy / send_step_intro) for the
+// NEXT step's opening message was the actual failure point — not the
+// reliability of those tools once the model DOES call them for their own
+// step (send_forwarding_code and send_step_copy, called directly by the
+// model for their own step, have been solid all session). Live-caught,
+// repeatedly, specifically on the "just completed X, now transitioning into
+// Y" hop: the model would skip the second tool call entirely and just
+// narrate the transition in free text instead — this is exactly how the
+// twilio step's why-explanation kept getting reinvented wrong THREE separate
+// times despite the deterministic tool existing the whole time. Fix: remove
+// that second decision from the model completely. The instant a step is
+// marked complete and the next step is known, fire that next step's opening
+// message directly, synchronously, from complete_setup_step's own handler —
+// nothing left for the model to forget or skip. The standalone send_step_copy
+// and send_step_intro tools stay available too, for cases where the model
+// re-enters a step independently (e.g. contractor asks "what's next" on a
+// later day, with no fresh step-completion in the same turn to hook into).
+async function fireNextStepIntro(nextStepKey, contractor, contractorId, twilioClient) {
+  if (!twilioClient || !contractor.twilio_number) return { fired: false, summary: null };
+
+  if (nextStepKey === 'twilio') {
+    const fresh = await db.query('SELECT business_phone, phone FROM contractors WHERE id = $1', [contractorId]);
+    const freshRow = fresh.rows[0] || {};
+    const body = freshRow.business_phone
+      ? TWILIO_DEVICE_CARRIER_ASK
+      : TWILIO_BUSINESS_PHONE_ASK(freshRow.phone || contractor.phone);
+    twilioClient.messages.create({
+      to: contractor.phone, from: contractor.twilio_number, body,
+    }).catch(err => console.error('[SMS-AI] fireNextStepIntro (twilio) send failed:', err.message));
+    console.log(`[SMS-AI] fireNextStepIntro (twilio) sent to ${contractorId}, businessPhoneKnown=${!!freshRow.business_phone}`);
+    return { fired: true, summary: `(Already sent the twilio step's opening question as its own direct SMS — do NOT write your own version of it or ask about device/carrier/business phone yourself. Wait for their reply.)` };
+  }
+
+  if (['facebook', 'reviewers', 'messenger'].includes(nextStepKey)) {
+    const introText = STEP_INTRO_TEMPLATES[nextStepKey];
+    const copyText = buildStepCopyText(nextStepKey, contractor);
+    twilioClient.messages.create({
+      to: contractor.phone, from: contractor.twilio_number, body: introText,
+    }).catch(err => console.error(`[SMS-AI] fireNextStepIntro (${nextStepKey}) intro send failed:`, err.message));
+    setTimeout(() => {
+      twilioClient.messages.create({
+        to: contractor.phone, from: contractor.twilio_number, body: copyText,
+      }).catch(err => console.error(`[SMS-AI] fireNextStepIntro (${nextStepKey}) copy send failed:`, err.message));
+    }, 4000);
+    await db.query(
+      `UPDATE contractors SET onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || $1::jsonb WHERE id = $2`,
+      [JSON.stringify({ [`${nextStepKey}_copy_sent`]: true }), contractorId]
+    );
+    console.log(`[SMS-AI] fireNextStepIntro (${nextStepKey}) intro+copy sent to ${contractorId}`);
+    return { fired: true, summary: `(Already sent the "${nextStepKey}" intro and ready-to-paste copy as direct SMS — do NOT write your own version of either, do NOT call send_step_copy for "${nextStepKey}" again. Wait for them to confirm it's posted/saved.)` };
+  }
+
+  return { fired: false, summary: null };
+}
+
 function fmtTime(t) {
   if (!t) return '';
   const [h, m] = t.split(':').map(Number);
@@ -171,8 +256,8 @@ If they answer with anything like "24/7", "on call anytime", "always available",
 
 If their answer covers every day clearly (even "closed Sundays, same hours every other day"), call update_availability_slot once per day (or "closed" via is_active=false) in that same turn to save all of it at once. Only ask about a specific day separately if their answer left something genuinely ambiguous or missing.
 
-Before marking this step done, state the final hours you're about to save back to them in one message and get an explicit yes — e.g. "Just to confirm: closed Sun/Fri/Sat, Mon-Thu 9am-5pm bookable — that right?" Same rule as the branch below: only call complete_setup_step once they've confirmed the hours YOU just read back, not just because they answered the original question.`
-        : `Start with a quick why — e.g. "Just confirming your hours so we only ever offer homeowners times you're actually available." Then their hours are shown in the REGULAR SCHEDULE section above — you must actually state those hours out loud in your message and ask "does that look right?" — do NOT mark this step done just because they said "yes" to something else earlier (like the welcome text). Only mark it done when they say yes to a message where YOU just read their hours back to them. If they want changes, ask them to text the specific change and update via update_availability_slot.`,
+Once every day is saved, call send_availability_readback IMMEDIATELY, with NO confirm text of your own — it computes and sends the "just to confirm: [hours] — that right?" message directly from the real saved rows, not from your memory of the conversation. Live-caught real bug, twice: the model skipped this read-back entirely and jumped straight from asking for hours to declaring the schedule "locked in," with no confirmation exchange at all — writing your own version of this message is exactly how that kept happening. Only call complete_setup_step on their NEXT reply, once they've replied to the message send_availability_readback sent — never in the same turn you called update_availability_slot or send_availability_readback.`
+        : `Start with a quick why — e.g. "Just confirming your hours so we only ever offer homeowners times you're actually available." Then their hours are shown in the REGULAR SCHEDULE section above. If they haven't yet been sent a real read-back this conversation, call send_availability_readback now with no text of your own — it computes and sends the confirm message directly from the real saved rows. Do NOT state the hours or ask "does that look right?" yourself — write your own version of it and it drifts from what's actually saved. Do NOT mark this step done just because they said "yes" to something else earlier (like the welcome text) — only call complete_setup_step once they've replied to the message send_availability_readback actually sent. If they want changes, update via update_availability_slot then call send_availability_readback again to reconfirm the new hours.`,
     },
     twilio: {
       label: 'Set up missed call forwarding',
@@ -603,6 +688,11 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
       },
     },
     {
+      name: 'send_availability_readback',
+      description: 'Sends the "just to confirm: [hours] — that right?" read-back message as its own standalone text, computed directly from the contractor\'s real saved availability_slots rows — never from your own memory of what they said. Call this immediately after you finish calling update_availability_slot for every day they gave you in this turn, with no confirm/readback text of your own. Do NOT call complete_setup_step for availability in the same turn as this — wait for their next reply confirming it, then call complete_setup_step.',
+      input_schema: { type: 'object', properties: {}, required: [] },
+    },
+    {
       name: 'set_service_zip_codes',
       description: 'Save the list of zip codes this contractor services, as part of the service-area setup step. Call this once you have real 5-digit zip codes from them. If they say they have no fixed zip list and will "go anywhere," that still needs a real mile radius from their business address — ask "about how many miles from your shop are you willing to drive?" and pass that as radius_miles along with no_limit=true. Never call no_limit=true without a radius_miles number — an unbounded service area would let someone in another state book them.',
       input_schema: {
@@ -786,7 +876,23 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           // should never both fire in one turn: save+read-back is turn N,
           // complete only happens after their NEXT reply confirms it.
           if (availabilitySavedThisCall) {
-            toolResult = `Error: cannot mark availability complete in the same reply where you just saved hours via update_availability_slot — you have not actually read the final hours back and gotten an explicit yes from them yet. Instead, state the hours you just saved and ask "does that look right?" — end your turn there with no completion. Only call complete_setup_step on their NEXT reply, once they've actually confirmed.`;
+            toolResult = `Error: cannot mark availability complete in the same reply where you just saved hours via update_availability_slot — you have not actually read the final hours back and gotten an explicit yes from them yet. Call send_availability_readback now instead, with no confirm text of your own, and end your turn there. Only call complete_setup_step on their NEXT reply, once they've actually confirmed.`;
+            toolResultBlocks.push({ type: 'tool_result', tool_use_id: toolUseId, content: toolResult });
+            continue;
+          }
+
+          // Task #72 (audit part 2): server-side backstop for the same
+          // read-back requirement — mirrors the facebook/reviewers/messenger
+          // "_copy_sent" gate below. Without this, nothing stopped the model
+          // from skipping send_availability_readback entirely on a later turn
+          // (not just the same-turn case caught above) and just narrating its
+          // own "you're all set" — exactly what was live-caught happening.
+          const readbackCheck = await db.prepare('SELECT onboarding_steps FROM contractors WHERE id = $1').get(contractorId);
+          const readbackFlags = typeof readbackCheck?.onboarding_steps === 'string'
+            ? JSON.parse(readbackCheck.onboarding_steps || '{}')
+            : (readbackCheck?.onboarding_steps || {});
+          if (!readbackFlags.availability_readback_sent) {
+            toolResult = `Error: cannot mark availability complete — send_availability_readback was never actually sent for this contractor yet, meaning they never got a real read-back of their hours to confirm. Call send_availability_readback now instead, with no text of your own, then wait for their next reply confirming it before calling complete_setup_step again.`;
             toolResultBlocks.push({ type: 'tool_result', tool_use_id: toolUseId, content: toolResult });
             continue;
           }
@@ -820,28 +926,28 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
         toolResult = `Step "${step_key}" marked complete.`;
         console.log(`[SMS-AI] Marked step "${step_key}" complete for contractor ${contractorId}`);
 
-        // Live-caught real bug (task #68): the rule-411 exception telling the
-        // model "if the next step's guide says call the tool immediately with
-        // no text of your own, do that instead of writing a transition
-        // message" was NOT reliably followed even after being added — Jose
-        // confirmed this recurred (messenger step: "Ready to grab that text?"
-        // instead of immediately calling send_step_copy) on a fresh test
-        // after that fix was live. A natural-language exception buried in a
-        // long system-prompt rules list is too easy to miss. Same lesson as
-        // every other "the model won't reliably compose exact wording itself"
-        // bug fixed tonight (forwarding-code, forwarding-test warning) —
-        // inject the actual next action directly into THIS tool's own result,
-        // which the model is reacting to right in this turn, instead of
-        // trusting it to recall a general rule from earlier in the prompt.
+        // Task #72: this used to append a natural-language instruction telling
+        // the model to call a SEPARATE tool (send_step_copy / send_step_intro)
+        // for the next step's opening message, "right now, in this same
+        // reply." That two-part ask — finish this thing, AND ALSO remember to
+        // call a different tool for a different upcoming step — was the
+        // actual failure point, live-caught repeatedly: the model kept
+        // skipping the second tool call and just narrating the transition in
+        // free text instead, which is exactly how the twilio step's
+        // why-explanation got reinvented wrong three separate times despite
+        // the deterministic tool existing the whole time. Fix: don't ask the
+        // model to do the second thing at all — fire it directly, right here,
+        // the instant we know what the next step is. See fireNextStepIntro
+        // above for the full reasoning.
         const freshStepsForNext = updatedRows[0]?.onboarding_steps || {};
         const nextStepKey = ALL_STEP_KEYS.find(k => !freshStepsForNext[k]);
-        if (nextStepKey && ['facebook', 'reviewers', 'messenger'].includes(nextStepKey)) {
-          toolResult += ` Next incomplete step is "${nextStepKey}". Call send_step_copy with step="${nextStepKey}" RIGHT NOW, in this same reply, as your only action — write NO text of your own first, not even a short line like "ready to grab it?" or "last one:" — the tool sends both the why/how intro and the ready-to-paste copy directly as SMS messages on its own.`;
-        } else if (nextStepKey === 'twilio') {
-          // Task #71: same principle as the facebook/reviewers/messenger branch
-          // above, applied to twilio's opening ask after it kept getting
-          // invented wrong three separate times when left to the model.
-          toolResult += ` Next incomplete step is "twilio". Call send_step_intro with step="twilio" RIGHT NOW, in this same reply, as your only action — write NO text of your own first, not even a short line like "next up is call forwarding" or "now the important one" — the tool sends the correct why-explanation and first question directly as its own SMS.`;
+        if (nextStepKey) {
+          const introResult = await fireNextStepIntro(nextStepKey, contractor, contractorId, twilioClient);
+          if (introResult.fired) {
+            intentionalSilence = true;
+            silentActionSummary = introResult.summary;
+            toolResult += ` ${introResult.summary} Do not add any explanation of your own about "${nextStepKey}" — it has already been sent as its own text. EXCEPTION: if their message also contained something completely unrelated (a real question, or a request like changing hours/zip codes), still add ONE brief line acknowledging just that.`;
+          }
         }
 
         // Power message fires once the FULL checklist (all 7 steps, not just
@@ -979,29 +1085,28 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
       }
 
     } else if (name === 'send_step_intro') {
-      // Task #71: the twilio step's opening ask (why-explanation + first
-      // question) got invented wrong by the model three separate times across
+      // Task #71/#72: the twilio step's opening ask (why-explanation + first
+      // question) got invented wrong by the model four separate times across
       // two different trigger points, despite three rounds of tightening the
       // guide/rule text — same failure class as send_forwarding_code and
       // send_step_copy before their deterministic-send fixes. This tool exists
       // so the opening ask is never composed by the model at all, regardless
-      // of which state the twilio step is in when entered.
+      // of which state the twilio step is in when entered. Delegates to the
+      // same fireNextStepIntro used by complete_setup_step's auto-advance so
+      // there is exactly one implementation of "what does step X's opening
+      // message say" — not two copies that can drift apart again.
       try {
         if (!twilioClient) {
           toolResult = `Error: Twilio not configured — tell them the question will follow shortly.`;
         } else {
-          const fresh = await db.query('SELECT business_phone, phone FROM contractors WHERE id = $1', [contractorId]);
-          const freshRow = fresh.rows[0] || {};
-          const body = freshRow.business_phone
-            ? TWILIO_DEVICE_CARRIER_ASK
-            : TWILIO_BUSINESS_PHONE_ASK(freshRow.phone || contractor.phone);
-          twilioClient.messages.create({
-            to: contractor.phone, from: contractor.twilio_number, body,
-          }).catch(err => console.error('[SMS-AI] send_step_intro send failed:', err.message));
-          intentionalSilence = true;
-          silentActionSummary = `(Already sent the twilio step's opening question as its own direct SMS — do NOT call send_step_intro again or write your own version of it. Wait for their reply.)`;
-          toolResult = `Sent directly as its own SMS — do NOT write your own version of this question or its why-explanation, and do NOT call this tool again this conversation unless the contractor explicitly asks to redo the forwarding setup from scratch. Just wait for their reply. EXCEPTION: if their message also contained something unrelated (a real question, or a request like changing hours/zip codes), still handle that and add ONE brief line acknowledging just that.`;
-          console.log(`[SMS-AI] send_step_intro (twilio) sent to ${contractorId}, businessPhoneKnown=${!!freshRow.business_phone}`);
+          const { fired, summary } = await fireNextStepIntro('twilio', contractor, contractorId, twilioClient);
+          if (fired) {
+            intentionalSilence = true;
+            silentActionSummary = summary;
+            toolResult = `Sent directly as its own SMS — do NOT write your own version of this question or its why-explanation, and do NOT call this tool again this conversation unless the contractor explicitly asks to redo the forwarding setup from scratch. Just wait for their reply. EXCEPTION: if their message also contained something unrelated (a real question, or a request like changing hours/zip codes), still handle that and add ONE brief line acknowledging just that.`;
+          } else {
+            toolResult = `Error: could not send — no Twilio number on file for this contractor yet.`;
+          }
         }
       } catch (err) {
         toolResult = `Error: ${err.message}`;
@@ -1117,78 +1222,25 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
       // the real text deterministically, every time, as its own message.
       try {
         const { step } = input;
-        const bookingLink = contractor.booking_slug
-          ? `https://tractifyhq.com/schedule/${contractor.booking_slug}`
-          : 'https://tractifyhq.com/schedule';
-        const bizName = contractor.company_name || contractor.name;
-
-        const COPY_TEMPLATES = {
-          facebook: `Hi everyone! I run ${bizName} and just launched online booking. No phone tag — just pick a time: ${bookingLink}`,
-          // Reworked to sound warm/authentic, not templated (Jose reviewed
-          // both drafts and picked this one specifically for "one thing since
-          // then" — a softer, more attention-grabbing hook than a flat
-          // announcement, more likely to actually get read and clicked).
-          reviewers: `Hi [Name]! Really appreciate you taking the time to leave that review — made our day. One thing since then: we now do online booking, so if you ever need us again it's as easy as grabbing a time here: ${bookingLink}. Thanks again for trusting us with the work!`,
-          messenger: `Thanks for reaching out to ${bizName}! Book a time here: ${bookingLink} — takes 60 seconds.`,
-        };
-        const copyText = COPY_TEMPLATES[step];
-
-        // Deterministic "why + how" intros, sent directly ahead of each copy
-        // (Jose reviewed and approved this exact wording for all three) —
-        // same reasoning as everything else built tonight: don't let the
-        // model write or race its own version of text that's already been
-        // nailed down word for word.
-        const INTRO_TEMPLATES = {
-          facebook: `Local Facebook groups are full of homeowners asking their neighbors for contractor recommendations — free leads, no ad spend. Search Facebook for your city + "neighbors" or "community" groups, join one, then post in it — and I'll send you the exact copy to paste right after this. Text DONE once it's posted.`,
-          reviewers: `Your happy customers already paid you and loved the work — they're your warmest leads for repeat business or a referral. Go to business.google.com, click Reviews, and reply only to your 4 and 5-star reviews — skip anything lower than that, this isn't the moment to pitch someone who wasn't happy. I'll send the exact message to paste next — just swap in their name where it says [Name]. Text DONE once you've replied to all your 4 and 5-star ones.`,
-          // Live-caught real gap (not a code bug — a wrong instruction):
-          // Instant Reply's own "Channels" section has SEPARATE checkboxes
-          // for Messenger and Instagram — toggling the feature on does NOT
-          // automatically cover both. The old copy implied one toggle
-          // covered both, which left a contractor unsure if Instagram was
-          // actually covered, and the AI had no accurate grounding to
-          // answer that follow-up question confidently. Now explicit.
-          messenger: `Homeowners DM your Facebook or Instagram all the time and never hear back — whoever responds first usually gets the job. Go to business.facebook.com, click Inbox, then Automation, then Instant Reply, toggle it on, then under "Channels" make sure BOTH the Messenger box and the Instagram box are checked — they're separate checkboxes, checking one doesn't check the other. I'll send the exact auto-reply text to paste next. Text DONE once both are checked and it's saved.`,
-        };
-        const introText = INTRO_TEMPLATES[step];
-
+        // Task #72: delegates to fireNextStepIntro so there's exactly one
+        // implementation of "what does this step's intro+copy say" — the
+        // COPY_TEMPLATES/INTRO_TEMPLATES that used to be duplicated here
+        // now live once, at module scope, as STEP_INTRO_TEMPLATES/
+        // buildStepCopyText, shared with complete_setup_step's auto-advance.
         if (!twilioClient) {
           toolResult = `Error: Twilio not configured — tell them the text will follow shortly.`;
-        } else if (!copyText) {
+        } else if (!['facebook', 'reviewers', 'messenger'].includes(step)) {
           toolResult = `Error: unknown step "${step}" — valid values are facebook, reviewers, messenger.`;
-        } else if (introText) {
-          twilioClient.messages.create({
-            to: contractor.phone, from: contractor.twilio_number, body: introText,
-          }).catch(err => console.error('[SMS-AI] send_step_copy intro send failed:', err.message));
-          setTimeout(() => {
-            twilioClient.messages.create({
-              to: contractor.phone, from: contractor.twilio_number, body: copyText,
-            }).catch(err => console.error('[SMS-AI] send_step_copy copy send failed:', err.message));
-          }, 4000);
-          intentionalSilence = true;
-          silentActionSummary = `(Already sent the "${step}" intro and ready-to-paste copy as direct SMS — do NOT call send_step_copy for "${step}" again. Wait for them to confirm it's posted/saved before moving on.)`;
-          toolResult = `Both messages are already being sent directly — the "why + how" intro now, the ready-to-paste copy 4 seconds after. Do NOT write your own version of either one and do NOT repeat the copy in your reply — nothing about THIS step. Live-caught real bug: a contractor said "Done" for this step AND asked to change their hours in the same message — the change saved correctly on the backend via update_availability_slot, but the reply said nothing about it at all, reading as if it had been ignored. EXCEPTION: if their message also contained something completely unrelated (a real question, or a request like changing hours/zip codes), still call whatever tool that needs and add ONE brief line acknowledging just that — e.g. "Got it, Wednesday's now closed." — just nothing about this step's copy/intro.`;
-          // Live-caught real bug (task #67): complete_setup_step for facebook/
-          // reviewers/messenger was purely conversational — nothing checked
-          // that send_step_copy had actually fired before allowing the step to
-          // be marked done. A rapid double-"Done" race let the model mark
-          // facebook complete and move on to reviewers without ever having
-          // sent the actual copy-paste post, same class of gap task #39
-          // already fixed for availability. Persist a flag the moment the
-          // copy is genuinely queued so complete_setup_step can refuse to mark
-          // this step done without it, regardless of what the conversation
-          // history says.
-          await db.query(
-            `UPDATE contractors SET onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || $1::jsonb WHERE id = $2`,
-            [JSON.stringify({ [`${step}_copy_sent`]: true }), contractorId]
-          );
-          console.log(`[SMS-AI] Sent ${step} intro + copy-paste text to ${contractorId}`);
         } else {
-          twilioClient.messages.create({
-            to: contractor.phone, from: contractor.twilio_number, body: copyText,
-          }).catch(err => console.error('[SMS-AI] send_step_copy send failed:', err.message));
-          toolResult = `The exact copy-paste text is being sent as its own text message right now. Tell them it's coming and to copy that one directly — do NOT retype, rewrite, or paraphrase it yourself in your reply.`;
-          console.log(`[SMS-AI] Sent ${step} copy-paste text to ${contractorId}`);
+          const { fired, summary } = await fireNextStepIntro(step, contractor, contractorId, twilioClient);
+          if (fired) {
+            intentionalSilence = true;
+            silentActionSummary = summary;
+            toolResult = `Both messages are already being sent directly — the "why + how" intro now, the ready-to-paste copy 4 seconds after. Do NOT write your own version of either one and do NOT repeat the copy in your reply — nothing about THIS step. Live-caught real bug: a contractor said "Done" for this step AND asked to change their hours in the same message — the change saved correctly on the backend via update_availability_slot, but the reply said nothing about it at all, reading as if it had been ignored. EXCEPTION: if their message also contained something completely unrelated (a real question, or a request like changing hours/zip codes), still call whatever tool that needs and add ONE brief line acknowledging just that — e.g. "Got it, Wednesday's now closed." — just nothing about this step's copy/intro.`;
+            console.log(`[SMS-AI] send_step_copy (${step}) intro+copy sent to ${contractorId}`);
+          } else {
+            toolResult = `Error: could not send — no Twilio number on file for this contractor yet.`;
+          }
         }
       } catch (err) {
         toolResult = `Error: ${err.message}`;
@@ -1338,6 +1390,46 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
         console.error('[SMS-AI] update_availability_slot error:', err.message);
       }
 
+    } else if (name === 'send_availability_readback') {
+      // Task #72 (audit part 2): same failure class as the twilio transition
+      // fixed just above — the "read the final hours back and get an explicit
+      // yes before marking done" instruction was prompt-only with zero
+      // server-side backstop, and was live-caught being skipped entirely (the
+      // model went straight from asking for hours to "you're all set," with
+      // no read-back exchange in between at all). Fix: compute the read-back
+      // from the actual saved rows and send it deterministically — never from
+      // the model's own memory of the conversation — and require it to have
+      // genuinely fired before complete_setup_step will allow this step done
+      // (see the availability_readback_sent gate in complete_setup_step above).
+      try {
+        if (!twilioClient) {
+          toolResult = `Error: Twilio not configured — tell them you'll confirm shortly.`;
+        } else {
+          const { rows: freshSlots } = await db.query(
+            `SELECT day_of_week, start_time, end_time FROM availability_slots WHERE contractor_id = $1 AND is_active = 1 ORDER BY day_of_week`,
+            [contractorId]
+          );
+          const hoursText = formatAvailabilityForSms(freshSlots);
+          const body = freshSlots.length
+            ? `Just to confirm: ${hoursText} — that right? Reply YES to lock it in, or tell me what to change.`
+            : `Just to confirm: you're closed every day right now (no active hours saved) — that right? Reply YES to lock it in, or tell me your actual hours.`;
+          twilioClient.messages.create({
+            to: contractor.phone, from: contractor.twilio_number, body,
+          }).catch(err => console.error('[SMS-AI] send_availability_readback send failed:', err.message));
+          await db.query(
+            `UPDATE contractors SET onboarding_steps = COALESCE(onboarding_steps, '{}'::jsonb) || $1::jsonb WHERE id = $2`,
+            [JSON.stringify({ availability_readback_sent: true }), contractorId]
+          );
+          intentionalSilence = true;
+          silentActionSummary = `(Already sent the hours read-back as its own direct SMS, computed from the real saved rows — do NOT write your own version of it. Wait for their yes/change reply, then call complete_setup_step only once they confirm.)`;
+          toolResult = `Sent directly as its own SMS, computed from the actual saved availability_slots rows — do NOT write your own version of this confirm message. Do NOT call complete_setup_step yet — wait for their next reply confirming it first.`;
+          console.log(`[SMS-AI] send_availability_readback sent to ${contractorId}: "${hoursText}"`);
+        }
+      } catch (err) {
+        toolResult = `Error: ${err.message}`;
+        console.error('[SMS-AI] send_availability_readback error:', err.message);
+      }
+
     } else {
       toolResult = `Unknown tool: ${name}`;
     }
@@ -1381,8 +1473,40 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
   // sane to look back on next turn) but returns null to the caller, which
   // twilio.js's webhook handler treats as "don't send anything."
   const textBlock = response.content.find(b => b.type === 'text')?.text;
-  const reply = textBlock
-    || (intentionalSilence ? null : "Didn't quite catch that — mind sending it again?");
+
+  // Task #72 (full audit, part 3 — the actual root cause underneath #70/#71):
+  // intentionalSilence never suppressed the model's own text. It only
+  // replaced the fallback string when there was NO text at all. If the model
+  // wrote ANY text alongside a "silent" tool call (e.g. complete_setup_step
+  // right after fireNextStepIntro already sent the real message), that text
+  // was used as the reply UNCONDITIONALLY — and twilio.js's webhook sends
+  // whatever `reply` comes back as a real, second SMS. This is exactly how
+  // the twilio step's wrong explanation kept reaching the contractor even
+  // after send_step_intro/fireNextStepIntro were built and firing correctly:
+  // the deterministic message went out AND the model's own wrong narration
+  // went out right behind it, because nothing on this end ever actually
+  // dropped the model's text. Fix: when a deterministic send just fired
+  // (intentionalSilence === true), only allow the model's own text through if
+  // it's short enough to plausibly be the ONE-LINE acknowledgment the "unrelated
+  // content" exception allows (task #69) — anything longer is almost
+  // certainly the model re-narrating the step that was already handled, and
+  // gets dropped in favor of the deterministic tool's own silentActionSummary
+  // (or true silence). 140 chars comfortably fits a real one-liner like "Got
+  // it, Wednesday's now closed." while excluding multi-sentence explanations.
+  const ACK_EXCEPTION_MAX_LEN = 140;
+  let reply;
+  if (intentionalSilence) {
+    if (textBlock && textBlock.length <= ACK_EXCEPTION_MAX_LEN) {
+      reply = textBlock;
+    } else {
+      if (textBlock) {
+        console.warn(`[SMS-AI] Dropped model text alongside a deterministic send (len=${textBlock.length}, over the ${ACK_EXCEPTION_MAX_LEN}-char one-liner cap) — likely re-narrating a step that was already sent directly: "${textBlock.slice(0, 200)}"`);
+      }
+      reply = null;
+    }
+  } else {
+    reply = textBlock || "Didn't quite catch that — mind sending it again?";
+  }
 
   // ── Persist conversation (keep last 20 messages = 10 exchanges) ─────────────
   const updatedHistory = [
