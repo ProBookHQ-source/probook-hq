@@ -124,7 +124,13 @@ function buildStepCopyText(step, contractor) {
     : 'https://tractifyhq.com/schedule';
   const bizName = contractor.company_name || contractor.name;
   const TEMPLATES = {
-    facebook: `Hi everyone! I run ${bizName} and just launched online booking. No phone tag — just pick a time: ${bookingLink}`,
+    // Reworked (task #78) — the old "Hi everyone! I run X and just
+    // launched..." version read like a business announcement, not a person
+    // posting in their own neighborhood group, and a lot of community
+    // groups police straight self-promotion posts. This gives a reason for
+    // posting ("for anyone who's needed work done before") instead of just
+    // announcing a feature.
+    facebook: `Hey everyone — wanted to share this in case it's useful: you can now book ${bizName} online in under a minute, no back-and-forth calls needed — ${bookingLink}. Happy to help anytime!`,
     // Reworked to sound warm/authentic, not templated (Jose reviewed both
     // drafts and picked this one specifically for "one thing since then").
     reviewers: `Hi [Name]! Really appreciate you taking the time to leave that review — made our day. One thing since then: we now do online booking, so if you ever need us again it's as easy as grabbing a time here: ${bookingLink}. Thanks again for trusting us with the work!`,
@@ -1007,17 +1013,29 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
           ), 3000);
         }
 
-        // Fire specialty messages after key steps. Staggered 3s/9s/15s (rather
-        // than 3s/3s/9s as before) because twilio is typically the last of
-        // the 3 required steps a contractor finishes — meaning the power
-        // message above and this calendar-training message often now fire
-        // off the SAME event. Re-staggering avoids two texts landing at once.
-        if (step_key === 'twilio' && !contractor.sms_calendar_training_sent && twilioClient) {
+        // Calendar-blocking training used to fire 9s after the twilio step
+        // specifically — but twilio is usually finished mid-checklist, well
+        // before facebook/reviewers/messenger, so the single most important
+        // operational instruction (text us the second an outside job comes
+        // in, or we'll double-book it) was landing early and getting buried
+        // under several more setup texts before the contractor was even
+        // done. Retimed (task #78) to fire as the true LAST message of the
+        // whole onboarding sequence — after the power message, once
+        // allStepsDone is genuinely true — so it's the last thing a
+        // contractor reads before real jobs start landing, not a mid-setup
+        // aside they've likely forgotten by the time it matters.
+        if (allStepsDone && !contractor.sms_calendar_training_sent && twilioClient) {
           await db.query('UPDATE contractors SET sms_calendar_training_sent = 1 WHERE id = $1', [contractorId]);
           setTimeout(() => sendCalendarTrainingMessage(contractor, twilioClient).catch(err =>
             console.error('[SMS-AI] Calendar training message failed:', err.message)
           ), 9000);
-          // Capabilities guide fires 15s after main reply so all texts triggered by this one event arrive in sequence
+        }
+
+        // Capabilities guide still fires 15s after the twilio step itself —
+        // it's a standing cheat sheet of ongoing commands, not part of the
+        // end-of-onboarding sequence, so it's fine (and arguably better) for
+        // it to land earlier, whenever forwarding gets confirmed.
+        if (step_key === 'twilio' && twilioClient) {
           const capCheck = await db.query('SELECT sms_capabilities_sent FROM contractors WHERE id = $1', [contractorId]);
           if (!capCheck.rows[0]?.sms_capabilities_sent) {
             await db.query('UPDATE contractors SET sms_capabilities_sent = 1 WHERE id = $1', [contractorId]);
@@ -1668,17 +1686,23 @@ async function sendPowerMessage(contractor, twilioClient) {
   console.log(`[SMS-AI] Power message sent to ${contractor.name} (${contractor.id})`);
 }
 
-// ── Calendar blocking training ── fires after step 2 (twilio) confirmed ───────
+// ── Calendar blocking training ── fires as the true last message of onboarding ──
 // Critical: must arrive BEFORE the first job lands or double-bookings happen.
 async function sendCalendarTrainingMessage(contractor, twilioClient) {
-  const body = `Before the first jobs hit — if you book something direct (referral, repeat customer, phone call) just text me the time, like "block Thursday 10am to 2pm." I'll block that time off right away so no one else can book it through us. If you skip this, someone could book that same slot through Tractify and you'd end up double-booked.`;
+  // Rewritten (task #78) to be the deliberate closing message of the whole
+  // onboarding sequence, and to say the "why" explicitly — Jose's exact ask:
+  // it needs to be crystal clear that we can't see anything that doesn't
+  // come through this number, so the contractor understands this isn't a
+  // nice-to-have, it's the one thing standing between them and a real
+  // double-booked customer.
+  const body = `Last thing, and it's the most important one — we can only see appointments booked through this number. A referral, someone calling you back directly, word of mouth — we have zero way of knowing that happened unless you tell us. The second one of those comes in, text me the time — like "block Thursday 2-4pm" — and I'll hold it right away. Skip that and we'll book someone else into that same slot without knowing it's taken. That's on us to prevent, but only if you tell us.`;
 
   await twilioClient.messages.create({
     to: contractor.phone,
     from: contractor.twilio_number,
     body,
   });
-  await appendDeterministicSmsTurn(contractor.id, body, '(system: twilio step confirmed, calendar training sent)');
+  await appendDeterministicSmsTurn(contractor.id, body, '(system: full checklist complete, calendar training sent)');
 
   console.log(`[SMS-AI] Calendar blocking training sent to ${contractor.name} (${contractor.id})`);
 }
