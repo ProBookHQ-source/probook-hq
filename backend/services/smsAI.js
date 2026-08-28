@@ -847,6 +847,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
   // contractor's NEXT reply, a separate handleContractorSmsInner call).
   let availabilitySavedThisCall = false;
   let readbackFiredThisCall = false; // task #73 — did send_availability_readback (or the forced fallback below) actually fire this handleContractorSms call
+  const toolsCalledThisConversationTurn = new Set(); // task #75 — every tool name invoked across all rounds of this handleContractorSms call
   // Companion to intentionalSilence — a short, tool-specific note describing
   // what was actually sent, used INSTEAD of the generic "(no text reply)"
   // placeholder when persisting this turn to sms_conversation. Live-caught
@@ -883,6 +884,7 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
     for (const toolBlock of toolBlocks) {
     const { name, id: toolUseId, input } = toolBlock;
     let toolResult = '';
+    toolsCalledThisConversationTurn.add(name);
 
     if (name === 'complete_setup_step') {
       try {
@@ -1553,14 +1555,36 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
   // gets dropped in favor of the deterministic tool's own silentActionSummary
   // (or true silence). 140 chars comfortably fits a real one-liner like "Got
   // it, Wednesday's now closed." while excluding multi-sentence explanations.
+  //
+  // Task #75: the 140-char cap alone wasn't enough — live-caught the model
+  // using the "one brief line" allowance to narrate its OWN just-completed
+  // action even when the contractor said nothing unrelated at all (e.g.
+  // replying "Yes" to the read-back, then getting a bonus "Perfect — your
+  // hours are locked in, just sent the next step about call forwarding"
+  // right after the real next-step question already went out — confusing
+  // and out of order, and nothing was actually unrelated to acknowledge).
+  // The task #69 exception only exists for genuine unrelated content bundled
+  // into their message (e.g. "Done" + "also change Wednesday's hours") —
+  // and that case always involves an actual DATA tool firing alongside the
+  // narrative one (update_availability_slot, set_service_zip_codes,
+  // cancel_appointment, block_time, log_job_outcome). A turn where the ONLY
+  // tools called are the narrative/transition ones has nothing unrelated to
+  // acknowledge by definition, so short length alone should never be enough
+  // to let text through in that case.
+  const NARRATIVE_TRANSITION_TOOLS = new Set([
+    'complete_setup_step', 'send_step_intro', 'send_step_copy',
+    'send_availability_readback', 'set_business_phone',
+    'send_forwarding_code', 'run_forwarding_test',
+  ]);
+  const hasGenuineUnrelatedTool = [...toolsCalledThisConversationTurn].some(n => !NARRATIVE_TRANSITION_TOOLS.has(n));
   const ACK_EXCEPTION_MAX_LEN = 140;
   let reply;
   if (intentionalSilence) {
-    if (textBlock && textBlock.length <= ACK_EXCEPTION_MAX_LEN) {
+    if (textBlock && hasGenuineUnrelatedTool && textBlock.length <= ACK_EXCEPTION_MAX_LEN) {
       reply = textBlock;
     } else {
       if (textBlock) {
-        console.warn(`[SMS-AI] Dropped model text alongside a deterministic send (len=${textBlock.length}, over the ${ACK_EXCEPTION_MAX_LEN}-char one-liner cap) — likely re-narrating a step that was already sent directly: "${textBlock.slice(0, 200)}"`);
+        console.warn(`[SMS-AI] Dropped model text alongside a deterministic send (len=${textBlock.length}, genuineUnrelatedTool=${hasGenuineUnrelatedTool}) — likely re-narrating a step that was already sent directly: "${textBlock.slice(0, 200)}"`);
       }
       reply = null;
     }
