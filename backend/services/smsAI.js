@@ -1611,9 +1611,22 @@ Example of one job line: "9am — AC Repair · John S · (206)555-1234 · maps.a
   ]);
   const hasGenuineUnrelatedTool = [...toolsCalledThisConversationTurn].some(n => !NARRATIVE_TRANSITION_TOOLS.has(n));
   const ACK_EXCEPTION_MAX_LEN = 140;
+  // Live-caught real bug: update_availability_slot counts as a "genuine"
+  // non-narrative tool for the exception above, which is correct in
+  // general (e.g. they also asked to change something unrelated in the
+  // same breath) — but when a read-back ALSO fired this same turn, that
+  // update IS what the read-back is about, not something unrelated to it.
+  // The model wrote "Done — you're marked closed Tuesdays now" one message
+  // after the read-back had just asked "Reply YES to lock it in" — flatly
+  // contradicting its own not-yet-confirmed question, exactly the
+  // "premature done" failure this whole gate exists to prevent. Whenever a
+  // read-back fired this turn, no other text is ever allowed alongside it,
+  // full stop — the read-back's own "that right?" question is the only
+  // thing that should be waiting on a reply, never a second message
+  // declaring it already settled.
   let reply;
   if (intentionalSilence) {
-    if (textBlock && hasGenuineUnrelatedTool && textBlock.length <= ACK_EXCEPTION_MAX_LEN) {
+    if (textBlock && hasGenuineUnrelatedTool && !readbackFiredThisCall && textBlock.length <= ACK_EXCEPTION_MAX_LEN) {
       reply = textBlock;
     } else {
       if (textBlock) {
