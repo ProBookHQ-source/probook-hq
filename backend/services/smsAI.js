@@ -95,11 +95,15 @@ const ALL_STEP_KEYS = ['service_area', 'availability', 'twilio', 'gbp', 'faceboo
 // it correctly each time. Same fix applied here now — see send_step_intro tool
 // and set_business_phone's success handler below, both of which send one of
 // these two constants directly via Twilio instead of leaving it to the model.
+// Task #73: Jose live-caught the wording itself as confusing AND backwards —
+// "instead of just ringing out" reads as if forwarding replaces the ring,
+// when the real mechanism is the opposite: the phone rings like normal, and
+// ONLY if it goes unanswered does it forward. Rewritten simpler and correct.
 const TWILIO_BUSINESS_PHONE_ASK = (phone) =>
-  `Here's how this works: when a homeowner calls looking for service and you miss it, that call needs to go to us instead of just ringing out, so we can text them back and still get you the booking — otherwise they just call the next guy. Is ${phone} the number your customers actually call, or is your business line different? Reply with that number, or reply SAME if it's the same one.`;
+  `Quick setup question: if you miss a call, we want to catch it and text the customer back so you don't lose the job. Is ${phone} the number customers call you on, or is your business line different? Reply with that number, or reply SAME if it's the same one.`;
 
 const TWILIO_DEVICE_CARRIER_ASK =
-  `Here's how this works: when you miss a call, instead of it just ringing out, it'll forward to us and we'll text the caller right away so you don't lose the job — otherwise they just call the next guy. Are you on an iPhone or Android, and which carrier — AT&T, T-Mobile, Verizon, or something else?`;
+  `Here's how it'll work: your phone rings like normal. If you don't pick up, THEN it forwards to us and we text the customer back right away — otherwise they just call the next guy. Are you on an iPhone or Android, and which carrier — AT&T, T-Mobile, Verizon, or something else?`;
 
 // Hardcoded why/how intros for the three copy-paste steps — same reasoning as
 // the TWILIO_* constants above. Moved to module scope (task #72) so they can
