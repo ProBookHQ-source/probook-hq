@@ -308,7 +308,7 @@ Once every day is saved, call send_availability_readback IMMEDIATELY, with NO co
     gbp: {
       label: 'Add booking link to Google Business Profile',
       done: !!completedSteps.gbp,
-      guide: `Start with why before the steps — e.g. "Right now people searching 'HVAC near me' can find your Google listing but there's no way to book straight from it — that traffic's just sitting there unused." Then give the steps: go to business.google.com > Edit Profile > scroll to Appointments > paste this link: ${bookingLink} > Save. Text DONE when done.`,
+      guide: `Start with why before the steps — e.g. "Right now people searching 'HVAC near me' can find your Google listing but there's no way to book straight from it — that traffic's just sitting there unused." Then give the steps: go to business.google.com > Edit Profile > scroll to Appointments > paste this link: ${bookingLink} > Save. Text DONE when done. Do NOT open with "Hey!" or any greeting — you're already mid-conversation with them, jump straight into the why.`,
     },
     facebook: {
       label: 'Post in a local Facebook group',
