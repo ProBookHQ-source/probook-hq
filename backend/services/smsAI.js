@@ -124,13 +124,15 @@ function buildStepCopyText(step, contractor) {
     : 'https://tractifyhq.com/schedule';
   const bizName = contractor.company_name || contractor.name;
   const TEMPLATES = {
-    // Reworked (task #78) — the old "Hi everyone! I run X and just
+    // Reworked (task #78, corrected same session — the first version built
+    // here dropped the actual approved framing and shipped a different,
+    // weaker line by mistake). The old "Hi everyone! I run X and just
     // launched..." version read like a business announcement, not a person
     // posting in their own neighborhood group, and a lot of community
-    // groups police straight self-promotion posts. This gives a reason for
-    // posting ("for anyone who's needed work done before") instead of just
-    // announcing a feature.
-    facebook: `Hey everyone — wanted to share this in case it's useful: you can now book ${bizName} online in under a minute, no back-and-forth calls needed — ${bookingLink}. Happy to help anytime!`,
+    // groups police straight self-promotion posts. This is the version
+    // Jose actually approved — it gives a reason for posting ("for anyone
+    // who's needed work done before") instead of just announcing a feature.
+    facebook: `Hey everyone — for anyone who's needed work done before (or might down the road), wanted to share that you can now book ${bizName} online in under a minute, no back-and-forth calls: ${bookingLink}. Happy to help if anyone needs anything!`,
     // Reworked to sound warm/authentic, not templated (Jose reviewed both
     // drafts and picked this one specifically for "one thing since then").
     reviewers: `Hi [Name]! Really appreciate you taking the time to leave that review — made our day. One thing since then: we now do online booking, so if you ever need us again it's as easy as grabbing a time here: ${bookingLink}. Thanks again for trusting us with the work!`,
