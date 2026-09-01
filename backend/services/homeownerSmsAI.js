@@ -530,6 +530,9 @@ async function handleHomeownerSmsInner(phone, contractorId, incomingText, sessio
   if (session.state === 'out_of_area') {
     return handleOutOfArea(session, contractor, businessName, incomingText);
   }
+  if (session.state === 'awaiting_zip_only') {
+    return handleZipOnly(session, contractor, businessName, incomingText);
+  }
 
   // Fallback — session in unknown state, restart
   await updateSession(session.id, { state: 'awaiting_address' });
@@ -626,6 +629,26 @@ Return ONLY the address or NONE. No explanation.`;
   }
 
   // ── Service area check ────────────────────────────────────────────────────
+  // isInServiceArea() deliberately fails open (returns true) whenever it can't
+  // find a zip in the given address — fine for lower-stakes callers like the
+  // public lead form (matchingEngine.js), where a human still reviews the
+  // match, but Brain 3 books automatically with zero review. Live-caught: the
+  // exact same out-of-area address, sent again with the zip omitted, sailed
+  // straight past the check. If the contractor actually has zip-code data
+  // configured (a real list OR the "go anywhere" wildcard — both branches of
+  // isInServiceArea fail open the same way with no zip), ask for the zip
+  // explicitly instead of guessing.
+  let contractorZipsForGate = null;
+  try {
+    const raw = contractor.service_zip_codes;
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (Array.isArray(parsed) && parsed.length) contractorZipsForGate = parsed;
+  } catch (e) {}
+  if (contractorZipsForGate && !extractZip(address)) {
+    await updateSession(session.id, { name: name || session.name, address, state: 'awaiting_zip_only' });
+    return `What's the zip code for that address? Just want to make sure we cover your area.`;
+  }
+
   if (!isInServiceArea(address, contractor)) {
     // Live-caught bug (task #86): this used to close straight to state='confirmed',
     // which the state machine treats as fully terminal — the homeowner's very next
@@ -652,6 +675,34 @@ Return ONLY the address or NONE. No explanation.`;
     ).catch(e => console.error('[BRAIN3] Lead patch error:', e.message));
   }
 
+  return getServiceQuestion(contractor.niche_name);
+}
+
+// ── Step 1a-continued: zip code needed to determine service area ────────────
+// Deliberately bypasses the general Claude-based address extraction — this only
+// ever fires right after handleAddress saved a partial (zip-less) address and
+// asked specifically for the zip, so a plain regex is both simpler and safer
+// than re-running full extraction on a reply that's expected to just be digits.
+async function handleZipOnly(session, contractor, businessName, text) {
+  const zipMatch = (text || '').match(/\b\d{5}\b/);
+  if (!zipMatch) {
+    return `Just the 5-digit zip code is all I need — what is it?`;
+  }
+  const zip = zipMatch[0];
+  const fullAddress = session.address ? `${session.address} ${zip}` : zip;
+
+  if (!isInServiceArea(fullAddress, contractor)) {
+    await updateSession(session.id, { address: fullAddress, state: 'out_of_area' });
+    return `Thanks! Unfortunately we don't cover that area (we cover different zip codes). Hope you find help nearby soon!`;
+  }
+
+  await updateSession(session.id, { address: fullAddress, state: 'awaiting_service' });
+  if (session.lead_id) {
+    await db.query(
+      `UPDATE leads SET address = COALESCE($1, address) WHERE id = $2`,
+      [fullAddress, session.lead_id]
+    ).catch(e => console.error('[BRAIN3] Lead patch error (zip-only):', e.message));
+  }
   return getServiceQuestion(contractor.niche_name);
 }
 
