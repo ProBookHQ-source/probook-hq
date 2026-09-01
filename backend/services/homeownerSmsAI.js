@@ -774,10 +774,14 @@ async function handleOutOfArea(session, contractor, businessName, text) {
   const trimmed = (text || '').trim();
 
   if (COVERAGE_QUESTION_RE.test(trimmed)) {
-    // Answer the real question, then close for good — this was an FAQ, not a
-    // new booking attempt, so there's nothing left to keep the session open for.
-    // 'ended' not 'confirmed' (task #88) — see EXIT_RE comment above for why.
-    await updateSession(session.id, { state: 'ended' });
+    // Answer the real question, but DON'T close the session (task #89,
+    // live-caught): a homeowner who just asked "what zips do you cover?" very
+    // naturally follows up with "oh, my address is actually X" once they hear
+    // the answer — closing here meant that correction landed with no active
+    // session and restarted the whole generic greeting from scratch, exactly
+    // the bug task #86 was supposed to have already fixed. Stay in
+    // 'out_of_area' so a follow-up correction still routes back into this
+    // same handler instead of resetting the conversation.
     return `${describeCoverageArea(contractor)} Text us again anytime if that changes!`;
   }
 
