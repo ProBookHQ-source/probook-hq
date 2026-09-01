@@ -527,6 +527,9 @@ async function handleHomeownerSmsInner(phone, contractorId, incomingText, sessio
   if (session.state === 'awaiting_email') {
     return handleEmail(session, contractor, businessName, incomingText);
   }
+  if (session.state === 'out_of_area') {
+    return handleOutOfArea(session, contractor, businessName, incomingText);
+  }
 
   // Fallback — session in unknown state, restart
   await updateSession(session.id, { state: 'awaiting_address' });
@@ -624,7 +627,14 @@ Return ONLY the address or NONE. No explanation.`;
 
   // ── Service area check ────────────────────────────────────────────────────
   if (!isInServiceArea(address, contractor)) {
-    await updateSession(session.id, { state: 'confirmed' }); // close session
+    // Live-caught bug (task #86): this used to close straight to state='confirmed',
+    // which the state machine treats as fully terminal — the homeowner's very next
+    // text (often a genuine follow-up like "what zip codes do you cover") had no
+    // active session, so twilio.js's fallback restarted the ENTIRE generic greeting
+    // from scratch instead of answering them. 'out_of_area' is still picked up by
+    // getSession() (only 'confirmed' is excluded there), so a follow-up routes into
+    // handleOutOfArea() below instead of re-triggering the greeting.
+    await updateSession(session.id, { name: name || session.name, state: 'out_of_area' });
     const zip = extractZip(address);
     const areaHint = zip ? `(we cover different zip codes)` : `(we don't serve that area)`;
     return `Thanks! Unfortunately we don't cover that area ${areaHint}. Hope you find help nearby soon!`;
@@ -643,6 +653,57 @@ Return ONLY the address or NONE. No explanation.`;
   }
 
   return getServiceQuestion(contractor.niche_name);
+}
+
+// Builds a plain-English description of where a contractor actually serves,
+// for answering a homeowner's genuine "what zip codes / areas do you cover?"
+// question in handleOutOfArea() below — never guess, describe what's really set.
+function describeCoverageArea(contractor) {
+  try {
+    const raw = contractor.service_zip_codes;
+    const zips = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (Array.isArray(zips) && zips.length && !zips.includes('*')) {
+      return `We currently serve these zip codes: ${zips.join(', ')}.`;
+    }
+    if (Array.isArray(zips) && zips.includes('*')) {
+      const radius = contractor.service_radius_miles || 25;
+      return `We generally serve within about ${radius} miles of our shop.`;
+    }
+  } catch (e) {}
+  return `We serve a specific local area — feel free to send your zip code and I can double check.`;
+}
+
+// ── Step 1c: Follow-up after an out-of-area decline ──────────────────────────
+// A homeowner who was just told "we don't cover that area" often replies with
+// a real question ("what zip codes do you cover?") or a corrected address
+// ("oh sorry, I meant 1234 Main St") rather than going silent. This used to
+// have no home in the state machine — the session closed to 'confirmed' and
+// the homeowner's next text restarted the entire generic greeting from
+// scratch (task #86, live-caught). Handle the realistic replies directly
+// instead of forcing them back through the whole intro.
+const COVERAGE_QUESTION_RE = /\b(what|which)\s+(zip|zips|zip codes?|areas?|cit(y|ies))\b|\bdo you (cover|serve|service)\b|\bservice area\b|\bwhere do you (cover|serve|service)\b|\bwhat.*(cover|serve)\b/i;
+
+async function handleOutOfArea(session, contractor, businessName, text) {
+  const trimmed = (text || '').trim();
+
+  if (COVERAGE_QUESTION_RE.test(trimmed)) {
+    // Answer the real question, then close for good — this was an FAQ, not a
+    // new booking attempt, so there's nothing left to keep the session open for.
+    await updateSession(session.id, { state: 'confirmed' });
+    return `${describeCoverageArea(contractor)} Text us again anytime if that changes!`;
+  }
+
+  // Looks like they're offering a corrected/different address — same heuristic
+  // used elsewhere in this file (contains a digit, reasonably long) rather than
+  // silently trusting any short reply as a real address.
+  if (/\d/.test(trimmed) && trimmed.length > 6) {
+    await updateSession(session.id, { state: 'awaiting_address' });
+    return handleAddress(session, contractor, businessName, trimmed);
+  }
+
+  // Anything else — polite close, no restart of the greeting.
+  await updateSession(session.id, { state: 'confirmed' });
+  return `No worries! Feel free to text us again anytime — happy to help if that ever changes.`;
 }
 
 // ── Step 1b: Confirm pre-filled name/address for a "returning" homeowner ─────
