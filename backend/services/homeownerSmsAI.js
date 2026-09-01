@@ -291,6 +291,37 @@ function resolveServiceAreaOutcome(address, contractor) {
   return { outcome: 'in_area' };
 }
 
+// ── Free (no paid API) street/zip plausibility check ────────────────────────
+// Live-caught gap: the system never verifies a street address actually
+// corresponds to its stated/extracted zip — it only checks whether the ZIP
+// NUMBER is on the contractor's covered-zips list. A real street in one city
+// paired with a real-but-different city's zip (e.g. a Marysville street with
+// an Arlington zip) sails straight through, since 98223 genuinely is a
+// covered zip. The airtight fix is a paid geocoding lookup per address —
+// explicitly rejected on cost grounds. This is the free alternative: the
+// `zipcodes` package (already a dependency, fully offline, zero marginal
+// cost) knows the real city/state on file for any zip. If the homeowner's
+// own text names a city and it doesn't match what's on file for the zip they
+// gave, that's a real, checkable mismatch signal — surface it as a soft
+// heads-up rather than silently blocking, since a stated "city" is often a
+// colloquial/unincorporated name that legitimately differs from the official
+// USPS zip city (e.g. many "Mill Creek, WA" addresses are officially
+// "Everett" per zip). This can't catch every bad pairing (it does nothing
+// when no city is stated at all, which is what defeated it in Jose's own
+// test), but it closes the case where a real, conflicting city IS given, at
+// no ongoing cost.
+function findCityZipMismatch(cityGiven, zip) {
+  if (!cityGiven || !zip) return null;
+  const onFile = zipcodes.lookup(zip);
+  if (!onFile || !onFile.city) return null;
+  const norm = s => String(s).toLowerCase().replace(/[^a-z]/g, '');
+  const given = norm(cityGiven);
+  const real = norm(onFile.city);
+  if (!given) return null;
+  if (given === real || given.includes(real) || real.includes(given)) return null;
+  return { onFileCity: onFile.city, onFileState: onFile.state };
+}
+
 // ── Returning homeowner check ─────────────────────────────────────────────────
 // Time-bounded to 180 days — carriers typically quarantine a recycled phone
 // number for 90+ days before reassigning it, so anything older than that is
@@ -580,20 +611,25 @@ async function handleAddress(session, contractor, businessName, text) {
   // Use Claude Haiku to extract name + address (or just address if name already known)
   const systemWithName = `You are an assistant extracting booking info from a homeowner text message.
 The homeowner was asked: "What's your name and the address that needs service?"
-Extract their name and address and return ONLY valid JSON: {"name": "...", "address": "..."}
+Extract their name, address, and city and return ONLY valid JSON: {"name": "...", "address": "...", "city": "..."}
 The "address" field must contain ONLY the street address (and city/zip if given) — never include the
 person's name inside the address string, even if they wrote it as "Name and 123 Main St" or
 "Name, 123 Main St". Strip the name out of the address entirely.
+The "city" field should contain ONLY the city name if one is mentioned anywhere in their message
+(e.g. "123 Main St, Arlington" → city: "Arlington"). If no city is mentioned, use "".
 If name is unclear, use "Homeowner". If no address is present, use "".
 Return ONLY the JSON object. No explanation.`;
 
   const systemAddressOnly = `You are an address extractor. The user is responding to a question about what address needs HVAC service.
-Extract the address from their message. If they gave a clear address (even partial like "123 Main St"), return it as-is.
-If the message has no address information at all, return the single word: NONE
-Return ONLY the address or NONE. No explanation.`;
+Extract the address and city from their message and return ONLY valid JSON: {"address": "...", "city": "..."}
+If they gave a clear address (even partial like "123 Main St"), return it as-is in "address".
+The "city" field should contain ONLY the city name if one is mentioned (e.g. "123 Main St, Arlington" → city: "Arlington"). If no city is mentioned, use "".
+If the message has no address information at all, use "" for "address".
+Return ONLY the JSON object. No explanation.`;
 
   let address = text.trim();
   let name = session.name || null;
+  let cityGiven = '';
   let sawExplicitNoAddress = false; // set true whenever extraction (successful or not) determined there's no real address in this reply
 
   if (ANTHROPIC_API_KEY) {
@@ -613,6 +649,7 @@ Return ONLY the address or NONE. No explanation.`;
         const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
         if (parsed.name && parsed.name !== 'Homeowner') name = parsed.name;
         if (parsed.address) address = parsed.address;
+        if (parsed.city) cityGiven = parsed.city;
         // Safety net: even with the stricter prompt above, the model can still
         // leak the name into the address (observed live — address stored as
         // "Daniel and 19222 crown ridge blvd" alongside a correctly-parsed
@@ -633,9 +670,21 @@ Return ONLY the address or NONE. No explanation.`;
           [],
           systemAddressOnly
         );
-        const extracted = result.content?.[0]?.text?.trim();
-        if (extracted && extracted !== 'NONE') address = extracted;
-        else sawExplicitNoAddress = true;
+        const raw = result.content?.[0]?.text?.trim();
+        const jsonMatch = raw?.match(/\{[\s\S]*\}/);
+        try {
+          const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          if (parsed.address) address = parsed.address;
+          else sawExplicitNoAddress = true;
+          if (parsed.city) cityGiven = parsed.city;
+        } catch (e) {
+          // Model didn't return valid JSON this turn — fall back to treating
+          // the raw text as a plain address string (old behavior) rather than
+          // losing the reply entirely, but skip the city extraction since we
+          // can't trust unstructured text for that.
+          if (raw && raw !== 'NONE') address = raw;
+          else sawExplicitNoAddress = true;
+        }
       }
     } catch (e) {
       console.error('[BRAIN3] Address extraction error:', e.message);
@@ -694,6 +743,16 @@ Return ONLY the address or NONE. No explanation.`;
   if (name) updates.name = name;
   await updateSession(session.id, updates);
 
+  // Free (no paid API) city/zip plausibility check — see findCityZipMismatch()
+  // above. Doesn't block anything (a stated colloquial city legitimately
+  // differs from the official zip city sometimes), just surfaces a heads-up
+  // so an honest typo/mismatch has a chance to be self-corrected.
+  const zipForMismatchCheck = extractZip(address);
+  const mismatch = findCityZipMismatch(cityGiven, zipForMismatchCheck);
+  const mismatchNote = mismatch
+    ? `Quick heads up — we have ${zipForMismatchCheck} on file as ${mismatch.onFileCity}, ${mismatch.onFileState}, not ${cityGiven}. Let me know if that's not right! `
+    : '';
+
   // Patch the lead record if session has a lead_id
   if (session.lead_id) {
     await db.query(
@@ -702,7 +761,7 @@ Return ONLY the address or NONE. No explanation.`;
     ).catch(e => console.error('[BRAIN3] Lead patch error:', e.message));
   }
 
-  return getServiceQuestion(contractor.niche_name);
+  return `${mismatchNote}${getServiceQuestion(contractor.niche_name)}`;
 }
 
 // ── Step 1a-continued: zip code needed to determine service area ────────────
