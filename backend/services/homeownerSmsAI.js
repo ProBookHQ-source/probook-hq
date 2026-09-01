@@ -489,6 +489,7 @@ Return ONLY the address or NONE. No explanation.`;
 
   let address = text.trim();
   let name = session.name || null;
+  let sawExplicitNoAddress = false; // set true whenever extraction (successful or not) determined there's no real address in this reply
 
   if (ANTHROPIC_API_KEY) {
     try {
@@ -499,7 +500,12 @@ Return ONLY the address or NONE. No explanation.`;
           systemWithName
         );
         const raw = result.content?.[0]?.text?.trim();
-        const parsed = JSON.parse(raw);
+        // Model occasionally wraps JSON in markdown fences or adds stray text
+        // around it — extract just the {...} block before parsing so a JSON.parse
+        // throw doesn't silently fall through to using the raw homeowner text
+        // (e.g. "My name is Shyla") as the "address" (live-caught bug — see below).
+        const jsonMatch = raw?.match(/\{[\s\S]*\}/);
+        const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
         if (parsed.name && parsed.name !== 'Homeowner') name = parsed.name;
         if (parsed.address) address = parsed.address;
         // Safety net: even with the stricter prompt above, the model can still
@@ -514,8 +520,7 @@ Return ONLY the address or NONE. No explanation.`;
         }
         // If they only gave a name and no address, ask for address
         if (!parsed.address) {
-          await updateSession(session.id, { name: name || session.name });
-          return `Thanks ${name || ''}! And the address that needs service?`.trim();
+          sawExplicitNoAddress = true;
         }
       } else {
         const result = await callClaude(
@@ -525,13 +530,31 @@ Return ONLY the address or NONE. No explanation.`;
         );
         const extracted = result.content?.[0]?.text?.trim();
         if (extracted && extracted !== 'NONE') address = extracted;
-        else if (extracted === 'NONE') {
-          return `What's the address that needs service?`;
-        }
+        else sawExplicitNoAddress = true;
       }
     } catch (e) {
       console.error('[BRAIN3] Address extraction error:', e.message);
+      // Live-caught bug: a JSON.parse throw here used to be swallowed silently,
+      // leaving `address` at its line-490 fallback of the raw homeowner reply
+      // (e.g. "My name is Shyla" was stored AS the address) and `name` still
+      // unset — the function then fell straight through the now-unreachable
+      // "ask for address" return, into the service-area check, and advanced
+      // to awaiting_service with a garbage address. Treat any extraction
+      // failure the same as "no address found" rather than trusting the
+      // untouched raw text as a real address.
+      sawExplicitNoAddress = true;
     }
+  }
+
+  // Final guard, independent of which path above ran: if we still don't have
+  // anything that looks like a real street address (no digit in it — same
+  // heuristic already used by handleAddressConfirm below), and the extraction
+  // step itself flagged "no address" or simply left `address` as the raw
+  // reply text, re-prompt for the address instead of silently advancing state.
+  const looksLikeAddress = /\d/.test(address);
+  if (sawExplicitNoAddress || !looksLikeAddress) {
+    await updateSession(session.id, { name: name || session.name });
+    return `Thanks ${name || ''}! And the address that needs service?`.trim();
   }
 
   // ── Service area check ────────────────────────────────────────────────────
