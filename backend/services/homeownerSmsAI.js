@@ -134,6 +134,71 @@ function fmtDate(dateStr) {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+// ── Slot-offer formatting + flexible reply matching (task #85) ──────────────
+// Live-caught: presenting 3 options as "1) ... 2) ... 3) ..." run together in
+// one paragraph, then requiring a bare "1"/"2"/"3" reply, read as a confusing
+// multiple-choice menu rather than a normal text exchange. Two fixes below:
+// (1) put each option on its own real line so it's scannable on a phone
+// screen, and (2) let a homeowner answer however a real person would — "Tuesday",
+// "the 8:30 one", "wednesday works" — not just a digit.
+
+// One option per line, e.g. "1) Wed, Aug 5 at 8:30 AM\n2) Thu, Aug 6 at 10:00 AM"
+function formatSlotOptionsBlock(offered) {
+  return offered.map((s, i) => `${i + 1}) ${s.label}`).join('\n');
+}
+
+const SLOT_REPLY_INSTRUCTION = 'Reply with the number, or just tell me which day or time works.';
+
+// Strips everything but letters/digits and lowercases, so punctuation/spacing
+// differences ("8:30am" vs "830 am" vs "the 8:30 one") don't block a match.
+function normalizeForMatch(str) {
+  return String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+const WEEKDAY_LONG = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+// Matches a homeowner's free-text reply ("Tuesday", "the 10am one", "2") against
+// the 3 offered slots. Tries, in order: exact bare number, full-label substring
+// (either direction), then day-name only, then time-only — so a reply that only
+// specifies the day or only the time still resolves as long as it's unambiguous
+// relative to how specific the earlier checks already were.
+function matchSlotFromText(text, offeredSlots) {
+  const pick = (text || '').trim();
+  if (!pick) return null;
+
+  if (/^\d+$/.test(pick)) {
+    const num = parseInt(pick, 10);
+    if (num >= 1 && num <= offeredSlots.length) return offeredSlots[num - 1];
+  }
+
+  const lowerPick = pick.toLowerCase();
+  let match = offeredSlots.find(s => s.label.toLowerCase().includes(lowerPick));
+  if (match) return match;
+
+  const normalizedReply = normalizeForMatch(pick);
+  if (!normalizedReply) return null;
+
+  match = offeredSlots.find(s => {
+    const normalizedLabel = normalizeForMatch(s.label);
+    return normalizedLabel && (normalizedReply.includes(normalizedLabel) || normalizedLabel.includes(normalizedReply));
+  });
+  if (match) return match;
+
+  match = offeredSlots.find(s => {
+    const d = new Date(s.date + 'T12:00:00');
+    const shortName = fmtDate(s.date).slice(0, 3).toLowerCase();
+    const longName = WEEKDAY_LONG[d.getDay()];
+    return normalizedReply.includes(shortName) || normalizedReply.includes(longName);
+  });
+  if (match) return match;
+
+  match = offeredSlots.find(s => {
+    const t = normalizeForMatch(fmtTime(s.time));
+    return t && normalizedReply.includes(t);
+  });
+  return match || null;
+}
+
 // Formats a raw phone string (+12065551234, 2065551234, etc) as (206) 555-1234
 // for anything shown to a human. Never show a raw E.164 string to a contractor.
 function fmtPhone(raw) {
@@ -676,7 +741,7 @@ async function handleService(session, contractor, businessName, text) {
     state: 'awaiting_slot',
   });
 
-  const slotOptions = offered.map((s, i) => `${i + 1}) ${s.label}`).join('  ');
+  const slotOptions = formatSlotOptionsBlock(offered);
 
   // If we have diagnostic knowledge and Claude is available, generate a real diagnostic
   if (knowledgeChunks && ANTHROPIC_API_KEY) {
@@ -696,7 +761,11 @@ FORMATTING:
 - Max 320 characters total (diagnosis + slot offer combined)
 - No markdown, no asterisks, plain SMS text
 - Warm, human tone — not robotic, not salesy
-- End with the slot offer, explaining what to do in plain terms: "We have a few times open: 1) ... 2) ... 3) ... Just reply with the number that works best, or let me know if none of these work and I'll find other times."
+- List each of the 3 available times on its OWN LINE using real line breaks (not run together in one paragraph) — a homeowner reading this on their phone should see a clean vertical list, e.g.:
+1) Wed, Aug 5 at 8:30 AM
+2) Thu, Aug 6 at 10:00 AM
+3) Fri, Aug 7 at 2:00 PM
+- After the list, end with exactly one short line: "${SLOT_REPLY_INSTRUCTION}" — never imply the number is the only valid way to answer, a homeowner can also just say the day or time in plain words.
 - If it's a serious safety issue, DO NOT include slot options — just the safety instruction.
 
 SLOTS AVAILABLE:
@@ -724,7 +793,7 @@ ${slotOptions}`;
   }
 
   // Fallback if no knowledge / Claude unavailable
-  return `Got it. Here are the available times to have someone come out: 1) ${offered[0]?.label || ''}  2) ${offered[1]?.label || ''}  3) ${offered[2]?.label || ''}. Just reply with the number that works best — or if none of these work, tell me and I'll find other times.`;
+  return `Got it. Here's what's open this week:\n${slotOptions}\n${SLOT_REPLY_INSTRUCTION} If none of these work, just say so and I'll find other times.`;
 }
 
 // ── Step 3: Confirm slot pick ─────────────────────────────────────────────────
@@ -735,18 +804,10 @@ async function handleSlotPick(session, contractor, businessName, text) {
     offeredSlots = Array.isArray(raw) ? raw : JSON.parse(raw || '[]');
   } catch (e) {}
 
-  // Parse reply: "1", "2", "3", or a time string
+  // Parse reply — a bare number still works, but so does "Tuesday", "the 8:30
+  // one", "wednesday works", etc. (task #85 — see matchSlotFromText above).
   const pick = text.trim();
-  let chosen = null;
-
-  const num = parseInt(pick);
-  if (!isNaN(num) && num >= 1 && num <= offeredSlots.length) {
-    chosen = offeredSlots[num - 1];
-  } else {
-    // Try to match by partial text
-    const lower = pick.toLowerCase();
-    chosen = offeredSlots.find(s => s.label.toLowerCase().includes(lower));
-  }
+  const chosen = matchSlotFromText(pick, offeredSlots);
 
   if (!chosen) {
     // If they're telling us none of the offered times work, fetch a fresh batch
@@ -761,14 +822,12 @@ async function handleSlotPick(session, contractor, businessName, text) {
           return `I don't have any other openings right now — is there a day or time of day that generally works best for you? I'll see what I can find.`;
         }
         await updateSession(session.id, { offered_slots: JSON.stringify(newBatch) });
-        const newOptions = newBatch.map((s, i) => `${i + 1}) ${s.label}`).join('  ');
-        return `No problem — here are a few other times: 1) ${newBatch[0]?.label || ''}  2) ${newBatch[1]?.label || ''}  3) ${newBatch[2]?.label || ''}. Reply with the number that works, or let me know what day/time is best and I'll look for that.`;
+        return `No problem — here are a few other times:\n${formatSlotOptionsBlock(newBatch)}\n${SLOT_REPLY_INSTRUCTION}`;
       } catch (e) {
         console.error('[BRAIN3] Re-offer on "none work" failed:', e.message);
       }
     }
-    const options = offeredSlots.map((s, i) => `${i + 1}) ${s.label}`).join('  ');
-    return `Just reply with the number next to the time that works best for you: 1) ${offeredSlots[0]?.label || ''}  2) ${offeredSlots[1]?.label || ''}  3) ${offeredSlots[2]?.label || ''}. If none of those work, just say so and I'll find other times.`;
+    return `Just let me know which of these works for you:\n${formatSlotOptionsBlock(offeredSlots)}\n${SLOT_REPLY_INSTRUCTION} If none of those work, just say so and I'll find other times.`;
   }
 
   // ── Book the appointment ────────────────────────────────────────────────────
@@ -822,9 +881,9 @@ async function handleSlotPick(session, contractor, businessName, text) {
         if (!freshSlots.length) {
           return `Looks like that day just filled up — I don't have any other openings right now. Text us again in a few days.`;
         }
-        await updateSession(session.id, { offered_slots: JSON.stringify(freshSlots.slice(0, 3)) });
         const b = freshSlots.slice(0, 3);
-        return `That day just filled up — here are some other times: 1) ${b[0]?.label || ''}  2) ${b[1]?.label || ''}  3) ${b[2]?.label || ''}. Reply with the number that works.`;
+        await updateSession(session.id, { offered_slots: JSON.stringify(b) });
+        return `That day just filled up — here are some other times:\n${formatSlotOptionsBlock(b)}\n${SLOT_REPLY_INSTRUCTION}`;
       }
     }
 
@@ -901,8 +960,7 @@ async function handleSlotPick(session, contractor, businessName, text) {
         }
         const newOffered = freshSlots.slice(0, 3);
         await updateSession(session.id, { offered_slots: JSON.stringify(newOffered) });
-        const newOptions = newOffered.map((s, i) => `${i + 1}) ${s.label}`).join('  ');
-        return `Sorry — that time just got booked by someone else. Here are a few other openings: 1) ${newOffered[0]?.label || ''}  2) ${newOffered[1]?.label || ''}  3) ${newOffered[2]?.label || ''}. Just reply with the number that works.`;
+        return `Sorry — that time just got booked by someone else. Here are a few other openings:\n${formatSlotOptionsBlock(newOffered)}\n${SLOT_REPLY_INSTRUCTION}`;
       } catch (retryErr) {
         console.error('[BRAIN3] Re-offer failed:', retryErr.message);
       }
@@ -1054,8 +1112,7 @@ async function startRebookSessionInner(phone, contractorId, lead) {
     lead.id || null,
   );
 
-  const options = offered.map((s, i) => `${i + 1}) ${s.label}`).join('  ');
-  return `Want to get rebooked? Here are the next available times: ${options}. Reply 1, 2, or 3.`;
+  return `Want to get rebooked? Here are the next available times:\n${formatSlotOptionsBlock(offered)}\n${SLOT_REPLY_INSTRUCTION}`;
 }
 
 module.exports = {
