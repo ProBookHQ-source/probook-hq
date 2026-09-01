@@ -399,8 +399,34 @@ async function updateSession(sessionId, updates) {
   );
 }
 
+// ── Per-homeowner processing queue ──────────────────────────────────────────
+// Same pattern as smsAI.js's _contractorProcessingQueue (built after task #66
+// caught a rapid-double-text race on the contractor side) — applied here
+// proactively before Brain 3 ever gets its first real live stress test,
+// rather than waiting to live-catch the homeowner-side equivalent (e.g. a
+// homeowner double-tapping "2" to pick a slot, which without this could fire
+// two overlapping handleHomeownerSmsInner calls both reading the same
+// pre-pick session state, both attempting to book, both replying). A second
+// inbound action for the same phone+contractor pair now always waits for the
+// first to fully finish — including its DB write — before starting, so every
+// turn reads real, current state. Single-process assumption, same as the
+// contractor-side queue — would need a DB-backed lock instead if this ever
+// ran multi-instance.
+const _homeownerProcessingQueue = new Map();
+function withHomeownerQueue(phone, contractorId, fn) {
+  const key = `${phone}:${contractorId}`;
+  const prior = _homeownerProcessingQueue.get(key) || Promise.resolve();
+  const current = prior.catch(() => {}).then(fn);
+  _homeownerProcessingQueue.set(key, current);
+  return current.finally(() => {
+    if (_homeownerProcessingQueue.get(key) === current) {
+      _homeownerProcessingQueue.delete(key);
+    }
+  });
+}
+
 // ── Core handler — called from twilio.js for homeowner inbound SMS ────────────
-async function handleHomeownerSms(phone, contractorId, incomingText, session) {
+async function handleHomeownerSmsInner(phone, contractorId, incomingText, session) {
   const contractor = await db.prepare(
     `SELECT c.id, c.name, c.company_name, c.niche_id, c.phone, c.twilio_number,
             c.service_zip_codes, c.service_radius_miles, c.address, c.max_appointments_per_day,
@@ -922,6 +948,10 @@ async function handleEmail(session, contractor, businessName, text) {
 // Called from twilio.js (missed call), facebook.js (Lead Ad), and leads.js (phone-only form)
 // Detects returning homeowners and pre-populates name + address.
 async function startHomeownerSession(phone, contractorId, name = null, leadId = null) {
+  return withHomeownerQueue(phone, contractorId, () => startHomeownerSessionInner(phone, contractorId, name, leadId));
+}
+
+async function startHomeownerSessionInner(phone, contractorId, name = null, leadId = null) {
   // Kill any stale session for this phone + contractor first
   await db.query(`
     UPDATE homeowner_sms_sessions
@@ -955,16 +985,26 @@ async function getActiveSession(phone, contractorId) {
 }
 
 // ── Public: route an inbound homeowner SMS ────────────────────────────────────
+// Fetches session INSIDE the queued closure, not before it — if this fetched
+// session outside the queue and handed it in, a second rapid text could still
+// queue up behind the first but carry a now-stale pre-pick session object
+// with it, defeating the whole point of serializing the two calls.
 async function routeHomeownerSms(phone, contractorId, text) {
-  const session = await getSession(phone, contractorId);
-  if (!session) return null; // No active session — caller handles fallback
-  return handleHomeownerSms(phone, contractorId, text, session);
+  return withHomeownerQueue(phone, contractorId, async () => {
+    const session = await getSession(phone, contractorId);
+    if (!session) return null; // No active session — caller handles fallback
+    return handleHomeownerSmsInner(phone, contractorId, text, session);
+  });
 }
 
 // ── Public: start a rebook session after cancellation ────────────────────────
 // Pre-populates name, address, service from the lead and jumps straight to
 // slot selection. Returns the SMS text to send, or null if no slots available.
 async function startRebookSession(phone, contractorId, lead) {
+  return withHomeownerQueue(phone, contractorId, () => startRebookSessionInner(phone, contractorId, lead));
+}
+
+async function startRebookSessionInner(phone, contractorId, lead) {
   // Expire any existing session
   await db.query(`
     UPDATE homeowner_sms_sessions
