@@ -322,6 +322,96 @@ function findCityZipMismatch(cityGiven, zip) {
   return { onFileCity: onFile.city, onFileState: onFile.state };
 }
 
+// ── Free (no cost) real address validation via US Census Bureau Geocoder ────
+// findCityZipMismatch() above only helps when the homeowner's own text names a
+// city — it does nothing for the exact live-caught gap it couldn't close: an
+// address given with NO city at all, paired with a real-but-wrong zip (e.g.
+// "1370 Cedar Ave" + "98223" — a real Marysville street next to a real but
+// different Arlington zip). Google's Geocoding API would close this
+// authoritatively but has a real per-lookup dollar cost, explicitly ruled out.
+// The US Census Bureau's Geocoding Services API is genuinely free — no API
+// key, no billing, government-run, meant for public use — and validates the
+// STREET ADDRESS ITSELF against real US address data, not just a self-reported
+// zip number. Fails open (resolves null = "couldn't verify, don't block") on
+// any network error, timeout, or no-match — a missed catch here is far better
+// than a false decline on a real, oddly-worded address the Census DB just
+// doesn't have an exact match for.
+function verifyAddressWithCensus(address) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (val) => { if (!settled) { settled = true; resolve(val); } };
+
+    try {
+      const query = new URLSearchParams({
+        address: String(address || ''),
+        benchmark: 'Public_AR_Current',
+        format: 'json',
+      }).toString();
+
+      const req = https.request({
+        hostname: 'geocoding.geo.census.gov',
+        path: `/geocoder/locations/onelineaddress?${query}`,
+        method: 'GET',
+        timeout: 4000,
+      }, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(data);
+            const match = parsed?.result?.addressMatches?.[0];
+            if (!match || !match.addressComponents) return done(null);
+            done({
+              city: match.addressComponents.city || null,
+              state: match.addressComponents.state || null,
+              zip: match.addressComponents.zip || null,
+            });
+          } catch (e) {
+            console.warn('[BRAIN3] Census geocoder parse error, allowing booking:', e.message);
+            done(null);
+          }
+        });
+      });
+      req.on('timeout', () => { req.destroy(); done(null); });
+      req.on('error', (e) => {
+        console.warn('[BRAIN3] Census geocoder request error, allowing booking:', e.message);
+        done(null);
+      });
+      req.end();
+    } catch (e) {
+      console.warn('[BRAIN3] Census geocoder setup error, allowing booking:', e.message);
+      done(null);
+    }
+  });
+}
+
+// Runs both free mismatch layers (text-stated city vs zip, then — only if the
+// first found nothing — the authoritative Census street-address check) and
+// returns a single soft heads-up note to prepend to the next reply, or ''
+// if nothing looked off. Shared by handleAddress and handleZipOnly so the two
+// entry points to "we now have a zip to check" can't drift out of sync.
+async function buildAddressMismatchNote(fullAddress, cityGiven, zip) {
+  if (!zip) return '';
+
+  const textMismatch = findCityZipMismatch(cityGiven, zip);
+  if (textMismatch) {
+    return `Quick heads up — we have ${zip} on file as ${textMismatch.onFileCity}, ${textMismatch.onFileState}, not ${cityGiven}. Let me know if that's not right! `;
+  }
+
+  // No city was stated (or it matched fine) — fall back to the deeper,
+  // network-based-but-free Census check, which can catch a mismatch even
+  // with zero city text to go on.
+  const censusMatch = await verifyAddressWithCensus(fullAddress);
+  if (censusMatch && censusMatch.zip && censusMatch.zip !== zip) {
+    const where = censusMatch.city && censusMatch.state
+      ? ` (${censusMatch.city}, ${censusMatch.state})`
+      : '';
+    return `Quick heads up — that address looks like it matches zip ${censusMatch.zip}${where}, not ${zip}. Let me know if that's not right! `;
+  }
+
+  return '';
+}
+
 // ── Returning homeowner check ─────────────────────────────────────────────────
 // Time-bounded to 180 days — carriers typically quarantine a recycled phone
 // number for 90+ days before reassigning it, so anything older than that is
@@ -743,15 +833,12 @@ Return ONLY the JSON object. No explanation.`;
   if (name) updates.name = name;
   await updateSession(session.id, updates);
 
-  // Free (no paid API) city/zip plausibility check — see findCityZipMismatch()
-  // above. Doesn't block anything (a stated colloquial city legitimately
-  // differs from the official zip city sometimes), just surfaces a heads-up
-  // so an honest typo/mismatch has a chance to be self-corrected.
+  // Free (no paid API) address plausibility check — text-city cross-check
+  // first (instant, no network), then the free Census geocoder as a deeper
+  // layer if that found nothing (see buildAddressMismatchNote() above). Never
+  // blocks — just surfaces a heads-up so an honest mismatch can self-correct.
   const zipForMismatchCheck = extractZip(address);
-  const mismatch = findCityZipMismatch(cityGiven, zipForMismatchCheck);
-  const mismatchNote = mismatch
-    ? `Quick heads up — we have ${zipForMismatchCheck} on file as ${mismatch.onFileCity}, ${mismatch.onFileState}, not ${cityGiven}. Let me know if that's not right! `
-    : '';
+  const mismatchNote = await buildAddressMismatchNote(address, cityGiven, zipForMismatchCheck);
 
   // Patch the lead record if session has a lead_id
   if (session.lead_id) {
@@ -798,7 +885,14 @@ async function handleZipOnly(session, contractor, businessName, text) {
       [fullAddress, session.lead_id]
     ).catch(e => console.error('[BRAIN3] Lead patch error (zip-only):', e.message));
   }
-  return getServiceQuestion(contractor.niche_name);
+
+  // This is the exact live-caught gap (task #91): a street address given with
+  // no city, followed by a bare zip in a separate message. No city text
+  // exists here to cross-check, so buildAddressMismatchNote() will skip
+  // straight to the free Census geocoder — the only layer that can catch
+  // this specific case.
+  const mismatchNote = await buildAddressMismatchNote(fullAddress, '', zip);
+  return `${mismatchNote}${getServiceQuestion(contractor.niche_name)}`;
 }
 
 // Builds a plain-English description of where a contractor actually serves,
