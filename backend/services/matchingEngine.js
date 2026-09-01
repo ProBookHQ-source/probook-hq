@@ -3,6 +3,7 @@ const db = require('../database/db');
 const notifications = require('./notifications');
 const zipcodes = require('zipcodes');
 const { logEvent } = require('./auditLog');
+const { extractZip: extractZipFromAddress } = require('./addressUtils');
 
 // ── Haversine distance (miles) ────────────────────────────────────────────────
 function haversine(lat1, lon1, lat2, lon2) {
@@ -60,11 +61,9 @@ function contractorServesZip(contractor, leadZip) {
   }
 }
 
-function extractZipFromAddress(address) {
-  const matches = (address || '').match(/\b(\d{5})(?:-\d{4})?\b/g);
-  if (!matches) return null;
-  return matches[matches.length - 1].slice(0, 5);
-}
+// extractZipFromAddress moved to addressUtils.js (task #88), imported above —
+// now validates against the real zipcodes DB instead of trusting any 5-digit
+// substring, and is shared with homeownerSmsAI.js so the two can't drift apart.
 
 const BOOKING_LINK_EXPIRY_HOURS = 48;
 

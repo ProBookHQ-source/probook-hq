@@ -18,6 +18,7 @@ const https  = require('https');
 const zipcodes = require('zipcodes');
 const db     = require('../database/db');
 const { getRelevantKnowledge } = require('./diagnosticKnowledge');
+const { extractZip, isValidZip } = require('./addressUtils');
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MAX_CHARS = 320;
@@ -209,11 +210,10 @@ function fmtPhone(raw) {
 }
 
 // ── ZIP extraction + service area check ──────────────────────────────────────
-function extractZip(address) {
-  const matches = (address || '').match(/\b(\d{5})(?:-\d{4})?\b/g);
-  if (!matches) return null;
-  return matches[matches.length - 1].slice(0, 5); // last match = ZIP (city, state, ZIP order)
-}
+// extractZip moved to addressUtils.js (task #88) — now validates against the
+// real zipcodes DB instead of trusting any 5-digit substring (e.g. a 5-digit
+// house number with no real zip present), and is shared with matchingEngine.js
+// so the two never drift apart again.
 
 // contractor = { service_zip_codes, address, service_radius_miles } — pass the full
 // row (not just service_zip_codes) so a wildcard ("I'll go anywhere") can still be
@@ -265,6 +265,30 @@ function isInServiceArea(address, contractor) {
     console.warn(`[BRAIN3] isInServiceArea: parse error, allowing booking — ${e.message}`);
     return true; // parse error = permissive
   }
+}
+
+// Shared decision logic for "do we have enough to judge service area, and if
+// so is this address in it" — used by handleAddress, handleZipOnly, and
+// handleAddressConfirm (task #88) so all three make the exact same call
+// instead of each keeping its own copy that can silently drift out of sync
+// (which is exactly how handleAddressConfirm missed tasks #86/#87's fixes the
+// first time around — same bug, second location). Pure logic, no session
+// mutation — callers decide what to update and what to say.
+function resolveServiceAreaOutcome(address, contractor) {
+  let contractorZipsForGate = null;
+  try {
+    const raw = contractor.service_zip_codes;
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (Array.isArray(parsed) && parsed.length) contractorZipsForGate = parsed;
+  } catch (e) {}
+
+  if (contractorZipsForGate && !extractZip(address)) {
+    return { outcome: 'needs_zip' };
+  }
+  if (!isInServiceArea(address, contractor)) {
+    return { outcome: 'out_of_area' };
+  }
+  return { outcome: 'in_area' };
 }
 
 // ── Returning homeowner check ─────────────────────────────────────────────────
@@ -433,12 +457,18 @@ async function getOpenSlots(contractorId) {
 
 // ── Get or create a homeowner session ────────────────────────────────────────
 async function getSession(phone, contractorId) {
-  // Sessions expire after 24 hours of inactivity
+  // Sessions expire after 24 hours of inactivity.
+  // Excludes BOTH terminal states (task #88): 'confirmed' (a real booking
+  // happened, nothing more to route) and 'ended' (conversation is over but
+  // nothing was booked — opt-out, decline, no-slots, etc). 'out_of_area' is
+  // deliberately NOT excluded — it stays routable for a short window so a
+  // genuine follow-up question gets answered instead of restarting the
+  // greeting from scratch (task #86).
   const session = await db.prepare(`
     SELECT * FROM homeowner_sms_sessions
     WHERE phone = $1 AND contractor_id = $2
     AND updated_at > NOW() - INTERVAL '24 hours'
-    AND state != 'confirmed'
+    AND state NOT IN ('confirmed', 'ended')
     ORDER BY updated_at DESC
     LIMIT 1
   `).get(phone, contractorId);
@@ -507,7 +537,11 @@ async function handleHomeownerSmsInner(phone, contractorId, incomingText, sessio
 
   // ── Graceful exit — detect disinterest in any state ──────────────────────
   if (EXIT_RE.test(incomingText.trim())) {
-    await updateSession(session.id, { state: 'confirmed' });
+    // 'ended', not 'confirmed' (task #88) — no appointment was ever booked here.
+    // getLastConfirmedBooking() treats any 'confirmed' row with a name+address
+    // as a real past booking, so reusing 'confirmed' for a plain opt-out risked
+    // greeting this person as a returning customer next time they text in.
+    await updateSession(session.id, { state: 'ended' });
     return `No problem at all! Feel free to text us anytime if you need service. Have a great day!`;
   }
 
@@ -634,29 +668,22 @@ Return ONLY the address or NONE. No explanation.`;
   // public lead form (matchingEngine.js), where a human still reviews the
   // match, but Brain 3 books automatically with zero review. Live-caught: the
   // exact same out-of-area address, sent again with the zip omitted, sailed
-  // straight past the check. If the contractor actually has zip-code data
-  // configured (a real list OR the "go anywhere" wildcard — both branches of
-  // isInServiceArea fail open the same way with no zip), ask for the zip
-  // explicitly instead of guessing.
-  let contractorZipsForGate = null;
-  try {
-    const raw = contractor.service_zip_codes;
-    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    if (Array.isArray(parsed) && parsed.length) contractorZipsForGate = parsed;
-  } catch (e) {}
-  if (contractorZipsForGate && !extractZip(address)) {
+  // straight past the check — see resolveServiceAreaOutcome() above.
+  const areaCheck = resolveServiceAreaOutcome(address, contractor);
+
+  if (areaCheck.outcome === 'needs_zip') {
     await updateSession(session.id, { name: name || session.name, address, state: 'awaiting_zip_only' });
     return `What's the zip code for that address? Just want to make sure we cover your area.`;
   }
 
-  if (!isInServiceArea(address, contractor)) {
+  if (areaCheck.outcome === 'out_of_area') {
     // Live-caught bug (task #86): this used to close straight to state='confirmed',
     // which the state machine treats as fully terminal — the homeowner's very next
     // text (often a genuine follow-up like "what zip codes do you cover") had no
     // active session, so twilio.js's fallback restarted the ENTIRE generic greeting
     // from scratch instead of answering them. 'out_of_area' is still picked up by
-    // getSession() (only 'confirmed' is excluded there), so a follow-up routes into
-    // handleOutOfArea() below instead of re-triggering the greeting.
+    // getSession() (only 'confirmed'/'ended' are excluded there), so a follow-up
+    // routes into handleOutOfArea() below instead of re-triggering the greeting.
     await updateSession(session.id, { name: name || session.name, state: 'out_of_area' });
     const zip = extractZip(address);
     const areaHint = zip ? `(we cover different zip codes)` : `(we don't serve that area)`;
@@ -685,13 +712,22 @@ Return ONLY the address or NONE. No explanation.`;
 // than re-running full extraction on a reply that's expected to just be digits.
 async function handleZipOnly(session, contractor, businessName, text) {
   const zipMatch = (text || '').match(/\b\d{5}\b/);
-  if (!zipMatch) {
+  // Validate against the real zipcodes DB, not just "5 digits" — a mistyped
+  // or made-up zip (e.g. "00000") shouldn't silently pass as real (task #88).
+  if (!zipMatch || !isValidZip(zipMatch[0])) {
     return `Just the 5-digit zip code is all I need — what is it?`;
   }
   const zip = zipMatch[0];
   const fullAddress = session.address ? `${session.address} ${zip}` : zip;
+  const areaCheck = resolveServiceAreaOutcome(fullAddress, contractor);
 
-  if (!isInServiceArea(fullAddress, contractor)) {
+  if (areaCheck.outcome === 'needs_zip') {
+    // Shouldn't normally happen since we just validated the zip above, but if
+    // extraction still can't resolve it for some reason, don't guess — ask again.
+    return `Just the 5-digit zip code is all I need — what is it?`;
+  }
+
+  if (areaCheck.outcome === 'out_of_area') {
     await updateSession(session.id, { address: fullAddress, state: 'out_of_area' });
     return `Thanks! Unfortunately we don't cover that area (we cover different zip codes). Hope you find help nearby soon!`;
   }
@@ -740,7 +776,8 @@ async function handleOutOfArea(session, contractor, businessName, text) {
   if (COVERAGE_QUESTION_RE.test(trimmed)) {
     // Answer the real question, then close for good — this was an FAQ, not a
     // new booking attempt, so there's nothing left to keep the session open for.
-    await updateSession(session.id, { state: 'confirmed' });
+    // 'ended' not 'confirmed' (task #88) — see EXIT_RE comment above for why.
+    await updateSession(session.id, { state: 'ended' });
     return `${describeCoverageArea(contractor)} Text us again anytime if that changes!`;
   }
 
@@ -752,8 +789,9 @@ async function handleOutOfArea(session, contractor, businessName, text) {
     return handleAddress(session, contractor, businessName, trimmed);
   }
 
-  // Anything else — polite close, no restart of the greeting.
-  await updateSession(session.id, { state: 'confirmed' });
+  // Anything else — polite close, no restart of the greeting. 'ended' not
+  // 'confirmed' (task #88) — see EXIT_RE comment above for why.
+  await updateSession(session.id, { state: 'ended' });
   return `No worries! Feel free to text us again anytime — happy to help if that ever changes.`;
 }
 
@@ -769,26 +807,32 @@ async function handleAddressConfirm(session, contractor, businessName, text) {
   const looksLikeYes = /^(yes|yep|yeah|yup|correct|that'?s (right|correct)|still (there|same|correct)|same (address|place)|good|confirmed?)\b/i.test(trimmed);
 
   if (looksLikeYes) {
+    // Re-validate the pre-filled address against the CURRENT service area
+    // config (task #88) instead of blindly trusting it — this address was
+    // only ever checked once, at the time of their LAST booking, and a
+    // contractor can shrink their coverage area in between. Shares the exact
+    // same decision logic handleAddress uses so this can never drift out of
+    // sync with it again the way the old hand-rolled copy below did.
+    const areaCheck = resolveServiceAreaOutcome(session.address, contractor);
+    if (areaCheck.outcome === 'needs_zip') {
+      await updateSession(session.id, { state: 'awaiting_zip_only' });
+      return `What's the zip code for that address? Just want to make sure we still cover your area.`;
+    }
+    if (areaCheck.outcome === 'out_of_area') {
+      await updateSession(session.id, { state: 'out_of_area' });
+      return `Thanks! Looks like we no longer cover that area. Hope you find help nearby soon!`;
+    }
     await updateSession(session.id, { state: 'awaiting_service' });
     return getServiceQuestion(contractor.niche_name);
   }
 
   // Not a clear "yes" — treat as a correction if it looks like a real address,
-  // otherwise fall back to asking plainly. Either way we move on rather than
-  // looping, since re-asking the same yes/no question rarely resolves it.
+  // by delegating straight into handleAddress (task #88) instead of keeping a
+  // second, separate copy of the same zip-gate + service-area logic. That
+  // duplication is exactly what let this path miss tasks #86/#87's fixes the
+  // first time they were made — same bug, second location.
   if (/\d/.test(trimmed) && trimmed.length > 6) {
-    if (!isInServiceArea(trimmed, contractor)) {
-      await updateSession(session.id, { state: 'confirmed' }); // close session
-      return `Thanks! Unfortunately we don't cover that area. Hope you find help nearby soon!`;
-    }
-    await updateSession(session.id, { address: trimmed, state: 'awaiting_service' });
-    if (session.lead_id) {
-      await db.query(
-        `UPDATE leads SET address = $1 WHERE id = $2`,
-        [trimmed, session.lead_id]
-      ).catch(e => console.error('[BRAIN3] Lead patch error:', e.message));
-    }
-    return getServiceQuestion(contractor.niche_name);
+    return handleAddress(session, contractor, businessName, trimmed);
   }
 
   await updateSession(session.id, { state: 'awaiting_address' });
@@ -816,7 +860,7 @@ async function handleService(session, contractor, businessName, text) {
   const { scope, message: scopeMessage } = await classifyServiceScope(contractor.niche_name, serviceText);
 
   if (scope === 'out_of_scope') {
-    await updateSession(session.id, { state: 'confirmed' }); // close session — don't offer slots for work we don't do
+    await updateSession(session.id, { state: 'ended' }); // close session — don't offer slots for work we don't do (task #88: 'ended' not 'confirmed', no booking happened)
     return (scopeMessage || `That's not something we handle, unfortunately — hope you find the right pro for it!`).slice(0, MAX_CHARS);
   }
 
@@ -842,7 +886,7 @@ async function handleService(session, contractor, businessName, text) {
 
   // Build the slot options string
   if (!slots.length) {
-    await updateSession(session.id, { state: 'confirmed' });
+    await updateSession(session.id, { state: 'ended' }); // task #88: 'ended' not 'confirmed', no booking happened
     return `We're fully booked right now — text us again in a few days and we'll get you scheduled. Reply STOP to opt out.`;
   }
 
@@ -894,7 +938,7 @@ ${slotOptions}`;
         // Safety check: if the reply tells them to leave/call 911, don't add slots
         const isSafetyOverride = /911|leave.*home|evacuate|gas company/i.test(reply);
         if (isSafetyOverride) {
-          await updateSession(session.id, { state: 'confirmed' }); // end session on safety
+          await updateSession(session.id, { state: 'ended' }); // end session on safety (task #88: 'ended' not 'confirmed', no booking happened)
           return reply.slice(0, MAX_CHARS);
         }
         return reply.slice(0, MAX_CHARS);
@@ -1067,7 +1111,7 @@ async function handleSlotPick(session, contractor, businessName, text) {
       try {
         const freshSlots = await getOpenSlots(contractor.id);
         if (!freshSlots.length) {
-          await updateSession(session.id, { state: 'confirmed' });
+          await updateSession(session.id, { state: 'ended' }); // task #88: 'ended' not 'confirmed', no booking happened
           return `Sorry — that slot just got taken and we're fully booked right now. Text us again in a few days and we'll get you on the calendar. Reply STOP to opt out.`;
         }
         const newOffered = freshSlots.slice(0, 3);
@@ -1145,11 +1189,17 @@ async function startHomeownerSession(phone, contractorId, name = null, leadId = 
 }
 
 async function startHomeownerSessionInner(phone, contractorId, name = null, leadId = null) {
-  // Kill any stale session for this phone + contractor first
+  // Kill any stale session for this phone + contractor first. Sets 'ended', not
+  // 'confirmed' (task #88) — an abandoned/incomplete session being superseded
+  // here is NOT a real booking, and getLastConfirmedBooking() treats any
+  // 'confirmed' row with a name+address as a real past booking. Reusing
+  // 'confirmed' here meant a homeowner who, say, gave their name+address and
+  // then went dark mid-conversation could get greeted as a "returning
+  // customer" on their next contact even though nothing was ever booked.
   await db.query(`
     UPDATE homeowner_sms_sessions
-    SET state = 'confirmed', updated_at = NOW()
-    WHERE phone = $1 AND contractor_id = $2 AND state != 'confirmed'
+    SET state = 'ended', updated_at = NOW()
+    WHERE phone = $1 AND contractor_id = $2 AND state NOT IN ('confirmed', 'ended')
   `, [phone, contractorId]).catch(() => {});
 
   // Returning homeowner check — if they've booked before, pre-populate name +
@@ -1198,11 +1248,12 @@ async function startRebookSession(phone, contractorId, lead) {
 }
 
 async function startRebookSessionInner(phone, contractorId, lead) {
-  // Expire any existing session
+  // Expire any existing session — 'ended' not 'confirmed' (task #88), same
+  // reasoning as startHomeownerSessionInner above.
   await db.query(`
     UPDATE homeowner_sms_sessions
-    SET state = 'confirmed', updated_at = NOW()
-    WHERE phone = $1 AND contractor_id = $2 AND state != 'confirmed'
+    SET state = 'ended', updated_at = NOW()
+    WHERE phone = $1 AND contractor_id = $2 AND state NOT IN ('confirmed', 'ended')
   `, [phone, contractorId]).catch(() => {});
 
   // Fetch open slots
