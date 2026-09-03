@@ -172,7 +172,27 @@ function matchSlotFromText(text, offeredSlots) {
     if (num >= 1 && num <= offeredSlots.length) return offeredSlots[num - 1];
   }
 
+  // Live-caught bug (task #96): "The third one" matched nothing at all — this
+  // function only ever recognized a bare digit ("3"), never an ordinal word
+  // or "number N" phrasing, so a completely natural reply fell through to the
+  // same "just let me know which of these works" re-prompt with zero
+  // indication anything was wrong. Handle ordinal words/digits and "number N"
+  // before falling through to the fuzzier label/date/time matching below.
   const lowerPick = pick.toLowerCase();
+  const ORDINAL_WORDS = ['first', 'second', 'third', 'fourth', 'fifth'];
+  const ordinalMatch = lowerPick.match(/\b(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\b/)
+    || lowerPick.match(/\bnumber\s*(\d+)\b/)
+    || lowerPick.match(/\boption\s*(\d+)\b/);
+  if (ordinalMatch) {
+    const word = ordinalMatch[1];
+    let idx = ORDINAL_WORDS.indexOf(word); // 0-based if a word like "third"
+    if (idx === -1) {
+      const numMatch = word.match(/^(\d+)/);
+      idx = numMatch ? parseInt(numMatch[1], 10) - 1 : -1; // "3rd" → 2, "number 3" → 2
+    }
+    if (idx >= 0 && idx < offeredSlots.length) return offeredSlots[idx];
+  }
+
   let match = offeredSlots.find(s => s.label.toLowerCase().includes(lowerPick));
   if (match) return match;
 
