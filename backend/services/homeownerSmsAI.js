@@ -336,21 +336,33 @@ function findCityZipMismatch(cityGiven, zip) {
 // any network error, timeout, or no-match — a missed catch here is far better
 // than a false decline on a real, oddly-worded address the Census DB just
 // doesn't have an exact match for.
-function verifyAddressWithCensus(address) {
+// Task #93 follow-up (live-caught twice): the "onelineaddress" endpoint used
+// below returned a clean 200 with ZERO matches for a REAL, confirmed address
+// ("1370 Cedar Ave" + the correct zip on file) — even after inserting a comma
+// to help its free-text parser split street from zip. The oneline endpoint
+// has to guess field boundaries from one blob of text; with no city/state to
+// anchor on (our exact situation — we only ever have street + zip, never
+// city), that guess can fail even on a real address. Switched to Census's
+// STRUCTURED address endpoint instead, which takes street and zip as
+// separate, unambiguous fields — no parsing guesswork involved on Census's
+// end at all.
+function verifyAddressWithCensus(street, zip) {
   return new Promise((resolve) => {
     let settled = false;
     const done = (val) => { if (!settled) { settled = true; resolve(val); } };
+    const label = `${street} / ${zip}`;
 
     try {
       const query = new URLSearchParams({
-        address: String(address || ''),
+        street: String(street || ''),
+        zip: String(zip || ''),
         benchmark: 'Public_AR_Current',
         format: 'json',
       }).toString();
 
       const req = https.request({
         hostname: 'geocoding.geo.census.gov',
-        path: `/geocoder/locations/onelineaddress?${query}`,
+        path: `/geocoder/locations/address?${query}`,
         method: 'GET',
         timeout: 6000,
       }, (res) => {
@@ -361,36 +373,36 @@ function verifyAddressWithCensus(address) {
             const parsed = JSON.parse(data);
             const matches = parsed?.result?.addressMatches;
             const match = matches?.[0];
-            // Diagnostic logging (task #91 follow-up) — this whole layer is
+            // Diagnostic logging (task #91/#93) — this whole layer is
             // fail-open by design, which means a real failure (no match, bad
             // response shape, HTTP error) is otherwise invisible in normal
             // operation. Log the outcome every time so a "why didn't the
             // mismatch note fire" question can be answered from Railway logs
             // instead of guessing blind.
             if (!match || !match.addressComponents) {
-              console.log(`[BRAIN3] Census geocoder: no match for "${address}" — status ${res.statusCode}, matches found: ${matches ? matches.length : 'n/a'}`);
+              console.log(`[BRAIN3] Census geocoder: no match for "${label}" — status ${res.statusCode}, matches found: ${matches ? matches.length : 'n/a'}`);
               return done(null);
             }
-            console.log(`[BRAIN3] Census geocoder: matched "${address}" → zip ${match.addressComponents.zip}, ${match.addressComponents.city}, ${match.addressComponents.state}`);
+            console.log(`[BRAIN3] Census geocoder: matched "${label}" → zip ${match.addressComponents.zip}, ${match.addressComponents.city}, ${match.addressComponents.state}`);
             done({
               city: match.addressComponents.city || null,
               state: match.addressComponents.state || null,
               zip: match.addressComponents.zip || null,
             });
           } catch (e) {
-            console.warn(`[BRAIN3] Census geocoder parse error for "${address}", allowing booking:`, e.message, '— raw response:', data.slice(0, 300));
+            console.warn(`[BRAIN3] Census geocoder parse error for "${label}", allowing booking:`, e.message, '— raw response:', data.slice(0, 300));
             done(null);
           }
         });
       });
-      req.on('timeout', () => { req.destroy(); console.warn(`[BRAIN3] Census geocoder timeout for "${address}", allowing booking`); done(null); });
+      req.on('timeout', () => { req.destroy(); console.warn(`[BRAIN3] Census geocoder timeout for "${label}", allowing booking`); done(null); });
       req.on('error', (e) => {
-        console.warn(`[BRAIN3] Census geocoder request error for "${address}", allowing booking:`, e.message);
+        console.warn(`[BRAIN3] Census geocoder request error for "${label}", allowing booking:`, e.message);
         done(null);
       });
       req.end();
     } catch (e) {
-      console.warn(`[BRAIN3] Census geocoder setup error for "${address}", allowing booking:`, e.message);
+      console.warn(`[BRAIN3] Census geocoder setup error for "${label}", allowing booking:`, e.message);
       done(null);
     }
   });
@@ -413,21 +425,20 @@ async function buildAddressMismatchNote(fullAddress, cityGiven, zip) {
   // network-based-but-free Census check, which can catch a mismatch even
   // with zero city text to go on.
   //
-  // Live-caught (task #93): Census's oneline parser needs the zip clearly
-  // comma-delimited from the street portion to reliably identify it — a raw
-  // space-joined string like "1370 cedar Ave 98223" came back a clean 200
-  // with ZERO matches, even though nothing else was wrong with the request.
-  // Strip the zip out and rebuild the query with an explicit comma so both
-  // call sites (handleAddress's single-message case and handleZipOnly's
-  // two-message case) always send Census a consistently formatted address,
-  // regardless of how the raw text originally looked.
+  // Live-caught TWICE (task #93): Census's free-text "oneline" endpoint
+  // returned a clean 200 with ZERO matches for a real, confirmed address
+  // paired with the real zip on file, even with a comma inserted to help it
+  // split street from zip — its parser just can't reliably resolve a
+  // street+zip blob with no city/state to anchor on. Switched
+  // verifyAddressWithCensus() to Census's STRUCTURED endpoint instead, which
+  // takes street and zip as separate fields with no parsing involved. Strip
+  // the zip out of fullAddress to get a clean street-only string for that.
   const streetOnly = fullAddress
     .replace(new RegExp(`\\b${zip}\\b`), '')
     .replace(/,\s*$/, '')
     .trim();
-  const censusQuery = streetOnly ? `${streetOnly}, ${zip}` : zip;
 
-  const censusMatch = await verifyAddressWithCensus(censusQuery);
+  const censusMatch = await verifyAddressWithCensus(streetOnly, zip);
   if (censusMatch && censusMatch.zip && censusMatch.zip !== zip) {
     const where = censusMatch.city && censusMatch.state
       ? ` (${censusMatch.city}, ${censusMatch.state})`
