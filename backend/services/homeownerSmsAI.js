@@ -352,34 +352,45 @@ function verifyAddressWithCensus(address) {
         hostname: 'geocoding.geo.census.gov',
         path: `/geocoder/locations/onelineaddress?${query}`,
         method: 'GET',
-        timeout: 4000,
+        timeout: 6000,
       }, (res) => {
         let data = '';
         res.on('data', chunk => data += chunk);
         res.on('end', () => {
           try {
             const parsed = JSON.parse(data);
-            const match = parsed?.result?.addressMatches?.[0];
-            if (!match || !match.addressComponents) return done(null);
+            const matches = parsed?.result?.addressMatches;
+            const match = matches?.[0];
+            // Diagnostic logging (task #91 follow-up) — this whole layer is
+            // fail-open by design, which means a real failure (no match, bad
+            // response shape, HTTP error) is otherwise invisible in normal
+            // operation. Log the outcome every time so a "why didn't the
+            // mismatch note fire" question can be answered from Railway logs
+            // instead of guessing blind.
+            if (!match || !match.addressComponents) {
+              console.log(`[BRAIN3] Census geocoder: no match for "${address}" — status ${res.statusCode}, matches found: ${matches ? matches.length : 'n/a'}`);
+              return done(null);
+            }
+            console.log(`[BRAIN3] Census geocoder: matched "${address}" → zip ${match.addressComponents.zip}, ${match.addressComponents.city}, ${match.addressComponents.state}`);
             done({
               city: match.addressComponents.city || null,
               state: match.addressComponents.state || null,
               zip: match.addressComponents.zip || null,
             });
           } catch (e) {
-            console.warn('[BRAIN3] Census geocoder parse error, allowing booking:', e.message);
+            console.warn(`[BRAIN3] Census geocoder parse error for "${address}", allowing booking:`, e.message, '— raw response:', data.slice(0, 300));
             done(null);
           }
         });
       });
-      req.on('timeout', () => { req.destroy(); done(null); });
+      req.on('timeout', () => { req.destroy(); console.warn(`[BRAIN3] Census geocoder timeout for "${address}", allowing booking`); done(null); });
       req.on('error', (e) => {
-        console.warn('[BRAIN3] Census geocoder request error, allowing booking:', e.message);
+        console.warn(`[BRAIN3] Census geocoder request error for "${address}", allowing booking:`, e.message);
         done(null);
       });
       req.end();
     } catch (e) {
-      console.warn('[BRAIN3] Census geocoder setup error, allowing booking:', e.message);
+      console.warn(`[BRAIN3] Census geocoder setup error for "${address}", allowing booking:`, e.message);
       done(null);
     }
   });
@@ -900,7 +911,11 @@ async function handleZipOnly(session, contractor, businessName, text) {
     return `Just the 5-digit zip code is all I need — what is it?`;
   }
   const zip = zipMatch[0];
-  const fullAddress = session.address ? `${session.address} ${zip}` : zip;
+  // Comma before the zip matches the format the Census geocoder parses most
+  // reliably (closer to real USPS "street, city, state zip" formatting than
+  // a bare space-joined string) — improves match quality for the Census
+  // deep-check in buildAddressMismatchNote() below.
+  const fullAddress = session.address ? `${session.address}, ${zip}` : zip;
   const areaCheck = resolveServiceAreaOutcome(fullAddress, contractor);
 
   if (areaCheck.outcome === 'needs_zip') {
@@ -927,7 +942,9 @@ async function handleZipOnly(session, contractor, businessName, text) {
   // exists here to cross-check, so buildAddressMismatchNote() will skip
   // straight to the free Census geocoder — the only layer that can catch
   // this specific case.
+  console.log(`[BRAIN3] handleZipOnly: running address mismatch check on "${fullAddress}"`);
   const mismatchNote = await buildAddressMismatchNote(fullAddress, '', zip);
+  console.log(`[BRAIN3] handleZipOnly: mismatch note result — ${mismatchNote ? `"${mismatchNote}"` : '(none)'}`);
   return `${mismatchNote}${getServiceQuestion(contractor.niche_name)}`;
 }
 
