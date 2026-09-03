@@ -29,12 +29,38 @@ function isValidZip(zip) {
 // last 5-digit substring blindly. Returns null if no token in the address
 // validates, which is the correct/safe outcome for something like a 5-digit
 // house number with no real zip anywhere in the string.
+//
+// Task #97 — live-caught: the "no real zip in the string" case above only
+// protected against a house number that *isn't* a real zip anywhere in the
+// US. "20722 Olympic Pl NE Apt A110" has no zip at all, but 20722 happens to
+// coincidentally be a real zip code somewhere else in the country — isValidZip
+// passed it, and it got silently used as the homeowner's zip, resolving
+// straight to "out of area" instead of correctly asking for the zip. A US
+// address always puts the zip at the END, never the start — a 5-digit token
+// sitting at position 0 of a longer string is a house number, full stop,
+// regardless of whether it happens to validate as *some* real zip elsewhere.
+// Exclude a leading match from candidacy unless the leading token IS the
+// entire string (a bare "98223" reply with nothing else — still legitimate).
 function extractZip(address) {
-  const matches = (address || '').match(/\b(\d{5})(?:-\d{4})?\b/g);
-  if (!matches) return null;
-  for (let i = matches.length - 1; i >= 0; i--) {
-    const candidate = matches[i].slice(0, 5);
-    if (isValidZip(candidate)) return candidate;
+  const str = (address || '').trim();
+  if (!str) return null;
+
+  const re = /\b(\d{5})(?:-\d{4})?\b/g;
+  const candidates = [];
+  let m;
+  while ((m = re.exec(str)) !== null) {
+    candidates.push({ zip: m[1], index: m.index });
+  }
+  if (!candidates.length) return null;
+
+  const usable = candidates.filter(c => {
+    if (c.index !== 0) return true;
+    return str.slice(5).trim().length === 0; // leading token is the whole string — keep it
+  });
+  if (!usable.length) return null;
+
+  for (let i = usable.length - 1; i >= 0; i--) {
+    if (isValidZip(usable[i].zip)) return usable[i].zip;
   }
   return null;
 }
