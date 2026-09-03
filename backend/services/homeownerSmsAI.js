@@ -193,6 +193,20 @@ function matchSlotFromText(text, offeredSlots) {
     if (idx >= 0 && idx < offeredSlots.length) return offeredSlots[idx];
   }
 
+  // Task #98 — CRITICAL live-caught bug: "I can't Saturdays I work" got
+  // matched to the Saturday slot and CONFIRMED a real booking on the exact
+  // day the homeowner explicitly said they were unavailable. The weekday/time
+  // fuzzy-match fallback below only checks whether a day/time name appears
+  // ANYWHERE in the reply — it has no concept of negation, so mentioning a day
+  // to reject it ("can't Saturdays") reads identically to mentioning it to
+  // accept it ("Saturday works"). Bail out before any fuzzy label/weekday/time
+  // matching runs if the reply contains a decline/negation cue — this falls
+  // through to handleSlotPick's "none of these work" handling instead of
+  // silently booking. Deliberately placed AFTER the ordinal/number check
+  // above, since an explicit "the third one" / "3" is never ambiguous.
+  const NEGATION_RE = /\b(can'?t|cannot|won'?t|don'?t|do\s*not|unable|not\s*available|no\s*good|doesn'?t\s*work|does\s*not\s*work)\b/i;
+  if (NEGATION_RE.test(pick)) return null;
+
   let match = offeredSlots.find(s => s.label.toLowerCase().includes(lowerPick));
   if (match) return match;
 
@@ -1236,7 +1250,11 @@ async function handleSlotPick(session, contractor, businessName, text) {
   if (!chosen) {
     // If they're telling us none of the offered times work, fetch a fresh batch
     // instead of just repeating the same three they already rejected.
-    const saysNoneWork = /\b(none|nothing|neither|don'?t work|doesn'?t work|no good|can'?t do|not work)\b/i.test(pick);
+    // Task #98 — widened alongside the matchSlotFromText negation guard: a
+    // bare "can't"/"cannot"/"won't"/"unable" (not just "can't do") should also
+    // route here instead of falling through to the generic re-prompt, since
+    // that's exactly the phrasing that caused the false-booking bug above.
+    const saysNoneWork = /\b(none|nothing|neither|don'?t work|doesn'?t work|no good|can'?t do|not work|can'?t|cannot|won'?t|unable|not\s*available)\b/i.test(pick);
     if (saysNoneWork) {
       try {
         const freshSlots = await getOpenSlots(contractor.id);
