@@ -438,6 +438,20 @@ async function getLastConfirmedBooking(phone, contractorId) {
 // ── Graceful exit detection ───────────────────────────────────────────────────
 const EXIT_RE = /^(no\s*thanks?|not\s*interested|never\s*mind|nevermind|forget\s*it|nvm|nm|no\s*need|don'?t\s*need|not\s*now|maybe\s*later|i'?m\s*good|all\s*good|no\s*worries)$/i;
 
+// ── Restart-intent detection ──────────────────────────────────────────────────
+// Live-caught bug: a homeowner asking "can we start over with my name and
+// address" mid-conversation had that entire sentence folded into
+// service_description (handleService's isFollowUp logic treats ANY reply while
+// awaiting_service as more diagnostic detail, with no concept of "actually,
+// scrap this"), which then got passed to classifyServiceScope, which had no
+// way to recognize "start over" as anything other than vague-but-maybe-in-scope
+// text — and fell straight through to offering appointment slots for a
+// "service" that was never actually described. Not intentionally anchored to
+// message start (unlike EXIT_RE) since a genuine restart request is usually
+// phrased as a full sentence ("can we start over...") rather than a bare
+// command, so this checks anywhere in the message.
+const RESTART_RE = /\b(start\s*(over|again)|restart|redo\s*(this|that)|scratch\s*that|from\s*the\s*(beginning|top|start))\b/i;
+
 async function callClaude(messages, tools, system) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
@@ -664,6 +678,28 @@ async function handleHomeownerSmsInner(phone, contractorId, incomingText, sessio
     // greeting this person as a returning customer next time they text in.
     await updateSession(session.id, { state: 'ended' });
     return `No problem at all! Feel free to text us anytime if you need service. Have a great day!`;
+  }
+
+  // ── Restart intent — honor it explicitly instead of folding it into
+  // whatever state-specific handler happens to be active. Only recognized
+  // once we're at least as far as awaiting_service or later — in
+  // awaiting_address/awaiting_zip_only/awaiting_address_confirm a message
+  // containing "start" is far more likely to be a real reply (e.g. "123
+  // Startdale Ave") than an actual restart request, so don't risk a false
+  // positive there; those states already loop back into handleAddress/
+  // handleZipOnly on their own if something looks wrong.
+  if (
+    RESTART_RE.test(incomingText.trim()) &&
+    ['awaiting_service', 'awaiting_slot', 'awaiting_email'].includes(session.state)
+  ) {
+    await updateSession(session.id, {
+      name: null,
+      address: null,
+      service_description: null,
+      offered_slots: null,
+      state: 'awaiting_address',
+    });
+    return `No problem — let's start fresh. What's your name and the address that needs service?`;
   }
 
   // ── State routing ──────────────────────────────────────────────────────────
