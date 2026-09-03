@@ -255,6 +255,11 @@ function isInServiceArea(address, contractor) {
         console.warn(`[BRAIN3] isInServiceArea: zipcodes.distance() returned null for ${contractorZip}<->${homeownerZip} — allowing booking`);
         return true;
       }
+      // Task #95 — log the actual miles/radius comparison every time (not just
+      // on failure) so a same-zip-different-outcome case like the one live-
+      // caught (98223 accepted on one test, rejected on another) is visible
+      // in Railway logs instead of requiring another guess-and-retest cycle.
+      console.log(`[BRAIN3] isInServiceArea: contractorZip=${contractorZip} homeownerZip=${homeownerZip} miles=${miles} radius=${radiusMiles} → ${miles <= radiusMiles ? 'in_area' : 'out_of_area'}`);
       return miles <= radiusMiles;
     }
 
@@ -882,6 +887,13 @@ Return ONLY the JSON object. No explanation.`;
   // exact same out-of-area address, sent again with the zip omitted, sailed
   // straight past the check — see resolveServiceAreaOutcome() above.
   const areaCheck = resolveServiceAreaOutcome(address, contractor);
+  // Task #95 — live-caught: the SAME literal zip (98223) produced 'in_area' on
+  // one test and 'out_of_area' on another, with no visibility into why, since
+  // nothing logged what address string Claude's extraction actually produced
+  // or what zip/distance resolveServiceAreaOutcome computed from it. Log it
+  // unconditionally here (not just on failure) so the next test shows the
+  // real extracted address + resolved zip instead of requiring more guessing.
+  console.log(`[BRAIN3] handleAddress: raw="${text}" → extracted address="${address}" city="${cityGiven}" → extractZip="${extractZip(address)}" → areaCheck=${areaCheck.outcome}`);
 
   if (areaCheck.outcome === 'needs_zip') {
     await updateSession(session.id, { name: name || session.name, address, state: 'awaiting_zip_only' });
