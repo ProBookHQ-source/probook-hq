@@ -412,7 +412,22 @@ async function buildAddressMismatchNote(fullAddress, cityGiven, zip) {
   // No city was stated (or it matched fine) — fall back to the deeper,
   // network-based-but-free Census check, which can catch a mismatch even
   // with zero city text to go on.
-  const censusMatch = await verifyAddressWithCensus(fullAddress);
+  //
+  // Live-caught (task #93): Census's oneline parser needs the zip clearly
+  // comma-delimited from the street portion to reliably identify it — a raw
+  // space-joined string like "1370 cedar Ave 98223" came back a clean 200
+  // with ZERO matches, even though nothing else was wrong with the request.
+  // Strip the zip out and rebuild the query with an explicit comma so both
+  // call sites (handleAddress's single-message case and handleZipOnly's
+  // two-message case) always send Census a consistently formatted address,
+  // regardless of how the raw text originally looked.
+  const streetOnly = fullAddress
+    .replace(new RegExp(`\\b${zip}\\b`), '')
+    .replace(/,\s*$/, '')
+    .trim();
+  const censusQuery = streetOnly ? `${streetOnly}, ${zip}` : zip;
+
+  const censusMatch = await verifyAddressWithCensus(censusQuery);
   if (censusMatch && censusMatch.zip && censusMatch.zip !== zip) {
     const where = censusMatch.city && censusMatch.state
       ? ` (${censusMatch.city}, ${censusMatch.state})`
