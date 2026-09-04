@@ -600,6 +600,18 @@ const STATE_TIMEZONE = {
   WI: 'America/Chicago', WY: 'America/Denver', DC: 'America/New_York',
 };
 
+// Task #100 — "come-to-us" niches (the homeowner travels to the business —
+// window tinting, auto detailing) vs dispatch niches (a tech travels to the
+// homeowner — everything currently active: HVAC, plumbing, electrical, etc).
+// Kept as its own small lookup rather than a DB column since task #40 (full
+// come-to-us support) isn't built yet and no active niche needs it today —
+// this just makes the same-day booking buffer forward-compatible for when
+// one is added, without blocking on that larger piece of work.
+const COME_TO_US_NICHES = new Set(['window tinting', 'auto detailing']);
+function isComeToUsNiche(nicheName) {
+  return COME_TO_US_NICHES.has(String(nicheName || '').toLowerCase().trim());
+}
+
 function getContractorTimezone(contractorAddress) {
   try {
     const zip = extractZip(contractorAddress);
@@ -641,12 +653,28 @@ async function getOpenSlots(contractorId) {
   const fromStr = from.toISOString().slice(0, 10);
   const toStr   = to.toISOString().slice(0, 10);
 
-  // Needed to derive the contractor's approximate local "now" for same-day
-  // filtering below — cheap, single-row lookup, not worth changing every
-  // call site's signature just to thread a contractor object through.
-  const { rows: addrRows } = await db.query(`SELECT address FROM contractors WHERE id = $1`, [contractorId]);
-  const { dateStr: todayStr, minutes: nowMinutes } = getContractorNow(addrRows[0]?.address);
-  const nowMinutesWithBuffer = nowMinutes + 30; // same 30-min buffer as the portal's /open-slots
+  // Needed to derive the contractor's approximate local "now" (+ their niche,
+  // for the buffer-size decision below) for same-day filtering — cheap,
+  // single-row lookup, not worth changing every call site's signature just
+  // to thread a contractor object through.
+  const { rows: ctrRows } = await db.query(
+    `SELECT c.address, n.name AS niche_name FROM contractors c LEFT JOIN niches n ON c.niche_id = n.id WHERE c.id = $1`,
+    [contractorId]
+  );
+  const ctrRow = ctrRows[0] || {};
+  const { dateStr: todayStr, minutes: nowMinutes } = getContractorNow(ctrRow.address);
+  // Task #100 — Jose's call after brainstorming: dispatch niches (a tech
+  // travels TO the homeowner — HVAC, plumbing, electrical, roofing, etc, i.e.
+  // every niche actually live today) need real lead time for a same-day
+  // booking — travel time, plus the very real chance an earlier job runs
+  // long. "Come-to-us" niches (the homeowner travels to the business —
+  // window tinting, auto detailing, per task #40) have neither risk, so the
+  // tighter 30-min buffer (matching the portal's own /open-slots logic) is
+  // genuinely fine there. No currently-active niche is come-to-us — this is
+  // forward-compatible for whenever one is added, not live for any real
+  // contractor today.
+  const sameDayBufferMinutes = isComeToUsNiche(ctrRow.niche_name) ? 30 : 120;
+  const nowMinutesWithBuffer = nowMinutes + sameDayBufferMinutes;
 
   // Get weekly schedule
   const slots = await db.prepare(`
