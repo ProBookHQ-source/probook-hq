@@ -887,17 +887,21 @@ async function handleHomeownerSmsInner(phone, contractorId, incomingText, sessio
   }
 
   // ── Restart intent — honor it explicitly instead of folding it into
-  // whatever state-specific handler happens to be active. Only recognized
-  // once we're at least as far as awaiting_service or later — in
-  // awaiting_address/awaiting_zip_only/awaiting_address_confirm a message
-  // containing "start" is far more likely to be a real reply (e.g. "123
-  // Startdale Ave") than an actual restart request, so don't risk a false
-  // positive there; those states already loop back into handleAddress/
-  // handleZipOnly on their own if something looks wrong.
-  if (
-    RESTART_RE.test(incomingText.trim()) &&
-    ['awaiting_service', 'awaiting_slot', 'awaiting_email'].includes(session.state)
-  ) {
+  // whatever state-specific handler happens to be active.
+  // Task #102 — live-caught: this used to only fire for
+  // awaiting_service/awaiting_slot/awaiting_email, on the theory that a real
+  // street address like "123 Startdale Ave" could false-positive-match
+  // during awaiting_address/awaiting_zip_only/awaiting_address_confirm/
+  // out_of_area. That risk doesn't actually exist — RESTART_RE uses \b word
+  // boundaries, so "Startdale" and "Restarter" never match (verified: only
+  // an actual standalone "restart"/"start over"/etc. word matches). Meanwhile
+  // the narrow state list left "Restart" completely dead in the states a
+  // homeowner is MOST likely to be stuck in and want an escape hatch from —
+  // out_of_area and awaiting_address both looped it straight into
+  // handleAddress/handleOutOfArea, which have no concept of "restart" and
+  // just re-asked the same static question forever. Now applies in every
+  // state.
+  if (RESTART_RE.test(incomingText.trim())) {
     await updateSession(session.id, {
       name: null,
       address: null,
@@ -1191,6 +1195,24 @@ async function handleOutOfArea(session, contractor, businessName, text) {
     // 'out_of_area' so a follow-up correction still routes back into this
     // same handler instead of resetting the conversation.
     return `${describeCoverageArea(contractor)} Text us again anytime if that changes!`;
+  }
+
+  // Task #102 — live-caught: "I meant zip code 98224 but adress is the same"
+  // has a digit and is well over 6 chars, so it used to fall straight into the
+  // generic /\d/ branch below → handleAddress's full Claude extraction, which
+  // has no way to resolve "the same" as a reference to session.address and
+  // just fell back to "And the address that needs service?" — silently
+  // dropping the address the homeowner had already given. If the ONLY digit
+  // run in the message is a single valid 5-digit zip (no separate house-number
+  // digits anywhere else), this is a zip-only correction, not a new address —
+  // handle it exactly the way handleZipOnly already does elsewhere (reuse
+  // session.address, append the new zip, re-run the area check).
+  const zipOnlyMatch = trimmed.match(/\b\d{5}\b/);
+  const otherDigits = zipOnlyMatch
+    ? /\d/.test(trimmed.slice(0, zipOnlyMatch.index) + trimmed.slice(zipOnlyMatch.index + 5))
+    : false;
+  if (zipOnlyMatch && isValidZip(zipOnlyMatch[0]) && session.address && !otherDigits) {
+    return handleZipOnly(session, contractor, businessName, trimmed);
   }
 
   // Looks like they're offering a corrected/different address — same heuristic
