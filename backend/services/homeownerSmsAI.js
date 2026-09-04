@@ -1517,6 +1517,33 @@ async function handleSlotPick(session, contractor, businessName, text) {
       } catch (e) {
         console.error('[BRAIN3] Re-offer on "none work" failed:', e.message);
       }
+    } else {
+      // Task #108 — live-caught: "What do they have available for Saturdays"
+      // names a day too, same as a decline does, but it's a genuine QUESTION
+      // about a different day, not a rejection of the currently offered one —
+      // saysNoneWork correctly doesn't match it (no negation/work-conflict
+      // wording), but it was still falling straight through to the generic
+      // "which of these works" fallback below and just re-showing the exact
+      // same stale Friday slots, ignoring the actual question entirely. If a
+      // weekday is named and it's NOT a decline, look up real slots for that
+      // specific day and answer with those. Doesn't touch excluded_weekdays —
+      // this is an ask, not a decline, so that day stays a valid candidate.
+      const askedDow = extractDeclinedWeekday(pick);
+      if (askedDow !== null) {
+        try {
+          const freshSlots = await getOpenSlots(contractor.id);
+          const dayMatch = freshSlots
+            .filter(s => new Date(s.date + 'T12:00:00').getDay() === askedDow)
+            .slice(0, 3);
+          if (dayMatch.length) {
+            await updateSession(session.id, { offered_slots: JSON.stringify(dayMatch) });
+            return `Here's what's open then:\n${formatSlotOptionsBlock(dayMatch)}\n${SLOT_REPLY_INSTRUCTION}`;
+          }
+          return `Nothing open that day right now — is there another day that works, or want me to just find the next available time?`;
+        } catch (e) {
+          console.error('[BRAIN3] Day-specific lookup failed:', e.message);
+        }
+      }
     }
     return `Just let me know which of these works for you:\n${formatSlotOptionsBlock(offeredSlots)}\n${SLOT_REPLY_INSTRUCTION} If none of those work, just say so and I'll find other times.`;
   }
