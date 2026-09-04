@@ -232,6 +232,7 @@ async function initialize() {
       city TEXT,
       service_description TEXT,
       offered_slots JSONB DEFAULT '[]',
+      excluded_weekdays JSONB DEFAULT '[]',
       lead_id TEXT REFERENCES leads(id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -239,6 +240,15 @@ async function initialize() {
   `).catch(() => {});
   await db.query(`CREATE INDEX IF NOT EXISTS idx_homeowner_sessions_phone_contractor ON homeowner_sms_sessions(phone, contractor_id)`).catch(() => {});
   await db.query(`CREATE INDEX IF NOT EXISTS idx_homeowner_sessions_updated ON homeowner_sms_sessions(updated_at DESC)`).catch(() => {});
+
+  // Task #105 — live-caught: declining Friday then declining Saturday brought
+  // Friday's slots right back, because the "exclude the declined weekday"
+  // logic (task #101) only ever looked at the CURRENT decline message, with
+  // nothing persisted across turns — each fresh re-offer forgot every
+  // previously-declined day the moment a new one came in. This column
+  // accumulates every weekday a homeowner has declined this session so each
+  // re-offer excludes all of them, not just the most recent one.
+  await db.query(`ALTER TABLE homeowner_sms_sessions ADD COLUMN IF NOT EXISTS excluded_weekdays JSONB DEFAULT '[]'`).catch(() => {});
 
   // Migration: post-appointment outcome tracking via SMS
   await db.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS did_close INTEGER`).catch(() => {});

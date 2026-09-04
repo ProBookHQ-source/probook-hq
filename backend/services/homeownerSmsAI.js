@@ -1447,15 +1447,33 @@ async function handleSlotPick(session, contractor, businessName, text) {
         // ("I work Fridays") rather than just the 3 exact slots already
         // shown, so the next batch doesn't hand back more of the same day
         // they just said doesn't work.
+        // Task #105 — live-caught: this only ever looked at the CURRENT
+        // decline, with nothing carried over between turns — decline Friday,
+        // get offered Saturday, decline Saturday too, and the very next
+        // batch handed Friday right back since the earlier exclusion was
+        // already forgotten. Accumulate every declined weekday in
+        // session.excluded_weekdays and filter against the full set every
+        // time, not just whatever was said this turn.
+        let excludedDows = [];
+        try {
+          const rawExcluded = session.excluded_weekdays;
+          excludedDows = Array.isArray(rawExcluded) ? rawExcluded : JSON.parse(rawExcluded || '[]');
+        } catch (e) {}
         const declinedDow = extractDeclinedWeekday(pick);
+        if (declinedDow !== null && !excludedDows.includes(declinedDow)) {
+          excludedDows = [...excludedDows, declinedDow];
+        }
         const newBatch = freshSlots
           .filter(s => !alreadyOffered.has(`${s.date}_${s.time}`))
-          .filter(s => declinedDow === null || new Date(s.date + 'T12:00:00').getDay() !== declinedDow)
+          .filter(s => !excludedDows.includes(new Date(s.date + 'T12:00:00').getDay()))
           .slice(0, 3);
         if (!newBatch.length) {
           return `I don't have any other openings right now — is there a day or time of day that generally works best for you? I'll see what I can find.`;
         }
-        await updateSession(session.id, { offered_slots: JSON.stringify(newBatch) });
+        await updateSession(session.id, {
+          offered_slots: JSON.stringify(newBatch),
+          excluded_weekdays: JSON.stringify(excludedDows),
+        });
         return `No problem — here are a few other times:\n${formatSlotOptionsBlock(newBatch)}\n${SLOT_REPLY_INSTRUCTION}`;
       } catch (e) {
         console.error('[BRAIN3] Re-offer on "none work" failed:', e.message);
