@@ -730,6 +730,32 @@ async function getOpenSlots(contractorId) {
   // older rows saved before the "HH:MM:00" bug fix above still correctly block
   // their slot instead of silently allowing a double-booking on the same time.
   const bookedSet = new Set(booked.map(b => `${b.scheduled_date}_${String(b.scheduled_time || '').slice(0, 5)}`));
+
+  // Task #107 — live-caught, Jose's own question testing this: getOpenSlots
+  // only ever blocked the EXACT hour an appointment already occupies, so a
+  // homeowner could book the hour immediately before or after an existing
+  // appointment at a completely different address — e.g. an existing 12pm
+  // job left 1pm wide open, which assumes zero drive time between two homes.
+  // The task #99/#100 same-day buffer only protects against booking too soon
+  // relative to right now — it has no bearing on spacing between two already-
+  // booked future appointments, which is the actual gap here. Flat 1-hour
+  // gap on both sides of every booked slot for dispatch niches (real travel
+  // time between two different addresses); come-to-us niches (task #40 — the
+  // homeowner travels to the business, not the other way around) need none.
+  const APPT_BUFFER_HOURS = isComeToUsNiche(ctrRow.niche_name) ? 0 : 1;
+  const bufferBlockedSet = new Set();
+  if (APPT_BUFFER_HOURS > 0) {
+    for (const b of booked) {
+      const [bh, bm] = String(b.scheduled_time || '').slice(0, 5).split(':').map(Number);
+      for (let d = -APPT_BUFFER_HOURS; d <= APPT_BUFFER_HOURS; d++) {
+        if (d === 0) continue; // the exact booked hour is already covered by bookedSet
+        const h = bh + d;
+        if (h < 0 || h > 23) continue; // don't spill across a day boundary — negligible edge case
+        bufferBlockedSet.add(`${b.scheduled_date}_${String(h).padStart(2, '0')}:${String(bm || 0).padStart(2, '0')}`);
+      }
+    }
+  }
+
   const overrideMap = {};
   for (const o of overrides) overrideMap[o.date] = o;
 
@@ -808,7 +834,7 @@ async function getOpenSlots(contractorId) {
         // the Home tab's list views, which don't do that exact-match. Found live.
         const timeStr = `${String(hour).padStart(2, '0')}:${String(sm || 0).padStart(2, '0')}`;
         const key = `${dateStr}_${timeStr}`;
-        if (!bookedSet.has(key)) {
+        if (!bookedSet.has(key) && !bufferBlockedSet.has(key)) {
           openSlots.push({ date: dateStr, time: timeStr, label: `${fmtDate(dateStr)} at ${fmtTime(timeStr)}` });
         }
         hour++;
