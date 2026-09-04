@@ -158,6 +158,25 @@ function normalizeForMatch(str) {
 
 const WEEKDAY_LONG = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
+// Task #101 — live-caught follow-up to #98: the negation guard correctly
+// stops "I can't, I work Fridays" from being mistaken for a Friday booking,
+// but the re-offer logic that runs next just grabs the next chronological
+// open slots with no idea WHICH day was just ruled out — if the contractor's
+// soonest openings all happen to also be Friday, it re-offers more Friday
+// times right back, directly contradicting what the homeowner just said.
+// Pulls a weekday name out of a decline reply so the fresh batch can exclude
+// that entire day, not just the 3 exact date/times already shown.
+function extractDeclinedWeekday(text) {
+  const normalized = normalizeForMatch(text);
+  if (!normalized) return null;
+  for (let i = 0; i < WEEKDAY_LONG.length; i++) {
+    const long = WEEKDAY_LONG[i];
+    const short = long.slice(0, 3);
+    if (normalized.includes(long) || normalized.includes(short)) return i; // 0=Sun..6=Sat
+  }
+  return null;
+}
+
 // Matches a homeowner's free-text reply ("Tuesday", "the 10am one", "2") against
 // the 3 offered slots. Tries, in order: exact bare number, full-label substring
 // (either direction), then day-name only, then time-only — so a reply that only
@@ -1370,7 +1389,15 @@ async function handleSlotPick(session, contractor, businessName, text) {
       try {
         const freshSlots = await getOpenSlots(contractor.id);
         const alreadyOffered = new Set(offeredSlots.map(s => `${s.date}_${s.time}`));
-        const newBatch = freshSlots.filter(s => !alreadyOffered.has(`${s.date}_${s.time}`)).slice(0, 3);
+        // Task #101 — also exclude the whole weekday if they named one
+        // ("I work Fridays") rather than just the 3 exact slots already
+        // shown, so the next batch doesn't hand back more of the same day
+        // they just said doesn't work.
+        const declinedDow = extractDeclinedWeekday(pick);
+        const newBatch = freshSlots
+          .filter(s => !alreadyOffered.has(`${s.date}_${s.time}`))
+          .filter(s => declinedDow === null || new Date(s.date + 'T12:00:00').getDay() !== declinedDow)
+          .slice(0, 3);
         if (!newBatch.length) {
           return `I don't have any other openings right now — is there a day or time of day that generally works best for you? I'll see what I can find.`;
         }
