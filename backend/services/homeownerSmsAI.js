@@ -1087,7 +1087,17 @@ Return ONLY the JSON object. No explanation.`;
     // from scratch instead of answering them. 'out_of_area' is still picked up by
     // getSession() (only 'confirmed'/'ended' are excluded there), so a follow-up
     // routes into handleOutOfArea() below instead of re-triggering the greeting.
-    await updateSession(session.id, { name: name || session.name, state: 'out_of_area' });
+    // Task #104 — live-caught, real and serious: this never saved `address`
+    // here, only name+state — the needs_zip branch just above it does save
+    // address, and handleZipOnly's own out_of_area branch does too, but this
+    // one spot was missed. Effect: session.address stayed empty (or stale
+    // from before) through the entire out_of_area state, so when the
+    // homeowner later corrected just the zip ("I meant zip code 98223"),
+    // handleZipOnly's `session.address ? ... : zip` fallback had nothing to
+    // build on and saved the bare zip as the ENTIRE job address — which then
+    // got texted to the contractor as the dispatch address/Maps link with no
+    // street on it at all.
+    await updateSession(session.id, { name: name || session.name, address, state: 'out_of_area' });
     const zip = extractZip(address);
     const areaHint = zip ? `(we cover different zip codes)` : `(we don't serve that area)`;
     return `Thanks! Unfortunately we don't cover that area ${areaHint}. Hope you find help nearby soon!`;
@@ -1128,11 +1138,17 @@ async function handleZipOnly(session, contractor, businessName, text) {
     return `Just the 5-digit zip code is all I need — what is it?`;
   }
   const zip = zipMatch[0];
-  // Comma before the zip matches the format the Census geocoder parses most
-  // reliably (closer to real USPS "street, city, state zip" formatting than
-  // a bare space-joined string) — improves match quality for the Census
-  // deep-check in buildAddressMismatchNote() below.
-  const fullAddress = session.address ? `${session.address}, ${zip}` : zip;
+  // Task #104 — if the stored address already has a (wrong) zip baked into it
+  // from an earlier turn (e.g. correcting a zip after an out-of-area decline),
+  // replace it instead of appending a second one — appending would leave two
+  // conflicting zip codes in the same address string, which is exactly what
+  // sent a contractor's Maps link to a garbled/wrong location. Comma before a
+  // freshly-appended zip (the no-existing-zip case) still matches the format
+  // the Census geocoder parses most reliably.
+  const existingZip = session.address ? extractZip(session.address) : null;
+  const fullAddress = (session.address && existingZip)
+    ? session.address.replace(new RegExp(`\\b${existingZip}\\b(-\\d{4})?`), zip)
+    : (session.address ? `${session.address}, ${zip}` : zip);
   const areaCheck = resolveServiceAreaOutcome(fullAddress, contractor);
 
   if (areaCheck.outcome === 'needs_zip') {
