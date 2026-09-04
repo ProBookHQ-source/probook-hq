@@ -564,14 +564,89 @@ async function callClaude(messages, tools, system) {
 }
 
 // ── Fetch open slots for next 7 days ─────────────────────────────────────────
+// Task #99 — CRITICAL live-caught design gap, not a code bug: this whole
+// function used to start its search window at TOMORROW unconditionally, so
+// Brain 3 could never offer a same-day slot no matter what — even for a
+// contractor with the entire rest of today open and a homeowner texting in
+// from a genuinely urgent missed call. That's backwards for this product:
+// missed-call catch is explicitly the flagship use case, and most missed
+// calls ARE same-day urgency. The web/portal booking path (routes/
+// availability.js's /open-slots) already solved this correctly — it offers
+// today too, just skips any time slot that's already passed (30-min buffer)
+// using the HOMEOWNER'S BROWSER local date/time sent as query params. Brain 3
+// has no browser to ask, so this derives an approximate local timezone from
+// the CONTRACTOR's business zip/state instead (there's no timezone column on
+// contractors — a real future gap, this is a rough-but-safe approximation,
+// not billing-grade). Split-timezone states are approximated to their
+// majority-population zone, which is precise enough for a 30-minute
+// same-day buffer.
+const STATE_TIMEZONE = {
+  AL: 'America/Chicago', AK: 'America/Anchorage', AZ: 'America/Phoenix',
+  AR: 'America/Chicago', CA: 'America/Los_Angeles', CO: 'America/Denver',
+  CT: 'America/New_York', DE: 'America/New_York', FL: 'America/New_York',
+  GA: 'America/New_York', HI: 'Pacific/Honolulu', ID: 'America/Denver',
+  IL: 'America/Chicago', IN: 'America/New_York', IA: 'America/Chicago',
+  KS: 'America/Chicago', KY: 'America/New_York', LA: 'America/Chicago',
+  ME: 'America/New_York', MD: 'America/New_York', MA: 'America/New_York',
+  MI: 'America/New_York', MN: 'America/Chicago', MS: 'America/Chicago',
+  MO: 'America/Chicago', MT: 'America/Denver', NE: 'America/Chicago',
+  NV: 'America/Los_Angeles', NH: 'America/New_York', NJ: 'America/New_York',
+  NM: 'America/Denver', NY: 'America/New_York', NC: 'America/New_York',
+  ND: 'America/Chicago', OH: 'America/New_York', OK: 'America/Chicago',
+  OR: 'America/Los_Angeles', PA: 'America/New_York', RI: 'America/New_York',
+  SC: 'America/New_York', SD: 'America/Chicago', TN: 'America/Chicago',
+  TX: 'America/Chicago', UT: 'America/Denver', VT: 'America/New_York',
+  VA: 'America/New_York', WA: 'America/Los_Angeles', WV: 'America/New_York',
+  WI: 'America/Chicago', WY: 'America/Denver', DC: 'America/New_York',
+};
+
+function getContractorTimezone(contractorAddress) {
+  try {
+    const zip = extractZip(contractorAddress);
+    const info = zip ? zipcodes.lookup(zip) : null;
+    return (info?.state && STATE_TIMEZONE[info.state]) || 'America/Los_Angeles';
+  } catch (e) {
+    return 'America/Los_Angeles';
+  }
+}
+
+// Returns { dateStr: 'YYYY-MM-DD', minutes } for "right now" in the
+// contractor's approximate local timezone.
+function getContractorNow(contractorAddress) {
+  const tz = getContractorTimezone(contractorAddress);
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(new Date());
+    const get = t => parts.find(p => p.type === t)?.value;
+    const dateStr = `${get('year')}-${get('month')}-${get('day')}`;
+    let hour = parseInt(get('hour'), 10);
+    if (hour === 24) hour = 0; // some ICU builds return "24" for midnight with hour12:false
+    return { dateStr, minutes: hour * 60 + parseInt(get('minute'), 10) };
+  } catch (e) {
+    // Intl/timezone data unavailable in this Node build — fail safe to UTC
+    // rather than crashing the whole booking flow over a display detail.
+    console.warn('[BRAIN3] getContractorNow: Intl timezone lookup failed, falling back to UTC:', e.message);
+    const now = new Date();
+    return { dateStr: now.toISOString().slice(0, 10), minutes: now.getUTCHours() * 60 + now.getUTCMinutes() };
+  }
+}
+
 async function getOpenSlots(contractorId) {
-  const from = new Date();
-  from.setDate(from.getDate() + 1); // start tomorrow
+  const from = new Date(); // start TODAY — see task #99 comment above
   const to   = new Date();
   to.setDate(to.getDate() + 8);
 
   const fromStr = from.toISOString().slice(0, 10);
   const toStr   = to.toISOString().slice(0, 10);
+
+  // Needed to derive the contractor's approximate local "now" for same-day
+  // filtering below — cheap, single-row lookup, not worth changing every
+  // call site's signature just to thread a contractor object through.
+  const { rows: addrRows } = await db.query(`SELECT address FROM contractors WHERE id = $1`, [contractorId]);
+  const { dateStr: todayStr, minutes: nowMinutes } = getContractorNow(addrRows[0]?.address);
+  const nowMinutesWithBuffer = nowMinutes + 30; // same 30-min buffer as the portal's /open-slots
 
   // Get weekly schedule
   const slots = await db.prepare(`
@@ -644,6 +719,14 @@ async function getOpenSlots(contractorId) {
       const [eh, em] = slot.end_time.split(':').map(Number);
       let hour = sh;
       while (hour < eh && openSlots.length < 9) {
+        // Task #99 — skip anything already passed today (with the same
+        // 30-min buffer the portal's /open-slots uses) so this loop can now
+        // include today's date without ever offering a homeowner a time
+        // that's already gone by.
+        if (dateStr === todayStr && (hour * 60 + (sm || 0)) <= nowMinutesWithBuffer) {
+          hour++;
+          continue;
+        }
         // "HH:MM" — no trailing seconds. schema.sql documents scheduled_time as
         // "HH:MM" and every other slot generator (availability.js) writes it that
         // way. This used to write "HH:MM:00" instead, which silently broke the
