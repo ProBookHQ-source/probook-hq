@@ -748,9 +748,22 @@ async function getOpenSlots(contractorId) {
     for (const b of booked) perDateCount[b.scheduled_date] = (perDateCount[b.scheduled_date] || 0) + 1;
   }
 
+  // Task #106 — live-caught: this cap used to be 9, applied globally across
+  // the whole 8-day window as it fills day-by-day starting from today. On a
+  // contractor open 10am-8pm every day, TODAY alone can generate close to 9
+  // slots on its own — so the loop stopped before ever reaching day 2, let
+  // alone day 3+. Callers that filter the result afterward (e.g. handleSlotPick's
+  // "exclude every already-declined weekday" re-offer, task #105) then had
+  // almost nothing left to filter from, even though the contractor's real
+  // calendar was wide open every day of the week — "I don't have any other
+  // openings" was a lie caused by this cap, not a real lack of availability.
+  // Raised well past what any single caller actually needs on screen (every
+  // caller already slices its own top 3) so a run of declined days can't
+  // exhaust the candidate pool before the filter even runs.
+  const MAX_CANDIDATE_SLOTS = 40;
   const openSlots = [];
   const cur = new Date(from);
-  while (cur <= to && openSlots.length < 9) {
+  while (cur <= to && openSlots.length < MAX_CANDIDATE_SLOTS) {
     const dateStr = cur.toISOString().slice(0, 10);
     const dow = cur.getDay();
     const override = overrideMap[dateStr];
@@ -776,7 +789,7 @@ async function getOpenSlots(contractorId) {
       const [sh, sm] = slot.start_time.split(':').map(Number);
       const [eh, em] = slot.end_time.split(':').map(Number);
       let hour = sh;
-      while (hour < eh && openSlots.length < 9) {
+      while (hour < eh && openSlots.length < MAX_CANDIDATE_SLOTS) {
         // Task #99 — skip anything already passed today (with the same
         // 30-min buffer the portal's /open-slots uses) so this loop can now
         // include today's date without ever offering a homeowner a time
