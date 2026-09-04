@@ -224,7 +224,18 @@ function matchSlotFromText(text, offeredSlots) {
   // silently booking. Deliberately placed AFTER the ordinal/number check
   // above, since an explicit "the third one" / "3" is never ambiguous.
   const NEGATION_RE = /\b(can'?t|cannot|won'?t|don'?t|do\s*not|unable|not\s*available|no\s*good|doesn'?t\s*work|does\s*not\s*work)\b/i;
-  if (NEGATION_RE.test(pick)) return null;
+  // Task #103 — live-caught: "I can't fridays I work that day" correctly hit
+  // NEGATION_RE above (has "can't"), but the very next reply, "I also work
+  // saturfays", has no negation word at all — it's the same "I'm at my job
+  // that day" idiom continued from the prior turn, just without repeating
+  // "can't". That let it fall through to the weekday-name fuzzy match below,
+  // which matched "Saturday" positively and booked the exact day the
+  // homeowner had just said doesn't work. "I (also) work <day>" stated as a
+  // bare fact (no can/could/will in front of "work") is this same decline
+  // idiom, not an offer of availability — "I can work Saturday" still passes
+  // through untouched since "can"/"could"/"will" sits between "I" and "work".
+  const WORK_CONFLICT_RE = /\bi\s*(also\s*)?works?\b/i;
+  if (NEGATION_RE.test(pick) || WORK_CONFLICT_RE.test(pick)) return null;
 
   let match = offeredSlots.find(s => s.label.toLowerCase().includes(lowerPick));
   if (match) return match;
@@ -1406,7 +1417,12 @@ async function handleSlotPick(session, contractor, businessName, text) {
     // bare "can't"/"cannot"/"won't"/"unable" (not just "can't do") should also
     // route here instead of falling through to the generic re-prompt, since
     // that's exactly the phrasing that caused the false-booking bug above.
-    const saysNoneWork = /\b(none|nothing|neither|don'?t work|doesn'?t work|no good|can'?t do|not work|can'?t|cannot|won'?t|unable|not\s*available)\b/i.test(pick);
+    // Task #103 — "I also work saturfays" (no negation word, just the "I'm at
+    // my job that day" idiom) needs to land here too, not just the generic
+    // re-prompt, so it gets a fresh batch with that weekday excluded instead
+    // of just repeating the same 3 already-declined slots.
+    const saysNoneWork = /\b(none|nothing|neither|don'?t work|doesn'?t work|no good|can'?t do|not work|can'?t|cannot|won'?t|unable|not\s*available)\b/i.test(pick)
+      || /\bi\s*(also\s*)?works?\b/i.test(pick);
     if (saysNoneWork) {
       try {
         const freshSlots = await getOpenSlots(contractor.id);
