@@ -323,8 +323,16 @@ router.post('/inbound-sms', async (req, res) => {
           JOIN leads l ON a.lead_id = l.id
           WHERE a.contractor_id = $1
             AND a.status = 'confirmed'
-            AND a.scheduled_date >= CURRENT_DATE
-            AND a.scheduled_date <= CURRENT_DATE + INTERVAL '7 days'
+            -- appointments.scheduled_date is TEXT ("YYYY-MM-DD"), not a real
+            -- date column (see schema.sql) — comparing it directly against
+            -- CURRENT_DATE (type date) throws "operator does not exist: text
+            -- >= date" in Postgres. This bug was live in this exact query the
+            -- whole time (never caught because CANCEL-by-keyword had never
+            -- been exercised against real Twilio traffic) and was live-caught
+            -- (task #109) via the sibling appointment-query branch below,
+            -- which has the identical comparison. Cast explicitly instead.
+            AND a.scheduled_date::date >= CURRENT_DATE
+            AND a.scheduled_date::date <= CURRENT_DATE + INTERVAL '7 days'
             -- Strip every non-digit char from both sides and compare the last 10
             -- digits only. The old version stripped '-', ' ', and a literal '+1'
             -- from l.phone but never handled a bare leading '1' with no plus sign,
@@ -392,8 +400,9 @@ router.post('/inbound-sms', async (req, res) => {
           JOIN leads l ON a.lead_id = l.id
           WHERE a.contractor_id = $1
             AND a.status = 'confirmed'
-            AND a.scheduled_date >= CURRENT_DATE
-            AND a.scheduled_date <= CURRENT_DATE + INTERVAL '30 days'
+            -- Same TEXT-vs-date cast fix as the CANCEL query above.
+            AND a.scheduled_date::date >= CURRENT_DATE
+            AND a.scheduled_date::date <= CURRENT_DATE + INTERVAL '30 days'
             AND RIGHT(REGEXP_REPLACE(l.phone, '\\D', '', 'g'), 10) = RIGHT(REGEXP_REPLACE($2, '\\D', '', 'g'), 10)
           ORDER BY a.scheduled_date, a.scheduled_time
         `, [contractor.id, From]);
