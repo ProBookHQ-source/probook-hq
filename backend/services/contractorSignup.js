@@ -130,6 +130,9 @@ async function seedAvailability(contractorId, hoursRaw) {
  * @param {string} [data.acquisitionSource]
  * @param {object} [data.hoursRaw]    — { wdOpen, wdClose, satOpen, satClose, sunOpen, sunClose }
  * @param {string} [data.source]      — log label only, e.g. 'intake' | 'waitlist'
+ * @param {string} [data.contactEmail] — optional; used as-is if it looks like a real
+ *   email, otherwise falls back to a synthetic never-emailed placeholder. Never
+ *   required, never gates signup or unlocks login.
  */
 async function createContractorAccount(data) {
   const phoneDigits = (data.phone || '').replace(/\D/g, '');
@@ -150,11 +153,19 @@ async function createContractorAccount(data) {
   const slug     = await uniqueSlug(baseSlug);
   log(`Slug: ${slug}`);
 
-  // No real email exists — generate a synthetic, unique, never-shown placeholder
-  // purely to satisfy the DB's NOT NULL/UNIQUE constraint. Never emailed, never
-  // used for login. Password is a random value that's likewise never surfaced —
-  // the whole point is contractors never need to log in.
-  const syntheticEmail = `${phoneDigits}@sms.tractifyhq.com`;
+  // Contact email — added back as an OPTIONAL field on the intake form (never
+  // required, never gates signup) so contractor-facing email notifications
+  // (cancellation alerts, the planned monthly results report) have somewhere
+  // real to go. Before this, every contractor got a synthetic, never-checked
+  // placeholder (`{phone}@sms.tractifyhq.com`) purely to satisfy the DB's NOT
+  // NULL/UNIQUE constraint — every email-based notification was silently
+  // going nowhere. If a real email was given, use it (trimmed + lowercased);
+  // otherwise fall back to the synthetic placeholder exactly as before. This
+  // does NOT reintroduce login — password is still a random, never-surfaced
+  // value, and contractors still never need to log in.
+  const realEmail = (data.contactEmail || '').trim().toLowerCase();
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(realEmail);
+  const syntheticEmail = isValidEmail ? realEmail : `${phoneDigits}@sms.tractifyhq.com`;
   const tempPassword   = crypto.randomBytes(10).toString('hex');
   const contractorId   = uuidv4();
   const passwordHash   = bcrypt.hashSync(tempPassword, 10);
