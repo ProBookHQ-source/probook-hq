@@ -1649,8 +1649,15 @@ async function handleSlotPick(session, contractor, businessName, text) {
         const mapsLink = session.address
           ? `maps.apple.com/?daddr=${encodeURIComponent(session.address)}`
           : null;
-        let contractorMsg = `New job booked! ${name} needs service on ${fmtDate(chosen.date)} at ${fmtTime(chosen.time)}. Address: ${addr}. Their number: ${fmtPhone(session.phone)}.`;
-        if (mapsLink) contractorMsg += ` Tap for directions: ${mapsLink}`;
+        // Live-caught (Sept 5, 2026): the old version crammed name, date/time,
+        // address, phone, and the maps link into one run-on sentence — hard to
+        // scan at a glance on a job site. Rebuilt as short labeled lines
+        // instead (SMS/iMessage render \n fine, no emoji — matches this
+        // product's plain-language style elsewhere). Name+phone grouped
+        // together first (the "who to call" block), then when, then where,
+        // then the directions link last.
+        let contractorMsg = `New job booked!\n${name} — ${fmtPhone(session.phone)}\n${fmtDate(chosen.date)} at ${fmtTime(chosen.time)}\n${addr}`;
+        if (mapsLink) contractorMsg += `\nDirections: ${mapsLink}`;
         await client.messages.create({
           to: contractor.phone,
           from: contractor.twilio_number,
