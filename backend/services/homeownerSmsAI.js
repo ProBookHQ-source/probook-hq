@@ -1653,10 +1653,13 @@ async function handleSlotPick(session, contractor, businessName, text) {
         // address, phone, and the maps link into one run-on sentence — hard to
         // scan at a glance on a job site. Rebuilt as short labeled lines
         // instead (SMS/iMessage render \n fine, no emoji — matches this
-        // product's plain-language style elsewhere). Name+phone grouped
-        // together first (the "who to call" block), then when, then where,
-        // then the directions link last.
-        let contractorMsg = `New job booked!\n${name} — ${fmtPhone(session.phone)}\n${fmtDate(chosen.date)} at ${fmtTime(chosen.time)}\n${addr}`;
+        // product's plain-language style elsewhere). Who (name+phone) first,
+        // then WHAT the job actually is (the homeowner's own answer to
+        // Brain 3's diagnostic question — this used to never reach the
+        // contractor at all, even though Brain 3 asks for it on every single
+        // conversation), then when, then where, then directions last.
+        const jobDesc = session.service_description || 'No details given — ask when you arrive';
+        let contractorMsg = `New job booked!\n${name} — ${fmtPhone(session.phone)}\nJob: ${jobDesc}\n${fmtDate(chosen.date)} at ${fmtTime(chosen.time)}\n${addr}`;
         if (mapsLink) contractorMsg += `\nDirections: ${mapsLink}`;
         await client.messages.create({
           to: contractor.phone,
