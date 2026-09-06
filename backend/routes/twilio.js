@@ -354,6 +354,41 @@ router.post('/inbound-sms', async (req, res) => {
           const { logEvent } = require('../services/auditLog');
           logEvent(appt.lead_id, 'cancelled', 'homeowner', 'Cancelled via CANCEL SMS keyword').catch(() => {});
 
+          // Task #109 (live-caught, follow-up) — this branch cancelled the
+          // appointment and texted the HOMEOWNER a rebook offer, but never
+          // told the CONTRACTOR anything at all. From the contractor's side
+          // the appointment still looked live on their calendar/portal after
+          // a real cancellation. The self-service cancel-token flow
+          // (bookings.js POST /cancel-token/:token) already notifies the
+          // contractor via sendHomeownerCancelledNotice — this path just
+          // never called it. Fire both an email (same notification the
+          // self-service flow uses) and a direct SMS from their own Twilio
+          // number, since this product is text-first and a contractor is far
+          // more likely to see an SMS than check email in real time.
+          try {
+            const notifications = require('../services/notifications');
+            notifications.sendHomeownerCancelledNotice(
+              contractor,
+              { name: appt.lead_name },
+              appt
+            ).catch(err => console.error('[TWILIO-SMS] Contractor cancel email failed:', err.message));
+          } catch (notifyErr) {
+            console.error('[TWILIO-SMS] Contractor cancel email setup failed:', notifyErr.message);
+          }
+          if (twilioClient && contractor.phone && contractor.twilio_number) {
+            try {
+              const cancelDateStr = new Date(String(appt.scheduled_date).slice(0, 10) + 'T12:00:00')
+                .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+              await twilioClient.messages.create({
+                to: contractor.phone,
+                from: contractor.twilio_number,
+                body: `Heads up — ${appt.lead_name || 'your homeowner'}'s appointment on ${cancelDateStr} was just cancelled. We've offered them new times to rebook.`,
+              });
+            } catch (smsErr) {
+              console.error('[TWILIO-SMS] Contractor cancel SMS alert failed:', smsErr.message);
+            }
+          }
+
           // Start Brain 3 rebook session
           const { startRebookSession } = require('../services/homeownerSmsAI');
           const lead = { id: appt.lead_id, name: appt.lead_name, phone: appt.lead_phone, address: appt.lead_address };
