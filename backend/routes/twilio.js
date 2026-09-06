@@ -377,12 +377,28 @@ router.post('/inbound-sms', async (req, res) => {
           }
           if (twilioClient && contractor.phone && contractor.twilio_number) {
             try {
+              // Live-caught (Sept 5, 2026) — the old one-line version only
+              // showed the date, not the time. A contractor with more than
+              // one appointment the same day (exactly the scenario this was
+              // caught in) couldn't tell WHICH appointment got cancelled
+              // without checking the calendar. Reformatted to match the
+              // "New job booked!" alert's who/when line structure, with the
+              // time now included, plus an explicit "no action needed" so it
+              // doesn't read like something they have to go fix.
               const cancelDateStr = new Date(String(appt.scheduled_date).slice(0, 10) + 'T12:00:00')
                 .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+              const cancelTimeStr = (() => {
+                if (!appt.scheduled_time) return '';
+                const [h, m] = String(appt.scheduled_time).split(':').map(Number);
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                const h12 = h % 12 || 12;
+                return ` at ${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+              })();
+              const cancelName = appt.lead_name || 'Your homeowner';
               await twilioClient.messages.create({
                 to: contractor.phone,
                 from: contractor.twilio_number,
-                body: `Heads up — ${appt.lead_name || 'your homeowner'}'s appointment on ${cancelDateStr} was just cancelled. We've offered them new times to rebook.`,
+                body: `Appointment cancelled\n${cancelName} — ${cancelDateStr}${cancelTimeStr}\nNo action needed — we've offered them new times to rebook.`,
               });
             } catch (smsErr) {
               console.error('[TWILIO-SMS] Contractor cancel SMS alert failed:', smsErr.message);
