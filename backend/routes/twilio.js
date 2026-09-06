@@ -291,8 +291,29 @@ router.post('/inbound-sms', async (req, res) => {
     const businessName = contractor.company_name || contractor.name || 'us';
     let replyBody = null;
 
-    // ── CANCEL keyword — cancel today's appointment and rebook via Brain 3 ─────
-    if ((Body || '').trim().toUpperCase() === 'CANCEL') {
+    // Task #109 — live-caught: a homeowner with a real confirmed appointment
+    // texted "Hey I need to cancel an appointment" (not the literal keyword
+    // "CANCEL") and got the generic brand-new-homeowner greeting asking for
+    // her name and address from scratch — the exact-match check below never
+    // fired, and nothing about the incoming text's actual content is ever
+    // looked at when starting a fresh session (startHomeownerSession's
+    // greeting is 100% templated off isReturning, not the message itself).
+    // Her very next message, "Do I have any appointments with you guys?", hit
+    // that freshly-started session's handleAddress, which tried to extract a
+    // name+address out of it, found neither, and just re-asked for the
+    // address — silently ignoring a genuine, answerable question. Same
+    // failure class as Brain 2's task #50 fix ("always answer a real
+    // question"), never applied to Brain 3. Fixed with two intent checks,
+    // both running before any session/greeting logic, regardless of whether
+    // a session is active: (1) widen the cancel trigger to catch natural
+    // phrasing, not just the bare keyword; (2) a separate "do I have an
+    // appointment" query answers directly from real data instead of falling
+    // into the address-extraction flow.
+    const trimmedBody = (Body || '').trim();
+    const CANCEL_INTENT_RE = /\b(cancel(l?ing)?|call\s*off)\b/i;
+    const APPT_QUERY_RE = /\b(do i have|any appointments?|my appointments?|upcoming appointments?|what'?s? (my|on my) (appointment|schedule)|check(ing)? (my|on my) appointment)\b/i;
+
+    if (CANCEL_INTENT_RE.test(trimmedBody) && !APPT_QUERY_RE.test(trimmedBody)) {
       try {
         // Find a confirmed appointment for this homeowner + contractor (next 7 days)
         const { rows: appts } = await db.query(`
@@ -347,6 +368,69 @@ router.post('/inbound-sms', async (req, res) => {
         await twilioClient.messages.create({ to: From, from: To, body: replyBody });
       } catch (err) {
         console.error('[TWILIO-SMS] CANCEL reply send error:', err.message);
+      }
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response/>`);
+    }
+
+    // Task #109 (part 2) — a genuine "do I have an appointment" question (e.g.
+    // "Do I have any appointments with you guys?") must never fall into the
+    // generic greeting/address-capture flow below, which has no way to answer
+    // a real question and just silently re-asks for the address. This looks
+    // up ALL of this homeowner's upcoming confirmed appointments for this
+    // contractor (not just one — the live bug report showed a homeowner with
+    // TWO separate confirmed appointments the same morning, so a LIMIT 1
+    // query would have under-answered even after the fix) and replies with
+    // the real details directly, read-only — no cancellation, no session
+    // mutation.
+    if (APPT_QUERY_RE.test(trimmedBody)) {
+      try {
+        const { rows: appts } = await db.query(`
+          SELECT a.id, a.scheduled_date, a.scheduled_time,
+                 l.name AS lead_name, l.phone AS lead_phone
+          FROM appointments a
+          JOIN leads l ON a.lead_id = l.id
+          WHERE a.contractor_id = $1
+            AND a.status = 'confirmed'
+            AND a.scheduled_date >= CURRENT_DATE
+            AND a.scheduled_date <= CURRENT_DATE + INTERVAL '30 days'
+            AND RIGHT(REGEXP_REPLACE(l.phone, '\\D', '', 'g'), 10) = RIGHT(REGEXP_REPLACE($2, '\\D', '', 'g'), 10)
+          ORDER BY a.scheduled_date, a.scheduled_time
+        `, [contractor.id, From]);
+
+        // Local formatters (mirrors homeownerSmsAI.js's fmtDate/fmtTime — not
+        // exported from there, so kept as small local copies here rather than
+        // changing that module's export surface for a read-only reply).
+        const fmtApptDate = (dateStr) => new Date(String(dateStr).slice(0, 10) + 'T12:00:00')
+          .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        const fmtApptTime = (t) => {
+          if (!t) return '';
+          const [h, m] = String(t).split(':').map(Number);
+          const ampm = h >= 12 ? 'PM' : 'AM';
+          const h12 = h % 12 || 12;
+          return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+        };
+
+        if (appts.length === 1) {
+          const a = appts[0];
+          const firstName = a.lead_name ? a.lead_name.split(' ')[0] : null;
+          const greeting = firstName ? `Hey ${firstName} — ` : 'Hey — ';
+          replyBody = `${greeting}yes, you have an appointment with ${businessName} on ${fmtApptDate(a.scheduled_date)} at ${fmtApptTime(a.scheduled_time)}. Reply CANCEL if you need to cancel it.`;
+        } else if (appts.length > 1) {
+          const list = appts.map(a => `${fmtApptDate(a.scheduled_date)} at ${fmtApptTime(a.scheduled_time)}`).join(', and ');
+          replyBody = `You have ${appts.length} upcoming appointments with ${businessName}: ${list}. Reply CANCEL if you need to cancel one and we'll sort out which.`;
+        } else {
+          replyBody = `I don't see any upcoming appointments with ${businessName} for this number. Want to book one? Just reply and let me know what's going on.`;
+        }
+      } catch (queryErr) {
+        console.error('[TWILIO-SMS] Appointment query error:', queryErr.message);
+        replyBody = `Something went wrong looking that up — just reply here and I'll help sort it out.`;
+      }
+
+      try {
+        await twilioClient.messages.create({ to: From, from: To, body: replyBody });
+      } catch (err) {
+        console.error('[TWILIO-SMS] Appointment query reply send error:', err.message);
       }
       res.type('text/xml');
       return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response/>`);
