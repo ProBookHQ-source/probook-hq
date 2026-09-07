@@ -177,6 +177,79 @@ function extractDeclinedWeekday(text) {
   return null;
 }
 
+const MONTH_NAMES = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+
+// Task #111 — live-caught: "Can I book one for Sunday the 13th at 6pm" got
+// CONFIRMED as Sun, Sep 6 at 12:00 PM — the FIRST offered slot — even though
+// every offered slot was for the 6th, not the 13th, and none were at 6pm.
+// matchSlotFromText's weekday-name fuzzy fallback only checks whether a day
+// name appears ANYWHERE in the reply; it has no idea an explicit, conflicting
+// calendar day was also named, so "Sunday" alone was enough to match the
+// first Sunday slot on offer regardless of what specific date was actually
+// requested. This extracts an explicit day-of-month ("13th", "the 13",
+// "9/13", "sept 13") so the matcher can refuse to treat a reply naming a
+// different real date as a match for any currently-offered slot.
+function extractExplicitDayOfMonth(text) {
+  const t = String(text || '');
+  let m = t.match(/\b(\d{1,2})(?:st|nd|rd|th)\b/i);
+  if (m) return parseInt(m[1], 10);
+  m = t.match(/\bon\s+the\s+(\d{1,2})\b/i);
+  if (m) return parseInt(m[1], 10);
+  m = t.match(/\b\d{1,2}\/(\d{1,2})\b/); // "9/13" → month/day
+  if (m) return parseInt(m[1], 10);
+  return null;
+}
+
+// Resolves an explicit day-of-month (optionally with a month name/number also
+// present in the text) into a real "YYYY-MM-DD", relative to todayStr. If no
+// month is named, assumes the soonest future occurrence of that day-of-month
+// (this month if it hasn't passed yet, otherwise next month). Returns null if
+// it can't confidently resolve a real date (e.g. day 31 in a 30-day month).
+function resolveExplicitDateFromText(text, todayStr) {
+  const day = extractExplicitDayOfMonth(text);
+  if (day === null || day < 1 || day > 31) return null;
+
+  const lower = String(text || '').toLowerCase();
+  const [ty, tm] = todayStr.split('-').map(Number); // tm is 1-indexed
+  let year = ty, month = tm; // 1-indexed month
+
+  const slashMatch = text.match(/\b(\d{1,2})\/(\d{1,2})\b/);
+  let namedMonth = null;
+  if (slashMatch) {
+    namedMonth = parseInt(slashMatch[1], 10); // "9/13" → month 9
+  } else {
+    for (let i = 0; i < MONTH_NAMES.length; i++) {
+      if (lower.includes(MONTH_NAMES[i]) || lower.includes(MONTH_NAMES[i].slice(0, 3))) {
+        namedMonth = i + 1;
+        break;
+      }
+    }
+  }
+
+  if (namedMonth) {
+    month = namedMonth;
+    if (month < tm || (month === tm && day < ty)) { /* no-op guard, real day check below handles rollover */ }
+  } else {
+    // No month named — pick the soonest future occurrence of this day-of-month.
+    const [, , td] = todayStr.split('-').map(Number);
+    if (day < td) {
+      month += 1;
+      if (month > 12) { month = 1; year += 1; }
+    }
+  }
+
+  const mm = String(month).padStart(2, '0');
+  const dd = String(day).padStart(2, '0');
+  const candidate = `${year}-${mm}-${dd}`;
+  // Validate the date actually exists (e.g. reject Feb 30) by round-tripping
+  // through Date.UTC and checking the components come back unchanged.
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) {
+    return null;
+  }
+  return candidate;
+}
+
 // Matches a homeowner's free-text reply ("Tuesday", "the 10am one", "2") against
 // the 3 offered slots. Tries, in order: exact bare number, full-label substring
 // (either direction), then day-name only, then time-only — so a reply that only
@@ -236,6 +309,17 @@ function matchSlotFromText(text, offeredSlots) {
   // through untouched since "can"/"could"/"will" sits between "I" and "work".
   const WORK_CONFLICT_RE = /\bi\s*(also\s*)?works?\b/i;
   if (NEGATION_RE.test(pick) || WORK_CONFLICT_RE.test(pick)) return null;
+
+  // Task #111 — an explicit day-of-month that conflicts with every offered
+  // slot's actual date means this reply is NOT a match for any of them, full
+  // stop — bail out before the weekday-name/label fuzzy fallbacks below get a
+  // chance to match on an incidental word like "Sunday" and hand back a
+  // completely different date than the one actually requested.
+  const explicitDay = extractExplicitDayOfMonth(pick);
+  if (explicitDay !== null) {
+    const conflictsAll = offeredSlots.every(s => new Date(s.date + 'T12:00:00').getDate() !== explicitDay);
+    if (conflictsAll) return null;
+  }
 
   let match = offeredSlots.find(s => s.label.toLowerCase().includes(lowerPick));
   if (match) return match;
@@ -870,21 +954,44 @@ async function getOpenSlots(contractorId) {
 
 // ── Get or create a homeowner session ────────────────────────────────────────
 async function getSession(phone, contractorId) {
-  // Sessions expire after 24 hours of inactivity.
-  // Excludes BOTH terminal states (task #88): 'confirmed' (a real booking
-  // happened, nothing more to route) and 'ended' (conversation is over but
-  // nothing was booked — opt-out, decline, no-slots, etc). 'out_of_area' is
-  // deliberately NOT excluded — it stays routable for a short window so a
-  // genuine follow-up question gets answered instead of restarting the
-  // greeting from scratch (task #86).
+  // Sessions expire after 24 hours of inactivity — EXCEPT the pre-commitment
+  // states below, which now expire much sooner. Excludes BOTH terminal states
+  // (task #88): 'confirmed' (a real booking happened, nothing more to route)
+  // and 'ended' (conversation is over but nothing was booked — opt-out,
+  // decline, no-slots, etc). 'out_of_area' is deliberately NOT tightened —
+  // it stays routable for a longer window so a genuine follow-up question
+  // gets answered instead of restarting the greeting from scratch (task #86).
+  //
+  // Task #112 — live-caught: a homeowner's earlier "book another appointment"
+  // conversation stalled mid-flow (offered 3 slots, never picked one) and was
+  // never explicitly closed. Hours later she texted "Hey I need to book
+  // another appointment" — a message that reads like a brand-new request —
+  // and the old 24-hour window meant this counted as "still active," so it
+  // silently RESUMED that stale session: same old address, same old service
+  // description ("AC install"), straight back to re-offering the same 3
+  // (now-wrong) slots, with zero re-confirmation of either. A real dispatcher
+  // wouldn't pick a forgotten mid-sentence conversation back up hours later
+  // without checking in first — neither should this. Tightened the
+  // pre-commitment states (address/service/slot-picking — nothing has
+  // actually been booked yet in any of them) to 30 minutes; anything older
+  // is treated as abandoned, so the caller falls through to the fresh-session
+  // path instead, which correctly re-asks "still at [address]?" / "what's
+  // going on" for a returning homeowner. Left at 24 hours for
+  // awaiting_address_confirm (that IS the re-confirmation step already) and
+  // awaiting_email (the appointment is already booked at that point — resuming
+  // just to catch a late email/SKIP reply carries no mis-booking risk).
+  const STALE_STATES = ['awaiting_address', 'awaiting_service', 'awaiting_slot', 'awaiting_zip_only'];
   const session = await db.prepare(`
     SELECT * FROM homeowner_sms_sessions
     WHERE phone = $1 AND contractor_id = $2
-    AND updated_at > NOW() - INTERVAL '24 hours'
     AND state NOT IN ('confirmed', 'ended')
+    AND (
+      (state = ANY($3) AND updated_at > NOW() - INTERVAL '30 minutes')
+      OR (NOT (state = ANY($3)) AND updated_at > NOW() - INTERVAL '24 hours')
+    )
     ORDER BY updated_at DESC
     LIMIT 1
-  `).get(phone, contractorId);
+  `).get(phone, contractorId, STALE_STATES);
   return session || null;
 }
 
@@ -1564,6 +1671,38 @@ async function handleSlotPick(session, contractor, businessName, text) {
           return `Nothing open that day right now — is there another day that works, or want me to just find the next available time?`;
         } catch (e) {
           console.error('[BRAIN3] Day-specific lookup failed:', e.message);
+        }
+      }
+
+      // Task #111 — companion fix to the matchSlotFromText guard above: when a
+      // reply names an explicit calendar date that doesn't match any offered
+      // slot ("Sunday the 13th"), look up real availability for THAT date
+      // instead of falling through to the generic "which of these works"
+      // re-prompt, which would just re-show the original (wrong) 3 slots with
+      // no acknowledgment she asked for a completely different day.
+      if (askedDow === null) {
+        try {
+          const { dateStr: todayStr } = getContractorNow(contractor.address);
+          const explicitDate = resolveExplicitDateFromText(pick, todayStr);
+          if (explicitDate) {
+            const freshSlots = await getOpenSlots(contractor.id);
+            let dateMatch = freshSlots.filter(s => s.date === explicitDate);
+            if (dateMatch.length) {
+              // If she also named a time ("6pm"), put the closest match first.
+              const normalizedReply = normalizeForMatch(pick);
+              dateMatch.sort((a, b) => {
+                const aHit = normalizedReply.includes(normalizeForMatch(fmtTime(a.time))) ? 0 : 1;
+                const bHit = normalizedReply.includes(normalizeForMatch(fmtTime(b.time))) ? 0 : 1;
+                return aHit - bHit;
+              });
+              const offered = dateMatch.slice(0, 3);
+              await updateSession(session.id, { offered_slots: JSON.stringify(offered) });
+              return `Here's what's open ${fmtDate(explicitDate)}:\n${formatSlotOptionsBlock(offered)}\n${SLOT_REPLY_INSTRUCTION}`;
+            }
+            return `Nothing open on ${fmtDate(explicitDate)} right now — is there another day that works, or want me to just find the next available time?`;
+          }
+        } catch (e) {
+          console.error('[BRAIN3] Explicit-date lookup failed:', e.message);
         }
       }
     }
