@@ -888,10 +888,27 @@ async function getOpenSlots(contractorId) {
   // Raised well past what any single caller actually needs on screen (every
   // caller already slices its own top 3) so a run of declined days can't
   // exhaust the candidate pool before the filter even runs.
-  const MAX_CANDIDATE_SLOTS = 40;
+  // Task #112 — live-caught: raising the cap from 9 to 40 (task #106) fixed
+  // the original symptom (a wide-open contractor's whole candidate list
+  // getting exhausted by day 1-2) but not the underlying flaw — ANY
+  // cumulative cap that ABANDONS THE REST OF THE DAY-LOOP once hit will
+  // always eventually break a day-of-week or explicit-date lookup (task #108,
+  // task #111) for a busy-enough contractor, just at a later day than before.
+  // Confirmed live: a contractor with ~14 open hours/day hits 40 candidates
+  // by day 3, so "what do you have Sunday the 13th" (day 7 of the window)
+  // came back "nothing open that day" even though Sunday is a real working
+  // day with real availability — the day-loop below had already stopped
+  // walking the calendar three days before it ever reached the 13th. The cap
+  // was never protecting against anything real (an 8-day window bounded by
+  // `cur <= to` below is already a small, cheap loop regardless of how many
+  // slots a given day generates), so it's removed entirely rather than raised
+  // again — every caller already slices its own top 2-3 for display, so
+  // returning the full real candidate list for the whole window costs nothing
+  // and fixes every day/date-specific lookup at once instead of just pushing
+  // the same failure mode a few more days out.
   const openSlots = [];
   const cur = new Date(from);
-  while (cur <= to && openSlots.length < MAX_CANDIDATE_SLOTS) {
+  while (cur <= to) {
     const dateStr = cur.toISOString().slice(0, 10);
     // getUTCDay() (not getDay()) — cur is a UTC-anchored Date (task #110 fix
     // above), so its local-timezone day-of-week would drift a day off from
@@ -921,7 +938,7 @@ async function getOpenSlots(contractorId) {
       const [sh, sm] = slot.start_time.split(':').map(Number);
       const [eh, em] = slot.end_time.split(':').map(Number);
       let hour = sh;
-      while (hour < eh && openSlots.length < MAX_CANDIDATE_SLOTS) {
+      while (hour < eh) {
         // Task #99 — skip anything already passed today (with the same
         // 30-min buffer the portal's /open-slots uses) so this loop can now
         // include today's date without ever offering a homeowner a time
