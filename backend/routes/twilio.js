@@ -318,7 +318,8 @@ router.post('/inbound-sms', async (req, res) => {
         // Find a confirmed appointment for this homeowner + contractor (next 7 days)
         const { rows: appts } = await db.query(`
           SELECT a.id, a.scheduled_date, a.scheduled_time,
-                 l.id AS lead_id, l.name AS lead_name, l.phone AS lead_phone, l.address AS lead_address
+                 l.id AS lead_id, l.name AS lead_name, l.phone AS lead_phone, l.address AS lead_address,
+                 l.description AS lead_description
           FROM appointments a
           JOIN leads l ON a.lead_id = l.id
           WHERE a.contractor_id = $1
@@ -407,7 +408,14 @@ router.post('/inbound-sms', async (req, res) => {
 
           // Start Brain 3 rebook session
           const { startRebookSession } = require('../services/homeownerSmsAI');
-          const lead = { id: appt.lead_id, name: appt.lead_name, phone: appt.lead_phone, address: appt.lead_address };
+          // Task #116 — this object used to omit description entirely, which
+          // meant startRebookSession had nothing to carry over even after its
+          // own fix — it would just fall back to the generic label. Now the
+          // real job description ("AC broke, won't turn on, need tech here
+          // fast") survives a CANCEL-keyword rebook instead of the contractor
+          // getting a "New job booked! Job: rebooking" alert with zero idea
+          // what they're walking into.
+          const lead = { id: appt.lead_id, name: appt.lead_name, phone: appt.lead_phone, address: appt.lead_address, description: appt.lead_description };
           const slotsText = await startRebookSession(From, contractor.id, lead);
 
           const firstName = appt.lead_name ? appt.lead_name.split(' ')[0] : null;

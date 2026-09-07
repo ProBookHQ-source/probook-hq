@@ -2191,6 +2191,19 @@ async function startRebookSessionInner(phone, contractorId, lead) {
   const slots = await getOpenSlots(contractorId);
   if (!slots.length) return null; // No slots — caller falls back to email
 
+  // Task #116 — live-caught by Jose reading the contractor-side alert: a real
+  // job ("AC broke, won't turn on, need tech here fast") got cancelled and
+  // rebooked, and the new-job alert the contractor received just said "Job:
+  // rebooking" — the real service description was silently thrown away and
+  // replaced with a hardcoded literal string, every single time, regardless
+  // of what the actual job was. A contractor showing up with zero idea what
+  // they're walking into defeats the entire point of capturing the
+  // description in the first place. Carry over the real one whenever the
+  // caller has it (both bookings.js cancel routes already load the full lead
+  // row via SELECT *, so this is available there for free); only fall back to
+  // a generic label if a caller genuinely has no description on hand.
+  const serviceDescription = lead.description || 'Rebooking — original job details not on file';
+
   const offered = slots.slice(0, 3);
   const sessionId = uuidv4();
   await db.prepare(`
@@ -2201,7 +2214,7 @@ async function startRebookSessionInner(phone, contractorId, lead) {
     sessionId, phone, contractorId,
     lead.name || null,
     lead.address || null,
-    'rebooking',
+    serviceDescription,
     JSON.stringify(offered),
     lead.id || null,
   );
