@@ -497,15 +497,26 @@ router.post('/inbound-sms', async (req, res) => {
     }
 
     try {
-      const { getActiveSession, routeHomeownerSms, startHomeownerSession } = require('../services/homeownerSmsAI');
+      const { getActiveSession, routeHomeownerSms, startHomeownerSession, checkPostConfirmationFollowup } = require('../services/homeownerSmsAI');
 
       // Check for active session first
       const activeSession = await getActiveSession(From, contractor.id);
+      // Task #115 — a message right after a just-confirmed booking (e.g. asking
+      // for the confirmation email after replying SKIP) is NOT a new/unrelated
+      // text — check for this before falling into the returning-homeowner
+      // greeting reset below, which would otherwise discard the follow-up.
+      // Only evaluated when there's no active session (checkPostConfirmationFollowup
+      // has a side effect — sending the confirmation email — so it must run at
+      // most once per inbound message, never as a throwaway condition check).
+      const postConfirmReply = activeSession ? null : await checkPostConfirmationFollowup(From, contractor.id, Body || '');
 
       if (activeSession) {
         // Continue existing conversation
         console.log(`[TWILIO-SMS] Homeowner ${From} has active Brain 3 session (state: ${activeSession.state}) — routing`);
         replyBody = await routeHomeownerSms(From, contractor.id, Body || '');
+      } else if (postConfirmReply) {
+        replyBody = postConfirmReply;
+        console.log(`[TWILIO-SMS] Homeowner ${From} — handled as post-confirmation follow-up`);
       } else {
         // No session — unsolicited text (van wrap, SMS keyword, etc.)
         // Start a fresh session and greet appropriately
@@ -615,7 +626,7 @@ router.post('/test-sms', requireAdmin, async (req, res) => {
   }
 
   // ── Homeowner role → Brain 3 (homeownerSmsAI.js) ────────────────────────────
-  const { getActiveSession, routeHomeownerSms, startHomeownerSession } = require('../services/homeownerSmsAI');
+  const { getActiveSession, routeHomeownerSms, startHomeownerSession, checkPostConfirmationFollowup } = require('../services/homeownerSmsAI');
 
   // CANCEL keyword — explain what would happen without touching real data
   if (message.trim().toUpperCase() === 'CANCEL') {
@@ -635,11 +646,16 @@ router.post('/test-sms', requireAdmin, async (req, res) => {
 
   // Check for an existing Brain 3 session with this phone + contractor
   const activeSession = await getActiveSession(normalizedPhone, contractorId);
+  // Task #115 — see the twilio.js inbound-sms webhook for the full explanation.
+  const postConfirmReply = activeSession ? null : await checkPostConfirmationFollowup(normalizedPhone, contractorId, message);
 
   if (activeSession) {
     // Continue existing conversation
     console.log(`[TEST-SMS] Active Brain 3 session (state: ${activeSession.state}) — routing`);
     reply = await routeHomeownerSms(normalizedPhone, contractorId, message);
+  } else if (postConfirmReply) {
+    console.log(`[TEST-SMS] Handled as post-confirmation follow-up`);
+    reply = postConfirmReply;
   } else {
     // No session → unsolicited text (van wrap / SMS keyword / fridge magnet flow)
     console.log(`[TEST-SMS] No active session — starting new Brain 3 session`);

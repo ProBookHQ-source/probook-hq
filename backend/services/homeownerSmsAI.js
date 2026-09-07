@@ -2040,6 +2040,78 @@ async function handleEmail(session, contractor, businessName, text) {
   return `Done! Check ${input} for your confirmation. Reply STOP to opt out.`;
 }
 
+// Task #115 — live-caught: right after replying SKIP to the confirmation-email
+// prompt, asking "Actually can I get that confirmation email" a few seconds
+// later got the FULL "still at [address]?" returning-homeowner greeting
+// instead of being handled as a follow-up to the appointment she'd JUST
+// booked. Root cause: a 'confirmed' session is (correctly) excluded from
+// getActiveSession's active-session lookup — a confirmed booking shouldn't be
+// resumable for slot-picking — but that means ANY inbound message after
+// confirmation, even one sent seconds later, falls into the exact same "no
+// active session" branch as a genuinely new, unrelated text and triggers the
+// full getLastConfirmedBooking returning-homeowner reset, discarding all
+// context of what she actually just asked. This checks for a session that
+// was confirmed very recently (2hr window — generous enough to cover someone
+// re-reading their texts later that day, tight enough to never apply to an
+// actual new/different visit weeks later) before that fallback ever runs, and
+// if the follow-up looks like an email/confirmation request, handles it in
+// place — mirrors handleEmail's own save-and-send logic exactly.
+async function checkPostConfirmationFollowup(phone, contractorId, text) {
+  const pick = String(text || '').trim();
+  if (!pick) return null;
+
+  const session = await db.prepare(`
+    SELECT * FROM homeowner_sms_sessions
+    WHERE phone = $1 AND contractor_id = $2 AND state = 'confirmed'
+    AND updated_at > NOW() - INTERVAL '2 hours'
+    ORDER BY updated_at DESC LIMIT 1
+  `).get(phone, contractorId);
+  if (!session) return null; // no recent confirmed session — let the normal new-session flow handle it
+
+  const mentionsEmail = /\b(email|confirmation)\b/i.test(pick);
+  const suppliedEmailMatch = pick.match(/[^\s@]+@[^\s@]+\.[^\s@]+/);
+  if (!mentionsEmail && !suppliedEmailMatch) return null; // not a recognizable follow-up to the booking — let normal fallback run
+
+  if (session.email && !suppliedEmailMatch) {
+    return `Already sent to ${session.email} — check there (and spam) if you don't see it. Reply STOP to opt out.`;
+  }
+
+  const emailToUse = suppliedEmailMatch ? suppliedEmailMatch[0] : null;
+  if (!emailToUse) {
+    return `Sure — what's your email and I'll send it over?`;
+  }
+
+  await updateSession(session.id, { email: emailToUse });
+  if (session.lead_id) {
+    db.query(`UPDATE leads SET email = $1 WHERE id = $2`, [emailToUse, session.lead_id])
+      .catch(e => console.error('[BRAIN3] Post-confirm email save error:', e.message));
+  }
+  try {
+    const contractorRow = await db.prepare(`SELECT name FROM contractors WHERE id = $1`).get(contractorId);
+    const appt = await db.prepare(`
+      SELECT scheduled_date, scheduled_time
+      FROM appointments
+      WHERE lead_id = $1 AND contractor_id = $2 AND status = 'confirmed'
+      ORDER BY created_at DESC LIMIT 1
+    `).get(session.lead_id, contractorId);
+    if (appt) {
+      const notifications = require('./notifications');
+      notifications.sendBrain3BookingConfirmation({
+        to: emailToUse,
+        name: session.name || '',
+        businessName: contractorRow?.name || '',
+        date: fmtDate(appt.scheduled_date),
+        time: fmtTime(appt.scheduled_time),
+        address: session.address || '',
+      }).catch(e => console.error('[BRAIN3] Post-confirm confirmation email error:', e.message));
+      return `Done! Confirmation sent to ${emailToUse}. See you ${fmtDate(appt.scheduled_date)} at ${fmtTime(appt.scheduled_time)}. Reply STOP to opt out.`;
+    }
+  } catch (e) {
+    console.error('[BRAIN3] Post-confirm email lookup error:', e.message);
+  }
+  return `Done! Check ${emailToUse} for your confirmation. Reply STOP to opt out.`;
+}
+
 // ── Public: start a new homeowner session ─────────────────────────────────────
 // Called from twilio.js (missed call), facebook.js (Lead Ad), and leads.js (phone-only form)
 // Detects returning homeowners and pre-populates name + address.
@@ -2143,4 +2215,5 @@ module.exports = {
   routeHomeownerSms,
   startRebookSession,
   getLastConfirmedBooking,
+  checkPostConfirmationFollowup,
 };
