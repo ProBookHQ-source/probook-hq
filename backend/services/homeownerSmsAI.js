@@ -170,10 +170,20 @@ function normalizeForMatch(str) {
 // "6:00 PM" no matter how the words around it are phrased.
 function extractClockTime(text) {
   const t = String(text || '').toLowerCase();
-  const hasIndicator = /\b(am|pm)\b/.test(t) || /o\s*'?\s*clock/.test(t);
-  if (!hasIndicator) return null;
+  // Task #114 follow-up — live-caught immediately after the first #114 fix
+  // deployed: "6pm" still fell through. Root cause: \b (word boundary) only
+  // matches between a word char and a non-word char. In "6pm", the digit "6"
+  // and the letter "p" are BOTH word characters (\w = [A-Za-z0-9_]), so there
+  // is no boundary between them at all — /\b(am|pm)\b/ can never match "pm"
+  // when it's glued directly to a digit with no space, which is the single
+  // most common way anyone actually types a time ("6pm", not "6 pm"). Fixed
+  // by reading the am/pm indicator off the SAME capture group the main regex
+  // below already extracts, instead of re-testing with a second regex that
+  // has an impossible boundary requirement.
+  const hasClockWord = /o\s*'?\s*clock/.test(t);
   const m = t.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/);
   if (!m) return null;
+  if (!m[3] && !hasClockWord) return null; // no am/pm captured and no "o'clock" wording — too ambiguous to treat as a time
   const hour = parseInt(m[1], 10);
   if (hour < 1 || hour > 12) return null;
   const minute = m[2] ? parseInt(m[2], 10) : 0;
