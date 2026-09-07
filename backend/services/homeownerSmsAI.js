@@ -177,6 +177,31 @@ function extractDeclinedWeekday(text) {
   return null;
 }
 
+// Task #113 — live-caught: "What about later in the day, what do you have
+// open after 5pm" fell through every existing lookup branch (no weekday
+// named, no explicit calendar date named) straight to the generic "which of
+// these works" re-prompt, ignoring the actual question. This is a genuine,
+// very natural homeowner phrasing — a time-of-day preference on the day
+// already under discussion, not a new day/date request. Detects "after
+// <time>" / "past <time>" / "later than <time>" explicitly, plus a handful of
+// vaguer same-idea phrases ("later in the day", "later today", "evening",
+// "afternoon") with a reasonable 3pm default cutoff for those.
+function parseAfterTimeMinutes(text) {
+  const t = String(text || '').toLowerCase();
+  let m = t.match(/\b(?:after|past|later than)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/);
+  if (m) {
+    let h = parseInt(m[1], 10);
+    const min = m[2] ? parseInt(m[2], 10) : 0;
+    const ampm = m[3];
+    if (ampm === 'pm' && h < 12) h += 12;
+    if (ampm === 'am' && h === 12) h = 0;
+    if (!ampm && h > 0 && h < 7) h += 12; // bare "after 5" with no am/pm — assume evening
+    return h * 60 + min;
+  }
+  if (/\b(later in the day|later today|this evening|evening|after lunch|afternoon)\b/.test(t)) return 15 * 60; // 3pm default
+  return null;
+}
+
 const MONTH_NAMES = ['january','february','march','april','may','june','july','august','september','october','november','december'];
 
 // Task #111 — live-caught: "Can I book one for Sunday the 13th at 6pm" got
@@ -1720,6 +1745,38 @@ async function handleSlotPick(session, contractor, businessName, text) {
           }
         } catch (e) {
           console.error('[BRAIN3] Explicit-date lookup failed:', e.message);
+        }
+      }
+
+      // Task #113 — a time-of-day preference ("after 5pm", "later in the
+      // day") on the date already under discussion. Prefer whatever date the
+      // currently offered slots are for — a follow-up like this is about
+      // "later THAT day," not a fresh open-ended search — and only widen to
+      // any day if nothing later exists on that specific date.
+      if (askedDow === null) {
+        try {
+          const afterMinutes = parseAfterTimeMinutes(pick);
+          if (afterMinutes !== null) {
+            const targetDate = offeredSlots[0]?.date || null;
+            const freshSlots = await getOpenSlots(contractor.id);
+            const isLaterThan = s => {
+              const [h, m] = s.time.split(':').map(Number);
+              return (h * 60 + (m || 0)) >= afterMinutes;
+            };
+            let laterMatch = targetDate
+              ? freshSlots.filter(s => s.date === targetDate && isLaterThan(s)).slice(0, 3)
+              : [];
+            if (!laterMatch.length) {
+              laterMatch = freshSlots.filter(isLaterThan).slice(0, 3);
+            }
+            if (laterMatch.length) {
+              await updateSession(session.id, { offered_slots: JSON.stringify(laterMatch) });
+              return `Here's what's open later:\n${formatSlotOptionsBlock(laterMatch)}\n${SLOT_REPLY_INSTRUCTION}`;
+            }
+            return `Nothing open that late right now — is there another day or time that works?`;
+          }
+        } catch (e) {
+          console.error('[BRAIN3] Time-of-day lookup failed:', e.message);
         }
       }
     }
