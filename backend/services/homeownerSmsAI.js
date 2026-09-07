@@ -156,6 +156,30 @@ function normalizeForMatch(str) {
   return String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+// Task #114 — live-caught the moment right after task #113's fix shipped:
+// offered 5/6/7 PM slots, homeowner replied "6 o clock one" — fell straight
+// through to the generic re-prompt. Root cause: the final time-only fallback
+// in matchSlotFromText only ever did a normalized SUBSTRING check between the
+// reply and `fmtTime(s.time)` (e.g. "600pm"), which silently requires the
+// reply to already contain the exact zero-padded minute string — a bare hour
+// like "6pm" normalizes to "6pm" and never contains "600pm", so it never
+// matched even without the "o'clock" phrasing. This extracts an actual
+// hour/minute (handling "6pm", "6:00pm", "6 o'clock", "6 o clock", "18:00")
+// and compares it numerically against each offered slot instead of doing a
+// string-substring check — the substring approach can never bridge "6pm" vs
+// "6:00 PM" no matter how the words around it are phrased.
+function extractClockTime(text) {
+  const t = String(text || '').toLowerCase();
+  const hasIndicator = /\b(am|pm)\b/.test(t) || /o\s*'?\s*clock/.test(t);
+  if (!hasIndicator) return null;
+  const m = t.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/);
+  if (!m) return null;
+  const hour = parseInt(m[1], 10);
+  if (hour < 1 || hour > 12) return null;
+  const minute = m[2] ? parseInt(m[2], 10) : 0;
+  return { hour, minute, ampm: m[3] || null };
+}
+
 const WEEKDAY_LONG = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 // Task #101 — live-caught follow-up to #98: the negation guard correctly
@@ -370,7 +394,25 @@ function matchSlotFromText(text, offeredSlots) {
     const t = normalizeForMatch(fmtTime(s.time));
     return t && normalizedReply.includes(t);
   });
-  return match || null;
+  if (match) return match;
+
+  // Task #114 — numeric clock-time match (see extractClockTime comment above).
+  const clock = extractClockTime(pick);
+  if (clock) {
+    const candidates = offeredSlots.filter(s => {
+      const [sh, sm] = s.time.split(':').map(Number);
+      if (sm !== clock.minute) return false;
+      if (clock.ampm) {
+        const wantH = clock.ampm === 'pm' ? (clock.hour % 12) + 12 : (clock.hour % 12);
+        return sh === wantH;
+      }
+      const sh12 = sh % 12 || 12;
+      return sh12 === clock.hour;
+    });
+    if (candidates.length === 1) return candidates[0];
+  }
+
+  return null;
 }
 
 // Formats a raw phone string (+12065551234, 2065551234, etc) as (206) 555-1234
