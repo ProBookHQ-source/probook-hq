@@ -676,13 +676,6 @@ function getContractorNow(contractorAddress) {
 }
 
 async function getOpenSlots(contractorId) {
-  const from = new Date(); // start TODAY — see task #99 comment above
-  const to   = new Date();
-  to.setDate(to.getDate() + 8);
-
-  const fromStr = from.toISOString().slice(0, 10);
-  const toStr   = to.toISOString().slice(0, 10);
-
   // Needed to derive the contractor's approximate local "now" (+ their niche,
   // for the buffer-size decision below) for same-day filtering — cheap,
   // single-row lookup, not worth changing every call site's signature just
@@ -693,6 +686,31 @@ async function getOpenSlots(contractorId) {
   );
   const ctrRow = ctrRows[0] || {};
   const { dateStr: todayStr, minutes: nowMinutes } = getContractorNow(ctrRow.address);
+
+  // Task #110 — live-caught (Shyla, Sun Sep 6 10:00 AM booked but invisible on
+  // the Calendar tab even after a hard refresh + correct week navigation).
+  // Root cause: this loop used to anchor on `new Date()` / `.toISOString()` —
+  // i.e. the SERVER's raw UTC "now" — instead of the contractor's actual local
+  // calendar date (`todayStr`, already correctly computed above via
+  // getContractorNow's timezone-aware lookup, but never actually used to seed
+  // the date loop). UTC runs 7-8 hours ahead of any US timezone, so any booking
+  // made roughly 5pm-midnight local time had its entire offered date range —
+  // and therefore the appointment's stored scheduled_date — silently shifted
+  // one calendar day forward of the contractor's real "today." The Home tab's
+  // "> todayStr" comparison and its own date-parsing tolerated the drift
+  // enough to still display something plausible; the Calendar tab's strict
+  // per-day string match did not, so the appointment rendered nowhere on the
+  // grid regardless of which week was being viewed. Fixed by anchoring `from`
+  // (and every date derived from it) on the contractor's local todayStr,
+  // parsed and incremented entirely via UTC-based Date arithmetic so the
+  // server's own timezone/process clock can never introduce a second shift.
+  const [tY, tM, tD] = todayStr.split('-').map(Number);
+  const from = new Date(Date.UTC(tY, tM - 1, tD));
+  const to   = new Date(from);
+  to.setUTCDate(to.getUTCDate() + 8);
+
+  const fromStr = from.toISOString().slice(0, 10); // === todayStr, by construction
+  const toStr   = to.toISOString().slice(0, 10);
   // Task #100 — Jose's call after brainstorming: dispatch niches (a tech
   // travels TO the homeowner — HVAC, plumbing, electrical, roofing, etc, i.e.
   // every niche actually live today) need real lead time for a same-day
@@ -791,17 +809,21 @@ async function getOpenSlots(contractorId) {
   const cur = new Date(from);
   while (cur <= to && openSlots.length < MAX_CANDIDATE_SLOTS) {
     const dateStr = cur.toISOString().slice(0, 10);
-    const dow = cur.getDay();
+    // getUTCDay() (not getDay()) — cur is a UTC-anchored Date (task #110 fix
+    // above), so its local-timezone day-of-week would drift a day off from
+    // dateStr on any server not running in UTC. getUTCDay() stays consistent
+    // with dateStr no matter what timezone this Node process is in.
+    const dow = cur.getUTCDay();
     const override = overrideMap[dateStr];
 
     if (maxPerDay && (perDateCount[dateStr] || 0) >= maxPerDay) {
-      cur.setDate(cur.getDate() + 1);
+      cur.setUTCDate(cur.getUTCDate() + 1);
       continue; // day is already at the contractor's daily cap — offer nothing here
     }
 
     let daySlots = [];
     if (override) {
-      if (!override.is_available) { cur.setDate(cur.getDate() + 1); continue; }
+      if (!override.is_available) { cur.setUTCDate(cur.getUTCDate() + 1); continue; }
       if (override.start_time && override.end_time) {
         daySlots = [{ start_time: override.start_time, end_time: override.end_time }];
       }
@@ -840,7 +862,7 @@ async function getOpenSlots(contractorId) {
         hour++;
       }
     }
-    cur.setDate(cur.getDate() + 1);
+    cur.setUTCDate(cur.getUTCDate() + 1);
   }
 
   return openSlots;
