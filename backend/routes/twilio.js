@@ -134,9 +134,12 @@ router.post('/missed-call', async (req, res) => {
         // startHomeownerSessionInner for why this exists.
         if (result && result.greeting) {
           smsBody = `${result.greeting} Reply STOP to opt out.`;
-        } else if (isReturning && result.name) {
-          const firstName = result.name.split(' ')[0];
-          smsBody = `Hey ${firstName}! Great to hear from you again — still at ${result.address}? Reply YES or send the correct address. Reply STOP to opt out.`;
+        } else if (isReturning && result.address) {
+          // Task fix (Sept 11): a real confirmed booking can have name=NULL
+          // (homeowner never stated one) — don't require it to greet as
+          // returning, just personalize with it when it's there.
+          const greetName = result.name ? `Hey ${result.name.split(' ')[0]}! ` : 'Hey! ';
+          smsBody = `${greetName}Great to hear from you again — still at ${result.address}? Reply YES or send the correct address. Reply STOP to opt out.`;
         } else {
           smsBody = `Hey! Sorry we missed you at ${businessName} — we're out on a job. I'm their scheduling assistant. What's your name and the address that needs service? Reply STOP to opt out.`;
         }
@@ -541,9 +544,9 @@ router.post('/inbound-sms', async (req, res) => {
 
         if (result && result.greeting) {
           replyBody = `${result.greeting} Reply STOP to opt out.`;
-        } else if (isReturning && result.name) {
-          const firstName = result.name.split(' ')[0];
-          replyBody = `Hey ${firstName}! Great to hear from you again — still at ${result.address}? Reply YES or send the correct address. Reply STOP to opt out.`;
+        } else if (isReturning && result.address) {
+          const greetName = result.name ? `Hey ${result.name.split(' ')[0]}! ` : 'Hey! ';
+          replyBody = `${greetName}Great to hear from you again — still at ${result.address}? Reply YES or send the correct address. Reply STOP to opt out.`;
         } else {
           replyBody = `Hey! This is ${businessName}. Happy to help — what's your name and the address that needs service? Reply STOP to opt out.`;
         }
@@ -681,9 +684,9 @@ router.post('/test-sms', requireAdmin, async (req, res) => {
 
     if (result && result.greeting) {
       reply = result.greeting;
-    } else if (isReturning && result.name) {
-      const firstName = result.name.split(' ')[0];
-      reply = `Hey ${firstName}! Great to hear from you again — still at ${result.address}? Reply YES or send the correct address.`;
+    } else if (isReturning && result.address) {
+      const greetName = result.name ? `Hey ${result.name.split(' ')[0]}! ` : 'Hey! ';
+      reply = `${greetName}Great to hear from you again — still at ${result.address}? Reply YES or send the correct address.`;
     } else {
       reply = `Hey! This is ${businessName}. Happy to help — what's your name and the address that needs service?`;
     }

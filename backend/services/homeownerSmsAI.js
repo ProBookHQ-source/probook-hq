@@ -690,12 +690,24 @@ async function buildAddressMismatchNote(fullAddress, cityGiven, zip) {
 async function getLastConfirmedBooking(phone, contractorId) {
   // Include 'awaiting_email' so homeowners who went dark after booking (but before
   // providing their email) are still recognized as returning on next contact.
+  //
+  // Live-caught Sept 11: this used to also require `name IS NOT NULL`, which
+  // silently excluded every real, fully-confirmed booking where the homeowner
+  // never stated their name in the conversation (handleAddress only backfills
+  // session.name when Claude's extraction actually found one — a homeowner who
+  // just gives an address gets a completely valid booking with name left NULL
+  // forever). That's a common, ordinary path, not an edge case — and it meant
+  // the awaiting_email resumption fix silently never fired for it, falling all
+  // the way through to a brand-new blank "what's your name and address?"
+  // session instead of resuming. `address` is the load-bearing field for
+  // recognizing a real booking here; `name` is cosmetic (only used to
+  // personalize the greeting), so only `address` is required now.
   return db.prepare(`
     SELECT name, address, service_description
     FROM homeowner_sms_sessions
     WHERE phone = $1 AND contractor_id = $2
       AND state IN ('confirmed', 'awaiting_email')
-      AND name IS NOT NULL AND address IS NOT NULL
+      AND address IS NOT NULL
       AND updated_at > NOW() - INTERVAL '180 days'
     ORDER BY updated_at DESC
     LIMIT 1
@@ -2182,7 +2194,7 @@ async function startHomeownerSessionInner(phone, contractorId, name = null, lead
   // to service. state='awaiting_address_confirm' makes the caller ask "still
   // at [address]?" before that address is ever used for a real dispatch — see
   // getLastConfirmedBooking's comment for why (recycled/shared phone numbers).
-  if (lastBooking && lastBooking.name && lastBooking.address) {
+  if (lastBooking && lastBooking.address) {
     const id = uuidv4();
     await db.prepare(`
       INSERT INTO homeowner_sms_sessions
