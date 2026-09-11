@@ -1349,7 +1349,11 @@ Return ONLY the JSON object. No explanation.`;
   console.log(`[BRAIN3] handleAddress: raw="${text}" → extracted address="${address}" city="${cityGiven}" → extractZip="${extractZip(address)}" → areaCheck=${areaCheck.outcome}`);
 
   if (areaCheck.outcome === 'needs_zip') {
-    await updateSession(session.id, { name: name || session.name, address, state: 'awaiting_zip_only' });
+    // Persist cityGiven onto the session (schema already has this column,
+    // previously never written) — without it, a later zip-only correction in
+    // handleZipOnly() has no way to know what city the homeowner originally
+    // said, so it can't cross-check a corrected zip against it at all.
+    await updateSession(session.id, { name: name || session.name, address, city: cityGiven || null, state: 'awaiting_zip_only' });
     return `What's the zip code for that address? Just want to make sure we cover your area.`;
   }
 
@@ -1371,13 +1375,13 @@ Return ONLY the JSON object. No explanation.`;
     // build on and saved the bare zip as the ENTIRE job address — which then
     // got texted to the contractor as the dispatch address/Maps link with no
     // street on it at all.
-    await updateSession(session.id, { name: name || session.name, address, state: 'out_of_area' });
+    await updateSession(session.id, { name: name || session.name, address, city: cityGiven || null, state: 'out_of_area' });
     const zip = extractZip(address);
     const areaHint = zip ? `(we cover different zip codes)` : `(we don't serve that area)`;
     return `Thanks! Unfortunately we don't cover that area ${areaHint}. Hope you find help nearby soon!`;
   }
 
-  const updates = { address, state: 'awaiting_service' };
+  const updates = { address, city: cityGiven || null, state: 'awaiting_service' };
   if (name) updates.name = name;
   await updateSession(session.id, updates);
 
@@ -1444,13 +1448,21 @@ async function handleZipOnly(session, contractor, businessName, text) {
     ).catch(e => console.error('[BRAIN3] Lead patch error (zip-only):', e.message));
   }
 
-  // This is the exact live-caught gap (task #91): a street address given with
-  // no city, followed by a bare zip in a separate message. No city text
-  // exists here to cross-check, so buildAddressMismatchNote() will skip
-  // straight to the free Census geocoder — the only layer that can catch
-  // this specific case.
-  console.log(`[BRAIN3] handleZipOnly: running address mismatch check on "${fullAddress}"`);
-  const mismatchNote = await buildAddressMismatchNote(fullAddress, '', zip);
+  // Task #91 covered the no-city case (street + bare zip, nothing to
+  // text-cross-check against, so this falls through to the free Census
+  // geocoder layer). Live-caught gap found in a September 2026 test pass:
+  // when the ORIGINAL address DID name a city (e.g. "500 Pine St, Seattle
+  // WA 98101") and the homeowner later corrects only the zip ("I meant
+  // 98223, address is the same"), the regex swap above replaces just the
+  // zip digits and leaves the old city text untouched — producing a
+  // self-contradictory address ("Seattle WA 98223", where 98223 is
+  // actually Arlington) with zero heads-up, because this call used to pass
+  // cityGiven='' unconditionally, discarding the city handleAddress had
+  // already extracted. session.city now persists that value (see
+  // handleAddress above) specifically so this exact cross-check can run.
+  const cityForMismatchCheck = session.city || '';
+  console.log(`[BRAIN3] handleZipOnly: running address mismatch check on "${fullAddress}" (city on file: "${cityForMismatchCheck}")`);
+  const mismatchNote = await buildAddressMismatchNote(fullAddress, cityForMismatchCheck, zip);
   console.log(`[BRAIN3] handleZipOnly: mismatch note result — ${mismatchNote ? `"${mismatchNote}"` : '(none)'}`);
   return `${mismatchNote}${getServiceQuestion(contractor.niche_name)}`;
 }
@@ -1674,6 +1686,26 @@ ${slotOptions}`;
         const isSafetyOverride = /911|leave.*home|evacuate|gas company/i.test(reply);
         if (isSafetyOverride) {
           await updateSession(session.id, { state: 'ended' }); // end session on safety (task #88: 'ended' not 'confirmed', no booking happened)
+          return reply.slice(0, MAX_CHARS);
+        }
+        // Live-caught, Sept 2026: classifyServiceScope() said in_scope (or
+        // failed open to it) for a request this diagnostic model then
+        // recognized on its own as a different trade entirely (e.g. a
+        // plumbing complaint on an HVAC number) — its own reply text
+        // apologizes and redirects instead of transitioning into the slot
+        // offer it was instructed to give. Because offered_slots/state were
+        // already committed to awaiting_slot a few lines above (before this
+        // model call ever runs), the homeowner's next "1" would silently
+        // confirm a real dispatch for work this contractor doesn't do —
+        // the exact bug class task #27/#88 already fixed once, reopened by
+        // a scope-classifier miss instead of a missing gate. Same
+        // defense-in-depth pattern as the safety-override check directly
+        // above: if the model's own words read as a decline/redirect rather
+        // than an offer, trust that and close the session instead of
+        // trusting the state that was already written.
+        const isScopeDecline = /not something (we|this business) (handle|do|cover)|that'?s a (plumbing|electrical|roofing|landscaping|pest|pool|solar|tree|water damage|lawn|painting) issue|isn'?t something we handle|we don'?t (do|handle|cover) that|you'?ll want to call a (plumber|electrician|roofer|landscaper)|different (trade|type of (contractor|pro))/i.test(reply);
+        if (isScopeDecline) {
+          await updateSession(session.id, { state: 'ended', offered_slots: '[]' });
           return reply.slice(0, MAX_CHARS);
         }
         return reply.slice(0, MAX_CHARS);
