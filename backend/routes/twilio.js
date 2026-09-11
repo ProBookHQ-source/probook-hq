@@ -127,7 +127,14 @@ router.post('/missed-call', async (req, res) => {
         const result = await startHomeownerSession(From, contractor.id);
         const isReturning = result && result.isReturning;
 
-        if (isReturning && result.name) {
+        // Deterministic bridge message (built in homeownerSmsAI.js from real
+        // session/appointment data, no AI call) — fires for both a returning
+        // confirmed homeowner AND a mid-rebook/mid-booking interruption. See
+        // the "silent reset with zero acknowledgment" fix comment in
+        // startHomeownerSessionInner for why this exists.
+        if (result && result.greeting) {
+          smsBody = `${result.greeting} Reply STOP to opt out.`;
+        } else if (isReturning && result.name) {
           const firstName = result.name.split(' ')[0];
           smsBody = `Hey ${firstName}! Great to hear from you again — still at ${result.address}? Reply YES or send the correct address. Reply STOP to opt out.`;
         } else {
@@ -532,7 +539,9 @@ router.post('/inbound-sms', async (req, res) => {
         const result = await startHomeownerSession(From, contractor.id);
         const isReturning = result && result.isReturning;
 
-        if (isReturning && result.name) {
+        if (result && result.greeting) {
+          replyBody = `${result.greeting} Reply STOP to opt out.`;
+        } else if (isReturning && result.name) {
           const firstName = result.name.split(' ')[0];
           replyBody = `Hey ${firstName}! Great to hear from you again — still at ${result.address}? Reply YES or send the correct address. Reply STOP to opt out.`;
         } else {
@@ -670,7 +679,9 @@ router.post('/test-sms', requireAdmin, async (req, res) => {
     const result      = await startHomeownerSession(normalizedPhone, contractorId);
     const isReturning = result && result.isReturning;
 
-    if (isReturning && result.name) {
+    if (result && result.greeting) {
+      reply = result.greeting;
+    } else if (isReturning && result.name) {
       const firstName = result.name.split(' ')[0];
       reply = `Hey ${firstName}! Great to hear from you again — still at ${result.address}? Reply YES or send the correct address.`;
     } else {

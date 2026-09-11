@@ -2120,25 +2120,68 @@ async function startHomeownerSession(phone, contractorId, name = null, leadId = 
 }
 
 async function startHomeownerSessionInner(phone, contractorId, name = null, leadId = null) {
-  // Kill any stale session for this phone + contractor first. Sets 'ended', not
+  // ── "Silent reset with zero acknowledgment" fix (Sept 11, 2026) ───────────
+  // Two independent staleness resets — the 30-min pre-commitment window and
+  // the 24-hr awaiting_email window — were both confirmed live this session
+  // to discard real context with zero acknowledgment to the homeowner. The
+  // 24-hr awaiting_email case turned out to be a genuine ordering bug, not a
+  // missing feature: this function used to run the "kill any stale session"
+  // UPDATE below FIRST, then call getLastConfirmedBooking() — but that UPDATE
+  // matches `state NOT IN ('confirmed','ended')`, which includes
+  // 'awaiting_email', and getLastConfirmedBooking's own WHERE clause
+  // explicitly includes 'awaiting_email' as a state it looks for. So by the
+  // time getLastConfirmedBooking ran, the exact row it needed had already been
+  // flipped to 'ended' a few lines earlier IN THE SAME FUNCTION CALL — it was
+  // checking a door that had just locked itself. That's the real reason the
+  // Sept 11 test produced a full blank-slate reset instead of "still at
+  // [address]?" even though a real, 25-hour-old confirmed appointment existed
+  // the whole time. Fix: read everything we need from the about-to-expire
+  // session BEFORE expiring it, not after.
+  //
+  // While fixing that, also closed the OTHER known case (CANCEL-rebook 30-min
+  // staleness, session 32/33): a homeowner mid-rebook — real address + service
+  // already captured, fresh slots already offered — who goes quiet past the
+  // 30-minute window used to get the exact same blank "what's your name and
+  // address" greeting as a total stranger, discarding info they'd already
+  // given. Both cases are handled below by one shared read-before-kill step.
+  const activeRow = await db.prepare(`
+    SELECT * FROM homeowner_sms_sessions
+    WHERE phone = $1 AND contractor_id = $2 AND state NOT IN ('confirmed', 'ended')
+    ORDER BY updated_at DESC LIMIT 1
+  `).get(phone, contractorId);
+
+  // Returning homeowner check — MUST run before the kill UPDATE below, not after.
+  const lastBooking = await getLastConfirmedBooking(phone, contractorId);
+
+  // Mid-rebook/mid-booking interruption check — only fires when there's no
+  // stronger signal already (a real confirmed/awaiting_email booking always
+  // takes priority), and only for awaiting_slot specifically: that's the one
+  // state where the homeowner has already given real, savable info (address +
+  // service_description + a fresh offered_slots batch) rather than just
+  // having started a conversation with nothing captured yet. Re-asking "what's
+  // your name and address" when we already have both is exactly the gap that
+  // read as broken in the live rebook-decline test.
+  const interrupted = (!lastBooking && activeRow && activeRow.state === 'awaiting_slot'
+    && activeRow.address && activeRow.service_description) ? activeRow : null;
+
+  // Kill any stale session for this phone + contractor. Sets 'ended', not
   // 'confirmed' (task #88) — an abandoned/incomplete session being superseded
   // here is NOT a real booking, and getLastConfirmedBooking() treats any
   // 'confirmed' row with a name+address as a real past booking. Reusing
   // 'confirmed' here meant a homeowner who, say, gave their name+address and
   // then went dark mid-conversation could get greeted as a "returning
   // customer" on their next contact even though nothing was ever booked.
+  // Safe to run now — everything needed from the row was already read above.
   await db.query(`
     UPDATE homeowner_sms_sessions
     SET state = 'ended', updated_at = NOW()
     WHERE phone = $1 AND contractor_id = $2 AND state NOT IN ('confirmed', 'ended')
   `, [phone, contractorId]).catch(() => {});
 
-  // Returning homeowner check — if they've booked before, pre-populate name +
-  // address but do NOT skip straight to service. state='awaiting_address_confirm'
-  // makes the caller ask "still at [address]?" before that address is ever used
-  // for a real dispatch — see getLastConfirmedBooking's comment for why (recycled
-  // or shared phone numbers can otherwise get a stranger's old address used).
-  const lastBooking = await getLastConfirmedBooking(phone, contractorId);
+  // Returning homeowner — pre-populate name + address but do NOT skip straight
+  // to service. state='awaiting_address_confirm' makes the caller ask "still
+  // at [address]?" before that address is ever used for a real dispatch — see
+  // getLastConfirmedBooking's comment for why (recycled/shared phone numbers).
   if (lastBooking && lastBooking.name && lastBooking.address) {
     const id = uuidv4();
     await db.prepare(`
@@ -2147,6 +2190,46 @@ async function startHomeownerSessionInner(phone, contractorId, name = null, lead
       VALUES ($1, $2, $3, 'awaiting_address_confirm', $4, $5, '[]', $6)
     `).run(id, phone, contractorId, lastBooking.name, lastBooking.address, leadId);
     return { isReturning: true, ...(await db.prepare(`SELECT * FROM homeowner_sms_sessions WHERE id = $1`).get(id)) };
+  }
+
+  // Interrupted mid-rebook/mid-booking — deterministic template, no AI call,
+  // built entirely from data already sitting in the row we just read. Re-fetch
+  // fresh slots for the SAME address+service instead of discarding everything
+  // learned and starting over from "what's your name and address."
+  if (interrupted) {
+    const slots = await getOpenSlots(contractorId);
+    const firstName = interrupted.name ? interrupted.name.split(' ')[0] : null;
+    const greetName = firstName ? `Hey ${firstName}! ` : 'Hey! ';
+
+    if (slots.length) {
+      const offered = slots.slice(0, 3);
+      const id = uuidv4();
+      await db.prepare(`
+        INSERT INTO homeowner_sms_sessions
+          (id, phone, contractor_id, state, name, address, service_description, offered_slots, lead_id)
+        VALUES ($1, $2, $3, 'awaiting_slot', $4, $5, $6, $7, $8)
+      `).run(
+        id, phone, contractorId,
+        interrupted.name || name || null,
+        interrupted.address,
+        interrupted.service_description,
+        JSON.stringify(offered),
+        interrupted.lead_id || leadId,
+      );
+      const greeting = `${greetName}Looks like it's been a bit — picking this back up for ${interrupted.service_description} at ${interrupted.address}. Here's what's currently open:\n${formatSlotOptionsBlock(offered)}\n${SLOT_REPLY_INSTRUCTION}`;
+      return { isReturning: true, interrupted: true, greeting, ...(await db.prepare(`SELECT * FROM homeowner_sms_sessions WHERE id = $1`).get(id)) };
+    }
+
+    // No open slots right now — be honest instead of pretending, same tone as
+    // the existing "we're fully booked" fallback used elsewhere in this file.
+    const id = uuidv4();
+    await db.prepare(`
+      INSERT INTO homeowner_sms_sessions
+        (id, phone, contractor_id, state, name, address, service_description, offered_slots, lead_id)
+      VALUES ($1, $2, $3, 'ended', $4, $5, $6, '[]', $7)
+    `).run(id, phone, contractorId, interrupted.name || name || null, interrupted.address, interrupted.service_description, interrupted.lead_id || leadId);
+    const greeting = `${greetName}Sorry about the delay — still nothing open right now for ${interrupted.service_description} at ${interrupted.address}. Text us again in a bit and we'll find you a time.`;
+    return { isReturning: true, interrupted: true, greeting, ...(await db.prepare(`SELECT * FROM homeowner_sms_sessions WHERE id = $1`).get(id)) };
   }
 
   const session = await createSession(phone, contractorId, name, leadId);
