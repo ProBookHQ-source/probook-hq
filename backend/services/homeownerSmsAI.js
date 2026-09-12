@@ -110,7 +110,19 @@ Return ONLY the JSON object. No explanation.`;
   try {
     const result = await callClaude([{ role: 'user', content: combinedText }], [], system);
     const raw = result.content?.[0]?.text?.trim();
-    const parsed = JSON.parse(raw);
+    // Live-caught, Sept 2026: this used a bare JSON.parse(raw) with no
+    // defense against Claude wrapping its JSON in markdown fences or adding
+    // stray text around it — the exact bug class handleAddress's own
+    // extraction calls already had to fix (see the jsonMatch pattern used
+    // there). When that happened here, the throw silently fell into the
+    // catch below and failed open to in_scope — which is how an obvious
+    // out-of-scope request (a plumbing complaint on an HVAC number) got
+    // real appointment slots committed to the session even though the
+    // separate diagnostic-text step then wrote an apologetic decline on its
+    // own initiative. Same fix, same file, finally applied here too.
+    const jsonMatch = raw?.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+    console.log(`[BRAIN3] classifyServiceScope: niche="${nicheName}" text="${combinedText}" → scope=${parsed.scope}`);
     if (['in_scope', 'unclear', 'out_of_scope'].includes(parsed.scope)) return parsed;
     return { scope: 'in_scope' };
   } catch (e) {
