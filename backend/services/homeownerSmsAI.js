@@ -1938,7 +1938,18 @@ async function handleSlotPick(session, contractor, businessName, text) {
         [contractor.id, chosen.date]
       );
       if (parseInt(countRows[0].cnt) >= contractor.max_appointments_per_day) {
-        const freshSlots = await getOpenSlots(contractor.id);
+        // Same excluded_weekdays gap as the 23505 race-offer just below —
+        // this is also a race-triggered re-offer, not a decline, so it needs
+        // the same session exclusion filter or it can hand back a day this
+        // homeowner already said doesn't work for them earlier in the
+        // conversation.
+        let excludedDows = [];
+        try {
+          const rawExcluded = session.excluded_weekdays;
+          excludedDows = Array.isArray(rawExcluded) ? rawExcluded : JSON.parse(rawExcluded || '[]');
+        } catch (e) {}
+        const freshSlots = (await getOpenSlots(contractor.id))
+          .filter(s => !excludedDows.includes(new Date(s.date + 'T12:00:00').getDay()));
         if (!freshSlots.length) {
           return `Looks like that day just filled up — I don't have any other openings right now. Text us again in a few days.`;
         }
@@ -2024,7 +2035,20 @@ async function handleSlotPick(session, contractor, businessName, text) {
     if (err.code === '23505') {
       console.warn('[BRAIN3] Slot conflict (23505) — re-offering fresh slots');
       try {
-        const freshSlots = await getOpenSlots(contractor.id);
+        // Live-caught, Sept 2026, tight-calendar stress test: this used to
+        // call getOpenSlots() raw with zero regard for session.excluded_weekdays
+        // — a homeowner who'd already declined Monday earlier in this exact
+        // conversation could hit a double-booking race on a later slot and get
+        // handed Monday right back, since this is a separate re-offer path from
+        // the "none of these work" decline handler above and never shared its
+        // exclusion filtering. Same fix, same pattern already proven there.
+        let excludedDows = [];
+        try {
+          const rawExcluded = session.excluded_weekdays;
+          excludedDows = Array.isArray(rawExcluded) ? rawExcluded : JSON.parse(rawExcluded || '[]');
+        } catch (e) {}
+        const freshSlots = (await getOpenSlots(contractor.id))
+          .filter(s => !excludedDows.includes(new Date(s.date + 'T12:00:00').getDay()));
         if (!freshSlots.length) {
           await updateSession(session.id, { state: 'ended' }); // task #88: 'ended' not 'confirmed', no booking happened
           return `Sorry — that slot just got taken and we're fully booked right now. Text us again in a few days and we'll get you on the calendar. Reply STOP to opt out.`;
