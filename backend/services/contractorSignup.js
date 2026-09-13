@@ -20,6 +20,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const db = require('../database/db');
 const { sendDeployAlertToAdmin } = require('./notifications');
+const { resolveBucketForNiche } = require('./pricingBuckets');
 
 // ── Slug generator — "Premier Comfort HVAC" → "premiercomforthvac" ────────────
 // No website hangs off this anymore, but booking_slug is still used elsewhere
@@ -197,6 +198,18 @@ async function createContractorAccount(data) {
     throw new Error('Either nicheId or nicheOther is required');
   }
 
+  // ── Auto-assign a pricing_bucket for the handful of niches the flat-retainer
+  // pricing model explicitly bucketed (HVAC/Plumbing/Electrical/Lawn Care/Pest
+  // Control/Solar/Roofing — see pricingBuckets.js). Deliberately left NULL for
+  // every other niche (Landscaping, Water Damage, Tree Service, Pool Service,
+  // Pending Review) — Jose's explicit call, session 34/35 — an admin has to
+  // set those by hand before the 5-job/21-day trigger can send a real offer.
+  let pricingBucket = null;
+  if (!nichePendingReview) {
+    const nicheRow = await db.prepare('SELECT name FROM niches WHERE id = $1').get(nicheId);
+    pricingBucket = resolveBucketForNiche(nicheRow?.name);
+  }
+
   // Service zips aren't collected on the new form — service area is meant to be
   // derived from the geocoded address later. '*' is the existing "serves anywhere"
   // fallback already used elsewhere in this codebase.
@@ -206,8 +219,8 @@ async function createContractorAccount(data) {
     INSERT INTO contractors
       (id, email, password_hash, name, phone, company_name, niche_id,
        service_zip_codes, is_active, status, booking_slug, onboarding_started_at,
-       acquisition_source, address, place_id, requested_niche_text)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,1,'approved',$9,NOW(),$10,$11,$12,$13)
+       acquisition_source, address, place_id, requested_niche_text, pricing_bucket)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,1,'approved',$9,NOW(),$10,$11,$12,$13,$14)
   `, [
     contractorId,
     syntheticEmail,
@@ -222,6 +235,7 @@ async function createContractorAccount(data) {
     data.address || null,
     data.placeId || null,
     requestedNicheText,
+    pricingBucket,
   ]);
 
   log(`Contractor created: ${contractorId}`);

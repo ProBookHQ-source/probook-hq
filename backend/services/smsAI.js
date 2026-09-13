@@ -1854,6 +1854,51 @@ async function sendSetupStepText(contractor, twilioClient) {
   return nextIncomplete;
 }
 
+// ── Trial heads-up ── fires ~3 days before the 21-day cap if not yet at 5 jobs ─
+// Added session 34/35 (Sept 13) — CLAUDE.md STEP 2e. Deliberately soft, "just
+// keeping you in the loop" tone per the copy locked under "How this gets
+// communicated gracefully" — never frames the day-cap as an expiration.
+async function sendTrialHeadsUpText(contractor, jobCount, twilioClient) {
+  const body = `Quick update — you're at ${jobCount} of your 5 free jobs so far. A few more days left in your trial window, just keeping you in the loop, nothing you need to do. Reply STOP to opt out.`;
+
+  await twilioClient.messages.create({
+    to: contractor.phone,
+    from: contractor.twilio_number,
+    body,
+  });
+  await appendDeterministicSmsTurn(contractor.id, body, '(system: 21-day trial heads-up sent, job count below 5)');
+
+  await db.query(`UPDATE contractors SET trial_heads_up_sent_at = NOW() WHERE id = $1`, [contractor.id]);
+
+  console.log(`[SMS-AI] Trial heads-up sent to ${contractor.name} (${contractor.id}) — ${jobCount}/5 jobs`);
+}
+
+// ── Trial offer ── fires when 5 jobs OR 21 days hits, whichever first ─────────
+// Added session 34/35 (Sept 13) — CLAUDE.md STEP 2e ("5-jobs-or-21-day trial
+// trigger"). This is SMS/detection only — no payment processing exists yet
+// (that's STEP 3/Stripe). The contractor replying YES here is a signal for
+// Jose to follow up manually and collect payment until Stripe is built.
+// pricingBucket must already be resolved by the caller — this function never
+// guesses a bucket itself.
+async function sendTrialOfferText(contractor, pricingBucket, twilioClient) {
+  const { formatBucketPricing } = require('./pricingBuckets');
+  const priceLine = formatBucketPricing(pricingBucket);
+  const businessName = contractor.company_name || contractor.name || 'there';
+
+  const body = `Hey ${businessName} — you've hit your 5 free jobs (or your 3-week trial window, whichever came first). That's the trial. If you want to keep this running: ${priceLine}. No pressure, no contract — if it's not for you, no hard feelings and nothing else happens. Reply YES if you want to keep going and we'll get you set up.`;
+
+  await twilioClient.messages.create({
+    to: contractor.phone,
+    from: contractor.twilio_number,
+    body,
+  });
+  await appendDeterministicSmsTurn(contractor.id, body, `(system: trial offer sent — pricing bucket ${pricingBucket})`);
+
+  await db.query(`UPDATE contractors SET trial_offer_sent_at = NOW() WHERE id = $1`, [contractor.id]);
+
+  console.log(`[SMS-AI] Trial offer sent to ${contractor.name} (${contractor.id}) — bucket ${pricingBucket}`);
+}
+
 module.exports = {
   handleContractorSms,
   sendSetupStepText,
@@ -1862,6 +1907,8 @@ module.exports = {
   sendCalendarTrainingMessage,
   sendCapabilitiesGuide,
   sendPostAppointmentText,
+  sendTrialHeadsUpText,
+  sendTrialOfferText,
   getNextStepPromptForContractor,
   appendDeterministicSmsTurn,
 };

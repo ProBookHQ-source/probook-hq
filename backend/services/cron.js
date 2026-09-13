@@ -215,6 +215,133 @@ cron.schedule('0 */6 * * *', async () => {
   }
 });
 
+// ── 21-day trial heads-up ─────────────────────────────────────────────────────
+// Added session 34/35 (Sept 13) — CLAUDE.md STEP 2e. Runs once daily at noon.
+// Finds trial contractors who are 18+ days live, still under 5 non-cancelled
+// bookings, and haven't already gotten the heads-up — sends the soft "just
+// keeping you in the loop" text so the day-21 offer never feels sudden.
+// trial_heads_up_sent_at guards against sending it twice.
+cron.schedule('0 12 * * *', async () => {
+  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return;
+
+  try {
+    const cutoff18d = new Date(Date.now() - 18 * 24 * 3600 * 1000).toISOString();
+
+    const { rows: candidates } = await db.query(`
+      SELECT c.*, COUNT(a.id) FILTER (WHERE a.status != 'cancelled') as job_count
+      FROM contractors c
+      LEFT JOIN appointments a ON a.contractor_id = c.id
+      WHERE c.is_active = 1
+        AND c.payment_status = 'trial'
+        AND c.twilio_number IS NOT NULL
+        AND c.phone IS NOT NULL
+        AND c.trial_heads_up_sent_at IS NULL
+        AND c.trial_offer_sent_at IS NULL
+        AND c.created_at < $1
+      GROUP BY c.id
+      HAVING COUNT(a.id) FILTER (WHERE a.status != 'cancelled') < 5
+    `, [cutoff18d]);
+
+    if (!candidates.length) return;
+
+    const twilio = require('twilio');
+    const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    const { sendTrialHeadsUpText } = require('./smsAI');
+
+    for (const contractor of candidates) {
+      try {
+        await sendTrialHeadsUpText(contractor, parseInt(contractor.job_count, 10), twilioClient);
+        console.log(`⏰ [cron] Trial heads-up sent — ${contractor.name} (${contractor.job_count}/5 jobs, 18+ days live)`);
+      } catch (err) {
+        console.error(`⏰ [cron] Trial heads-up failed for ${contractor.id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('⏰ [cron] Trial heads-up job error:', err.message);
+  }
+});
+
+// ── 5-job-or-21-day trial trigger ─────────────────────────────────────────────
+// Added session 34/35 (Sept 13) — CLAUDE.md STEP 2e, the "actual next step"
+// locked after the two remaining real-phone tests were deferred. Runs every
+// 2 hours. Finds trial contractors who've hit EITHER 5 non-cancelled bookings
+// OR 21 days live, whichever came first, and haven't already gotten the offer.
+// Detection + SMS only — no Stripe/payment collection exists yet (STEP 3).
+// If pricing_bucket is unset (niches the flat-retainer model never explicitly
+// bucketed — see services/pricingBuckets.js), this does NOT guess a price —
+// it alerts Jose instead and leaves trial_offer_sent_at untouched, so the
+// very next cron run retries automatically once he sets a bucket.
+cron.schedule('0 */2 * * *', async () => {
+  try {
+    const cutoff21d = new Date(Date.now() - 21 * 24 * 3600 * 1000).toISOString();
+
+    const { rows: candidates } = await db.query(`
+      SELECT c.*, n.name as niche_name,
+             COUNT(a.id) FILTER (WHERE a.status != 'cancelled') as job_count,
+             EXTRACT(EPOCH FROM (NOW() - c.created_at)) / 86400 as days_live
+      FROM contractors c
+      LEFT JOIN niches n ON c.niche_id = n.id
+      LEFT JOIN appointments a ON a.contractor_id = c.id
+      WHERE c.is_active = 1
+        AND c.payment_status = 'trial'
+        AND c.trial_offer_sent_at IS NULL
+      GROUP BY c.id, n.name
+      HAVING
+        COUNT(a.id) FILTER (WHERE a.status != 'cancelled') >= 5
+        OR c.created_at < $1
+    `, [cutoff21d]);
+
+    if (!candidates.length) return;
+
+    const notifications = require('./notifications');
+    const { formatBucketPricing } = require('./pricingBuckets');
+
+    const hasTwilio = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
+    const twilio = hasTwilio ? require('twilio') : null;
+    const twilioClient = hasTwilio ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN) : null;
+    const { sendTrialOfferText } = hasTwilio ? require('./smsAI') : {};
+
+    for (const contractor of candidates) {
+      const jobCount = parseInt(contractor.job_count, 10);
+      const daysLive = Math.round(parseFloat(contractor.days_live) * 10) / 10;
+      const triggeredBy = jobCount >= 5 ? `5 jobs booked` : `21-day cap (${daysLive} days live)`;
+
+      try {
+        if (!contractor.pricing_bucket) {
+          // No bucket assigned — alert Jose once, don't guess a price, don't
+          // mark trial_offer_sent_at so this retries automatically once fixed.
+          if (!contractor.trial_bucket_needed_alert_sent_at) {
+            await notifications.sendTrialBucketNeededAlertToJose({ contractor, jobCount, daysLive, triggeredBy });
+            await db.query('UPDATE contractors SET trial_bucket_needed_alert_sent_at = NOW() WHERE id = $1', [contractor.id]);
+            console.log(`⏰ [cron] Trial trigger hit but no pricing_bucket set — alerted Jose — ${contractor.name} (${triggeredBy})`);
+          }
+          continue;
+        }
+
+        if (!hasTwilio || !contractor.twilio_number || !contractor.phone) {
+          console.log(`⏰ [cron] Trial trigger hit for ${contractor.name} (${triggeredBy}) but Twilio isn't configured/assigned — skipping SMS`);
+          continue;
+        }
+
+        await sendTrialOfferText(contractor, contractor.pricing_bucket, twilioClient);
+        await notifications.sendTrialOfferSentNoticeToJose({
+          contractor,
+          jobCount,
+          daysLive,
+          triggeredBy,
+          priceLine: formatBucketPricing(contractor.pricing_bucket),
+        }).catch(err => console.error(`⏰ [cron] Trial offer admin notice failed for ${contractor.id}:`, err.message));
+
+        console.log(`⏰ [cron] Trial offer sent — ${contractor.name} (${triggeredBy}, bucket ${contractor.pricing_bucket})`);
+      } catch (err) {
+        console.error(`⏰ [cron] Trial trigger failed for ${contractor.id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('⏰ [cron] Trial trigger job error:', err.message);
+  }
+});
+
 // ── Post-appointment close tracking ──────────────────────────────────────────
 // Runs hourly at :45. Finds confirmed appointments that ended 30-90 minutes ago
 // with no outcome logged yet and a contractor with an active Twilio number.

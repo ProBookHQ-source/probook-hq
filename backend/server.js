@@ -391,6 +391,19 @@ db._ready.then(async () => {
   // a converted/paying contractor's number.
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'trial'`);
 
+  // ── 5-job-or-21-day trial trigger — added session 34/35 (Sept 13), see
+  // CLAUDE.md "⚡ THE ACTUAL NEXT STEPS" STEP 2e. pricing_bucket is deliberately
+  // nullable and never auto-guessed for niches the flat-retainer pricing writeup
+  // didn't explicitly assign (Landscaping, Water Damage, Tree Service, Pool
+  // Service) — see services/pricingBuckets.js for the explicit 6-niche map.
+  // The trigger cron refuses to send a contractor a real dollar offer with no
+  // bucket set; it alerts Jose instead (trial_bucket_needed_alert_sent_at
+  // guards against re-alerting every run).
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS pricing_bucket TEXT`);
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS trial_offer_sent_at TIMESTAMPTZ`);
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS trial_heads_up_sent_at TIMESTAMPTZ`);
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS trial_bucket_needed_alert_sent_at TIMESTAMPTZ`);
+
   // ── Error log — closes a real gap in the admin brain's visibility (session 34) ──
   // Scoped to the SMS-critical paths only (smsAI.js, homeownerSmsAI.js, twilio.js,
   // bookings.js) — this is not a general-purpose logging table for the whole app,

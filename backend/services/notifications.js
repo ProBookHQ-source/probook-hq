@@ -1074,6 +1074,71 @@ async function sendTrialSilenceAlertToJose({ contractor, hoursSinceDeploy }) {
   await sendEmail(adminTo, `⚠️ No bookings: ${company} — ${daysLive} days live, zero jobs`, html);
 }
 
+// ── Trial bucket needed alert to Jose ─────────────────────────────────────────
+// Fires once when a contractor hits the 5-job/21-day trigger but has no
+// pricing_bucket set — the offer SMS can't go out with real numbers until an
+// admin assigns one (Landscaping/Water Damage/Tree Service/Pool Service, or
+// any Pending-Review niche, never get an automatic bucket — see
+// services/pricingBuckets.js). trial_bucket_needed_alert_sent_at guards this.
+async function sendTrialBucketNeededAlertToJose({ contractor, jobCount, daysLive, triggeredBy }) {
+  const adminTo  = process.env.ADMIN_EMAIL || 'bookings@tractifyhq.com';
+  const company  = esc(contractor.company_name || contractor.name);
+  const niche    = esc(contractor.niche_name || 'unknown niche');
+
+  const html = emailBase({
+    accentColor: '#f59e0b',
+    label: '⚠️ TRIAL TRIGGER — BUCKET NEEDED',
+    headline: `${company} hit the trial trigger — no pricing bucket set`,
+    sub: `Triggered by: ${esc(triggeredBy)}`,
+    bodyContent: `
+      <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:20px;">
+        ${infoRow('Contractor', company, true)}
+        ${infoRow('Niche', niche)}
+        ${infoRow('Jobs booked', String(jobCount))}
+        ${infoRow('Days live', String(daysLive))}
+      </table>
+      ${calloutBox(
+        `<strong>Action needed:</strong> this niche was never explicitly assigned a bucket in the flat-retainer pricing model, so no offer text has been sent yet. Set a pricing_bucket ('1', '2', or '3') on this contractor — via the admin dashboard or by telling the admin brain "set ${company}'s pricing bucket to X" — and the trial offer will go out on the next cron run.`,
+        '#fef3c7', '#f59e0b', '#92400e'
+      )}
+      ${ctaBtn(APP_URL + '/admin', 'Open Admin Dashboard')}
+    `,
+  });
+
+  await sendEmail(adminTo, `⚠️ ${company} hit the trial trigger — needs a pricing bucket`, html);
+}
+
+// ── Trial offer sent notice to Jose ───────────────────────────────────────────
+// Fires alongside every real trial offer SMS. No Stripe/payment collection
+// exists yet (STEP 3), so this is Jose's cue to follow up manually if/when
+// the contractor replies YES.
+async function sendTrialOfferSentNoticeToJose({ contractor, jobCount, daysLive, triggeredBy, priceLine }) {
+  const adminTo  = process.env.ADMIN_EMAIL || 'bookings@tractifyhq.com';
+  const company  = esc(contractor.company_name || contractor.name);
+
+  const html = emailBase({
+    accentColor: '#6366f1',
+    label: '💬 TRIAL OFFER SENT',
+    headline: `${company} — trial offer texted`,
+    sub: `Triggered by: ${esc(triggeredBy)}`,
+    bodyContent: `
+      <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:20px;">
+        ${infoRow('Contractor', company, true)}
+        ${infoRow('Jobs booked', String(jobCount))}
+        ${infoRow('Days live', String(daysLive))}
+        ${infoRow('Offer', esc(priceLine))}
+      </table>
+      ${calloutBox(
+        'No Stripe integration exists yet — if they reply YES, you\'ll need to follow up and collect payment manually until STEP 3 is built.',
+        '#eff6ff', '#6366f1', '#3730a3'
+      )}
+      ${ctaBtn(APP_URL + '/admin', 'Open Admin Dashboard')}
+    `,
+  });
+
+  await sendEmail(adminTo, `💬 ${company} — trial offer sent`, html);
+}
+
 // ── Brain 3 booking confirmation email ────────────────────────────────────────
 // Sent when a homeowner optionally provides their email after Brain 3 books them via SMS.
 async function sendBrain3BookingConfirmation({ to, name, businessName, date, time, address }) {
@@ -1139,4 +1204,4 @@ async function sendWaitlistSignupAlert({ businessName, phone, acquisitionSource 
   return sendEmail(ADMIN_EMAIL, `[Waitlist] ${businessName} | ${BRAND}`, html);
 }
 
-module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset, sendDirectBookingConfirmation, sendDirectBookingContractorAlert, sendOnboardingNudge, sendContractorWelcomeEmail, sendDeployAlertToAdmin, sendTrialBookingAlertToJose, sendTrialSilenceAlertToJose, sendBrain3BookingConfirmation, sendWaitlistSignupAlert };
+module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset, sendDirectBookingConfirmation, sendDirectBookingContractorAlert, sendOnboardingNudge, sendContractorWelcomeEmail, sendDeployAlertToAdmin, sendTrialBookingAlertToJose, sendTrialSilenceAlertToJose, sendTrialBucketNeededAlertToJose, sendTrialOfferSentNoticeToJose, sendBrain3BookingConfirmation, sendWaitlistSignupAlert };
