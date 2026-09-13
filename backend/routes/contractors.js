@@ -8,16 +8,20 @@ const router = express.Router();
 
 // ── List all contractors (admin) ──────────────────────────────────────────────
 router.get('/', requireAdmin, async (req, res) => {
+  // SELECT c.* — same reasoning as the single-contractor route below: closes off
+  // the "new column added but not added to this SELECT" bug class for good.
   const contractors = await db.prepare(`
-    SELECT c.id, c.email, c.name, c.phone, c.company_name, c.niche_id,
-           c.service_zip_codes, c.google_calendar_id, c.is_active, c.created_at,
-           c.service_radius_miles, c.max_appointments_per_day, c.applied_at, c.declined_at,
-           c.twilio_number, c.business_phone, c.address, c.requested_niche_text,
-           n.name as niche_name
+    SELECT c.*, n.name as niche_name
     FROM contractors c
     LEFT JOIN niches n ON c.niche_id = n.id
     ORDER BY c.created_at DESC
   `).all();
+  contractors.forEach(c => {
+    delete c.password_hash;
+    delete c.google_refresh_token;
+    delete c.reset_token;
+    delete c.reset_token_expires;
+  });
   res.json(contractors);
 });
 
@@ -70,18 +74,27 @@ router.get('/:id', requireContractor, async (req, res) => {
   if (req.user.role !== 'admin' && req.user.id !== id) {
     return res.status(403).json({ error: 'Access denied' });
   }
+  // SELECT c.* (not an explicit column list) is deliberate here — this app has a
+  // recurring bug class where a new column gets added to the contractors table but
+  // never added to every route's SELECT list, so it silently never reaches the admin
+  // dashboard, the admin brain, or the contractor portal until someone notices by hand
+  // (e.g. fwd_test_result/fwd_test_completed_at were invisible here even though the
+  // forwarding-test feature had been live for weeks). SELECT * means any future column
+  // is automatically visible everywhere this row is read, with no route change needed.
+  // Only true secrets are stripped below before the row is ever sent to a client.
   const contractor = await db.prepare(`
-    SELECT c.id, c.email, c.name, c.phone, c.company_name, c.niche_id,
-           c.service_zip_codes, c.google_calendar_id, c.is_active, c.created_at,
-           c.service_radius_miles, c.max_appointments_per_day,
-           c.twilio_number, c.business_phone, c.onboarding_steps, c.booking_slug,
-           c.place_id, c.twilio_test_call_at, c.city, c.address,
-           n.name as niche_name
+    SELECT c.*, n.name as niche_name
     FROM contractors c
     LEFT JOIN niches n ON c.niche_id = n.id
     WHERE c.id = $1
   `).get(id);
   if (!contractor) return res.status(404).json({ error: 'Contractor not found' });
+
+  delete contractor.password_hash;
+  delete contractor.google_refresh_token;
+  delete contractor.reset_token;
+  delete contractor.reset_token_expires;
+
   res.json(contractor);
 });
 

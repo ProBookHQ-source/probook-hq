@@ -19,8 +19,8 @@ BASE="https://tractifyhq.com"
 ADMIN_EMAIL="${ADMIN_EMAIL:-ayc98223@gmail.com}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-Manufacturing100}"
 CONTRACTOR_ID="83616d26-bf60-4ecb-8b9c-17159cff42a7"
-PHONE_A="+12065550399"
-PHONE_B="+12065550412"
+PHONE_A="+12065550398"
+PHONE_B="+12065550413"
 
 echo "== Logging in as admin =="
 TOKEN=$(curl -s -X POST "$BASE/api/auth/admin/login" \

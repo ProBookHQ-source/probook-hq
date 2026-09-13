@@ -65,10 +65,13 @@ router.post('/', requireAdmin, async (req, res) => {
   ] = await Promise.all([
     db.query(`
       SELECT
-        c.id, c.name, c.company_name, c.email, c.phone, c.city,
+        c.id, c.name, c.company_name, c.email, c.phone, c.business_phone, c.city,
         c.is_active, c.status, c.twilio_number, c.booking_slug,
         c.onboarding_steps, c.acquisition_source, c.place_id,
         c.onboarding_started_at, c.created_at,
+        c.twilio_test_call_at, c.fwd_test_started_at, c.fwd_test_result, c.fwd_test_completed_at,
+        c.sms_welcome_sent, c.sms_power_message_sent, c.sms_calendar_training_sent, c.sms_capabilities_sent,
+        c.trial_silence_alert_sent_at, c.payment_status,
         COUNT(a.id) FILTER (WHERE a.status != 'cancelled') as total_bookings,
         COUNT(a.id) FILTER (WHERE a.status = 'confirmed' AND a.scheduled_date >= $1) as upcoming_bookings,
         MAX(a.created_at) as last_booking_at
