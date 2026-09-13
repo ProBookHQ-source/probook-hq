@@ -62,22 +62,31 @@ router.post('/', requireAdmin, async (req, res) => {
     acquisitionSourcesResult,
     brainContextResult,
     contentPerfResult,
+    homeownerSessionStateResult,
+    recentHomeownerSessionsResult,
+    unmatchedLeadsResult,
   ] = await Promise.all([
     db.query(`
       SELECT
-        c.id, c.name, c.company_name, c.email, c.phone, c.business_phone, c.city,
+        c.id, c.name, c.company_name, c.email, c.phone, c.business_phone, c.city, c.address,
         c.is_active, c.status, c.twilio_number, c.booking_slug,
         c.onboarding_steps, c.acquisition_source, c.place_id,
-        c.onboarding_started_at, c.created_at,
+        c.onboarding_started_at, c.created_at, c.last_setup_sms_at,
         c.twilio_test_call_at, c.fwd_test_started_at, c.fwd_test_result, c.fwd_test_completed_at,
         c.sms_welcome_sent, c.sms_power_message_sent, c.sms_calendar_training_sent, c.sms_capabilities_sent,
         c.trial_silence_alert_sent_at, c.payment_status,
+        c.service_zip_codes, c.service_radius_miles, c.max_appointments_per_day,
+        c.requested_niche_text, n.name as niche_name,
         COUNT(a.id) FILTER (WHERE a.status != 'cancelled') as total_bookings,
         COUNT(a.id) FILTER (WHERE a.status = 'confirmed' AND a.scheduled_date >= $1) as upcoming_bookings,
+        COUNT(a.id) FILTER (WHERE a.did_close = 1) as closed_jobs,
+        COUNT(a.id) FILTER (WHERE a.status = 'completed' AND a.did_close IS NULL) as unlogged_completed,
+        COALESCE(SUM(a.closed_value) FILTER (WHERE a.did_close = 1), 0) as revenue_generated,
         MAX(a.created_at) as last_booking_at
       FROM contractors c
+      LEFT JOIN niches n ON c.niche_id = n.id
       LEFT JOIN appointments a ON a.contractor_id = c.id
-      GROUP BY c.id
+      GROUP BY c.id, n.name
       ORDER BY c.created_at DESC
     `, [today]),
 
@@ -95,6 +104,7 @@ router.post('/', requireAdmin, async (req, res) => {
 
     db.query(`
       SELECT a.id, a.scheduled_date, a.scheduled_time, a.status, a.booking_source, a.created_at,
+             a.did_close, a.closed_value,
              c.company_name, c.name as contractor_name,
              l.name as lead_name, l.phone as lead_phone, l.zip_code
       FROM appointments a
@@ -109,7 +119,9 @@ router.post('/', requireAdmin, async (req, res) => {
              COUNT(a.id) FILTER (WHERE a.status = 'confirmed') as confirmed,
              COUNT(a.id) FILTER (WHERE a.status = 'completed') as completed,
              COUNT(a.id) FILTER (WHERE a.status = 'cancelled') as cancelled,
-             COUNT(a.id) FILTER (WHERE a.status != 'cancelled') as total
+             COUNT(a.id) FILTER (WHERE a.status != 'cancelled') as total,
+             COUNT(a.id) FILTER (WHERE a.did_close = 1) as closed_jobs,
+             COALESCE(SUM(a.closed_value) FILTER (WHERE a.did_close = 1), 0) as revenue_generated
       FROM contractors c
       LEFT JOIN appointments a ON a.contractor_id = c.id
       WHERE c.is_active = 1
@@ -151,6 +163,42 @@ router.post('/', requireAdmin, async (req, res) => {
       GROUP BY COALESCE(c.acquisition_source, 'direct/unknown')
       ORDER BY total_bookings DESC, signups DESC
     `),
+
+    // Homeowner side (Brain 3) — state distribution across all sessions in the last 30d.
+    // This table had ZERO visibility to the admin brain before this fix — the brain
+    // could see contractor-side onboarding progress but nothing about what's actually
+    // happening on real homeowner conversations.
+    db.query(`
+      SELECT state, COUNT(*) as count,
+             COUNT(*) FILTER (WHERE updated_at >= NOW() - INTERVAL '24 hours') as last_24h
+      FROM homeowner_sms_sessions
+      WHERE created_at >= $1
+      GROUP BY state
+      ORDER BY count DESC
+    `, [thirtyDaysAgo]),
+
+    // Most recent 20 homeowner sessions with full detail, for troubleshooting a specific
+    // report ("a homeowner said X, what actually happened in their conversation").
+    db.query(`
+      SELECT s.id, s.phone, s.state, s.name, s.address, s.service_description,
+             s.created_at, s.updated_at,
+             c.company_name, c.name as contractor_name
+      FROM homeowner_sms_sessions s
+      LEFT JOIN contractors c ON s.contractor_id = c.id
+      ORDER BY s.updated_at DESC
+      LIMIT 20
+    `),
+
+    // Unmatched leads — leads sitting with no contractor assigned. The old query only
+    // ever showed status COUNTS, never which specific leads these are, so the brain
+    // had no way to flag a real routing failure to Jose.
+    db.query(`
+      SELECT id, name, phone, email, niche_id, zip_code, address, status, created_at
+      FROM leads
+      WHERE assigned_contractor_id IS NULL AND created_at >= $1
+      ORDER BY created_at DESC
+      LIMIT 20
+    `, [thirtyDaysAgo]),
   ]);
 
   const contractors = contractorsResult.rows;
@@ -161,6 +209,9 @@ router.post('/', requireAdmin, async (req, res) => {
   const acqSources = acquisitionSourcesResult.rows;
   const brainLog = brainContextResult.rows;
   const contentPerf = contentPerfResult.rows;
+  const homeownerSessionStates = homeownerSessionStateResult.rows;
+  const recentHomeownerSessions = recentHomeownerSessionsResult.rows;
+  const unmatchedLeads = unmatchedLeadsResult.rows;
 
   // ── Build context strings ─────────────────────────────────────────────────
   const CHECKLIST_KEYS = ['availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers', 'messenger'];
@@ -178,8 +229,13 @@ router.post('/', requireAdmin, async (req, res) => {
     const city = c.city ? ` (${c.city})` : '';
     const status = c.is_active == 1 ? 'ACTIVE' : 'PENDING';
     const twilio = c.twilio_number ? ` | Twilio: ${c.twilio_number}` : ' | No Twilio';
-    return `  [ID: ${c.id}] ${status} | ${c.company_name || c.name}${city}${src} | ${steps}/7 steps | ${c.total_bookings || 0} bookings${twilio} | deployed ${daysSince(c.created_at)}d ago`;
+    const niche = c.niche_name ? ` | ${c.niche_name}` : c.requested_niche_text ? ` | ⚠️ NEEDS NICHE REVIEW ("${c.requested_niche_text}")` : ' | No niche';
+    const revenue = parseFloat(c.revenue_generated || 0) > 0 ? ` | $${c.revenue_generated} revenue logged (${c.closed_jobs} closed)` : '';
+    const unlogged = parseInt(c.unlogged_completed || 0) > 0 ? ` | ${c.unlogged_completed} completed jobs never logged` : '';
+    return `  [ID: ${c.id}] ${status} | ${c.company_name || c.name}${city}${niche}${src} | ${steps}/7 steps | ${c.total_bookings || 0} bookings${twilio} | deployed ${daysSince(c.created_at)}d ago${revenue}${unlogged}`;
   });
+
+  const nicheReviewNeeded = contractors.filter(c => c.requested_niche_text);
 
   const stalledContractors = activeContractors.filter(c => {
     const steps = stepsCompleted(c.onboarding_steps);
@@ -218,10 +274,23 @@ ${stalledContractors.length ? stalledContractors.map(c => `  ⚠️  [${c.id}] $
 ${bookingsBySource.map(r => `  ${r.source}: ${r.total} bookings${r.avg_hours_to_book ? `, avg ${r.avg_hours_to_book}h` : ''}`).join('\n') || '  No data yet'}
 
 === RECENT BOOKINGS (last 7d) ===
-${recentBookings.map(b => `  [${b.id}] ${b.company_name || b.contractor_name} — ${b.lead_name || 'direct'} | ${b.scheduled_date} | src: ${b.booking_source || 'unknown'}`).join('\n') || '  None'}
+${recentBookings.map(b => `  [${b.id}] ${b.company_name || b.contractor_name} — ${b.lead_name || 'direct'} | ${b.scheduled_date} | src: ${b.booking_source || 'unknown'}${b.did_close === 1 ? ` | CLOSED $${b.closed_value}` : b.did_close === 0 ? ' | did not close' : ''}`).join('\n') || '  None'}
 
 === ALL-TIME BY CONTRACTOR ===
-${apptsByContractor.map(r => `  [${r.id}] ${r.company_name || r.contractor_name}: ${r.total} total | ${r.confirmed} confirmed | ${r.completed} completed`).join('\n') || '  None'}
+${apptsByContractor.map(r => `  [${r.id}] ${r.company_name || r.contractor_name}: ${r.total} total | ${r.confirmed} confirmed | ${r.completed} completed | ${r.closed_jobs} logged closed | $${r.revenue_generated} revenue logged`).join('\n') || '  None'}
+
+=== NICHE REVIEW NEEDED (picked "Something else" on intake, awaiting manual niche assignment) ===
+${nicheReviewNeeded.length ? nicheReviewNeeded.map(c => `  ⚠️  [${c.id}] ${c.company_name || c.name}: "${c.requested_niche_text}"`).join('\n') : '  None'}
+
+=== UNMATCHED LEADS (no contractor assigned — last 30d, possible routing failure) ===
+${unmatchedLeads.length ? unmatchedLeads.map(l => `  ⚠️  [${l.id}] ${l.name || 'unnamed'} (${l.phone || 'no phone'}) | zip: ${l.zip_code || 'none'} | status: ${l.status} | ${daysSince(l.created_at)}d ago`).join('\n') : '  None'}
+
+=== HOMEOWNER SESSIONS — BRAIN 3 (last 30d, by state) ===
+${homeownerSessionStates.length ? homeownerSessionStates.map(s => `  ${s.state}: ${s.count} total (${s.last_24h} in last 24h)`).join('\n') : '  None yet'}
+NOTE: "confirmed"/"ended" are normal completed states. Anything else (awaiting_address, awaiting_service, awaiting_slot, out_of_area, etc) that's accumulating with no recent activity means homeowners are dropping off mid-conversation at that exact step — worth investigating if one state has an unusually high count.
+
+=== RECENT HOMEOWNER SESSIONS (last 20, for troubleshooting a specific report) ===
+${recentHomeownerSessions.length ? recentHomeownerSessions.map(s => `  [${s.id}] ${s.company_name || s.contractor_name || 'unknown contractor'} | ${s.phone} | state: ${s.state} | ${s.name || 'no name'} @ ${s.address || 'no address'} | "${s.service_description || 'no service yet'}" | updated ${daysSince(s.updated_at)}d ago`).join('\n') : '  None yet'}
 
 === ACQUISITION SOURCES ===
 ${acqSources.map(r => `  ${r.source}: ${r.contractors} signed up, ${r.active} active`).join('\n') || '  None — tag intake URLs with ?src='}
