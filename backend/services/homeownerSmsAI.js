@@ -19,6 +19,7 @@ const zipcodes = require('zipcodes');
 const db     = require('../database/db');
 const { getRelevantKnowledge } = require('./diagnosticKnowledge');
 const { extractZip, isValidZip } = require('./addressUtils');
+const { getLocalNow, resolveContractorTimezone } = require('./timezone');
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MAX_CHARS = 320;
@@ -820,26 +821,6 @@ async function callClaude(messages, tools, system) {
 // not billing-grade). Split-timezone states are approximated to their
 // majority-population zone, which is precise enough for a 30-minute
 // same-day buffer.
-const STATE_TIMEZONE = {
-  AL: 'America/Chicago', AK: 'America/Anchorage', AZ: 'America/Phoenix',
-  AR: 'America/Chicago', CA: 'America/Los_Angeles', CO: 'America/Denver',
-  CT: 'America/New_York', DE: 'America/New_York', FL: 'America/New_York',
-  GA: 'America/New_York', HI: 'Pacific/Honolulu', ID: 'America/Denver',
-  IL: 'America/Chicago', IN: 'America/New_York', IA: 'America/Chicago',
-  KS: 'America/Chicago', KY: 'America/New_York', LA: 'America/Chicago',
-  ME: 'America/New_York', MD: 'America/New_York', MA: 'America/New_York',
-  MI: 'America/New_York', MN: 'America/Chicago', MS: 'America/Chicago',
-  MO: 'America/Chicago', MT: 'America/Denver', NE: 'America/Chicago',
-  NV: 'America/Los_Angeles', NH: 'America/New_York', NJ: 'America/New_York',
-  NM: 'America/Denver', NY: 'America/New_York', NC: 'America/New_York',
-  ND: 'America/Chicago', OH: 'America/New_York', OK: 'America/Chicago',
-  OR: 'America/Los_Angeles', PA: 'America/New_York', RI: 'America/New_York',
-  SC: 'America/New_York', SD: 'America/Chicago', TN: 'America/Chicago',
-  TX: 'America/Chicago', UT: 'America/Denver', VT: 'America/New_York',
-  VA: 'America/New_York', WA: 'America/Los_Angeles', WV: 'America/New_York',
-  WI: 'America/Chicago', WY: 'America/Denver', DC: 'America/New_York',
-};
-
 // Task #100 — "come-to-us" niches (the homeowner travels to the business —
 // window tinting, auto detailing) vs dispatch niches (a tech travels to the
 // homeowner — everything currently active: HVAC, plumbing, electrical, etc).
@@ -852,37 +833,15 @@ function isComeToUsNiche(nicheName) {
   return COME_TO_US_NICHES.has(String(nicheName || '').toLowerCase().trim());
 }
 
-function getContractorTimezone(contractorAddress) {
-  try {
-    const zip = extractZip(contractorAddress);
-    const info = zip ? zipcodes.lookup(zip) : null;
-    return (info?.state && STATE_TIMEZONE[info.state]) || 'America/Los_Angeles';
-  } catch (e) {
-    return 'America/Los_Angeles';
-  }
-}
-
-// Returns { dateStr: 'YYYY-MM-DD', minutes } for "right now" in the
-// contractor's approximate local timezone.
-function getContractorNow(contractorAddress) {
-  const tz = getContractorTimezone(contractorAddress);
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', hour12: false,
-    }).formatToParts(new Date());
-    const get = t => parts.find(p => p.type === t)?.value;
-    const dateStr = `${get('year')}-${get('month')}-${get('day')}`;
-    let hour = parseInt(get('hour'), 10);
-    if (hour === 24) hour = 0; // some ICU builds return "24" for midnight with hour12:false
-    return { dateStr, minutes: hour * 60 + parseInt(get('minute'), 10) };
-  } catch (e) {
-    // Intl/timezone data unavailable in this Node build — fail safe to UTC
-    // rather than crashing the whole booking flow over a display detail.
-    console.warn('[BRAIN3] getContractorNow: Intl timezone lookup failed, falling back to UTC:', e.message);
-    const now = new Date();
-    return { dateStr: now.toISOString().slice(0, 10), minutes: now.getUTCHours() * 60 + now.getUTCMinutes() };
-  }
+// Session 34/35 (Sept 13) — the zip→state→IANA approximation that used to
+// live here (STATE_TIMEZONE + a private getContractorTimezone) is now shared
+// with cron.js and contractorSignup.js via services/timezone.js, so all three
+// stay in sync instead of drifting into three separate copies. Kept the same
+// function name/signature here (address string in, {dateStr, minutes} out)
+// so every existing call site below is unaffected. Now also prefers a real
+// contractor.timezone when one is passed in — see resolveContractorTimezone.
+function getContractorNow(contractorOrAddress) {
+  return getLocalNow(contractorOrAddress);
 }
 
 async function getOpenSlots(contractorId) {
@@ -891,11 +850,11 @@ async function getOpenSlots(contractorId) {
   // single-row lookup, not worth changing every call site's signature just
   // to thread a contractor object through.
   const { rows: ctrRows } = await db.query(
-    `SELECT c.address, n.name AS niche_name FROM contractors c LEFT JOIN niches n ON c.niche_id = n.id WHERE c.id = $1`,
+    `SELECT c.address, c.timezone, n.name AS niche_name FROM contractors c LEFT JOIN niches n ON c.niche_id = n.id WHERE c.id = $1`,
     [contractorId]
   );
   const ctrRow = ctrRows[0] || {};
-  const { dateStr: todayStr, minutes: nowMinutes } = getContractorNow(ctrRow.address);
+  const { dateStr: todayStr, minutes: nowMinutes } = getContractorNow(ctrRow);
 
   // Task #110 — live-caught (Shyla, Sun Sep 6 10:00 AM booked but invisible on
   // the Calendar tab even after a hard refresh + correct week navigation).
@@ -1187,7 +1146,7 @@ function withHomeownerQueue(phone, contractorId, fn) {
 async function handleHomeownerSmsInner(phone, contractorId, incomingText, session) {
   const contractor = await db.prepare(
     `SELECT c.id, c.name, c.company_name, c.niche_id, c.phone, c.twilio_number,
-            c.service_zip_codes, c.service_radius_miles, c.address, c.max_appointments_per_day,
+            c.service_zip_codes, c.service_radius_miles, c.address, c.timezone, c.max_appointments_per_day,
             n.name AS niche_name
      FROM contractors c
      LEFT JOIN niches n ON n.id = c.niche_id
@@ -1857,7 +1816,7 @@ async function handleSlotPick(session, contractor, businessName, text) {
       // no acknowledgment she asked for a completely different day.
       if (askedDow === null) {
         try {
-          const { dateStr: todayStr } = getContractorNow(contractor.address);
+          const { dateStr: todayStr } = getContractorNow(contractor);
           const explicitDate = resolveExplicitDateFromText(pick, todayStr);
           if (explicitDate) {
             const freshSlots = await getOpenSlots(contractor.id);

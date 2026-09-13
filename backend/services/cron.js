@@ -10,22 +10,29 @@ const cron = require('node-cron');
 const db = require('../database/db');
 const notifications = require('./notifications');
 const { logEvent } = require('./auditLog');
+const { getLocalNow, resolveContractorTimezone, timeStrToMinutes, daysBetweenDateStrings } = require('./timezone');
 
 // ── Appointment reminders ─────────────────────────────────────────────────────
 // Runs every hour at :00. Finds confirmed appointments happening tomorrow
 // (within the next 24–25 hours) that haven't had a reminder sent yet.
+//
+// Session 34/35 (Sept 13) — rewritten to be timezone-aware, same live-caught
+// bug class as the post-job/morning-of crons below: the old version built its
+// 23h/25h window from the SERVER's own UTC clock (`new Date().toISOString()`)
+// and compared it directly against `scheduled_date`/`scheduled_time`, which
+// are stored as plain strings meant to be read in the CONTRACTOR's local
+// timezone — a mismatch of several hours depending on the server's actual
+// clock and the contractor's real timezone. Now fetches a broad 3-day
+// candidate window (wide enough to cover any US timezone offset either
+// direction of the server's UTC date) and does the real 23–25h check per
+// appointment using the contractor's stored timezone.
 cron.schedule('0 * * * *', async () => {
   console.log('⏰ [cron] Running appointment reminder check…');
   try {
-    // Window: 23h from now → 25h from now (catches appointments in the "tomorrow" zone)
-    const windowStart = new Date(Date.now() + 23 * 3600 * 1000).toISOString();
-    const windowEnd   = new Date(Date.now() + 25 * 3600 * 1000).toISOString();
-
-    // Build date strings for the query — appointments use TEXT dates + times
-    const startDate = windowStart.slice(0, 10);
-    const endDate   = windowEnd.slice(0, 10);
-    const startTime = windowStart.slice(11, 16); // HH:MM
-    const endTime   = windowEnd.slice(11, 16);
+    const todayUTC = new Date().toISOString().slice(0, 10);
+    const [ty, tm, td] = todayUTC.split('-').map(Number);
+    const dayBefore = new Date(Date.UTC(ty, tm - 1, td - 1)).toISOString().slice(0, 10);
+    const dayAfter  = new Date(Date.UTC(ty, tm - 1, td + 1)).toISOString().slice(0, 10);
 
     const { rows: appointments } = await db.query(`
       SELECT
@@ -33,23 +40,14 @@ cron.schedule('0 * * * *', async () => {
         a.cancel_token, a.reschedule_token,
         l.name  AS lead_name,  l.email AS lead_email,  l.phone AS lead_phone,
         c.name  AS contractor_name, c.email AS contractor_email,
-        c.company_name
+        c.company_name, c.address, c.timezone
       FROM appointments a
       JOIN leads l       ON a.lead_id = l.id
       JOIN contractors c ON a.contractor_id = c.id
       WHERE a.status = 'confirmed'
         AND a.reminder_sent_at IS NULL
-        AND (
-          -- Same date: filter by time window
-          (a.scheduled_date = $1 AND a.scheduled_time >= $3)
-          OR
-          -- Next date: filter by time window
-          (a.scheduled_date = $2 AND a.scheduled_time <= $4)
-          OR
-          -- If start and end are the same date
-          (a.scheduled_date = $1 AND $1 = $2)
-        )
-    `, [startDate, endDate, startTime, endTime]);
+        AND a.scheduled_date IN ($1, $2, $3)
+    `, [dayBefore, todayUTC, dayAfter]);
 
     if (!appointments.length) {
       console.log('⏰ [cron] No reminders to send');
@@ -58,6 +56,15 @@ cron.schedule('0 * * * *', async () => {
 
     for (const appt of appointments) {
       try {
+        const tz = resolveContractorTimezone(appt);
+        const { dateStr: localToday, minutes: nowMinutes } = getLocalNow(tz);
+        const apptMinutes = timeStrToMinutes(appt.scheduled_time);
+        if (apptMinutes === null) continue;
+        const dayDiff = daysBetweenDateStrings(localToday, appt.scheduled_date);
+        const minutesUntil = dayDiff * 1440 + (apptMinutes - nowMinutes);
+        // 23h–25h window, same as the original design intent
+        if (minutesUntil < 23 * 60 || minutesUntil > 25 * 60) continue;
+
         await notifications.sendAppointmentReminder(appt);
         await db.prepare('UPDATE appointments SET reminder_sent_at = NOW() WHERE id = $1').run(appt.id);
         if (appt.lead_id) {
@@ -216,12 +223,21 @@ cron.schedule('0 */6 * * *', async () => {
 });
 
 // ── 21-day trial heads-up ─────────────────────────────────────────────────────
-// Added session 34/35 (Sept 13) — CLAUDE.md STEP 2e. Runs once daily at noon.
-// Finds trial contractors who are 18+ days live, still under 5 non-cancelled
-// bookings, and haven't already gotten the heads-up — sends the soft "just
-// keeping you in the loop" text so the day-21 offer never feels sudden.
-// trial_heads_up_sent_at guards against sending it twice.
-cron.schedule('0 12 * * *', async () => {
+// Added session 34/35 (Sept 13) — CLAUDE.md STEP 2e. Finds trial contractors
+// who are 18+ days live, still under 5 non-cancelled bookings, and haven't
+// already gotten the heads-up — sends the soft "just keeping you in the
+// loop" text so the day-21 offer never feels sudden. trial_heads_up_sent_at
+// guards against sending it twice.
+//
+// Originally scheduled '0 12 * * *' (once daily at server-clock noon) — fixed
+// same session as the post-job/morning-of timezone bug below, before this
+// ever ran against a real contractor: server noon is not the contractor's
+// local noon, so this would have sent the heads-up at whatever odd local
+// hour the server's own clock happened to map to for that contractor. Now
+// runs hourly and only sends once the contractor's own local clock reads a
+// reasonable daytime hour (9 AM–6 PM) — trial_heads_up_sent_at still only
+// lets it fire once, so this doesn't need to be a tight minute-level window.
+cron.schedule('0 * * * *', async () => {
   if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return;
 
   try {
@@ -250,6 +266,9 @@ cron.schedule('0 12 * * *', async () => {
 
     for (const contractor of candidates) {
       try {
+        const { minutes: nowMinutes } = getLocalNow(resolveContractorTimezone(contractor));
+        if (nowMinutes < 9 * 60 || nowMinutes > 18 * 60) continue;
+
         await sendTrialHeadsUpText(contractor, parseInt(contractor.job_count, 10), twilioClient);
         console.log(`⏰ [cron] Trial heads-up sent — ${contractor.name} (${contractor.job_count}/5 jobs, 18+ days live)`);
       } catch (err) {
@@ -346,31 +365,40 @@ cron.schedule('0 */2 * * *', async () => {
 // Runs hourly at :45. Finds confirmed appointments that ended 30-90 minutes ago
 // with no outcome logged yet and a contractor with an active Twilio number.
 // Texts the contractor: "How'd it go? Did the job close? Reply YES $amount or NO."
+//
+// Session 34/35 (Sept 13) — REWRITTEN after a real live-caught bug, reported
+// directly by Jose: a Pacific-timezone contractor with a 10:00 AM appointment
+// got this "how'd the 10am job go?" text at ~7:30 AM — 3 hours before the job
+// even happened. Root cause: `windowStart.getHours()`/`getMinutes()` return
+// the Node PROCESS's own local wall-clock time (whatever timezone the server
+// container happens to be running in — effectively Eastern here), not UTC and
+// not the contractor's timezone, then that gets compared directly against
+// `scheduled_time`, which is a plain string meant to be read in the
+// CONTRACTOR's own local time. Two different clocks being compared as if
+// they were the same one. Fixed by fetching a broad 2-day candidate window
+// (covers any US timezone either side of the server's UTC date) and doing
+// the real 30-90-minutes-ago check per appointment using the contractor's
+// stored timezone (contractors.timezone, added this same session — falls
+// back to deriving one from the address for contractors created before that
+// column existed).
 cron.schedule('45 * * * *', async () => {
   if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return;
 
   try {
-    const now = new Date();
-    // Window: 30-90 minutes ago
-    const windowStart = new Date(now - 90 * 60 * 1000);
-    const windowEnd   = new Date(now - 30 * 60 * 1000);
-
-    // Convert to date + time strings for comparison (appointments store TEXT dates/times)
-    const checkDate  = windowEnd.toISOString().slice(0, 10);
-    const checkStart = `${String(windowStart.getHours()).padStart(2, '0')}:${String(windowStart.getMinutes()).padStart(2, '0')}`;
-    const checkEnd   = `${String(windowEnd.getHours()).padStart(2, '0')}:${String(windowEnd.getMinutes()).padStart(2, '0')}`;
+    const todayUTC = new Date().toISOString().slice(0, 10);
+    const [ty, tm, td] = todayUTC.split('-').map(Number);
+    const dayBefore = new Date(Date.UTC(ty, tm - 1, td - 1)).toISOString().slice(0, 10);
 
     const { rows: appts } = await db.query(`
       SELECT a.id, a.scheduled_date, a.scheduled_time, a.status,
              l.name as lead_name,
              c.id as contractor_id, c.name as contractor_name, c.phone as contractor_phone,
-             c.company_name, c.twilio_number, c.booking_slug, c.sms_welcome_sent
+             c.company_name, c.twilio_number, c.booking_slug, c.sms_welcome_sent,
+             c.address, c.timezone
       FROM appointments a
       LEFT JOIN leads l ON a.lead_id = l.id
       JOIN contractors c ON a.contractor_id = c.id
-      WHERE a.scheduled_date = $1
-        AND a.scheduled_time >= $2
-        AND a.scheduled_time <= $3
+      WHERE a.scheduled_date IN ($1, $2)
         AND a.status IN ('confirmed', 'pending')
         AND a.did_close IS NULL
         AND a.post_job_sms_sent_at IS NULL
@@ -378,7 +406,7 @@ cron.schedule('45 * * * *', async () => {
         AND c.twilio_number IS NOT NULL
         AND c.phone IS NOT NULL
         AND c.sms_welcome_sent = 1
-    `, [checkDate, checkStart, checkEnd]);
+    `, [dayBefore, todayUTC]);
 
     if (!appts.length) return;
 
@@ -388,6 +416,13 @@ cron.schedule('45 * * * *', async () => {
 
     for (const appt of appts) {
       try {
+        const tz = resolveContractorTimezone(appt);
+        const { dateStr: localToday, minutes: nowMinutes } = getLocalNow(tz);
+        const apptMinutes = timeStrToMinutes(appt.scheduled_time);
+        if (apptMinutes === null || appt.scheduled_date !== localToday) continue;
+        const elapsed = nowMinutes - apptMinutes;
+        if (elapsed < 30 || elapsed > 90) continue;
+
         const contractor = {
           id: appt.contractor_id,
           name: appt.contractor_name,
@@ -408,29 +443,41 @@ cron.schedule('45 * * * *', async () => {
 });
 
 // ── Morning-of confirmation SMS ───────────────────────────────────────────────
-// Runs at 7:30 AM daily. Texts homeowners whose appointment is TODAY so they
-// can confirm or cancel early. Reply CANCEL cancels and triggers a rebook.
-// Uses pre_appt_sms_sent_at to prevent duplicate sends.
-cron.schedule('30 7 * * *', async () => {
+// Texts homeowners whose appointment is TODAY (in the CONTRACTOR's own local
+// time) so they can confirm or cancel early. Reply CANCEL cancels and
+// triggers a rebook. Uses pre_appt_sms_sent_at to prevent duplicate sends.
+//
+// Session 34/35 (Sept 13) — REWRITTEN, same live-caught timezone bug as the
+// post-job cron above: this used to run once at a fixed server-clock 7:30
+// and match purely on the server's UTC date, so a contractor outside the
+// server's own timezone got this text at the wrong LOCAL hour entirely (and,
+// near a UTC midnight boundary, could match the wrong calendar day too).
+// Now runs every 15 minutes and only sends to a contractor whose *local*
+// clock is currently in the 7:15–7:30 AM window, checked against that
+// contractor's real local date.
+cron.schedule('*/15 * * * *', async () => {
   if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return;
 
   try {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayUTC = new Date().toISOString().slice(0, 10);
+    const [ty, tm, td] = todayUTC.split('-').map(Number);
+    const dayBefore = new Date(Date.UTC(ty, tm - 1, td - 1)).toISOString().slice(0, 10);
+    const dayAfter  = new Date(Date.UTC(ty, tm - 1, td + 1)).toISOString().slice(0, 10);
 
     const { rows: appts } = await db.query(`
       SELECT a.id, a.scheduled_date, a.scheduled_time,
              l.name AS lead_name, l.phone AS lead_phone, l.id AS lead_id,
              c.id AS contractor_id, c.company_name, c.name AS contractor_name,
-             c.twilio_number
+             c.twilio_number, c.address, c.timezone
       FROM appointments a
       JOIN leads l       ON a.lead_id = l.id
       JOIN contractors c ON a.contractor_id = c.id
-      WHERE a.scheduled_date = $1
+      WHERE a.scheduled_date IN ($1, $2, $3)
         AND a.status = 'confirmed'
         AND a.pre_appt_sms_sent_at IS NULL
         AND l.phone IS NOT NULL
         AND c.twilio_number IS NOT NULL
-    `, [todayStr]);
+    `, [dayBefore, todayUTC, dayAfter]);
 
     if (!appts.length) return;
 
@@ -439,6 +486,13 @@ cron.schedule('30 7 * * *', async () => {
 
     for (const appt of appts) {
       try {
+        const tz = resolveContractorTimezone(appt);
+        const { dateStr: localToday, minutes: nowMinutes } = getLocalNow(tz);
+        // 7:15–7:30 AM local window (15-min cadence, inclusive both ends so
+        // no run can skip past it under normal clock drift).
+        if (nowMinutes < 7 * 60 + 15 || nowMinutes > 7 * 60 + 30) continue;
+        if (appt.scheduled_date !== localToday) continue;
+
         const firstName = appt.lead_name ? appt.lead_name.split(' ')[0] : null;
         const business  = appt.company_name || appt.contractor_name;
         const greeting  = firstName ? `Hey ${firstName}! ` : 'Hey! ';

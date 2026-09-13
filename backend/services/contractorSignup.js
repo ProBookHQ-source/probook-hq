@@ -21,6 +21,7 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../database/db');
 const { sendDeployAlertToAdmin } = require('./notifications');
 const { resolveBucketForNiche } = require('./pricingBuckets');
+const { resolveTimezoneFromAddress } = require('./timezone');
 
 // ── Slug generator — "Premier Comfort HVAC" → "premiercomforthvac" ────────────
 // No website hangs off this anymore, but booking_slug is still used elsewhere
@@ -215,12 +216,21 @@ async function createContractorAccount(data) {
   // fallback already used elsewhere in this codebase.
   const zips = JSON.stringify(['*']);
 
+  // ── Timezone — added session 34/35 (Sept 13), same live-caught bug that
+  // prompted contractors.timezone to exist at all (see the migration comment
+  // in server.js): computed once here from the real business address, so
+  // every cron.js SMS-timing job reads a fast column instead of re-deriving
+  // it from the address on every tick. Approximate (zip→state→IANA), not
+  // billing-grade — see services/timezone.js's own header for the full
+  // reasoning and the split-timezone-state caveat.
+  const timezone = resolveTimezoneFromAddress(data.address);
+
   await db.query(`
     INSERT INTO contractors
       (id, email, password_hash, name, phone, company_name, niche_id,
        service_zip_codes, is_active, status, booking_slug, onboarding_started_at,
-       acquisition_source, address, place_id, requested_niche_text, pricing_bucket)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,1,'approved',$9,NOW(),$10,$11,$12,$13,$14)
+       acquisition_source, address, place_id, requested_niche_text, pricing_bucket, timezone)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,1,'approved',$9,NOW(),$10,$11,$12,$13,$14,$15)
   `, [
     contractorId,
     syntheticEmail,
@@ -236,6 +246,7 @@ async function createContractorAccount(data) {
     data.placeId || null,
     requestedNicheText,
     pricingBucket,
+    timezone,
   ]);
 
   log(`Contractor created: ${contractorId}`);

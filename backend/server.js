@@ -404,6 +404,36 @@ db._ready.then(async () => {
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS trial_heads_up_sent_at TIMESTAMPTZ`);
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS trial_bucket_needed_alert_sent_at TIMESTAMPTZ`);
 
+  // ── contractors.timezone — added session 34/35 (Sept 13), same day as the
+  // trigger above, after a real live-caught bug: every time-window SMS cron
+  // in cron.js (post-job "how'd it go", morning-of confirmation, 24hr
+  // reminder) was comparing appointment times against the SERVER's own
+  // local/UTC wall clock instead of the CONTRACTOR's actual timezone — a
+  // Washington (Pacific) contractor with a 10am appointment got the "how'd
+  // the 10am job go?" text at ~7am, 3 hours early. Computed once at signup
+  // (services/timezone.js, an approximate zip→state→IANA lookup — see that
+  // file's header) and stored here so it's a fast column read on every cron
+  // tick instead of a re-derivation. Nullable — existing contractors created
+  // before this migration get backfilled once, below, from their address;
+  // any contractor with no resolvable address falls back to
+  // getContractorNow()'s own default ('America/Los_Angeles') at read time.
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS timezone TEXT`);
+  try {
+    const { resolveTimezoneFromAddress } = require('./services/timezone');
+    const { rows: untimezoned } = await db.query(
+      `SELECT id, address FROM contractors WHERE timezone IS NULL AND address IS NOT NULL`
+    );
+    for (const row of untimezoned) {
+      const tz = resolveTimezoneFromAddress(row.address);
+      await db.query(`UPDATE contractors SET timezone = $1 WHERE id = $2`, [tz, row.id]);
+    }
+    if (untimezoned.length) {
+      console.log(`[startup] Backfilled timezone for ${untimezoned.length} existing contractor(s)`);
+    }
+  } catch (err) {
+    console.error('[startup] Timezone backfill failed (non-fatal):', err.message);
+  }
+
   // ── Error log — closes a real gap in the admin brain's visibility (session 34) ──
   // Scoped to the SMS-critical paths only (smsAI.js, homeownerSmsAI.js, twilio.js,
   // bookings.js) — this is not a general-purpose logging table for the whole app,

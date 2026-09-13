@@ -71,7 +71,7 @@ router.post('/', requireAdmin, async (req, res) => {
   ] = await Promise.all([
     db.query(`
       SELECT
-        c.id, c.name, c.company_name, c.email, c.phone, c.business_phone, c.city, c.address,
+        c.id, c.name, c.company_name, c.email, c.phone, c.business_phone, c.city, c.address, c.timezone,
         c.is_active, c.status, c.twilio_number, c.booking_slug,
         c.onboarding_steps, c.acquisition_source, c.place_id,
         c.onboarding_started_at, c.created_at, c.last_setup_sms_at,
@@ -456,12 +456,12 @@ Be direct. No fluff. Jose is running a business.`;
     },
     {
       name: 'update_contractor',
-      description: 'Update a contractor field: city, phone, company_name, name, acquisition_source, twilio_number, or business_phone (the public number customers call, when different from their personal cell).',
+      description: 'Update a contractor field: city, phone, company_name, name, acquisition_source, twilio_number, business_phone (the public number customers call, when different from their personal cell), or timezone (IANA zone like America/Los_Angeles — auto-derived from their address at signup, correct it here if the auto-guess is wrong; every SMS-timing cron reads this field).',
       input_schema: {
         type: 'object',
         properties: {
           contractor_id: { type: 'string', description: 'Contractor UUID' },
-          field: { type: 'string', enum: ['city', 'phone', 'company_name', 'name', 'acquisition_source', 'twilio_number', 'business_phone'], description: 'Field to update' },
+          field: { type: 'string', enum: ['city', 'phone', 'company_name', 'name', 'acquisition_source', 'twilio_number', 'business_phone', 'timezone'], description: 'Field to update' },
           value: { type: 'string', description: 'New value for the field' },
         },
         required: ['contractor_id', 'field', 'value'],
@@ -664,7 +664,7 @@ Be direct. No fluff. Jose is running a business.`;
 
       } else if (name === 'update_contractor') {
         const { contractor_id, field, value } = input;
-        const allowed = ['city', 'phone', 'company_name', 'name', 'acquisition_source', 'twilio_number', 'business_phone'];
+        const allowed = ['city', 'phone', 'company_name', 'name', 'acquisition_source', 'twilio_number', 'business_phone', 'timezone'];
         if (!allowed.includes(field)) { toolResult = `Cannot update field "${field}". Allowed: ${allowed.join(', ')}`; }
         else {
           const check = await db.query('SELECT company_name, name FROM contractors WHERE id = $1', [contractor_id]);
