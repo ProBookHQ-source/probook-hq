@@ -2,6 +2,7 @@ const express       = require('express');
 const twilio        = require('twilio');
 const db            = require('../database/db');
 const { requireAdmin } = require('../middleware/auth');
+const { logError }  = require('../services/errorLog');
 
 const router  = express.Router();
 
@@ -146,6 +147,7 @@ router.post('/missed-call', async (req, res) => {
         console.log(`[TWILIO] Brain 3 session started for ${From} → contractor ${contractor.id} (returning: ${isReturning})`);
       } catch (brainErr) {
         console.error(`[TWILIO] Brain 3 session failed, falling back to booking link:`, brainErr.message);
+        logError('twilio.missed-call.startHomeownerSession', brainErr, { contractorId: contractor.id, phone: From }).catch(() => {});
         smsBody = `Hey! This is ${businessName} — sorry we missed your call, we're out on a job. Book a time that works for you here: ${bookingLink} — takes 60 seconds and we'll confirm right away. Reply STOP to opt out.`;
       }
 
@@ -153,6 +155,7 @@ router.post('/missed-call', async (req, res) => {
       console.log(`[TWILIO] SMS sent to ${From} for contractor ${contractor.id} (${businessName})`);
     } catch (err) {
       console.error(`[TWILIO] SMS send failed:`, err.message);
+      logError('twilio.missed-call.sendSms', err, { contractorId: contractor?.id, phone: From }).catch(() => {});
     }
   }
 
@@ -291,6 +294,7 @@ router.post('/inbound-sms', async (req, res) => {
       }
     } catch (err) {
       console.error('[TWILIO-SMS] AI handler error:', err.message);
+      logError('twilio.inbound-sms.handleContractorSms', err, { contractorId: contractor.id, phone: From, context: { body: Body } }).catch(() => {});
       await twilioClient.messages.create({
         to: From, from: To,
         body: `Got your message. Log in at tractifyhq.com/contractor for full access.`,
@@ -553,6 +557,7 @@ router.post('/inbound-sms', async (req, res) => {
       }
     } catch (brainErr) {
       console.error('[TWILIO-SMS] Brain 3 error, falling back to booking link:', brainErr.message);
+      logError('twilio.inbound-sms.brain3', brainErr, { contractorId: contractor.id, phone: From, context: { body: Body } }).catch(() => {});
     }
 
     // Fallback if Brain 3 failed or returned null

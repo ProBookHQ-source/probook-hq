@@ -23,6 +23,31 @@ const { extractZip, isValidZip } = require('./addressUtils');
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MAX_CHARS = 320;
 
+// ── Conversation transcript logging (task #137, session 34) ────────────────
+// Mirrors contractors.sms_conversation's shape/purpose for Brain 3 — gives
+// the admin brain's get_homeowner_conversation tool something real to read.
+// Deliberately fire-and-forget: a logging failure must never block or delay
+// a real SMS reply to a homeowner. Caps stored history at 40 entries (20
+// exchanges) per session, same spirit as the 20-message cap already used for
+// contractors.sms_conversation.
+async function appendToConversationLog(sessionId, entries) {
+  if (!sessionId || !entries || !entries.length) return;
+  try {
+    const row = await db.prepare(
+      `SELECT conversation_log FROM homeowner_sms_sessions WHERE id = $1`
+    ).get(sessionId);
+    if (!row) return;
+    const existing = Array.isArray(row.conversation_log) ? row.conversation_log : [];
+    const updated = [...existing, ...entries].slice(-40);
+    await db.query(
+      `UPDATE homeowner_sms_sessions SET conversation_log = $1 WHERE id = $2`,
+      [JSON.stringify(updated), sessionId]
+    );
+  } catch (e) {
+    console.error('[BRAIN3] Failed to append conversation_log:', e.message);
+  }
+}
+
 // ── Niche-aware opening question ────────────────────────────────────────────
 // This was hardcoded as "AC, heating, or something else?" for every niche —
 // found live on a real roofing contractor's test where a homeowner describing
@@ -2297,6 +2322,7 @@ async function startHomeownerSessionInner(phone, contractorId, name = null, lead
         interrupted.lead_id || leadId,
       );
       const greeting = `${greetName}Looks like it's been a bit — picking this back up for ${interrupted.service_description} at ${interrupted.address}. Here's what's currently open:\n${formatSlotOptionsBlock(offered)}\n${SLOT_REPLY_INSTRUCTION}`;
+      appendToConversationLog(id, [{ role: 'assistant', content: greeting }]).catch(() => {});
       return { isReturning: true, interrupted: true, greeting, ...(await db.prepare(`SELECT * FROM homeowner_sms_sessions WHERE id = $1`).get(id)) };
     }
 
@@ -2330,7 +2356,15 @@ async function routeHomeownerSms(phone, contractorId, text) {
   return withHomeownerQueue(phone, contractorId, async () => {
     const session = await getSession(phone, contractorId);
     if (!session) return null; // No active session — caller handles fallback
-    return handleHomeownerSmsInner(phone, contractorId, text, session);
+    const reply = await handleHomeownerSmsInner(phone, contractorId, text, session);
+    // Non-blocking — never let logging delay or break the real reply.
+    if (typeof reply === 'string' && reply) {
+      appendToConversationLog(session.id, [
+        { role: 'user', content: text },
+        { role: 'assistant', content: reply },
+      ]).catch(() => {});
+    }
+    return reply;
   });
 }
 

@@ -391,6 +391,48 @@ db._ready.then(async () => {
   // a converted/paying contractor's number.
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'trial'`);
 
+  // ── Error log — closes a real gap in the admin brain's visibility (session 34) ──
+  // Scoped to the SMS-critical paths only (smsAI.js, homeownerSmsAI.js, twilio.js,
+  // bookings.js) — this is not a general-purpose logging table for the whole app,
+  // just the pieces that run live contractor/homeowner conversations. See
+  // services/errorLog.js for the shared logError() helper every catch block calls.
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS error_log (
+      id SERIAL PRIMARY KEY,
+      source TEXT NOT NULL,
+      message TEXT NOT NULL,
+      stack TEXT,
+      contractor_id TEXT REFERENCES contractors(id) ON DELETE SET NULL,
+      phone TEXT,
+      context JSONB,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await db.query(`CREATE INDEX IF NOT EXISTS error_log_created_at_idx ON error_log (created_at DESC)`);
+
+  // ── Ad spend log — manual entries, same pattern as brain_context/log_decision ──
+  // No ad platform API is integrated (Facebook/Google spend still lives in Ads
+  // Manager), so this is Jose telling the brain what he spent via the log_ad_spend
+  // tool — it lets the brain compute real cost-per-booking instead of that math
+  // living only in Jose's head.
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS ad_spend (
+      id SERIAL PRIMARY KEY,
+      contractor_id TEXT REFERENCES contractors(id) ON DELETE SET NULL,
+      platform TEXT NOT NULL,
+      amount NUMERIC NOT NULL,
+      spend_date DATE NOT NULL DEFAULT CURRENT_DATE,
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // ── Brain 3 conversation transcript — was NEVER stored anywhere before this ──
+  // (Brain 2/contractors has had sms_conversation since early on; Brain 3/homeowner
+  // sessions never got the equivalent). Appended to by homeownerSmsAI.js on every
+  // turn. Same shape as contractors.sms_conversation (array of {role, content}).
+  await db.query(`ALTER TABLE homeowner_sms_sessions ADD COLUMN IF NOT EXISTS conversation_log JSONB DEFAULT '[]'`);
+
   // Start scheduled jobs (appointment reminders, etc.)
   require('./services/cron');
 

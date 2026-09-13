@@ -65,6 +65,9 @@ router.post('/', requireAdmin, async (req, res) => {
     homeownerSessionStateResult,
     recentHomeownerSessionsResult,
     unmatchedLeadsResult,
+    availabilityResult,
+    adSpendResult,
+    errorLogResult,
   ] = await Promise.all([
     db.query(`
       SELECT
@@ -193,12 +196,45 @@ router.post('/', requireAdmin, async (req, res) => {
     // ever showed status COUNTS, never which specific leads these are, so the brain
     // had no way to flag a real routing failure to Jose.
     db.query(`
-      SELECT id, name, phone, email, niche_id, zip_code, address, status, created_at
+      SELECT id, name, phone, email, niche_id, zip_code, address, description, status, created_at
       FROM leads
       WHERE assigned_contractor_id IS NULL AND created_at >= $1
       ORDER BY created_at DESC
       LIMIT 20
     `, [thirtyDaysAgo]),
+
+    // Availability summary per active contractor — was completely invisible to the
+    // brain before this. Lets it reason about "why did this homeowner only get 2
+    // slots" or spot a contractor with a dead/empty calendar.
+    db.query(`
+      SELECT contractor_id, day_of_week, start_time, end_time, is_active
+      FROM availability_slots
+      WHERE is_active = 1
+      ORDER BY contractor_id, day_of_week
+    `),
+
+    // Manual ad spend log (see log_ad_spend tool) — lets the brain compute real
+    // cost-per-booking instead of that math only living in Jose's head.
+    db.query(`
+      SELECT s.contractor_id, c.company_name, c.name as contractor_name,
+             s.platform, s.amount, s.spend_date, s.notes
+      FROM ad_spend s
+      LEFT JOIN contractors c ON s.contractor_id = c.id
+      ORDER BY s.spend_date DESC
+      LIMIT 50
+    `),
+
+    // Recent SMS-path errors (smsAI.js, homeownerSmsAI.js, twilio.js, bookings.js) —
+    // see services/errorLog.js. This is the piece that used to be a total blind spot:
+    // a caught-and-swallowed exception previously left zero trace anywhere the brain
+    // could see.
+    db.query(`
+      SELECT e.id, e.source, e.message, e.contractor_id, c.company_name, e.phone, e.created_at
+      FROM error_log e
+      LEFT JOIN contractors c ON e.contractor_id = c.id
+      ORDER BY e.created_at DESC
+      LIMIT 20
+    `),
   ]);
 
   const contractors = contractorsResult.rows;
@@ -212,16 +248,44 @@ router.post('/', requireAdmin, async (req, res) => {
   const homeownerSessionStates = homeownerSessionStateResult.rows;
   const recentHomeownerSessions = recentHomeownerSessionsResult.rows;
   const unmatchedLeads = unmatchedLeadsResult.rows;
+  const availabilityRows = availabilityResult.rows;
+  const adSpendRows = adSpendResult.rows;
+  const errorLogRows = errorLogResult.rows;
 
   // ── Build context strings ─────────────────────────────────────────────────
   const CHECKLIST_KEYS = ['availability', 'twilio', 'gbp', 'nextdoor', 'facebook', 'reviewers', 'messenger'];
   function parseSteps(s) { try { return typeof s === 'string' ? JSON.parse(s || '{}') : (s || {}); } catch { return {}; } }
   function stepsCompleted(s) { const p = parseSteps(s); return CHECKLIST_KEYS.filter(k => p[k]).length; }
   function daysSince(d) { if (!d) return null; return Math.floor((Date.now() - new Date(d).getTime()) / 86400000); }
+  const DOW_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   const activeContractors  = contractors.filter(c => c.is_active == 1);
   const pendingContractors = contractors.filter(c => !c.is_active && !c.declined_at);
   const totalBookings      = contractors.reduce((s, c) => s + parseInt(c.total_bookings || 0), 0);
+
+  // Group availability rows by contractor, format as a compact per-day string.
+  const availabilityByContractor = {};
+  availabilityRows.forEach(r => {
+    if (!availabilityByContractor[r.contractor_id]) availabilityByContractor[r.contractor_id] = [];
+    availabilityByContractor[r.contractor_id].push(r);
+  });
+  function formatAvailability(contractorId) {
+    const rows = availabilityByContractor[contractorId];
+    if (!rows || !rows.length) return 'No schedule set';
+    return rows
+      .sort((a, b) => a.day_of_week - b.day_of_week)
+      .map(r => `${DOW_NAMES[r.day_of_week]} ${r.start_time}-${r.end_time}`)
+      .join(', ');
+  }
+
+  const adSpendByContractor = {};
+  let totalAdSpend = 0;
+  adSpendRows.forEach(r => {
+    const amt = parseFloat(r.amount) || 0;
+    totalAdSpend += amt;
+    const key = r.contractor_id || 'unassigned';
+    adSpendByContractor[key] = (adSpendByContractor[key] || 0) + amt;
+  });
 
   const contractorLines = contractors.map(c => {
     const steps = stepsCompleted(c.onboarding_steps);
@@ -232,7 +296,10 @@ router.post('/', requireAdmin, async (req, res) => {
     const niche = c.niche_name ? ` | ${c.niche_name}` : c.requested_niche_text ? ` | ⚠️ NEEDS NICHE REVIEW ("${c.requested_niche_text}")` : ' | No niche';
     const revenue = parseFloat(c.revenue_generated || 0) > 0 ? ` | $${c.revenue_generated} revenue logged (${c.closed_jobs} closed)` : '';
     const unlogged = parseInt(c.unlogged_completed || 0) > 0 ? ` | ${c.unlogged_completed} completed jobs never logged` : '';
-    return `  [ID: ${c.id}] ${status} | ${c.company_name || c.name}${city}${niche}${src} | ${steps}/7 steps | ${c.total_bookings || 0} bookings${twilio} | deployed ${daysSince(c.created_at)}d ago${revenue}${unlogged}`;
+    const spend = adSpendByContractor[c.id] ? ` | $${adSpendByContractor[c.id].toFixed(2)} ad spend` : '';
+    const cpb = adSpendByContractor[c.id] && parseInt(c.total_bookings || 0) > 0
+      ? ` (~$${(adSpendByContractor[c.id] / parseInt(c.total_bookings)).toFixed(2)}/booking)` : '';
+    return `  [ID: ${c.id}] ${status} | ${c.company_name || c.name}${city}${niche}${src} | ${steps}/7 steps | ${c.total_bookings || 0} bookings${twilio} | deployed ${daysSince(c.created_at)}d ago${revenue}${unlogged}${spend}${cpb} | hours: ${formatAvailability(c.id)}`;
   });
 
   const nicheReviewNeeded = contractors.filter(c => c.requested_niche_text);
@@ -283,7 +350,13 @@ ${apptsByContractor.map(r => `  [${r.id}] ${r.company_name || r.contractor_name}
 ${nicheReviewNeeded.length ? nicheReviewNeeded.map(c => `  ⚠️  [${c.id}] ${c.company_name || c.name}: "${c.requested_niche_text}"`).join('\n') : '  None'}
 
 === UNMATCHED LEADS (no contractor assigned — last 30d, possible routing failure) ===
-${unmatchedLeads.length ? unmatchedLeads.map(l => `  ⚠️  [${l.id}] ${l.name || 'unnamed'} (${l.phone || 'no phone'}) | zip: ${l.zip_code || 'none'} | status: ${l.status} | ${daysSince(l.created_at)}d ago`).join('\n') : '  None'}
+${unmatchedLeads.length ? unmatchedLeads.map(l => `  ⚠️  [${l.id}] ${l.name || 'unnamed'} (${l.phone || 'no phone'}) | zip: ${l.zip_code || 'none'} | "${l.description || 'no description'}" | status: ${l.status} | ${daysSince(l.created_at)}d ago`).join('\n') : '  None'}
+
+=== AD SPEND (manual entries via log_ad_spend — total: $${totalAdSpend.toFixed(2)}) ===
+${adSpendRows.length ? adSpendRows.slice(0, 15).map(r => `  ${r.spend_date} | ${r.company_name || r.contractor_name || 'unassigned/general'} | ${r.platform} | $${r.amount}${r.notes ? ` — ${r.notes}` : ''}`).join('\n') : '  None logged yet — use log_ad_spend to start tracking real cost-per-booking'}
+
+=== RECENT SMS-PATH ERRORS (smsAI/homeownerSmsAI/twilio/bookings — last 20) ===
+${errorLogRows.length ? errorLogRows.map(e => `  [${new Date(e.created_at).toISOString().slice(0,16).replace('T',' ')}] ${e.source}: ${e.message}${e.company_name ? ` (${e.company_name})` : ''}${e.phone ? ` | ${e.phone}` : ''}`).join('\n') : '  None logged — either genuinely clean or errorLog wiring hasn\'t caught anything yet'}
 
 === HOMEOWNER SESSIONS — BRAIN 3 (last 30d, by state) ===
 ${homeownerSessionStates.length ? homeownerSessionStates.map(s => `  ${s.state}: ${s.count} total (${s.last_24h} in last 24h)`).join('\n') : '  None yet'}
@@ -323,6 +396,8 @@ ${brainLog.length
 - Cancel appointments (cancel_appointment)
 - Delete cancelled appointments or test leads (delete_appointment / delete_lead)
 - Log a decision, insight, or note to persistent memory (log_decision) — use this proactively whenever something important is decided or learned
+- Log real ad spend so cost-per-booking can be computed for real (log_ad_spend)
+- Pull a contractor's or homeowner's actual SMS conversation transcript for troubleshooting a specific report (get_contractor_conversation / get_homeowner_conversation)
 
 IMPORTANT: Use log_decision proactively. Any time a real decision is made, a pattern is noticed, or a strategic call is confirmed — log it. This is how the brain builds memory across sessions. Examples:
 - "Approved Evergreen for $20/day ad spend — 4.8 stars, 90 reviews, strong Seattle market"
@@ -461,6 +536,43 @@ Be direct. No fluff. Jose is running a business.`;
           detail: { type: 'string', description: 'Optional extra context, reasoning, or data behind the entry.' },
         },
         required: ['type', 'summary'],
+      },
+    },
+    {
+      name: 'log_ad_spend',
+      description: 'Log a real ad spend amount so cost-per-booking can actually be computed instead of living only in Jose\'s head. Use when Jose says something like "I spent $40 on Facebook for Evergreen today".',
+      input_schema: {
+        type: 'object',
+        properties: {
+          contractor_id: { type: 'string', description: 'Contractor UUID this spend was behind. Omit if it was general/not contractor-specific.' },
+          platform: { type: 'string', description: 'e.g. facebook, google, nextdoor' },
+          amount: { type: 'number', description: 'Dollar amount spent' },
+          spend_date: { type: 'string', description: 'YYYY-MM-DD. Defaults to today if omitted.' },
+          notes: { type: 'string', description: 'Optional context, e.g. campaign name or creative tag' },
+        },
+        required: ['platform', 'amount'],
+      },
+    },
+    {
+      name: 'get_contractor_conversation',
+      description: 'Pull a contractor\'s actual recent SMS conversation with Brain 2 (last 20 messages), for troubleshooting a specific report like "what did the AI actually tell this contractor".',
+      input_schema: {
+        type: 'object',
+        properties: {
+          contractor_id: { type: 'string', description: 'Contractor UUID from the list above' },
+        },
+        required: ['contractor_id'],
+      },
+    },
+    {
+      name: 'get_homeowner_conversation',
+      description: 'Pull a homeowner\'s actual SMS conversation transcript with Brain 3, for troubleshooting a specific report. Look up the session ID from the RECENT HOMEOWNER SESSIONS list above, or search by phone number.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          session_id: { type: 'string', description: 'Session UUID from the RECENT HOMEOWNER SESSIONS list above' },
+          phone: { type: 'string', description: 'Alternative to session_id — finds the most recent session for this phone number' },
+        },
       },
     },
   ];
@@ -620,6 +732,54 @@ Be direct. No fluff. Jose is running a business.`;
         toolResult = `Logged to brain memory: [${entryType.toUpperCase()}] ${summary}`;
         actionTaken = { type: 'log_decision', entry_type: entryType };
         console.log(`[ADMIN-AI] Brain memory logged: [${entryType}] ${summary}`);
+
+      } else if (name === 'log_ad_spend') {
+        const { contractor_id, platform, amount, spend_date, notes } = input;
+        let cName = null;
+        if (contractor_id) {
+          const check = await db.query('SELECT company_name, name FROM contractors WHERE id = $1', [contractor_id]);
+          if (!check.rows.length) { toolResult = 'Contractor not found — logged as general spend instead.'; }
+          else cName = check.rows[0].company_name || check.rows[0].name;
+        }
+        await db.query(
+          `INSERT INTO ad_spend (contractor_id, platform, amount, spend_date, notes)
+           VALUES ($1, $2, $3, COALESCE($4, CURRENT_DATE), $5)`,
+          [contractor_id || null, platform, amount, spend_date || null, notes || null]
+        );
+        toolResult = `Logged $${amount} ad spend on ${platform}${cName ? ` for ${cName}` : ''}${spend_date ? ` on ${spend_date}` : ' (today)'}.`;
+        actionTaken = { type: 'log_ad_spend', contractor_id, platform, amount };
+        console.log(`[ADMIN-AI] Logged $${amount} ad spend (${platform})${cName ? ` for ${cName}` : ''}`);
+
+      } else if (name === 'get_contractor_conversation') {
+        const check = await db.query('SELECT company_name, name, sms_conversation FROM contractors WHERE id = $1', [input.contractor_id]);
+        if (!check.rows.length) { toolResult = 'Contractor not found.'; }
+        else {
+          const c = check.rows[0];
+          const convo = Array.isArray(c.sms_conversation) ? c.sms_conversation : [];
+          toolResult = convo.length
+            ? `Conversation with ${c.company_name || c.name} (last ${convo.length} messages):\n` +
+              convo.map(m => `${m.role === 'user' ? 'Contractor' : 'Brain 2'}: ${m.content}`).join('\n')
+            : `No conversation history found for ${c.company_name || c.name}.`;
+        }
+
+      } else if (name === 'get_homeowner_conversation') {
+        const { session_id, phone } = input;
+        let session;
+        if (session_id) {
+          const r = await db.query('SELECT * FROM homeowner_sms_sessions WHERE id = $1', [session_id]);
+          session = r.rows[0];
+        } else if (phone) {
+          const r = await db.query('SELECT * FROM homeowner_sms_sessions WHERE phone LIKE $1 ORDER BY updated_at DESC LIMIT 1', [`%${phone.replace(/\D/g, '').slice(-10)}%`]);
+          session = r.rows[0];
+        }
+        if (!session) { toolResult = 'No matching homeowner session found.'; }
+        else {
+          const convo = Array.isArray(session.conversation_log) ? session.conversation_log : [];
+          toolResult = convo.length
+            ? `Homeowner session [${session.id}] state: ${session.state}\n` +
+              convo.map(m => `${m.role === 'user' ? 'Homeowner' : 'Brain 3'}: ${m.content}`).join('\n')
+            : `Session [${session.id}] found (state: ${session.state}, phone: ${session.phone}) but has no stored conversation log — this session predates conversation logging being added, or logging failed silently.`;
+        }
 
       } else {
         toolResult = `Unknown tool: ${name}`;
