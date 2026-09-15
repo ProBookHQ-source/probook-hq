@@ -145,6 +145,19 @@ router.post('/missed-call', async (req, res) => {
           smsBody = `Hey! Sorry we missed you at ${businessName} — we're out on a job. I'm their scheduling assistant. What's your name and the address that needs service? Reply STOP to opt out.`;
         }
         console.log(`[TWILIO] Brain 3 session started for ${From} → contractor ${contractor.id} (returning: ${isReturning})`);
+        // Sept 15 2026 — queryable trigger trail (task: "figure out why that
+        // text sent unprompted"). Every Brain 3 session start now leaves a
+        // permanent, queryable row recording exactly which channel triggered
+        // it (a real inbound call, here) and the CallSid — so the next time a
+        // homeowner/test phone gets an unexpected "still at [address]?" text,
+        // the admin brain can answer "what caused this" in one query instead
+        // of an hours-long manual investigation like this one. Not an error —
+        // reusing error_log purely as a structured, queryable event log.
+        logError('twilio.missed-call.session_started', `Brain 3 session started (returning: ${isReturning})`, {
+          contractorId: contractor.id,
+          phone: From,
+          context: { channel: 'missed_call', callSid: req.body.CallSid, isReturning, address: result && result.address },
+        }).catch(() => {});
       } catch (brainErr) {
         console.error(`[TWILIO] Brain 3 session failed, falling back to booking link:`, brainErr.message);
         logError('twilio.missed-call.startHomeownerSession', brainErr, { contractorId: contractor.id, phone: From }).catch(() => {});
@@ -554,6 +567,14 @@ router.post('/inbound-sms', async (req, res) => {
         } else {
           replyBody = `Hey! This is ${businessName}. Happy to help — what's your name and the address that needs service? Reply STOP to opt out.`;
         }
+        // Sept 15 2026 — same queryable trigger trail as the missed-call
+        // webhook (see the comment there). MessageSid included so this event
+        // can be correlated with the real inbound text in Twilio's own logs.
+        logError('twilio.inbound-sms.session_started', `Brain 3 session started (returning: ${isReturning})`, {
+          contractorId: contractor.id,
+          phone: From,
+          context: { channel: 'inbound_sms', messageSid: req.body.MessageSid, isReturning, address: result && result.address, body: Body },
+        }).catch(() => {});
       }
     } catch (brainErr) {
       console.error('[TWILIO-SMS] Brain 3 error, falling back to booking link:', brainErr.message);

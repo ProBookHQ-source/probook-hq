@@ -219,6 +219,14 @@ async function processLead(leadgenId, pageId) {
           smsBody = `Hey ${firstName_}! We got your request — I'm ${businessName}'s scheduling assistant. What's the address that needs service?`;
         }
         console.log(`[FACEBOOK] Brain 3 session started for ${phone} → contractor ${contractor.id} (returning: ${isReturning})`);
+        // Sept 15 2026 — same queryable trigger trail as twilio.js's missed-call
+        // and inbound-sms handlers (see those comments). Completes coverage
+        // across all three real trigger sites for an unprompted Brain 3 text.
+        require('../services/errorLog').logError('facebook.leadgen.session_started', `Brain 3 session started (returning: ${isReturning})`, {
+          contractorId: contractor.id,
+          phone,
+          context: { channel: 'facebook_lead', isReturning, address: result && result.address },
+        }).catch(() => {});
       } catch (brainErr) {
         console.error('[FACEBOOK] Brain 3 start failed, falling back to booking link:', brainErr.message);
         smsBody = `Hey ${firstName_}! This is ${businessName} — thanks for reaching out. Book a time that works here: ${bookingUrl} — takes 60 seconds and we'll confirm right away.`;
