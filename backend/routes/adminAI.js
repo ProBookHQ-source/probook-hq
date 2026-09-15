@@ -608,13 +608,29 @@ Be direct. No fluff. Jose is running a business.`;
   let actionTaken = null;
 
   while (response.stop_reason === 'tool_use') {
-    const toolUseBlock = response.content.find(b => b.type === 'tool_use');
-    if (!toolUseBlock) break;
+    const toolUseBlocks = response.content.filter(b => b.type === 'tool_use');
+    if (!toolUseBlocks.length) break;
 
-    const { name, id: toolUseId, input } = toolUseBlock;
-    let toolResult;
+    toolMessages.push({ role: 'assistant', content: response.content });
+    const toolResultBlocks = [];
 
-    try {
+    // Sept 15 2026 — the admin brain can emit multiple tool_use blocks in a
+    // single turn (e.g. get_homeowner_conversation + a follow-up lookup).
+    // This loop used to only ever resolve response.content.find(...) — the
+    // FIRST tool_use block — leaving any additional ones with no matching
+    // tool_result. Anthropic's API then rejects the next request with a 400
+    // ("tool_use ids were found without tool_result blocks immediately
+    // after"), which crashed the whole /api/admin/ai-chat call (surfaced as
+    // a real production 500, caught via Sentry). This is the exact same bug
+    // class already fixed in smsAI.js (task #1) and aiChat.js (task #29) —
+    // adminAI.js was the one tool-use loop in this codebase that never got
+    // the same fix. Now resolves every tool_use block in the turn before
+    // continuing, same pattern as the other two brains.
+    for (const toolUseBlock of toolUseBlocks) {
+      const { name, id: toolUseId, input } = toolUseBlock;
+      let toolResult;
+
+      try {
       if (name === 'set_twilio_number') {
         const { contractor_id, twilio_number } = input;
         const check = await db.query('SELECT company_name, name FROM contractors WHERE id = $1', [contractor_id]);
@@ -815,14 +831,17 @@ Be direct. No fluff. Jose is running a business.`;
       } else {
         toolResult = `Unknown tool: ${name}`;
       }
-    } catch (err) {
-      toolResult = `Error: ${err.message}`;
-      console.error(`[ADMIN-AI] Tool ${name} error:`, err.message);
+      } catch (err) {
+        toolResult = `Error: ${err.message}`;
+        console.error(`[ADMIN-AI] Tool ${name} error:`, err.message);
+      }
+
+      toolResultBlocks.push({ type: 'tool_result', tool_use_id: toolUseId, content: toolResult });
     }
 
-    // Continue with tool result
-    toolMessages.push({ role: 'assistant', content: response.content });
-    toolMessages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseId, content: toolResult }] });
+    // One user turn carrying a tool_result for every tool_use block from
+    // this turn — this is the part the old .find()-based version skipped.
+    toolMessages.push({ role: 'user', content: toolResultBlocks });
 
     response = await client.messages.create({
       model: 'claude-sonnet-4-6',
