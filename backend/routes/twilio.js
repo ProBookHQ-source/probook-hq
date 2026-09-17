@@ -32,6 +32,15 @@ async function claimWebhook(sid) {
     return rowCount > 0;
   } catch (e) {
     console.error('[TWILIO] claimWebhook check failed, processing anyway:', e.message);
+    // Sept 17 2026 — this failure mode is exactly what made the Shyla incident
+    // (Sept 15) impossible to fully confirm after the fact: the message still
+    // sent correctly (fail-open is correct behavior), but the one row that
+    // would have proven "a real call/text happened at this exact time" never
+    // got written, and this catch block only ever logged to the Railway
+    // console (gone within hours, not queryable). Now it also leaves a
+    // permanent, queryable record so a future dedup-write failure doesn't
+    // erase the trigger trail the way this one did.
+    logError('twilio.claimWebhook', e, { context: { sid } }).catch(() => {});
     return true;
   }
 }
