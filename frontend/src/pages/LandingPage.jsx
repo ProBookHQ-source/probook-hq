@@ -426,16 +426,16 @@ function WhyTractifyList({ className = '' }) {
 // user-triggered expand — not the auto-looping reflow bug fixed earlier.
 const FAQS = [
   {
-    q: "If it's not live yet, why join now?",
-    a: "Because the moment we're ready, we go straight down the waitlist in order. Joining now just means you're not starting from zero when we text you — you're first in line for the 5 free booked jobs.",
+    q: 'How fast can I actually get set up?',
+    a: "About 5 minutes. You fill out your info, we text the number you gave us to confirm a few quick things — your hours, where calls should forward — and your first 5 free jobs start flowing from there. No card required.",
   },
   {
-    q: 'What actually happens after I join?',
-    a: "Nothing, until we text the number you gave us. No calls, no sales pitch, no follow-up emails in the meantime. When we're ready to onboard you, that text is the whole process.",
+    q: 'What actually happens after I sign up?',
+    a: "You'll get a text within minutes to confirm a few things. No sales call, no meetings, no login required — that text is basically the whole onboarding process.",
   },
   {
     q: 'Is my phone number safe with you?',
-    a: "It's used for one thing: texting you when we're ready to set you up. We don't sell it, share it, or use it for anything else. See our Privacy Policy for the specifics.",
+    a: "It's used to run your Tractify setup and catch your missed calls — nothing else. We don't sell it, share it, or use it for anything else. See our Privacy Policy for the specifics.",
   },
   {
     q: 'What if I already use another tool for missed calls or booking?',
@@ -529,10 +529,10 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <button
-              onClick={() => navigate('/waitlist')}
+              onClick={() => { window.location.href = 'https://intake.tractifyhq.com?src=homepage_nav'; }}
               className="inline-flex items-center gap-2 bg-white text-brand-700 text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-brand-50 transition-all shadow-sm whitespace-nowrap"
             >
-              Join the Waitlist
+              Get 5 Jobs Free
             </button>
           </div>
         </div>
@@ -557,10 +557,10 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center md:justify-start">
               <button
-                onClick={() => navigate('/waitlist')}
+                onClick={() => { window.location.href = 'https://intake.tractifyhq.com?src=homepage_hero'; }}
                 className="btn-sheen inline-flex items-center justify-center gap-2 bg-white text-brand-700 text-base font-bold px-8 py-3.5 rounded-xl hover:shadow-xl shadow-lg shadow-brand-900/30"
               >
-                Join the Waitlist <ArrowRight className="w-5 h-5" />
+                Claim Your 5 Free Jobs <ArrowRight className="w-5 h-5" />
               </button>
             </div>
             <p className="text-white/70 text-xs sm:text-sm mt-5">
@@ -914,7 +914,7 @@ export default function LandingPage() {
               </p>
               <div className="space-y-3 max-w-lg">
                 {[
-                  'Join the waitlist — takes about 30 seconds',
+                  'Sign up — takes about 5 minutes',
                   'Forward your calls — the biggest immediate step',
                   'Missed calls start turning into booked jobs, automatically',
                 ].map((item, i) => (
@@ -973,10 +973,10 @@ export default function LandingPage() {
               GROW YOUR BUSINESS.<br />GET YOUR LIFE BACK.
             </h2>
             <button
-              onClick={() => navigate('/waitlist')}
+              onClick={() => { window.location.href = 'https://intake.tractifyhq.com?src=homepage_bottom'; }}
               className="btn-sheen inline-flex items-center justify-center gap-2 bg-white text-brand-700 text-base font-bold px-8 py-3.5 rounded-xl hover:shadow-xl shadow-lg shadow-brand-900/30"
             >
-              Join the Waitlist <ArrowRight className="w-5 h-5" />
+              Claim Your 5 Free Jobs <ArrowRight className="w-5 h-5" />
             </button>
           </div>
         </section>
@@ -991,7 +991,7 @@ export default function LandingPage() {
               <span className="font-display text-white text-sm tracking-tight">TRACTIFY</span>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-semibold text-white/75">
-              <button onClick={() => navigate('/waitlist')} className="hover:text-white transition-colors">Waitlist</button>
+              <button onClick={() => { window.location.href = 'https://intake.tractifyhq.com?src=homepage_footer'; }} className="hover:text-white transition-colors">Get Started</button>
               <button onClick={() => navigate('/login')} className="hover:text-white transition-colors">Contractor Login</button>
               <button onClick={() => navigate('/how-to')} className="hover:text-white transition-colors">How It Works</button>
               <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">Privacy</button>
