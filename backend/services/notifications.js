@@ -1129,7 +1129,7 @@ async function sendTrialOfferSentNoticeToJose({ contractor, jobCount, daysLive, 
         ${infoRow('Offer', esc(priceLine))}
       </table>
       ${calloutBox(
-        'No Stripe integration exists yet — if they reply YES, you\'ll need to follow up and collect payment manually until STEP 3 is built.',
+        'If they reply YES, a Stripe Checkout link is texted automatically. You\'ll get a separate email when they pay.',
         '#eff6ff', '#6366f1', '#3730a3'
       )}
       ${ctaBtn(APP_URL + '/admin', 'Open Admin Dashboard')}
@@ -1137,6 +1137,38 @@ async function sendTrialOfferSentNoticeToJose({ contractor, jobCount, daysLive, 
   });
 
   await sendEmail(adminTo, `💬 ${company} — trial offer sent`, html);
+}
+
+// ── Stripe billing alerts to Jose ─────────────────────────────────────────────
+// kind: 'paid' | 'link_sent' | 'payment_failed' | 'subscription_ended' |
+//       'stripe_not_configured' | 'link_failed'
+async function sendStripeAlertToJose({ kind, contractor, detail = '' }) {
+  const adminTo = process.env.ADMIN_EMAIL || 'bookings@tractifyhq.com';
+  const company = esc(contractor.company_name || contractor.name || 'Unknown contractor');
+  const META = {
+    paid:                  { label: '💰 PAYMENT RECEIVED',   color: '#16a34a', headline: `${company} just paid` },
+    link_sent:             { label: '🔗 PAYMENT LINK SENT',  color: '#6366f1', headline: `${company} said YES — link texted` },
+    payment_failed:        { label: '⚠️ PAYMENT FAILED',     color: '#dc2626', headline: `${company} — payment failed` },
+    subscription_ended:    { label: '🛑 SUBSCRIPTION ENDED', color: '#dc2626', headline: `${company} — subscription ended` },
+    stripe_not_configured: { label: '⚠️ ACTION NEEDED',      color: '#dc2626', headline: `${company} said YES but Stripe isn't configured` },
+    link_failed:           { label: '⚠️ ACTION NEEDED',      color: '#dc2626', headline: `${company} said YES but the payment link failed` },
+  };
+  const m = META[kind] || { label: 'STRIPE', color: '#6366f1', headline: company };
+
+  const html = emailBase({
+    accentColor: m.color,
+    label: m.label,
+    headline: m.headline,
+    sub: '',
+    bodyContent: `
+      <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:20px;">
+        ${infoRow('Contractor', company, true)}
+        ${detail ? infoRow('Detail', esc(detail)) : ''}
+      </table>
+      ${ctaBtn(APP_URL + '/admin', 'Open Admin Dashboard')}
+    `,
+  });
+  await sendEmail(adminTo, `${m.label} — ${contractor.company_name || contractor.name}`, html);
 }
 
 // ── Brain 3 booking confirmation email ────────────────────────────────────────
@@ -1204,4 +1236,4 @@ async function sendWaitlistSignupAlert({ businessName, phone, acquisitionSource 
   return sendEmail(ADMIN_EMAIL, `[Waitlist] ${businessName} | ${BRAND}`, html);
 }
 
-module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset, sendDirectBookingConfirmation, sendDirectBookingContractorAlert, sendOnboardingNudge, sendContractorWelcomeEmail, sendDeployAlertToAdmin, sendTrialBookingAlertToJose, sendTrialSilenceAlertToJose, sendTrialBucketNeededAlertToJose, sendTrialOfferSentNoticeToJose, sendBrain3BookingConfirmation, sendWaitlistSignupAlert };
+module.exports = { sendBookingLink, notifyContractor, sendAppointmentConfirmation, sendCancellationAndRebook, sendAdminNoMatch, sendAppointmentReminder, sendHomeownerCancelledNotice, sendHomeownerRebookLink, sendContractorApplicationAck, sendContractorApplicationAlert, sendContractorApproved, sendContractorDeclined, sendPasswordReset, sendDirectBookingConfirmation, sendDirectBookingContractorAlert, sendOnboardingNudge, sendContractorWelcomeEmail, sendDeployAlertToAdmin, sendTrialBookingAlertToJose, sendTrialSilenceAlertToJose, sendTrialBucketNeededAlertToJose, sendTrialOfferSentNoticeToJose, sendBrain3BookingConfirmation, sendWaitlistSignupAlert, sendStripeAlertToJose };

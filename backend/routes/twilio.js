@@ -269,7 +269,8 @@ router.post('/inbound-sms', async (req, res) => {
   const contractor = await db.prepare(`
     SELECT id, name, company_name, phone, booking_slug, twilio_number,
            onboarding_steps, sms_conversation, sms_welcome_sent,
-           sms_power_message_sent, sms_calendar_training_sent, business_phone
+           sms_power_message_sent, sms_calendar_training_sent, business_phone,
+           payment_status, pricing_bucket, trial_offer_sent_at
     FROM contractors
     WHERE twilio_number = ? AND is_active = 1
   `).get(To);
@@ -299,6 +300,45 @@ router.post('/inbound-sms', async (req, res) => {
   if (isContractor) {
     // ── Contractor texting in → AI assistant ──────────────────────────────────
     console.log(`[TWILIO-SMS] Contractor recognized — routing to AI assistant`);
+
+    // ── Trial offer YES → Stripe payment link (STEP 3, session 41) ────────────
+    // Deliberately NOT left to the AI: a YES only counts when the contractor is
+    // still on trial, an offer was actually sent, and the most recent assistant
+    // message in the thread IS that offer (so a stray "yes" answering some other
+    // question never triggers a payment link).
+    try {
+      const YES_RE = /^\s*(yes|yeah|yep|yup|y|sure|ok|okay|yes please|let'?s do it|let'?s go|keep going|i'?m in)[\s.!]*$/i;
+      if (
+        YES_RE.test(Body || '') &&
+        contractor.payment_status === 'trial' &&
+        contractor.trial_offer_sent_at &&
+        contractor.pricing_bucket
+      ) {
+        let convo = contractor.sms_conversation;
+        if (typeof convo === 'string') { try { convo = JSON.parse(convo); } catch { convo = []; } }
+        const lastAssistant = [...(convo || [])].reverse().find(m => m.role === 'assistant');
+        const lastText = typeof lastAssistant?.content === 'string' ? lastAssistant.content : '';
+        if (lastText.includes('Reply YES if you want to keep going')) {
+          const { sendPaymentLink } = require('../services/stripe');
+          const result = await sendPaymentLink(contractor, twilioClient);
+          if (!result.ok) {
+            // Link couldn't go out (Stripe unconfigured or API error) — Jose was
+            // already alerted by sendPaymentLink. Tell the contractor honestly.
+            await twilioClient.messages.create({
+              to: From, from: To,
+              body: `Got your YES — thank you! We're getting your payment link ready and will text it to you shortly.`,
+            }).catch(() => {});
+          }
+          res.type('text/xml');
+          return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response/>`);
+        }
+      }
+    } catch (err) {
+      console.error('[TWILIO-SMS] Trial-offer YES handler error:', err.message);
+      logError('twilio.inbound-sms.trialOfferYes', err, { contractorId: contractor.id, phone: From, context: { body: Body } }).catch(() => {});
+      // fall through to the normal AI handler rather than dropping the message
+    }
+
     try {
       const { handleContractorSms } = require('../services/smsAI');
       const reply = await handleContractorSms(contractor, Body || '');

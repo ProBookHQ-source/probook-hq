@@ -85,12 +85,17 @@ app.use((req, res, next) => {
     req.path.startsWith('/api/niches/public') ||
     req.path.startsWith('/api/intake/track') ||
     req.path.startsWith('/api/twilio') ||      // Twilio webhooks — server-to-server
+    req.path.startsWith('/api/stripe') ||      // Stripe webhook + post-checkout pages
     req.path.startsWith('/api/leads/facebook') // Facebook webhooks — server-to-server
   ) return next();
   cors({
     origin: process.env.FRONTEND_URL || 'https://probook-hq-production.up.railway.app',
   })(req, res, next);
 });
+// Stripe webhook MUST be mounted before express.json() — signature verification
+// needs the raw, unparsed request body.
+app.use('/api/stripe/webhook', require('./routes/stripe').webhookRouter);
+app.use('/api/stripe', require('./routes/stripe').pagesRouter);
 app.use(express.json({ limit: '50kb' }));
 // Twilio webhooks are sent as application/x-www-form-urlencoded
 app.use(express.urlencoded({ extended: false }));
@@ -403,6 +408,14 @@ db._ready.then(async () => {
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS trial_offer_sent_at TIMESTAMPTZ`);
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS trial_heads_up_sent_at TIMESTAMPTZ`);
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS trial_bucket_needed_alert_sent_at TIMESTAMPTZ`);
+
+  // ── Stripe billing — session 41 (Oct 7, 2026), CLAUDE.md STEP 3.
+  // stripe_customer_id / stripe_payment_method_id / payment_status already exist
+  // (or are migrated above); these three are new.
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`);
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT`);
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS stripe_checkout_sent_at TIMESTAMPTZ`);
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ`);
 
   // ── contractors.timezone — added session 34/35 (Sept 13), same day as the
   // trigger above, after a real live-caught bug: every time-window SMS cron
