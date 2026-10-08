@@ -427,11 +427,11 @@ function WhyTractifyList({ className = '' }) {
 const FAQS = [
   {
     q: 'How fast can I actually get set up?',
-    a: "About 5 minutes. You fill out your info, we text the number you gave us to confirm a few quick things — your hours, where calls should forward — and your first 5 free jobs start flowing from there. No card required.",
+    a: "The form takes about 5 minutes. We'll text you within 24 hours, and a quick text conversation confirms your hours and where calls should forward. Once that's done, new appointments can start landing on your calendar. No credit card required.",
   },
   {
     q: 'What actually happens after I sign up?',
-    a: "You'll get a text within minutes to confirm a few things. No sales call, no meetings, no login required — that text is basically the whole onboarding process.",
+    a: "You'll get a text within 24 hours to confirm a few things. No sales call, no meetings. Everything you need happens by text, with no dashboard or login required.",
   },
   {
     q: 'Is my phone number safe with you?',
@@ -443,7 +443,7 @@ const FAQS = [
   },
   {
     q: 'What does it cost?',
-    a: "Your first 5 booked jobs are free, no card required. We'll walk you through pricing before anything is charged — you decide if it's worth keeping after you've seen it work.",
+    a: "Your first 5 booked appointments are free. No credit card required. Cancelled appointments don't count toward the five. We'll walk you through pricing before anything is charged, and you decide if it's worth keeping after you've seen it work.",
   },
 ];
 
@@ -532,7 +532,7 @@ export default function LandingPage() {
               onClick={() => { window.location.href = 'https://intake.tractifyhq.com?src=homepage_nav'; }}
               className="inline-flex items-center gap-2 bg-white text-brand-700 text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-brand-50 transition-all shadow-sm whitespace-nowrap"
             >
-              Get 5 Jobs Free
+              Get 5 Free Appointments
             </button>
           </div>
         </div>
@@ -551,20 +551,21 @@ export default function LandingPage() {
               STOP MISSING<br />CALLS.
             </h1>
             <p className="text-white/80 text-base sm:text-xl max-w-xl mx-auto md:mx-0 leading-relaxed mb-9 sm:mb-11">
-              Every missed call, every Google search, every Facebook and Instagram message —
-              Tractify turns all of it into a text conversation that books the job straight onto
-              your calendar. No app. No dashboard. No login required. So you can be anywhere else.
+              When you miss a call, Tractify texts the customer right away and works to book the
+              job straight onto your calendar. The same system also handles customers who find you
+              on Google or message you on Facebook and Instagram. Everything happens by text, with
+              no dashboard or login required.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center md:justify-start">
               <button
                 onClick={() => { window.location.href = 'https://intake.tractifyhq.com?src=homepage_hero'; }}
                 className="btn-sheen inline-flex items-center justify-center gap-2 bg-white text-brand-700 text-base font-bold px-8 py-3.5 rounded-xl hover:shadow-xl shadow-lg shadow-brand-900/30"
               >
-                Claim Your 5 Free Jobs <ArrowRight className="w-5 h-5" />
+                Claim Your 5 Free Appointments <ArrowRight className="w-5 h-5" />
               </button>
             </div>
             <p className="text-white/70 text-xs sm:text-sm mt-5">
-              Your first 5 booked jobs are free — no card required to start.
+              Your first 5 booked appointments are free. No credit card required.
             </p>
           </div>
           <SmsDemo />
@@ -576,9 +577,9 @@ export default function LandingPage() {
         <section className="relative px-4 sm:px-6 pb-16 sm:pb-24">
           <div className="max-w-5xl mx-auto grid grid-cols-3 divide-x divide-white/15 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm">
             {[
-              { value: '5', label: 'Free booked jobs' },
-              { value: '60 sec', label: 'Missed-call response' },
-              { value: '0', label: 'Apps or logins' },
+              { value: '5', label: 'Free booked appointments' },
+              { value: 'Instant', label: 'Text after a missed call' },
+              { value: '0', label: 'Apps or logins needed' },
             ].map(({ value, label }) => (
               <div key={label} className="text-center px-3 py-6 sm:py-8">
                 <p className="font-display text-white text-3xl sm:text-4xl tracking-tight mb-1">{value}</p>
@@ -703,13 +704,13 @@ export default function LandingPage() {
               <Eyebrow dark>Market Insight</Eyebrow>
             </div>
             <h2 className="font-display text-brand-900 text-3xl sm:text-5xl leading-[1.05] tracking-tight mb-5">
-              RESPOND IN 5 MINUTES AND YOU'RE 100X MORE LIKELY TO REACH THE CUSTOMER THAN IF
-              YOU WAIT 30.
+              THE FASTER YOU RESPOND, THE MORE LIKELY YOU ARE TO WIN THE JOB.
             </h2>
             <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg mx-auto">
-              The average business takes 42 hours to call a lead back. By then it's not close —
-              the job's gone. Tractify responds the moment the call is missed. You don't have to
-              answer. They still get an answer.
+              Research on lead response times has found the average business takes around 42
+              hours to follow up, and that responding within minutes makes reaching the customer
+              far more likely. Tractify texts the moment a call is missed, so the customer gets
+              an answer even when you can't pick up.
             </p>
           </div>
 
@@ -740,10 +741,11 @@ export default function LandingPage() {
               <div className="group h-full bg-white border border-gray-100 rounded-2xl p-6 shadow-sm transition-all duration-300 hover:shadow-xl hover:shadow-brand-900/10 hover:-translate-y-1.5 hover:border-brand-200">
                 <p className="text-[11px] font-bold uppercase tracking-wide text-brand-500 mb-3">One Shot</p>
                 <p className="text-gray-700 text-sm sm:text-base leading-relaxed">
+                  A homeowner with a broken AC usually{' '}
                   <mark className="bg-brand-100 text-brand-800 px-1.5 rounded-md font-semibold">
-                    76% of customers never come back
+                    calls the next name on the list
                   </mark>{' '}
-                  after one bad experience. A missed call is one bad experience.
+                  if nobody answers. A fast text gives you a real chance to keep them.
                 </p>
               </div>
             </Reveal>
@@ -794,9 +796,8 @@ export default function LandingPage() {
               </h2>
               <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg">
                 Every business owner we talk to wants the same thing: to grow without it costing
-                them more of their life. Most tools ask you to work more to get more — check a
-                dashboard, log in, manage another app. Tractify is built to do the opposite: the
-                business grows, and you get more time back, not less.
+                them more of their life. New appointments land on your calendar while you focus
+                on the work, so the business grows and you get more time back, not less.
               </p>
             </div>
             <WhyTractifyList className="w-full" />
@@ -880,8 +881,8 @@ export default function LandingPage() {
                 PROOF<br />BEFORE<br />YOU PAY
               </h2>
               <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg mx-auto md:mx-0 mb-8">
-                Every new contractor gets 5 booked jobs completely free. Proof before a dollar
-                changes hands.
+                Your first 5 booked appointments are free, with no credit card required. See it
+                work before a dollar changes hands.
               </p>
               <div className="flex items-center justify-center md:justify-start gap-5">
                 <span className="font-display text-brand-700 text-7xl sm:text-8xl leading-none">5</span>
@@ -992,7 +993,7 @@ export default function LandingPage() {
             </div>
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-semibold text-white/75">
               <button onClick={() => { window.location.href = 'https://intake.tractifyhq.com?src=homepage_footer'; }} className="hover:text-white transition-colors">Get Started</button>
-              <button onClick={() => navigate('/login')} className="hover:text-white transition-colors">Contractor Login</button>
+              <button onClick={() => navigate('/login')} className="hover:text-white transition-colors">Optional contractor portal</button>
               <button onClick={() => navigate('/how-to')} className="hover:text-white transition-colors">How It Works</button>
               <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">Privacy</button>
               <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">Terms</button>
