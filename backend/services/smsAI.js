@@ -1859,7 +1859,7 @@ async function sendSetupStepText(contractor, twilioClient) {
 // keeping you in the loop" tone per the copy locked under "How this gets
 // communicated gracefully" — never frames the day-cap as an expiration.
 async function sendTrialHeadsUpText(contractor, jobCount, twilioClient) {
-  const body = `Quick update — you're at ${jobCount} of your 5 free jobs so far. A few more days left in your trial window, just keeping you in the loop, nothing you need to do. Reply STOP to opt out.`;
+  const body = `Quick update — you're at ${jobCount} of your 5 free appointments so far. A few more days left in your trial window, just keeping you in the loop, nothing you need to do. Reply STOP to opt out.`;
 
   await twilioClient.messages.create({
     to: contractor.phone,
@@ -1885,7 +1885,7 @@ async function sendTrialOfferText(contractor, pricingBucket, twilioClient) {
   const priceLine = formatBucketPricing(pricingBucket);
   const businessName = contractor.company_name || contractor.name || 'there';
 
-  const body = `Hey ${businessName} — you've hit your 5 free jobs (or your 3-week trial window, whichever came first). That's the trial. If you want to keep this running: ${priceLine}. No pressure, no contract — if it's not for you, no hard feelings and nothing else happens. Reply YES if you want to keep going and we'll get you set up.`;
+  const body = `Hey ${businessName} — you've hit your 5 free appointments (or your 3-week trial window, whichever came first). That's the trial. If you want to keep this running: ${priceLine}. No pressure, no contract — if it's not for you, no hard feelings and nothing else happens. Reply YES if you want to keep going and we'll get you set up.`;
 
   await twilioClient.messages.create({
     to: contractor.phone,
