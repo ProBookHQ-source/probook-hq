@@ -393,7 +393,7 @@ ${brainLog.length
 - Register a newly-purchased Twilio number into the shared trial-number pool so it auto-assigns to the next signup (add_number_to_pool)
 - Approve or decline pending contractor applications (approve_contractor / decline_contractor)
 - Update contractor info: city, phone, company name, etc. (update_contractor)
-- Assign a flat-retainer pricing bucket to a contractor (set_pricing_bucket) — most contractors get this automatically at signup, but Landscaping/Water Damage/Tree Service/Pool Service and Pending-Review niches are left unset on purpose and need a manual call. A pricing_bucket = NULL contractor who hits the 5-job/21-day trial trigger will alert you instead of getting a real dollar offer texted to them — see the trial trigger cron in cron.js.
+- Assign a flat-retainer pricing bucket to a contractor (set_pricing_bucket) — most contractors get this automatically at signup, but Pending-Review niches are left unset on purpose and need a manual call (two buckets as of Oct 8 2026: 1 = $500/mo + $500 activation, 2 = $1,500/mo + $500 activation). A pricing_bucket = NULL contractor who hits the 5-job/21-day trial trigger will alert you instead of getting a real dollar offer texted to them — see the trial trigger cron in cron.js.
 - Assign or reassign leads to a contractor (assign_lead)
 - Cancel appointments (cancel_appointment)
 - Delete cancelled appointments or test leads (delete_appointment / delete_lead)
@@ -557,12 +557,12 @@ Be direct. No fluff. Jose is running a business.`;
     },
     {
       name: 'set_pricing_bucket',
-      description: 'Assign a flat-retainer pricing bucket to a contractor (\'1\', \'2\', or \'3\' — see CLAUDE.md "Pricing — flat monthly retainer" for what each covers: bucket 1 = $500/mo+$600 activation, bucket 2 = $1,000/mo+$2,000 activation, bucket 3 = $1,800/mo+$3,500 activation). Most contractors get this automatically at signup based on niche, but Landscaping/Water Damage/Tree Service/Pool Service and any Pending-Review niche are left unset on purpose — use this when Jose tells you which bucket to put one of those in, or when a TRIAL TRIGGER — BUCKET NEEDED alert comes in.',
+      description: 'Assign a flat-retainer pricing bucket to a contractor (\'1\' or \'2\' — two buckets as of Oct 8 2026, see CLAUDE.md pricing section: bucket 1 = $500/mo + $500 activation (Lawn Care, Pest Control), bucket 2 = $1,500/mo + $500 activation (every other niche)). All 11 active niches get a bucket automatically at signup; only Pending-Review niches are left unset on purpose — use this when Jose tells you which bucket to put one of those in, or when a TRIAL TRIGGER — BUCKET NEEDED alert comes in.',
       input_schema: {
         type: 'object',
         properties: {
           contractor_id: { type: 'string', description: 'Contractor UUID' },
-          bucket: { type: 'string', enum: ['1', '2', '3'], description: 'Which bucket to assign' },
+          bucket: { type: 'string', enum: ['1', '2'], description: 'Which bucket to assign' },
         },
         required: ['contractor_id', 'bucket'],
       },
@@ -697,7 +697,7 @@ Be direct. No fluff. Jose is running a business.`;
       } else if (name === 'set_pricing_bucket') {
         const { contractor_id, bucket } = input;
         const { BUCKET_PRICING } = require('../services/pricingBuckets');
-        if (!BUCKET_PRICING[bucket]) { toolResult = `"${bucket}" isn't a valid bucket. Use '1', '2', or '3'.`; }
+        if (!BUCKET_PRICING[bucket]) { toolResult = `"${bucket}" isn't a valid bucket. Use '1' or '2'.`; }
         else {
           const check = await db.query('SELECT company_name, name FROM contractors WHERE id = $1', [contractor_id]);
           if (!check.rows.length) { toolResult = 'Contractor not found.'; }

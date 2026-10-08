@@ -26,6 +26,10 @@
  * still be assigned deliberately using this same logic, not defaulted.
  */
 
+// ── October 8, 2026 (session 42): collapsed from three buckets to TWO, with
+// deliberately low entry pricing to get a foot in the door (Jose: prices can be
+// raised or lowered later). Bucket 1 = $500/mo + $500 activation. Bucket 2
+// (old buckets 2 and 3 merged) = $1,500/mo + $500 activation.
 const NICHE_TO_BUCKET = {
   'hvac': '2',
   'plumbing': '2',
@@ -33,17 +37,19 @@ const NICHE_TO_BUCKET = {
   'water damage': '2',
   'tree service': '2',
   'pool service': '2',
+  'solar': '2',
+  'roofing': '2',
+  'landscaping': '2',
   'lawn care': '1',
   'pest control': '1',
-  'solar': '3',
-  'roofing': '3',
-  'landscaping': '3',
 };
 
 const BUCKET_PRICING = {
-  '1': { retainer: 500, activation: 600, label: 'Bucket 1 (low-ticket / high-frequency)' },
-  '2': { retainer: 1000, activation: 2000, label: 'Bucket 2 (mid-ticket)' },
-  '3': { retainer: 1800, activation: 3500, label: 'Bucket 3 (high-ticket / low-frequency)' },
+  '1': { retainer: 500, activation: 500, label: 'Bucket 1 (low-ticket / high-frequency)' },
+  '2': { retainer: 1500, activation: 500, label: 'Bucket 2 (everything else)' },
+  // Legacy alias: contractors already stored with pricing_bucket '3' before the
+  // merge keep working and are billed as bucket 2. Not offered for new assignment.
+  '3': { retainer: 1500, activation: 500, label: 'Bucket 2 (legacy value "3")' },
 };
 
 /** Resolve a bucket ('1'|'2'|'3') from a niche name, or null if unmapped. Case-insensitive. */
