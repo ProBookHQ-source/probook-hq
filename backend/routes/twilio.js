@@ -318,7 +318,14 @@ router.post('/inbound-sms', async (req, res) => {
         if (typeof convo === 'string') { try { convo = JSON.parse(convo); } catch { convo = []; } }
         const lastAssistant = [...(convo || [])].reverse().find(m => m.role === 'assistant');
         const lastText = typeof lastAssistant?.content === 'string' ? lastAssistant.content : '';
-        if (lastText.includes('Reply YES if you want to keep going')) {
+        // Also fires when the last message was the payment link itself and the
+        // contractor says YES again while still unpaid — re-send a fresh link
+        // instead of letting the AI improvise "payment's processing" (it did,
+        // Oct 8 2026, when nothing had been paid).
+        if (
+          lastText.includes('Reply YES if you want to keep going') ||
+          lastText.includes("here's your secure payment link")
+        ) {
           const { sendPaymentLink } = require('../services/stripe');
           const result = await sendPaymentLink(contractor, twilioClient);
           if (!result.ok) {
