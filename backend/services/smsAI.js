@@ -1885,7 +1885,7 @@ async function sendTrialOfferText(contractor, pricingBucket, twilioClient) {
   const priceLine = formatBucketPricing(pricingBucket);
   const businessName = contractor.company_name || contractor.name || 'there';
 
-  const body = `Hey ${businessName} — you've hit your 5 free appointments (or your 3-week trial window, whichever came first). That's the trial. If you want to keep this running: ${priceLine}. No pressure, no contract — if it's not for you, no hard feelings and nothing else happens. Reply YES if you want to keep going and we'll get you set up.`;
+  const body = `Hey ${businessName} — you've hit your 5 free appointments (or your 3-week trial window, whichever came first). That's the trial. If you want to keep this running: ${priceLine}. No pressure, no contract — if it's not for you, no hard feelings and nothing else happens. Reply YES if you want to keep going and I'll text you a secure checkout link.`;
 
   await twilioClient.messages.create({
     to: contractor.phone,

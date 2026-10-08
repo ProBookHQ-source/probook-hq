@@ -57,7 +57,7 @@ function resolveBucketForNiche(nicheName) {
 function formatBucketPricing(bucket) {
   const p = BUCKET_PRICING[String(bucket)];
   if (!p) return null;
-  return `$${p.activation} one-time to get set up, then $${p.retainer}/month`;
+  return `$${p.activation} one-time to get set up, plus $${p.retainer}/month (both are charged when you check out, then the $${p.retainer} repeats monthly)`;
 }
 
 module.exports = { NICHE_TO_BUCKET, BUCKET_PRICING, resolveBucketForNiche, formatBucketPricing };
