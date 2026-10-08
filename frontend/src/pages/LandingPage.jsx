@@ -887,7 +887,7 @@ export default function LandingPage() {
               <div className="flex items-center justify-center md:justify-start gap-5">
                 <span className="font-display text-brand-700 text-7xl sm:text-8xl leading-none">5</span>
                 <span className="text-brand-900 font-bold text-lg sm:text-xl uppercase tracking-wide leading-tight max-w-[8rem]">
-                  Free<br />Booked<br />Jobs!
+                  Free<br />Booked<br />Appointments!
                 </span>
               </div>
             </div>
@@ -977,7 +977,7 @@ export default function LandingPage() {
               onClick={() => { window.location.href = 'https://intake.tractifyhq.com?src=homepage_bottom'; }}
               className="btn-sheen inline-flex items-center justify-center gap-2 bg-white text-brand-700 text-base font-bold px-8 py-3.5 rounded-xl hover:shadow-xl shadow-lg shadow-brand-900/30"
             >
-              Claim Your 5 Free Jobs <ArrowRight className="w-5 h-5" />
+              Claim Your 5 Free Appointments <ArrowRight className="w-5 h-5" />
             </button>
           </div>
         </section>
