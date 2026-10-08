@@ -292,8 +292,8 @@ function TeamRoster({ className = '' }) {
     { role: 'Evenings', icon: Smartphone, typical: 'Checking for missed calls', ours: 'Stays in your pocket' },
     { role: 'Weekends', icon: CalendarCheck, typical: 'One eye on the job site', ours: 'Actually off the clock' },
     { role: 'Family dinner', icon: MessageSquare, typical: 'Interrupted mid-bite', ours: 'Nobody interrupts it' },
-    { role: 'A missed call', icon: PhoneCall, typical: 'A lost job', ours: 'A booked job you never saw happen' },
-    { role: 'Vacation', icon: LayoutGrid, typical: "Can't really leave", ours: 'Customer acquisition runs without you' },
+    { role: 'A missed call', icon: PhoneCall, typical: 'A lost job', ours: 'A chance to book it without you' },
+    { role: 'Vacation', icon: LayoutGrid, typical: "Can't really leave", ours: 'Missed calls still get a reply' },
   ];
 
   useEffect(() => {
@@ -768,8 +768,8 @@ export default function LandingPage() {
               <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-4 max-w-lg">
                 Tractify exists because contractors were losing jobs to a missed phone call —
                 and losing their evenings to a phone that never stops ringing. We built a system
-                that captures every missed call, texts the homeowner back, and books the job
-                automatically. No app, no dashboard, no login required.
+                that texts the homeowner back the moment you miss a call and works to book the
+                job for you. No app, no dashboard, no login required.
               </p>
               <p className="text-white/75 text-sm leading-relaxed max-w-lg">
                 What you're actually buying isn't software. It's not being the guy who checks
@@ -910,14 +910,14 @@ export default function LandingPage() {
                 LIVE IN DAYS. NOT MONTHS.
               </h2>
               <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-6 max-w-lg">
-                No onboarding calls, no implementation team, nothing to configure. Most contractors
-                go from signing up to their first booked job in under a week.
+                No onboarding calls, no implementation team, nothing to configure. Setup happens
+                by text, and you can be ready to start receiving bookings within days.
               </p>
               <div className="space-y-3 max-w-lg">
                 {[
                   'Sign up — takes about 5 minutes',
                   'Forward your calls — the biggest immediate step',
-                  'Missed calls start turning into booked jobs, automatically',
+                  'Missed calls get an instant text, and booked appointments land on your calendar',
                 ].map((item, i) => (
                   <div key={item} className="flex items-start gap-3 border-t border-white/15 pt-3">
                     <span className="w-4 h-4 rounded-full bg-white/15 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
