@@ -48,6 +48,10 @@ async function createCheckoutSession(contractor) {
     client_reference_id: contractor.id,
     metadata: meta,
     subscription_data: { metadata: meta },
+    // Stripe Managed Payments (Stripe as merchant of record) is on by default
+    // for new accounts and demands a product tax code on every line item. We bill
+    // contractors directly as the seller, so it stays off.
+    managed_payments: { enabled: false },
     line_items: [
       {
         // One-time activation fee — in subscription mode a non-recurring line
