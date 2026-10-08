@@ -624,7 +624,7 @@ export default function LandingPage() {
               {[
                 { icon: PhoneCall, title: 'Missed Calls', desc: "You're on a job, the phone rings, nobody picks up. That's the trigger, not the loss." },
                 { icon: Search, title: 'Google Business Profile', desc: 'Homeowners searching "near me" tap Book and go straight into the same text thread.' },
-                { icon: Share2, title: 'Facebook & Instagram', desc: 'Ad replies and DMs get an instant booking link — nobody waits on a callback.' },
+                { icon: Share2, title: 'Facebook & Instagram', desc: 'Ad replies and DMs lead into the same text conversation, so nobody waits on a callback.' },
               ].map(({ icon: Icon, title, desc }, i) => (
                 <Fragment key={title}>
                   <Reveal delay={i * 130} className="flex-1">
@@ -651,14 +651,14 @@ export default function LandingPage() {
             <Reveal>
               <div className="flex flex-col items-center gap-3 mb-10">
                 <ArrowDown className="w-5 h-5 text-white/30" strokeWidth={2.5} />
-                <p className="text-white/50 text-xs font-bold uppercase tracking-wide">Every one of them becomes this</p>
+                <p className="text-white/50 text-xs font-bold uppercase tracking-wide">One booking flow for every channel</p>
               </div>
             </Reveal>
 
             {/* The shared engine every channel feeds into */}
             <div className="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-2 mb-10">
               {[
-                { icon: MessageSquare, title: 'SMS Booking', desc: 'The homeowner picks a time right in the text thread. No link, no app, no waiting on hold.' },
+                { icon: MessageSquare, title: 'SMS Booking', desc: 'The homeowner picks a time right in the text thread. No app to download, no waiting on hold.' },
                 { icon: CalendarCheck, title: 'Calendar Automation', desc: 'The job lands straight on your calendar, confirmed — you just show up.' },
               ].map(({ icon: Icon, title, desc }, i) => (
                 <Fragment key={title}>
@@ -707,10 +707,10 @@ export default function LandingPage() {
               THE FASTER YOU RESPOND, THE MORE LIKELY YOU ARE TO WIN THE JOB.
             </h2>
             <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-lg mx-auto">
-              Research on lead response times has found the average business takes around 42
-              hours to follow up, and that responding within minutes makes reaching the customer
-              far more likely. Tractify texts the moment a call is missed, so the customer gets
-              an answer even when you can't pick up.
+              Homeowners with a broken AC or a leaking pipe usually contact more than one
+              contractor, and the first one to respond has the best shot at the job. Tractify
+              texts the moment a call is missed, so the customer gets an answer even when you
+              can't pick up.
             </p>
           </div>
 
@@ -721,7 +721,7 @@ export default function LandingPage() {
                 <p className="text-gray-700 text-sm sm:text-base leading-relaxed">
                   You're under a house. Your phone's in the truck. That call just{' '}
                   <mark className="bg-brand-100 text-brand-800 px-1.5 rounded-md font-semibold">
-                    went to your competitor
+                    went unanswered
                   </mark>.
                 </p>
               </div>
@@ -910,8 +910,8 @@ export default function LandingPage() {
                 LIVE IN DAYS. NOT MONTHS.
               </h2>
               <p className="text-white/75 text-sm sm:text-base leading-relaxed mb-6 max-w-lg">
-                No onboarding calls, no implementation team, nothing to configure. Setup happens
-                by text, and you can be ready to start receiving bookings within days.
+                No onboarding calls and no implementation team. We guide your setup by text, and
+                you can be ready to start receiving bookings within days.
               </p>
               <div className="space-y-3 max-w-lg">
                 {[
@@ -994,7 +994,7 @@ export default function LandingPage() {
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-semibold text-white/75">
               <button onClick={() => { window.location.href = 'https://intake.tractifyhq.com?src=homepage_footer'; }} className="hover:text-white transition-colors">Get Started</button>
               <button onClick={() => navigate('/login')} className="hover:text-white transition-colors">Optional contractor portal</button>
-              <button onClick={() => navigate('/how-to')} className="hover:text-white transition-colors">How It Works</button>
+              <button onClick={() => navigate('/how-to')} className="hover:text-white transition-colors">Call Forwarding Guide</button>
               <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">Privacy</button>
               <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">Terms</button>
               <a href="mailto:support@tractifyhq.com" className="hover:text-white transition-colors">support@tractifyhq.com</a>
