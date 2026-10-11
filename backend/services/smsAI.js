@@ -1881,11 +1881,48 @@ async function sendTrialHeadsUpText(contractor, jobCount, twilioClient) {
 // pricingBucket must already be resolved by the caller — this function never
 // guesses a bucket itself.
 async function sendTrialOfferText(contractor, pricingBucket, twilioClient) {
-  const { formatBucketPricing } = require('./pricingBuckets');
-  const priceLine = formatBucketPricing(pricingBucket);
+  const { BUCKET_PRICING } = require('./pricingBuckets');
+  const p = BUCKET_PRICING[String(pricingBucket)];
   const businessName = contractor.company_name || contractor.name || 'there';
+  const fmt = (n) => `$${Number(n).toLocaleString('en-US')}`;
+  const today = p.activation + p.retainer;
 
-  const body = `Hey ${businessName} — you've hit your 5 free appointments (or your 3-week trial window, whichever came first). That's the trial. If you want to keep this running: ${priceLine}. No pressure, no contract — if it's not for you, no hard feelings and nothing else happens. Reply YES if you want to keep going and I'll text you a secure checkout link.`;
+  // Pull this contractor's real trial results so the close leads with proof.
+  // Any failure here falls back to the generic opener — never blocks the offer.
+  let count = 0, daysTo5 = null, closedTotal = 0;
+  try {
+    const { rows } = await db.query(
+      `SELECT created_at FROM appointments
+        WHERE contractor_id = $1 AND status != 'cancelled'
+        ORDER BY created_at ASC`, [contractor.id]);
+    count = rows.length;
+    if (count >= 5 && contractor.created_at) {
+      const ms = new Date(rows[4].created_at) - new Date(contractor.created_at);
+      daysTo5 = Math.max(1, Math.ceil(ms / 86400000));
+    }
+    const { rows: cl } = await db.query(
+      `SELECT COALESCE(SUM(closed_value),0) AS total FROM appointments
+        WHERE contractor_id = $1 AND did_close = 1 AND closed_value > 0`, [contractor.id]);
+    closedTotal = Math.round(Number(cl[0]?.total || 0));
+  } catch (e) {
+    console.error('[SMS-AI] trial offer stats lookup failed (using generic opener):', e.message);
+  }
+
+  let opener;
+  if (count >= 5) {
+    opener = `${businessName} — your 5 free appointments are done. That's 5 customers booked${daysTo5 ? ` in ${daysTo5} day${daysTo5 === 1 ? '' : 's'}` : ''}.`;
+  } else if (count > 0) {
+    opener = `${businessName} — your 3-week trial window is up, and in that time we booked ${count} appointment${count === 1 ? '' : 's'} for you.`;
+  } else {
+    opener = `${businessName} — your 3-week trial window is up.`;
+  }
+  if (count > 0 && closedTotal > 0) {
+    opener += ` You've told us ${fmt(closedTotal)} of that turned into real work.`;
+  }
+
+  // NOTE: keep the exact phrase "Reply YES if you want to keep going" — the YES
+  // handler in routes/twilio.js matches on it.
+  const body = `${opener}\n\nWant to keep it going? Today's checkout is ${fmt(today)}: ${fmt(p.activation)} one-time setup plus your first month at ${fmt(p.retainer)}. After that it's ${fmt(p.retainer)}/month, month to month. No contract, cancel anytime.\n\nJust so you know, if you stop, your number and the booking system stop with it, so missed calls go back to voicemail.\n\nReply YES if you want to keep going and I'll text you the secure checkout link.`;
 
   await twilioClient.messages.create({
     to: contractor.phone,
