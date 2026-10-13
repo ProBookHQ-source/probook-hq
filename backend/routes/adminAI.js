@@ -568,6 +568,17 @@ Be direct. No fluff. Jose is running a business.`;
       },
     },
     {
+      name: 'resend_trial_offer',
+      description: 'Immediately (re)send the trial-ending offer text to a contractor who is still on payment_status = trial, resetting the offer/checkout timestamps first. Used for testing the Stripe close flow or re-sending an offer. Refuses on paid/churned contractors.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          contractor_id: { type: 'string', description: 'Contractor UUID' },
+        },
+        required: ['contractor_id'],
+      },
+    },
+    {
       name: 'get_contractor_conversation',
       description: 'Pull a contractor\'s actual recent SMS conversation with Brain 2 (last 20 messages), for troubleshooting a specific report like "what did the AI actually tell this contractor".',
       input_schema: {
@@ -709,6 +720,23 @@ Be direct. No fluff. Jose is running a business.`;
             actionTaken = { type: 'set_pricing_bucket', contractor_id, bucket };
             console.log(`[ADMIN-AI] Set pricing bucket ${bucket} for ${cName}`);
           }
+        }
+
+      } else if (name === 'resend_trial_offer') {
+        const { rows } = await db.query('SELECT * FROM contractors WHERE id = $1', [input.contractor_id]);
+        const c = rows[0];
+        if (!c) { toolResult = 'Contractor not found.'; }
+        else if (c.payment_status !== 'trial') { toolResult = `Refusing — payment_status is '${c.payment_status}', not 'trial'.`; }
+        else if (!c.pricing_bucket) { toolResult = 'No pricing_bucket set — set one first.'; }
+        else if (!c.twilio_number || !c.phone) { toolResult = 'Contractor has no Twilio number or phone on file.'; }
+        else if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) { toolResult = 'Twilio credentials not configured.'; }
+        else {
+          await db.query('UPDATE contractors SET trial_offer_sent_at = NULL, stripe_checkout_sent_at = NULL WHERE id = $1', [c.id]);
+          const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+          await require('../services/smsAI').sendTrialOfferText(c, c.pricing_bucket, twilioClient);
+          toolResult = `Trial offer re-sent to ${c.company_name || c.name}. They can reply YES right now to get a fresh Stripe checkout link.`;
+          actionTaken = { type: 'resend_trial_offer', contractor_id: c.id };
+          console.log(`[ADMIN-AI] Re-sent trial offer to ${c.company_name || c.name}`);
         }
 
       } else if (name === 'assign_lead') {
