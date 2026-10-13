@@ -316,8 +316,15 @@ router.post('/inbound-sms', async (req, res) => {
       ) {
         let convo = contractor.sms_conversation;
         if (typeof convo === 'string') { try { convo = JSON.parse(convo); } catch { convo = []; } }
-        const lastAssistant = [...(convo || [])].reverse().find(m => m.role === 'assistant');
-        const lastText = typeof lastAssistant?.content === 'string' ? lastAssistant.content : '';
+        // Look at the last few assistant turns, not just the very last one: a
+        // contractor who asks a question after the offer ("can I get more free
+        // jobs?") gets an AI answer in between, and their later "Yes" must still
+        // count (Oct 12 2026 — the AI improvised a link instead of the system).
+        const lastText = [...(convo || [])]
+          .filter(m => m.role === 'assistant' && typeof m.content === 'string')
+          .slice(-4)
+          .map(m => m.content)
+          .join('\n');
         // Also fires when the last message was the payment link itself and the
         // contractor says YES again while still unpaid — re-send a fresh link
         // instead of letting the AI improvise "payment's processing" (it did,

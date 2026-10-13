@@ -94,7 +94,7 @@ async function sendPaymentLink(contractor, twilioClient) {
 
   try {
     const session = await createCheckoutSession(contractor);
-    const body = `Great — here's your secure payment link: ${session.url}\n\nOnce it goes through, you're fully set up and nothing about your number or bookings changes. Reply here if you have any questions.`;
+    const body = `Great — here's your secure payment link: ${session.url}\n\nOnce it goes through, you'll get a confirmation text right here and your number and bookings keep running as they are. Reply here if you have any questions.`;
 
     await twilioClient.messages.create({ to: contractor.phone, from: contractor.twilio_number, body });
     await appendDeterministicSmsTurn(contractor.id, body, '(system: Stripe payment link sent after contractor replied YES to trial offer)');
