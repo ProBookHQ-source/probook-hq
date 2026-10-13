@@ -152,7 +152,7 @@ async function sendBillingPortalLink(contractor, twilioClient, { undo = false } 
 const FORWARDING_OFF_TEXT = `To turn off call forwarding so unanswered calls go back to your normal voicemail: dial ##61# (AT&T or T-Mobile) or *73 (Verizon), then press call. Not sure which applies to you? Reply here and I'll walk you through it.`;
 
 function fmtDate(d) {
-  return new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles' });
+  return new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
 
 /** Send a deterministic SMS to a contractor and keep sms_conversation in sync. */
@@ -262,7 +262,7 @@ async function handleWebhookEvent(event) {
         const when = fmtDate(endDate);
         try {
           await textContractor(contractor,
-            `Your cancellation is confirmed. Everything keeps working through ${when}, the last day you've paid for, and you won't be charged again. After that your number and booking system stop.\n\n${FORWARDING_OFF_TEXT}\n\nChanged your mind? Before ${when}, just text me "keep my subscription" and I'll send you the link to undo it. Your billing stays exactly the same.`,
+            `Your cancellation is confirmed. Everything keeps working until ${when}, the end of the period you've paid for, and you won't be charged again. After that your number and booking system stop. I'll text you that day with how to turn off call forwarding.\n\nChanged your mind? Before ${when}, just text me "keep my subscription" and I'll send you the link to undo it. Your billing stays exactly the same.`,
             '(system: cancellation confirmed, last day + forwarding-off instructions sent)');
         } catch (e) { console.error('[STRIPE] Cancellation confirmation SMS failed:', e.message); }
         await sendStripeAlertToJose({ kind: 'cancel_scheduled', contractor, detail: `Last day of service: ${when}` }).catch(() => {});
