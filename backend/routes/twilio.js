@@ -81,7 +81,7 @@ router.post('/missed-call', async (req, res) => {
 
   // ── Look up contractor by their Twilio number ────────────────────────────────
   const contractor = await db.prepare(`
-    SELECT id, company_name, name, booking_slug
+    SELECT id, company_name, name, booking_slug, payment_status
     FROM contractors
     WHERE twilio_number = ? AND is_active = 1
   `).get(To);
@@ -90,6 +90,14 @@ router.post('/missed-call', async (req, res) => {
     console.warn(`[TWILIO] No active contractor found for Twilio number: ${To}`);
     res.type('text/xml');
     return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
+  }
+
+  // Churned (subscription ended): no free service. Callers still forwarded here
+  // get a short message instead of dead air; no Brain 3 session, no texts.
+  if (contractor.payment_status === 'churned') {
+    console.log(`[TWILIO] Missed call to churned contractor ${contractor.id} — not engaging`);
+    res.type('text/xml');
+    return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="alice">Sorry, we can't take your call right now. Please try again later.</Say><Hangup/></Response>`);
   }
 
   // Stamp test call timestamp — used by the portal's live call-forwarding test
@@ -270,7 +278,7 @@ router.post('/inbound-sms', async (req, res) => {
     SELECT id, name, company_name, phone, booking_slug, twilio_number,
            onboarding_steps, sms_conversation, sms_welcome_sent,
            sms_power_message_sent, sms_calendar_training_sent, business_phone,
-           payment_status, pricing_bucket, trial_offer_sent_at, stripe_customer_id
+           payment_status, pricing_bucket, trial_offer_sent_at, stripe_customer_id, paid_through
     FROM contractors
     WHERE twilio_number = ? AND is_active = 1
   `).get(To);
@@ -286,6 +294,15 @@ router.post('/inbound-sms', async (req, res) => {
   const fromDigits = normalize(From);
   const contractorDigits = normalize(contractor.phone);
   const isContractor = contractorDigits && contractorDigits === fromDigits;
+
+  // Churned (subscription ended): homeowners get nothing; the contractor gets a
+  // short "ended" reply with how to turn off call forwarding.
+  if (contractor.payment_status === 'churned') {
+    res.type('text/xml');
+    if (!isContractor) return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response/>`);
+    const msg = `Your Tractify subscription has ended, so this number and the booking system are off. To turn off call forwarding: dial ##61# (AT&T or T-Mobile) or *73 (Verizon), then press call. Want back in? Email support@tractifyhq.com.`;
+    return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Message>${msg}</Message></Response>`);
+  }
 
   const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
     ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
@@ -358,6 +375,25 @@ router.post('/inbound-sms', async (req, res) => {
     // cancel word so "cancel my 2pm appointment" never triggers it.
     try {
       const CANCEL_BILLING_RE = /\b(cancel|end|stop|quit|close)\b[^.?!]*\b(subscription|membership|account|plan|billing|payments?|tractify)\b|\bstop (charging|billing) me\b|\bunsubscribe\b/i;
+      // Already scheduled to cancel and now wants to keep it → send the undo link
+      const KEEP_SUB_RE = /\b(keep|renew|undo|reactivate|resume|continue)\b[^.?!]*\b(subscription|membership|account|plan|service|it)\b|\bchanged my mind\b|\bdon'?t cancel\b|\bnever ?mind\b[^.?!]*\bcancel/i;
+      if (
+        KEEP_SUB_RE.test(Body || '') &&
+        contractor.paid_through &&
+        contractor.payment_status === 'paid' &&
+        contractor.stripe_customer_id
+      ) {
+        const { sendBillingPortalLink } = require('../services/stripe');
+        const result = await sendBillingPortalLink(contractor, twilioClient, { undo: true });
+        if (!result.ok) {
+          await twilioClient.messages.create({
+            to: From, from: To,
+            body: `Got it — I've flagged it to our team and we'll keep your subscription going. You'll hear from us within one business day.`,
+          }).catch(() => {});
+        }
+        res.type('text/xml');
+        return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response/>`);
+      }
       if (
         CANCEL_BILLING_RE.test(Body || '') &&
         contractor.payment_status === 'paid' &&

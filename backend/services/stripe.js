@@ -118,7 +118,7 @@ async function sendPaymentLink(contractor, twilioClient) {
  * Stripe (Settings → Billing → Customer portal). Never throws; on failure it
  * alerts Jose and tells the contractor honestly that the team will handle it.
  */
-async function sendBillingPortalLink(contractor, twilioClient) {
+async function sendBillingPortalLink(contractor, twilioClient, { undo = false } = {}) {
   const { sendStripeAlertToJose } = require('./notifications');
   const { appendDeterministicSmsTurn } = require('./smsAI');
   const stripe = getStripe();
@@ -131,10 +131,12 @@ async function sendBillingPortalLink(contractor, twilioClient) {
       customer: contractor.stripe_customer_id,
       return_url: `${appUrl()}/api/stripe/success`,
     });
-    const body = `No problem. Here's your secure billing link where you can cancel or update your card anytime: ${portal.url}\n\nCancelling stops future charges, and your number and booking system stop when the cancellation takes effect. If you'd rather talk it through first, just reply here.`;
+    const body = undo
+      ? `Happy to keep you going. Open your secure billing link and tap "Renew subscription": ${portal.url}\n\nYour billing stays exactly the same, and nothing about your service changes.`
+      : `No problem. Here's your secure billing link where you can cancel or update your card anytime: ${portal.url}\n\nIf you cancel, nothing changes today: everything keeps working through the end of the month you've already paid for, then your number and booking system stop and you won't be charged again. I'll text you the exact date once it's confirmed. If you'd rather talk it through first, just reply here.`;
     await twilioClient.messages.create({ to: contractor.phone, from: contractor.twilio_number, body });
     await appendDeterministicSmsTurn(contractor.id, body, '(system: contractor asked to cancel — Stripe billing portal link sent)');
-    await sendStripeAlertToJose({ kind: 'cancel_requested', contractor, detail: 'Billing portal link texted. If they cancel, the subscription.deleted webhook will alert you.' }).catch(() => {});
+    if (!undo) await sendStripeAlertToJose({ kind: 'cancel_requested', contractor, detail: 'Billing portal link texted. If they cancel, the subscription.deleted webhook will alert you.' }).catch(() => {});
     console.log(`[STRIPE] Billing portal link sent — ${contractor.name} (${contractor.id})`);
     return { ok: true };
   } catch (err) {
@@ -142,6 +144,23 @@ async function sendBillingPortalLink(contractor, twilioClient) {
     await sendStripeAlertToJose({ kind: 'portal_failed', contractor, detail: err.message }).catch(() => {});
     return { ok: false, error: err.message };
   }
+}
+
+// How to turn call forwarding back off — included in every cancellation text.
+// Without this, a cancelled contractor's unanswered calls would keep forwarding
+// to a Tractify number that no longer answers them (dead air for their customers).
+const FORWARDING_OFF_TEXT = `To turn off call forwarding so unanswered calls go back to your normal voicemail: dial ##61# (AT&T or T-Mobile) or *73 (Verizon), then press call. Not sure which applies to you? Reply here and I'll walk you through it.`;
+
+function fmtDate(d) {
+  return new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles' });
+}
+
+/** Send a deterministic SMS to a contractor and keep sms_conversation in sync. */
+async function textContractor(contractor, body, note) {
+  if (!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && contractor.twilio_number && contractor.phone)) return;
+  const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+  await twilioClient.messages.create({ to: contractor.phone, from: contractor.twilio_number, body });
+  await require('./smsAI').appendDeterministicSmsTurn(contractor.id, body, note);
 }
 
 /** Atomic de-dupe on Stripe event id (Stripe retries). Reuses twilio_webhook_events. */
@@ -222,6 +241,41 @@ async function handleWebhookEvent(event) {
       return;
     }
 
+    // Fires when a contractor cancels (or un-cancels) in the billing portal with
+    // "cancel at end of billing period": record the last paid day and confirm by
+    // text. Must be enabled on the Stripe webhook destination.
+    case 'customer.subscription.updated': {
+      const sub = event.data.object;
+      const contractorId = sub.metadata?.contractor_id;
+      if (!contractorId) return;
+      const contractor = await loadContractor(contractorId);
+      if (!contractor) return;
+
+      const cancelling = !!(sub.cancel_at_period_end || sub.cancel_at);
+      const endUnix = sub.cancel_at || sub.items?.data?.[0]?.current_period_end || sub.current_period_end;
+
+      if (cancelling && endUnix) {
+        const endDate = new Date(endUnix * 1000);
+        const already = contractor.paid_through && Math.abs(new Date(contractor.paid_through) - endDate) < 60000;
+        if (already) return; // no change — don't re-text
+        await db.query(`UPDATE contractors SET paid_through = $1 WHERE id = $2`, [endDate.toISOString(), contractorId]);
+        const when = fmtDate(endDate);
+        try {
+          await textContractor(contractor,
+            `Your cancellation is confirmed. Everything keeps working through ${when}, the last day you've paid for, and you won't be charged again. After that your number and booking system stop.\n\n${FORWARDING_OFF_TEXT}\n\nChanged your mind? Before ${when}, just text me "keep my subscription" and I'll send you the link to undo it. Your billing stays exactly the same.`,
+            '(system: cancellation confirmed, last day + forwarding-off instructions sent)');
+        } catch (e) { console.error('[STRIPE] Cancellation confirmation SMS failed:', e.message); }
+        await sendStripeAlertToJose({ kind: 'cancel_scheduled', contractor, detail: `Last day of service: ${when}` }).catch(() => {});
+      } else if (!cancelling && contractor.paid_through) {
+        await db.query(`UPDATE contractors SET paid_through = NULL WHERE id = $1`, [contractorId]);
+        try {
+          await textContractor(contractor, `Welcome back — your cancellation has been undone and everything keeps running as normal.`, '(system: cancellation undone)');
+        } catch (e) { console.error('[STRIPE] Un-cancel SMS failed:', e.message); }
+        await sendStripeAlertToJose({ kind: 'cancel_undone', contractor, detail: 'Contractor reversed their cancellation.' }).catch(() => {});
+      }
+      return;
+    }
+
     case 'customer.subscription.deleted': {
       const sub = event.data.object;
       const contractorId = sub.metadata?.contractor_id;
@@ -232,6 +286,11 @@ async function handleWebhookEvent(event) {
       );
       const contractor = await loadContractor(contractorId);
       if (contractor) {
+        try {
+          await textContractor(contractor,
+            `Your Tractify subscription has now ended, so your number and booking system are off. Thanks for giving us a shot.\n\n${FORWARDING_OFF_TEXT}\n\nWant back in? Email support@tractifyhq.com and we'll get you set up (your number is held for 6 months).`,
+            '(system: subscription ended, forwarding-off instructions sent)');
+        } catch (e) { console.error('[STRIPE] Subscription-ended SMS failed:', e.message); }
         await sendStripeAlertToJose({
           kind: 'subscription_ended', contractor,
           detail: 'Marked churned with a 6-month number hold. Deactivate the contractor manually if appropriate (is_active is NOT changed automatically).',

@@ -1152,6 +1152,8 @@ async function sendStripeAlertToJose({ kind, contractor, detail = '' }) {
     subscription_ended:    { label: '🛑 SUBSCRIPTION ENDED', color: '#dc2626', headline: `${company} — subscription ended` },
     stripe_not_configured: { label: '⚠️ ACTION NEEDED',      color: '#dc2626', headline: `${company} said YES but Stripe isn't configured` },
     link_failed:           { label: '⚠️ ACTION NEEDED',      color: '#dc2626', headline: `${company} said YES but the payment link failed` },
+    cancel_scheduled:      { label: '🛑 CANCELLATION SCHEDULED', color: '#d97706', headline: `${company} cancelled — runs to end of paid period` },
+    cancel_undone:         { label: '↩️ CANCELLATION UNDONE', color: '#16a34a', headline: `${company} reversed their cancellation` },
     cancel_requested:      { label: '📩 CANCEL REQUESTED',   color: '#d97706', headline: `${company} asked to cancel — billing link sent` },
     portal_failed:         { label: '⚠️ ACTION NEEDED',      color: '#dc2626', headline: `${company} asked to cancel but the billing link failed` },
   };

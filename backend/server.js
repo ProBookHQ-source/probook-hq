@@ -414,6 +414,8 @@ db._ready.then(async () => {
   // (or are migrated above); these three are new.
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`);
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT`);
+  // Last day of service after a cancellation request (cancel-at-period-end). NULL = not cancelling.
+  await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS paid_through TIMESTAMPTZ`);
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS stripe_checkout_sent_at TIMESTAMPTZ`);
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ`);
 
