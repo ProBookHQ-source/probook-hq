@@ -1152,6 +1152,8 @@ async function sendStripeAlertToJose({ kind, contractor, detail = '' }) {
     subscription_ended:    { label: '🛑 SUBSCRIPTION ENDED', color: '#dc2626', headline: `${company} — subscription ended` },
     stripe_not_configured: { label: '⚠️ ACTION NEEDED',      color: '#dc2626', headline: `${company} said YES but Stripe isn't configured` },
     link_failed:           { label: '⚠️ ACTION NEEDED',      color: '#dc2626', headline: `${company} said YES but the payment link failed` },
+    cancel_requested:      { label: '📩 CANCEL REQUESTED',   color: '#d97706', headline: `${company} asked to cancel — billing link sent` },
+    portal_failed:         { label: '⚠️ ACTION NEEDED',      color: '#dc2626', headline: `${company} asked to cancel but the billing link failed` },
   };
   const m = META[kind] || { label: 'STRIPE', color: '#6366f1', headline: company };
 

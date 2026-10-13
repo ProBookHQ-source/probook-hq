@@ -110,6 +110,40 @@ async function sendPaymentLink(contractor, twilioClient) {
   }
 }
 
+/**
+ * Paid contractor asks to cancel / change their card → text them a Stripe
+ * hosted billing-portal link (they cancel themselves there; the existing
+ * customer.subscription.deleted webhook then marks them churned + starts the
+ * 6-month number hold). Requires the Customer Portal to be configured once in
+ * Stripe (Settings → Billing → Customer portal). Never throws; on failure it
+ * alerts Jose and tells the contractor honestly that the team will handle it.
+ */
+async function sendBillingPortalLink(contractor, twilioClient) {
+  const { sendStripeAlertToJose } = require('./notifications');
+  const { appendDeterministicSmsTurn } = require('./smsAI');
+  const stripe = getStripe();
+
+  try {
+    if (!stripe) throw new Error('STRIPE_SECRET_KEY not set');
+    if (!contractor.stripe_customer_id) throw new Error('No stripe_customer_id on this contractor');
+
+    const portal = await stripe.billingPortal.sessions.create({
+      customer: contractor.stripe_customer_id,
+      return_url: `${appUrl()}/api/stripe/success`,
+    });
+    const body = `No problem. Here's your secure billing link where you can cancel or update your card anytime: ${portal.url}\n\nCancelling stops future charges, and your number and booking system stop when the cancellation takes effect. If you'd rather talk it through first, just reply here.`;
+    await twilioClient.messages.create({ to: contractor.phone, from: contractor.twilio_number, body });
+    await appendDeterministicSmsTurn(contractor.id, body, '(system: contractor asked to cancel — Stripe billing portal link sent)');
+    await sendStripeAlertToJose({ kind: 'cancel_requested', contractor, detail: 'Billing portal link texted. If they cancel, the subscription.deleted webhook will alert you.' }).catch(() => {});
+    console.log(`[STRIPE] Billing portal link sent — ${contractor.name} (${contractor.id})`);
+    return { ok: true };
+  } catch (err) {
+    console.error('[STRIPE] sendBillingPortalLink failed:', err.message);
+    await sendStripeAlertToJose({ kind: 'portal_failed', contractor, detail: err.message }).catch(() => {});
+    return { ok: false, error: err.message };
+  }
+}
+
 /** Atomic de-dupe on Stripe event id (Stripe retries). Reuses twilio_webhook_events. */
 async function claimEvent(eventId) {
   try {
@@ -211,4 +245,4 @@ async function handleWebhookEvent(event) {
   }
 }
 
-module.exports = { getStripe, createCheckoutSession, sendPaymentLink, handleWebhookEvent };
+module.exports = { getStripe, createCheckoutSession, sendPaymentLink, sendBillingPortalLink, handleWebhookEvent };

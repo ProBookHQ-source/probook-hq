@@ -270,7 +270,7 @@ router.post('/inbound-sms', async (req, res) => {
     SELECT id, name, company_name, phone, booking_slug, twilio_number,
            onboarding_steps, sms_conversation, sms_welcome_sent,
            sms_power_message_sent, sms_calendar_training_sent, business_phone,
-           payment_status, pricing_bucket, trial_offer_sent_at
+           payment_status, pricing_bucket, trial_offer_sent_at, stripe_customer_id
     FROM contractors
     WHERE twilio_number = ? AND is_active = 1
   `).get(To);
@@ -351,6 +351,32 @@ router.post('/inbound-sms', async (req, res) => {
       console.error('[TWILIO-SMS] Trial-offer YES handler error:', err.message);
       logError('twilio.inbound-sms.trialOfferYes', err, { contractorId: contractor.id, phone: From, context: { body: Body } }).catch(() => {});
       // fall through to the normal AI handler rather than dropping the message
+    }
+
+    // ── Paid contractor asks to cancel → Stripe billing-portal link ───────────
+    // Deterministic, not left to the AI. Requires a billing word alongside the
+    // cancel word so "cancel my 2pm appointment" never triggers it.
+    try {
+      const CANCEL_BILLING_RE = /\b(cancel|end|stop|quit|close)\b[^.?!]*\b(subscription|membership|account|plan|billing|payments?|tractify)\b|\bstop (charging|billing) me\b|\bunsubscribe\b/i;
+      if (
+        CANCEL_BILLING_RE.test(Body || '') &&
+        contractor.payment_status === 'paid' &&
+        contractor.stripe_customer_id
+      ) {
+        const { sendBillingPortalLink } = require('../services/stripe');
+        const result = await sendBillingPortalLink(contractor, twilioClient);
+        if (!result.ok) {
+          await twilioClient.messages.create({
+            to: From, from: To,
+            body: `Got your request — thank you. I've flagged it to our team and we'll take care of it within one business day.`,
+          }).catch(() => {});
+        }
+        res.type('text/xml');
+        return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response/>`);
+      }
+    } catch (err) {
+      console.error('[TWILIO-SMS] Cancel-billing handler error:', err.message);
+      logError('twilio.inbound-sms.cancelBilling', err, { contractorId: contractor.id, phone: From, context: { body: Body } }).catch(() => {});
     }
 
     try {
