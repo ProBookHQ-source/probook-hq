@@ -182,14 +182,25 @@ async function loadContractor(id) {
   return rows[0] || null;
 }
 
-/** Process one verified Stripe event. */
+/** Process one verified Stripe event. If processing throws, the claim is released
+ *  so Stripe's automatic retry actually reprocesses it (otherwise the retry would
+ *  see the claim, skip the work, and return 200 — silently losing the event). */
 async function handleWebhookEvent(event) {
-  const { sendStripeAlertToJose } = require('./notifications');
-
   if (!(await claimEvent(event.id))) {
     console.log(`[STRIPE] Duplicate event ignored: ${event.id}`);
     return;
   }
+  try {
+    await processWebhookEvent(event);
+  } catch (err) {
+    console.error(`[STRIPE] Processing failed for ${event.type} ${event.id}: ${err.stack || err.message}`);
+    try { await db.query(`DELETE FROM twilio_webhook_events WHERE sid = $1`, [`stripe:${event.id}`]); } catch (_) {}
+    throw err;
+  }
+}
+
+async function processWebhookEvent(event) {
+  const { sendStripeAlertToJose } = require('./notifications');
 
   switch (event.type) {
     case 'checkout.session.completed': {
