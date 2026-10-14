@@ -173,10 +173,10 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-3">11. Termination</h2>
             <p>
-              Either party may terminate the service relationship at any time with 30 days written notice. Tractify may suspend or terminate your account immediately without notice for: material breach of these Terms, non-payment, illegal activity, or conduct that threatens the integrity of the platform or the safety of other users.
+              You may cancel at any time as described in Section 4 (Cancellation); cancellation takes effect at the end of your current paid billing period. Tractify may suspend or terminate your account immediately without notice for: material breach of these Terms, non-payment, illegal activity, or conduct that threatens the integrity of the platform or the safety of other users.
             </p>
             <p className="mt-3">
-              Upon termination: your subdomain and booking site will be deactivated, your Twilio number may be released and reassigned, and your access to the contractor portal will be revoked. No refund will be issued for fees already paid.
+              Upon termination: your Tractify number and booking system stop working, and you are responsible for turning off any call forwarding to that number. Your Tractify number is held out of service for a waiting period and then returned to our pool, so a returning customer is given a new number. No refund will be issued for fees already paid.
             </p>
           </section>
 
