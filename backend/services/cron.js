@@ -622,6 +622,22 @@ cron.schedule('0 2 * * *', async () => {
   }
 });
 
+// ── Twilio pool — quarantine sweep ────────────────────────────────────────────
+// Runs daily at 2:30am. A churned contractor's number is held 60 days
+// (services/twilioPool.js quarantinePoolNumber). Past that date: quiet for 14
+// days → back to 'available'; still getting calls → extend; still noisy 90+
+// days after churn → retired. See sweepQuarantinedNumbers for the rules.
+cron.schedule('30 2 * * *', async () => {
+  try {
+    const r = await require('./twilioPool').sweepQuarantinedNumbers();
+    if (r.released || r.extended || r.retired) {
+      console.log(`⏰ [cron] Quarantine sweep — released: ${r.released}, extended: ${r.extended}, retired: ${r.retired}`);
+    }
+  } catch (err) {
+    console.error('⏰ [cron] Quarantine sweep error:', err.message);
+  }
+});
+
 // ── Twilio webhook dedup table prune ──────────────────────────────────────────
 // Runs daily at 2:15am. twilio_webhook_events (session 29 continued — see
 // routes/twilio.js's claimWebhook()) exists purely to catch a retried webhook

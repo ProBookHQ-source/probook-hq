@@ -1155,6 +1155,8 @@ async function sendStripeAlertToJose({ kind, contractor, detail = '' }) {
     cancel_scheduled:      { label: '🛑 CANCELLATION SCHEDULED', color: '#d97706', headline: `${company} cancelled — runs to end of paid period` },
     cancel_undone:         { label: '↩️ CANCELLATION UNDONE', color: '#16a34a', headline: `${company} reversed their cancellation` },
     cancel_requested:      { label: '📩 CANCEL REQUESTED',   color: '#d97706', headline: `${company} asked to cancel — billing link sent` },
+    forwarding_still_on:   { label: '📞 FORWARDING STILL ON', color: '#d97706', headline: `${company} — calls still hitting their old number` },
+    number_retired:        { label: '🗑️ NUMBER RETIRED',     color: '#6b7280', headline: `${company}'s old number retired from the pool` },
     portal_failed:         { label: '⚠️ ACTION NEEDED',      color: '#dc2626', headline: `${company} asked to cancel but the billing link failed` },
   };
   const m = META[kind] || { label: 'STRIPE', color: '#6366f1', headline: company };

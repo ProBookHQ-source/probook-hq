@@ -61,12 +61,12 @@ export default function TermsOfService() {
               Tractify offers a free trial for qualifying contractors. The free trial includes:
             </p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
-              <li>A fully deployed booking website on a Tractify subdomain</li>
+              <li>A dedicated Tractify phone number with missed-call text-back and automated text-message booking</li>
               <li>Access to all platform features during the trial period</li>
-              <li>Traffic and lead delivery via Tractify's multi-channel system</li>
+              <li>Booking delivery via Tractify's multi-channel system</li>
             </ul>
             <p className="mt-3">
-              <strong>Important:</strong> The free trial is defined as the delivery of up to <strong>5 confirmed bookings</strong> (appointments scheduled through the platform) — not 5 completed or closed jobs. A "booking" occurs when a homeowner selects a time slot and confirms an appointment via the Tractify platform. Whether that appointment results in a completed service or revenue is outside Tractify's control.
+              <strong>Important:</strong> The free trial lasts until the earlier of (a) <strong>5 confirmed bookings</strong> (appointments scheduled through the platform; cancelled appointments do not count) or (b) approximately 21 days after your number goes live. A booking is not a completed or closed job. A "booking" occurs when a homeowner selects a time slot and confirms an appointment via the Tractify platform. Whether that appointment results in a completed service or revenue is outside Tractify's control.
             </p>
             <p className="mt-3">
               We make reasonable efforts to deliver trial bookings through paid advertising, missed call automation, and other channels. We do not guarantee a specific number of bookings within a specific timeframe, as results depend on factors including contractor availability, service area, response rates, and market conditions.
@@ -79,17 +79,20 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-3">4. Paid Services and Payment Terms</h2>
             <p>
-              After the free trial concludes (at or around 5 confirmed bookings), continued use of the Tractify platform requires payment:
+              After the free trial concludes, continued use of the Tractify platform requires payment. Before you are charged, we will text you the exact amounts for your business type. Pricing is set by business category and is currently:
             </p>
             <ul className="list-disc pl-5 space-y-2 mt-2">
-              <li><strong>Setup fee:</strong> $2,000 (one-time, non-refundable after platform deployment and activation)</li>
-              <li><strong>Monthly retainer:</strong> $800/month (subject to increase based on services and market tier after the initial period)</li>
+              <li><strong>Setup fee:</strong> $500, charged once at signup for paid service. The setup fee is non-refundable.</li>
+              <li><strong>Monthly subscription:</strong> $500 per month (lawn care and pest control) or $1,500 per month (all other categories), as stated in the offer we send you.</li>
             </ul>
             <p className="mt-3">
-              Payment is processed via Stripe. By providing payment information, you authorize Tractify to charge the applicable fees. All fees are in USD. Failure to pay within 7 days of a due invoice may result in suspension of services.
+              The setup fee and the first month are both charged at checkout. After that, the subscription renews automatically each month at the then-current rate shown to you at checkout until you cancel. There is no long-term contract; service is month to month. We will notify you before any change to your rate takes effect.
             </p>
             <p className="mt-3">
-              Monthly retainers are billed in advance on a recurring basis. You may cancel at any time with 30 days written notice to <a href={`mailto:${CONTACT_EMAIL}`} className="text-indigo-600 hover:underline">{CONTACT_EMAIL}</a>. No refunds are provided for partial billing periods.
+              Payment is processed securely by Stripe. By completing checkout, you authorize Tractify to charge the applicable fees to your payment method, including recurring monthly charges. All fees are in USD. If a payment fails, we may suspend services until it is resolved.
+            </p>
+            <p className="mt-3">
+              <strong>Cancellation:</strong> You may cancel at any time by texting us that you want to cancel (we will send you a secure link to manage your subscription) or by emailing <a href={`mailto:${CONTACT_EMAIL}`} className="text-indigo-600 hover:underline">{CONTACT_EMAIL}</a>. Cancellation takes effect at the end of your current paid billing period; you keep service until then and will not be charged again. After that your Tractify number and booking system stop working, and you are responsible for turning off any call forwarding to that number. Your Tractify number is held out of service for a waiting period and then returned to our pool, where it may be assigned to another customer, so it cannot be held for you. If you return, you will be given a new number. No refunds or credits are given for unused portions of a billing period.
             </p>
           </section>
 

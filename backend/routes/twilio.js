@@ -87,6 +87,20 @@ router.post('/missed-call', async (req, res) => {
   `).get(To);
 
   if (!contractor) {
+    // Quarantined number (a churned contractor's, being held before reuse): their
+    // forwarding is still on. Record it, alert them, and give the caller a clear
+    // "not in service" message instead of dead air.
+    try {
+      const pool = require('../services/twilioPool');
+      const q = await pool.getQuarantinedByNumber(To);
+      if (q) {
+        pool.recordQuarantinedContact(q, { channel: 'call', from: From }).catch(() => {});
+        res.type('text/xml');
+        return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="alice">Sorry, this number is no longer in service.</Say><Hangup/></Response>`);
+      }
+    } catch (e) {
+      console.error('[TWILIO] Quarantine check failed:', e.message);
+    }
     console.warn(`[TWILIO] No active contractor found for Twilio number: ${To}`);
     res.type('text/xml');
     return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
@@ -284,6 +298,25 @@ router.post('/inbound-sms', async (req, res) => {
   `).get(To);
 
   if (!contractor) {
+    // Quarantined number: record the contact; if it's the former contractor
+    // texting, tell them how to turn forwarding off. Everyone else is ignored.
+    try {
+      const pool = require('../services/twilioPool');
+      const q = await pool.getQuarantinedByNumber(To);
+      if (q) {
+        const digits = (n) => (n || '').replace(/\D/g, '').slice(-10);
+        const former = q.former_contractor_id
+          ? await db.prepare('SELECT phone FROM contractors WHERE id = ?').get(q.former_contractor_id) : null;
+        const fromFormer = former && digits(former.phone) && digits(former.phone) === digits(req.body.From);
+        await db.query(`UPDATE twilio_number_pool SET last_inbound_at = NOW() WHERE id = $1`, [q.id]);
+        res.type('text/xml');
+        if (!fromFormer) return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response/>`);
+        const msg = `Your Tractify subscription has ended, so this number is off. To turn off call forwarding: dial ##61# (AT&T or T-Mobile) or *73 (Verizon), then press call. Questions? support@tractifyhq.com`;
+        return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Message>${msg}</Message></Response>`);
+      }
+    } catch (e) {
+      console.error('[TWILIO-SMS] Quarantine check failed:', e.message);
+    }
     console.warn(`[TWILIO-SMS] No active contractor for number: ${To}`);
     res.type('text/xml');
     return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response/>`);

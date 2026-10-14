@@ -376,7 +376,8 @@ db._ready.then(async () => {
   // backend/services/twilioPool.js and CLAUDE.md "⚡ PICK UP HERE" STEP 2a.
   // status: 'available' (ready to assign) | 'assigned' (a trial contractor is
   // using it) | 'converted' (a paying contractor's — permanent, never reused)
-  // | 'disabled' (bad number, pulled from rotation by hand).
+  // | 'disabled' (bad number, pulled from rotation by hand)
+  // | 'quarantined' (churned contractor's number, held before reuse — see below).
   await db.query(`
     CREATE TABLE IF NOT EXISTS twilio_number_pool (
       id TEXT PRIMARY KEY,
@@ -390,6 +391,13 @@ db._ready.then(async () => {
     )
   `);
   await db.query(`ALTER TABLE contractors ADD COLUMN IF NOT EXISTS twilio_pool_id TEXT REFERENCES twilio_number_pool(id) ON DELETE SET NULL`);
+  // Oct 13 2026 — 'quarantined' status: a churned contractor's number is held for
+  // 60 days (still ours, never assigned) so a contractor who forgot to turn off
+  // call forwarding doesn't route their customers into a NEW contractor's system.
+  await db.query(`ALTER TABLE twilio_number_pool ADD COLUMN IF NOT EXISTS quarantined_until TIMESTAMPTZ`);
+  await db.query(`ALTER TABLE twilio_number_pool ADD COLUMN IF NOT EXISTS former_contractor_id TEXT`);
+  await db.query(`ALTER TABLE twilio_number_pool ADD COLUMN IF NOT EXISTS last_inbound_at TIMESTAMPTZ`);
+  await db.query(`ALTER TABLE twilio_number_pool ADD COLUMN IF NOT EXISTS quarantine_alert_sent_at TIMESTAMPTZ`);
   // payment_status is documented throughout CLAUDE.md (Stripe conversion, churn/
   // offboarding) but was never actually migrated into the DB before now — added
   // here because the pool's "gone dark" cron sweep below needs it to never touch

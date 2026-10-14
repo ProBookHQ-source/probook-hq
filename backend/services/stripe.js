@@ -114,7 +114,7 @@ async function sendPaymentLink(contractor, twilioClient) {
  * Paid contractor asks to cancel / change their card → text them a Stripe
  * hosted billing-portal link (they cancel themselves there; the existing
  * customer.subscription.deleted webhook then marks them churned + starts the
- * 6-month number hold). Requires the Customer Portal to be configured once in
+ * 60-day number quarantine). Requires the Customer Portal to be configured once in
  * Stripe (Settings → Billing → Customer portal). Never throws; on failure it
  * alerts Jose and tells the contractor honestly that the team will handle it.
  */
@@ -292,19 +292,27 @@ async function processWebhookEvent(event) {
       const contractorId = sub.metadata?.contractor_id;
       if (!contractorId) return;
       await db.query(
-        `UPDATE contractors SET payment_status = 'churned', twilio_hold_until = NOW() + INTERVAL '6 months' WHERE id = $1`,
+        `UPDATE contractors SET payment_status = 'churned' WHERE id = $1`,
         [contractorId]
       );
       const contractor = await loadContractor(contractorId);
       if (contractor) {
         try {
           await textContractor(contractor,
-            `Your Tractify subscription has now ended, so your number and booking system are off. Thanks for giving us a shot.\n\n${FORWARDING_OFF_TEXT}\n\nWant back in? Email support@tractifyhq.com and we'll get you set up (your number is held for 6 months).`,
+            `Your Tractify subscription has now ended, so your number and booking system are off. Thanks for giving us a shot.\n\n${FORWARDING_OFF_TEXT}\n\nWant back in? Email support@tractifyhq.com and we'll get you set up with a new number.`,
             '(system: subscription ended, forwarding-off instructions sent)');
         } catch (e) { console.error('[STRIPE] Subscription-ended SMS failed:', e.message); }
+        // Final SMS is sent (it needed the number as from-number). Now put the
+        // number into 60-day quarantine: still ours, never assigned, so a former
+        // contractor with forwarding still on can't route calls into a new
+        // contractor's system. A daily cron returns it to the pool when quiet.
+        let quarantined = false;
+        try {
+          quarantined = await require('./twilioPool').quarantinePoolNumber(contractorId, 'subscription_ended');
+        } catch (e) { console.error('[STRIPE] Pool quarantine failed:', e.message); }
         await sendStripeAlertToJose({
           kind: 'subscription_ended', contractor,
-          detail: 'Marked churned with a 6-month number hold. Deactivate the contractor manually if appropriate (is_active is NOT changed automatically).',
+          detail: `Marked churned. ${quarantined ? 'Their Twilio number is quarantined for 60 days, then returns to the pool once it has been quiet for 14 days.' : 'No pool number was quarantined (none found or it failed) — check the pool.'} Deactivate the contractor manually if appropriate (is_active is NOT changed automatically).`,
         }).catch(() => {});
       }
       return;
