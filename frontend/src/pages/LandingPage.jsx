@@ -439,7 +439,7 @@ const FAQS = [
   },
   {
     q: 'What if I already use another tool for missed calls or booking?',
-    a: "Tractify doesn't replace your calendar or your phone — it sits on top of a forwarded number and catches what you're already missing. Most contractors run it alongside whatever they already have.",
+    a: "Tractify doesn't replace your calendar or your phone — it sits on top of a forwarded number and catches the calls you're already missing, so it works alongside whatever you already use.",
   },
   {
     q: 'What does it cost?',
@@ -545,7 +545,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center relative">
           <div className="text-center md:text-left">
             <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-white text-xs sm:text-sm font-semibold px-3.5 py-1.5 rounded-full mb-7 sm:mb-9">
-              Bringing billion-dollar solutions to everyday contractors
+              Missed calls, handled by text
             </div>
             <h1 className="font-display text-white text-5xl sm:text-7xl leading-[0.95] tracking-tight mb-6 sm:mb-8">
               STOP MISSING<br />CALLS.
@@ -857,7 +857,7 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="p-5">
-                  <p className="text-white font-bold text-base">The AI</p>
+                  <p className="text-white font-bold text-base">Tractify</p>
                   <p className="text-white/75 text-xs font-semibold uppercase tracking-wide mb-2">Every Missed Call</p>
                   <p className="text-white/60 text-xs leading-relaxed">Reads the text, books the job, alerts the contractor. No breaks, no day off.</p>
                 </div>
