@@ -82,17 +82,17 @@ export default function TermsOfService() {
               After the free trial concludes, continued use of the Tractify platform requires payment. Before you are charged, we will text you the exact amounts for your business type. Pricing is set by business category and is currently:
             </p>
             <ul className="list-disc pl-5 space-y-2 mt-2">
-              <li><strong>Setup fee:</strong> $500, charged once at signup for paid service. The setup fee is non-refundable.</li>
+              <li><strong>Setup fee:</strong> $500, charged once, only if you choose to continue after the free trial. It covers setting up your number, booking system, and channels, and is shown to you in the offer text before you pay. The setup fee is non-refundable once paid.</li>
               <li><strong>Monthly subscription:</strong> $500 per month (lawn care and pest control) or $1,500 per month (all other categories), as stated in the offer we send you.</li>
             </ul>
             <p className="mt-3">
-              The setup fee and the first month are both charged at checkout. After that, the subscription renews automatically each month at the then-current rate shown to you at checkout until you cancel. There is no long-term contract; service is month to month. We will notify you before any change to your rate takes effect.
+              The setup fee and the first month are both charged at checkout. <strong>After that, your subscription renews automatically every month, and your payment method is charged the monthly amount shown at checkout, until you cancel.</strong> There is no long-term contract; service is month to month. If we change your monthly rate, we will tell you by text or email at least 30 days before the new rate takes effect, and you may cancel before then to avoid the new rate.
             </p>
             <p className="mt-3">
               Payment is processed securely by Stripe. By completing checkout, you authorize Tractify to charge the applicable fees to your payment method, including recurring monthly charges. All fees are in USD. If a payment fails, we may suspend services until it is resolved.
             </p>
             <p className="mt-3">
-              <strong>Cancellation:</strong> You may cancel at any time by texting us that you want to cancel (we will send you a secure link to manage your subscription) or by emailing <a href={`mailto:${CONTACT_EMAIL}`} className="text-indigo-600 hover:underline">{CONTACT_EMAIL}</a>. Cancellation takes effect at the end of your current paid billing period; you keep service until then and will not be charged again. After that your Tractify number and booking system stop working, and you are responsible for turning off any call forwarding to that number. Your Tractify number is held out of service for a waiting period and then returned to our pool, where it may be assigned to another customer, so it cannot be held for you. If you return, you will be given a new number. No refunds or credits are given for unused portions of a billing period.
+              <strong>Cancellation:</strong> You may cancel at any time by texting us that you want to cancel (we will send you a secure link to manage your subscription) or by emailing <a href={`mailto:${CONTACT_EMAIL}`} className="text-indigo-600 hover:underline">{CONTACT_EMAIL}</a>. Cancellation takes effect at the end of your current paid billing period; you keep service until then and will not be charged again. We will confirm your cancellation and your end date by text or email. After that date your Tractify number and booking system stop working, and you are responsible for turning off any call forwarding to that number (we will text you the steps). Your Tractify number is held out of service for at least 60 days and then may be returned to our pool and assigned to another customer, so it cannot be held for you. If you return, you will be given a new number. No refunds or credits are given for unused portions of a billing period.
             </p>
           </section>
 
@@ -186,7 +186,7 @@ export default function TermsOfService() {
               We encourage you to contact us first at <a href={`mailto:${CONTACT_EMAIL}`} className="text-indigo-600 hover:underline">{CONTACT_EMAIL}</a> with any concern. Most issues can be resolved quickly and informally.
             </p>
             <p className="mt-3">
-              Any dispute that cannot be resolved informally shall be submitted to binding arbitration under the rules of the American Arbitration Association (AAA), conducted in Washington state. You waive the right to a jury trial and the right to participate in a class action lawsuit related to our services.
+              If we cannot resolve a dispute informally within 30 days of your written notice to us, it shall be submitted to binding arbitration under the rules of the American Arbitration Association (AAA), conducted in Washington state (or remotely, if both parties agree). Either party may instead bring an individual claim in small claims court if it qualifies. You waive the right to a jury trial and the right to participate in a class action lawsuit related to our services. You may opt out of arbitration by emailing <a href={`mailto:${CONTACT_EMAIL}`} className="text-indigo-600 hover:underline">{CONTACT_EMAIL}</a> within 30 days of first agreeing to these Terms.
             </p>
           </section>
 
@@ -200,7 +200,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-3">14. Changes to Terms</h2>
             <p>
-              We may update these Terms from time to time. We will notify active contractors of material changes by email at least 14 days before they take effect. Continued use of the platform after changes take effect constitutes acceptance of the new Terms.
+              We may update these Terms from time to time. We will notify active contractors of material changes by text or email at least 14 days before they take effect. Continued use of the platform after changes take effect constitutes acceptance of the new Terms.
             </p>
           </section>
 
